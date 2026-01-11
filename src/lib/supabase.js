@@ -1,37 +1,130 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
-// Create Supabase client only if credentials are valid
-export const supabase = (supabaseUrl && supabaseKey && !supabaseUrl.includes('your-project'))
-    ? createClient(supabaseUrl, supabaseKey)
-    : null
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Check if Supabase is properly configured
-export const isSupabaseConfigured = () => {
-    return supabase !== null
+export function isSupabaseConfigured() {
+  return supabaseUrl && supabaseAnonKey && supabaseUrl.includes('supabase.co')
 }
 
-// Mock AI search function (to be replaced with real AI later)
-export const aiSearch = async (query, items) => {
-    // Simple semantic search simulation
-    const lowerQuery = query.toLowerCase()
-    const queryWords = lowerQuery.split(/\s+/).filter(word => word.length > 1)
+// Prompts API
+export const promptsApi = {
+  async getAll() {
+    if (!isSupabaseConfigured()) {
+      return JSON.parse(localStorage.getItem('prompts') || '[]')
+    }
+    const { data, error } = await supabase
+      .from('prompts')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    return data || []
+  },
 
-    return items.filter(item => {
-        const content = `${item.title || ''} ${item.content || ''} ${item.tags?.join(' ') || ''}`.toLowerCase()
-        
-        // Check if any word matches
-        return queryWords.some(word => content.includes(word))
-    }).sort((a, b) => {
-        // Sort by relevance (number of matching words)
-        const aMatches = queryWords.filter(word => 
-            `${a.title || ''} ${a.content || ''}`.toLowerCase().includes(word)
-        ).length
-        const bMatches = queryWords.filter(word => 
-            `${b.title || ''} ${b.content || ''}`.toLowerCase().includes(word)
-        ).length
-        return bMatches - aMatches
-    })
+  async create(prompt) {
+    if (!isSupabaseConfigured()) {
+      const prompts = JSON.parse(localStorage.getItem('prompts') || '[]')
+      const newPrompt = { ...prompt, id: Date.now(), created_at: new Date().toISOString() }
+      prompts.unshift(newPrompt)
+      localStorage.setItem('prompts', JSON.stringify(prompts))
+      return newPrompt
+    }
+    const { data, error } = await supabase
+      .from('prompts')
+      .insert([{ title: prompt.title, content: prompt.content, tags: prompt.tags || [] }])
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async update(id, updates) {
+    if (!isSupabaseConfigured()) {
+      const prompts = JSON.parse(localStorage.getItem('prompts') || '[]')
+      const idx = prompts.findIndex(p => p.id === id)
+      if (idx !== -1) {
+        prompts[idx] = { ...prompts[idx], ...updates }
+        localStorage.setItem('prompts', JSON.stringify(prompts))
+        return prompts[idx]
+      }
+      return null
+    }
+    const { data, error } = await supabase
+      .from('prompts')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async delete(id) {
+    if (!isSupabaseConfigured()) {
+      const prompts = JSON.parse(localStorage.getItem('prompts') || '[]')
+      const filtered = prompts.filter(p => p.id !== id)
+      localStorage.setItem('prompts', JSON.stringify(filtered))
+      return true
+    }
+    const { error } = await supabase
+      .from('prompts')
+      .delete()
+      .eq('id', id)
+    if (error) throw error
+    return true
+  }
+}
+
+// Guides API
+export const guidesApi = {
+  async getAll() {
+    if (!isSupabaseConfigured()) {
+      return JSON.parse(localStorage.getItem('guides') || '[]')
+    }
+    const { data, error } = await supabase
+      .from('guides')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    return data || []
+  },
+
+  async create(guide) {
+    if (!isSupabaseConfigured()) {
+      const guides = JSON.parse(localStorage.getItem('guides') || '[]')
+      const newGuide = { ...guide, id: Date.now(), created_at: new Date().toISOString() }
+      guides.unshift(newGuide)
+      localStorage.setItem('guides', JSON.stringify(guides))
+      return newGuide
+    }
+    const { data, error } = await supabase
+      .from('guides')
+      .insert([{
+        title: guide.title,
+        filename: guide.filename,
+        content: guide.content,
+        keywords: guide.keywords || []
+      }])
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async delete(id) {
+    if (!isSupabaseConfigured()) {
+      const guides = JSON.parse(localStorage.getItem('guides') || '[]')
+      const filtered = guides.filter(g => g.id !== id)
+      localStorage.setItem('guides', JSON.stringify(filtered))
+      return true
+    }
+    const { error } = await supabase
+      .from('guides')
+      .delete()
+      .eq('id', id)
+    if (error) throw error
+    return true
+  }
 }
