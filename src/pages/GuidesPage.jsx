@@ -173,13 +173,13 @@ function GuidesPage() {
           <div className="w-32"></div>
         </div>
 
-        {/* Guide Content - Rendered HTML */}
+        {/* Guide Content - Rendered HTML with full JS support */}
         <div className="flex-1 overflow-auto">
           <iframe
             srcDoc={selectedGuide.content}
             title={selectedGuide.title}
             className="w-full h-full border-0"
-            sandbox="allow-same-origin"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
           />
         </div>
       </div>

@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Plus, Copy, Trash2, Search, Check, X, Edit2 } from 'lucide-react'
+import { Plus, Copy, Trash2, Search, Check, X, Edit2, Code, FileText } from 'lucide-react'
+import { marked } from 'marked'
 import { promptsApi } from '../lib/supabase'
+
+// Configure marked for safe rendering
+marked.setOptions({
+  breaks: true,
+  gfm: true
+})
 
 function PromptsPage() {
   const [prompts, setPrompts] = useState([])
@@ -9,9 +16,11 @@ function PromptsPage() {
   const [showModal, setShowModal] = useState(false)
   const [editingPrompt, setEditingPrompt] = useState(null)
   const [copiedId, setCopiedId] = useState(null)
+  const [viewMode, setViewMode] = useState({})
   const [formData, setFormData] = useState({
     title: '',
     content: '',
+    markdown: '',
     tags: ''
   })
 
@@ -39,23 +48,22 @@ function PromptsPage() {
         .map(t => t.trim())
         .filter(Boolean)
 
+      const promptData = {
+        title: formData.title,
+        content: formData.content,
+        markdown: formData.markdown,
+        tags
+      }
+
       if (editingPrompt) {
-        await promptsApi.update(editingPrompt.id, {
-          title: formData.title,
-          content: formData.content,
-          tags
-        })
+        await promptsApi.update(editingPrompt.id, promptData)
       } else {
-        await promptsApi.create({
-          title: formData.title,
-          content: formData.content,
-          tags
-        })
+        await promptsApi.create(promptData)
       }
 
       setShowModal(false)
       setEditingPrompt(null)
-      setFormData({ title: '', content: '', tags: '' })
+      setFormData({ title: '', content: '', markdown: '', tags: '' })
       loadPrompts()
     } catch (err) {
       console.error('Error saving prompt:', err)
@@ -77,21 +85,22 @@ function PromptsPage() {
     setEditingPrompt(prompt)
     setFormData({
       title: prompt.title,
-      content: prompt.content,
+      content: prompt.content || '',
+      markdown: prompt.markdown || '',
       tags: (prompt.tags || []).join(', ')
     })
     setShowModal(true)
   }
 
-  function handleCopy(prompt) {
-    navigator.clipboard.writeText(prompt.content)
-    setCopiedId(prompt.id)
+  function handleCopy(text, id) {
+    navigator.clipboard.writeText(text || '')
+    setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
   }
 
   function openNewModal() {
     setEditingPrompt(null)
-    setFormData({ title: '', content: '', tags: '' })
+    setFormData({ title: '', content: '', markdown: '', tags: '' })
     setShowModal(true)
   }
 
@@ -100,8 +109,9 @@ function PromptsPage() {
     if (!searchQuery) return true
     const q = searchQuery.toLowerCase()
     return (
-      p.title.toLowerCase().includes(q) ||
-      p.content.toLowerCase().includes(q) ||
+      (p.title || '').toLowerCase().includes(q) ||
+      (p.content || '').toLowerCase().includes(q) ||
+      (p.markdown || '').toLowerCase().includes(q) ||
       (p.tags || []).some(t => t.toLowerCase().includes(q))
     )
   })
@@ -109,13 +119,17 @@ function PromptsPage() {
   // Highlight search matches
   function highlight(text) {
     if (!searchQuery || !text) return text
-    const regex = new RegExp(`(${searchQuery})`, 'gi')
-    const parts = text.split(regex)
-    return parts.map((part, i) =>
-      part.toLowerCase() === searchQuery.toLowerCase()
-        ? <mark key={i} className="bg-yellow-300 px-0.5">{part}</mark>
-        : part
-    )
+    try {
+      const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+      const parts = String(text).split(regex)
+      return parts.map((part, i) =>
+        part.toLowerCase() === searchQuery.toLowerCase()
+          ? <mark key={i} className="bg-yellow-300 px-0.5">{part}</mark>
+          : part
+      )
+    } catch {
+      return text
+    }
   }
 
   return (
@@ -167,69 +181,128 @@ function PromptsPage() {
       )}
 
       {/* Prompts Grid */}
-      <div className="grid gap-4">
-        {filtered.map(prompt => (
-          <div
-            key={prompt.id}
-            className="border-2 border-black p-6 hover:shadow-lg transition-shadow"
-          >
-            <div className="flex justify-between items-start mb-3">
-              <h3 className="text-xl font-bold">{highlight(prompt.title)}</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleCopy(prompt)}
-                  className="p-2 hover:bg-gray-100 transition-colors"
-                  title="Copy"
-                >
-                  {copiedId === prompt.id ? (
-                    <Check size={18} className="text-green-600" />
-                  ) : (
-                    <Copy size={18} />
-                  )}
-                </button>
-                <button
-                  onClick={() => handleEdit(prompt)}
-                  className="p-2 hover:bg-gray-100 transition-colors"
-                  title="Edit"
-                >
-                  <Edit2 size={18} />
-                </button>
-                <button
-                  onClick={() => handleDelete(prompt.id)}
-                  className="p-2 hover:bg-red-50 text-red-600 transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Content - show as preformatted text */}
-            <pre className="whitespace-pre-wrap font-mono text-sm bg-gray-50 p-4 mb-4 border border-gray-200 max-h-48 overflow-auto">
-              {highlight(prompt.content)}
-            </pre>
-
-            {/* Tags */}
-            {prompt.tags && prompt.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {prompt.tags.map((tag, i) => (
-                  <span
-                    key={i}
-                    className="px-3 py-1 bg-gray-100 text-sm font-medium"
+      <div className="grid gap-6">
+        {filtered.map(prompt => {
+          const currentView = viewMode[prompt.id] || 'content'
+          const hasMarkdown = prompt.markdown && prompt.markdown.trim()
+          
+          return (
+            <div
+              key={prompt.id}
+              className="border-2 border-black p-6 hover:shadow-lg transition-shadow"
+            >
+              {/* Header */}
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-xl font-bold">{highlight(prompt.title)}</h3>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => handleEdit(prompt)}
+                    className="p-2 hover:bg-gray-100 transition-colors"
+                    title="Edit"
                   >
-                    {highlight(tag)}
-                  </span>
-                ))}
+                    <Edit2 size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(prompt.id)}
+                    className="p-2 hover:bg-red-50 text-red-600 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
-        ))}
+
+              {/* View Toggle */}
+              {hasMarkdown && (
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => setViewMode(prev => ({ ...prev, [prompt.id]: 'content' }))}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
+                      currentView === 'content' 
+                        ? 'bg-black text-white' 
+                        : 'border border-black hover:bg-gray-100'
+                    }`}
+                  >
+                    <Code size={16} />
+                    Prompt
+                  </button>
+                  <button
+                    onClick={() => setViewMode(prev => ({ ...prev, [prompt.id]: 'markdown' }))}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
+                      currentView === 'markdown' 
+                        ? 'bg-black text-white' 
+                        : 'border border-black hover:bg-gray-100'
+                    }`}
+                  >
+                    <FileText size={16} />
+                    Notes
+                  </button>
+                </div>
+              )}
+
+              {/* Content Display */}
+              {currentView === 'content' && prompt.content && (
+                <div className="relative group">
+                  <pre className="whitespace-pre-wrap font-mono text-sm bg-gray-50 p-4 border border-gray-200 max-h-64 overflow-auto">
+                    {highlight(prompt.content)}
+                  </pre>
+                  <button
+                    onClick={() => handleCopy(prompt.content, `content-${prompt.id}`)}
+                    className="absolute top-2 right-2 p-2 bg-white border border-gray-300 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Copy prompt"
+                  >
+                    {copiedId === `content-${prompt.id}` ? (
+                      <Check size={16} className="text-green-600" />
+                    ) : (
+                      <Copy size={16} />
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* Markdown Display */}
+              {currentView === 'markdown' && hasMarkdown && (
+                <div className="relative group">
+                  <div 
+                    className="prose prose-sm max-w-none bg-gray-50 p-4 border border-gray-200 max-h-64 overflow-auto"
+                    dangerouslySetInnerHTML={{ __html: marked.parse(prompt.markdown) }}
+                  />
+                  <button
+                    onClick={() => handleCopy(prompt.markdown, `markdown-${prompt.id}`)}
+                    className="absolute top-2 right-2 p-2 bg-white border border-gray-300 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Copy markdown"
+                  >
+                    {copiedId === `markdown-${prompt.id}` ? (
+                      <Check size={16} className="text-green-600" />
+                    ) : (
+                      <Copy size={16} />
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* Tags */}
+              {prompt.tags && prompt.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {prompt.tags.map((tag, i) => (
+                    <span
+                      key={i}
+                      className="px-3 py-1 bg-gray-100 text-sm font-medium"
+                    >
+                      {highlight(tag)}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-auto">
+          <div className="bg-white w-full max-w-3xl max-h-[90vh] overflow-auto">
             <div className="flex justify-between items-center p-6 border-b-2 border-black">
               <h2 className="text-2xl font-bold">
                 {editingPrompt ? 'Edit Prompt' : 'New Prompt'}
@@ -244,7 +317,7 @@ function PromptsPage() {
 
             <form onSubmit={handleSubmit} className="p-6">
               <div className="mb-4">
-                <label className="block font-bold mb-2">Title</label>
+                <label className="block font-bold mb-2">Title *</label>
                 <input
                   type="text"
                   value={formData.title}
@@ -256,15 +329,39 @@ function PromptsPage() {
               </div>
 
               <div className="mb-4">
-                <label className="block font-bold mb-2">Content</label>
+                <label className="block font-bold mb-2">
+                  <span className="flex items-center gap-2">
+                    <Code size={18} />
+                    Prompt Content *
+                  </span>
+                </label>
                 <textarea
                   value={formData.content}
                   onChange={e => setFormData({ ...formData, content: e.target.value })}
                   className="w-full px-4 py-3 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black font-mono text-sm"
-                  rows={10}
-                  placeholder="Enter your prompt content..."
+                  rows={8}
+                  placeholder="Enter your prompt content here..."
                   required
                 />
+              </div>
+
+              <div className="mb-4">
+                <label className="block font-bold mb-2">
+                  <span className="flex items-center gap-2">
+                    <FileText size={18} />
+                    Notes / Markdown (optional)
+                  </span>
+                </label>
+                <textarea
+                  value={formData.markdown}
+                  onChange={e => setFormData({ ...formData, markdown: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black font-mono text-sm"
+                  rows={6}
+                  placeholder="Add notes, instructions, or documentation in Markdown format..."
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Supports Markdown: **bold**, *italic*, `code`, - lists, etc.
+                </p>
               </div>
 
               <div className="mb-6">

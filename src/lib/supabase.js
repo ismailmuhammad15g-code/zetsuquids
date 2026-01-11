@@ -33,7 +33,12 @@ export const promptsApi = {
     }
     const { data, error } = await supabase
       .from('prompts')
-      .insert([{ title: prompt.title, content: prompt.content, tags: prompt.tags || [] }])
+      .insert([{ 
+        title: prompt.title, 
+        content: prompt.content, 
+        markdown: prompt.markdown || '',
+        tags: prompt.tags || [] 
+      }])
       .select()
       .single()
     if (error) throw error
