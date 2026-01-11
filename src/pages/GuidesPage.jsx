@@ -1,5 +1,5 @@
-import { Code, ExternalLink, Eye, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Code, ExternalLink, Eye, Plus, RefreshCw, Search, Trash2, Upload, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 function GuidesPage() {
@@ -13,6 +13,8 @@ function GuidesPage() {
     const [loading, setLoading] = useState(true)
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [isDeploying, setIsDeploying] = useState(false)
+    const [uploadedFiles, setUploadedFiles] = useState([])
+    const fileInputRef = useRef(null)
     const [newGuideData, setNewGuideData] = useState({
         htmlContent: '',
         keywords: ''
@@ -161,64 +163,55 @@ function GuidesPage() {
     }
 
     const handleIndexNew = async () => {
+        // Trigger file input click
+        fileInputRef.current?.click()
+    }
+
+    // Handle file upload
+    const handleFileUpload = async (e) => {
+        const files = Array.from(e.target.files || [])
+        if (files.length === 0) return
+
         setIsIndexing(true)
         setIndexProgress(0)
         setNewGuidesFound(0)
 
-        // Simulate progress for indexing
-        for (let i = 0; i <= 100; i += 10) {
-            await new Promise(resolve => setTimeout(resolve, 200))
-            setIndexProgress(i)
-        }
+        const newGuides = []
+        const totalFiles = files.length
 
-        // Example: Add some demo guides
-        const demoGuides = [
-            {
-                title: 'Getting Started with React',
-                filename: 'react-guide.html',
-                keywords: ['react', 'javascript', 'component', 'jsx'],
-                content: `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Getting Started with React</title>
-    <meta name="keywords" content="react, javascript, component, jsx">
-</head>
-<body>
-    <h1>Getting Started with React</h1>
-    <p>React is a JavaScript library for building user interfaces.</p>
-    
-    <h2>What is React?</h2>
-    <p>React makes it painless to create interactive UIs. Design simple views for each state in your application, and React will efficiently update and render just the right components when your data changes.</p>
-    
-    <h2>Key Features</h2>
-    <ul>
-        <li><strong>Component-Based</strong>: Build encapsulated components that manage their own state</li>
-        <li><strong>Declarative</strong>: React makes it painless to create interactive UIs</li>
-        <li><strong>Learn Once, Write Anywhere</strong>: Develop new features without rewriting existing code</li>
-    </ul>
-    
-    <h2>Getting Started</h2>
-    <pre><code>npx create-react-app my-app
-cd my-app
-npm start</code></pre>
-    
-    <h2>Your First Component</h2>
-    <pre><code>function Welcome(props) {
-  return &lt;h1&gt;Hello, {props.name}&lt;/h1&gt;;
-}</code></pre>
-    
-    <p>This is a simple functional component that accepts props and returns a React element.</p>
-</body>
-</html>`,
-                created_at: new Date().toISOString()
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i]
+            
+            // Update progress
+            setIndexProgress(Math.round(((i + 1) / totalFiles) * 100))
+
+            // Only process HTML files
+            if (!file.name.endsWith('.html') && !file.name.endsWith('.htm')) {
+                continue
             }
-        ]
 
-        // Check if guides already exist
-        const newGuides = demoGuides.filter(
-            dg => !guides.some(g => g.filename === dg.filename)
-        )
+            try {
+                const content = await file.text()
+                const title = extractTitleFromHTML(content) || file.name.replace(/\.html?$/, '')
+                let keywords = extractKeywordsFromHTML(content)
+
+                // Check if guide already exists
+                const exists = guides.some(g => g.filename === file.name || g.title === title)
+                if (exists) continue
+
+                const guideData = {
+                    title,
+                    filename: file.name,
+                    content,
+                    keywords,
+                    created_at: new Date().toISOString()
+                }
+
+                newGuides.push(guideData)
+            } catch (err) {
+                console.error(`Error reading file ${file.name}:`, err)
+            }
+        }
 
         if (newGuides.length > 0) {
             setNewGuidesFound(newGuides.length)
@@ -231,8 +224,10 @@ npm start</code></pre>
                         .insert(newGuides)
 
                     if (!error) {
-                        loadGuides()
+                        await loadGuides()
                         setIsIndexing(false)
+                        // Reset file input
+                        if (fileInputRef.current) fileInputRef.current.value = ''
                         return
                     }
                     console.error('Error saving guides:', error)
@@ -246,9 +241,14 @@ npm start</code></pre>
             const updated = [...guidesWithIds, ...guides]
             setGuides(updated)
             localStorage.setItem('devvault_guides', JSON.stringify(updated))
+        } else {
+            // No new guides found
+            alert('No new HTML files found, or all files already exist.')
         }
 
         setIsIndexing(false)
+        // Reset file input
+        if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
     const handleSearch = (query) => {
@@ -298,6 +298,15 @@ npm start</code></pre>
                     <p className="text-gray-600">Your development guides and documentation</p>
                 </div>
                 <div className="flex gap-3">
+                    {/* Hidden file input for uploading HTML files */}
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileUpload}
+                        accept=".html,.htm"
+                        multiple
+                        className="hidden"
+                    />
                     <button
                         onClick={() => setShowCreateModal(true)}
                         className="flex items-center space-x-2 bg-black text-white px-6 py-3 hover:bg-gray-800 transition-colors"
@@ -310,8 +319,8 @@ npm start</code></pre>
                         disabled={isIndexing}
                         className="flex items-center space-x-2 border-2 border-black px-6 py-3 hover:bg-gray-100 transition-colors disabled:opacity-50"
                     >
-                        <RefreshCw size={20} className={isIndexing ? 'animate-spin' : ''} />
-                        <span>Index New!</span>
+                        <Upload size={20} className={isIndexing ? 'animate-pulse' : ''} />
+                        <span>Upload HTML</span>
                     </button>
                 </div>
             </div>
@@ -319,7 +328,7 @@ npm start</code></pre>
             {/* Indexing Progress */}
             {isIndexing && (
                 <div className="mb-8 border-2 border-black p-6">
-                    <h3 className="font-bold mb-4">Indexing Guides...</h3>
+                    <h3 className="font-bold mb-4">Processing HTML files...</h3>
                     <div className="w-full bg-gray-200 h-4 mb-2">
                         <div
                             className="bg-black h-full transition-all duration-300"
@@ -368,10 +377,10 @@ npm start</code></pre>
                         </div>
                         <div className="border border-gray-300 p-6">
                             <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
-                                <RefreshCw size={20} /> Option 2: Index Files
+                                <Upload size={20} /> Option 2: Upload HTML Files
                             </h3>
                             <p className="text-gray-600">
-                                Place HTML files in <code className="bg-gray-100 px-2 py-1">public/guides/</code> and click "Index New!" to scan them.
+                                Click "Upload HTML" button to select one or more HTML files from your computer.
                             </p>
                         </div>
                     </div>
