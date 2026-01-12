@@ -1,10 +1,10 @@
 [build]
   # Directory to change to before starting a build
   base = "/"
-  
+
   # Directory that contains the deploy-ready HTML files
   publish = "dist"
-  
+
   # Build command
   command = "npm run build"
 
