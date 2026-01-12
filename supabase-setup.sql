@@ -61,9 +61,9 @@ $$ language 'plpgsql';
 DROP TRIGGER IF EXISTS update_guides_updated_at ON guides;
 
 -- Create trigger for guides table
-CREATE TRIGGER update_guides_updated_at 
+CREATE TRIGGER update_guides_updated_at
   BEFORE UPDATE ON guides
-  FOR EACH ROW 
+  FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
 -- Optional: Add full-text search function
@@ -73,12 +73,12 @@ BEGIN
   RETURN QUERY
   SELECT *
   FROM guides
-  WHERE 
+  WHERE
     to_tsvector('english', title) @@ plainto_tsquery('english', search_query)
     OR to_tsvector('english', markdown) @@ plainto_tsquery('english', search_query)
     OR search_query = ANY(keywords)
-  ORDER BY 
-    CASE 
+  ORDER BY
+    CASE
       WHEN title ILIKE '%' || search_query || '%' THEN 1
       WHEN search_query = ANY(keywords) THEN 2
       ELSE 3

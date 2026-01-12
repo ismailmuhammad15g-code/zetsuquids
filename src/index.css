@@ -3,164 +3,173 @@
 @tailwind utilities;
 
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+    width: 8px;
+    height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+    background: #f1f1f1;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #000;
+    background: #000;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #333;
+    background: #333;
 }
 
 /* Animations */
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes slide-in-from-top-4 {
-  from { 
-    opacity: 0;
-    transform: translateY(-1rem);
-  }
-  to { 
-    opacity: 1;
-    transform: translateY(0);
-  }
+    from {
+        opacity: 0;
+        transform: translateY(-1rem);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes zoom-in {
-  from { 
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to { 
-    opacity: 1;
-    transform: scale(1);
-  }
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .animate-in {
-  animation-duration: 0.2s;
-  animation-timing-function: ease-out;
-  animation-fill-mode: both;
+    animation-duration: 0.2s;
+    animation-timing-function: ease-out;
+    animation-fill-mode: both;
 }
 
 .fade-in {
-  animation-name: fade-in;
+    animation-name: fade-in;
 }
 
 .zoom-in {
-  animation-name: zoom-in;
+    animation-name: zoom-in;
 }
 
 .slide-in-from-top-4 {
-  animation-name: slide-in-from-top-4;
+    animation-name: slide-in-from-top-4;
 }
 
 /* Guide Content Styles */
 .guide-content {
-  @apply text-gray-800;
+    @apply text-gray-800;
 }
 
 .guide-content h1 {
-  @apply text-3xl font-black mt-8 mb-4;
+    @apply text-3xl font-black mt-8 mb-4;
 }
 
 .guide-content h2 {
-  @apply text-2xl font-bold mt-6 mb-3;
+    @apply text-2xl font-bold mt-6 mb-3;
 }
 
 .guide-content h3 {
-  @apply text-xl font-bold mt-4 mb-2;
+    @apply text-xl font-bold mt-4 mb-2;
 }
 
 .guide-content p {
-  @apply mb-4 leading-relaxed;
+    @apply mb-4 leading-relaxed;
 }
 
-.guide-content ul, .guide-content ol {
-  @apply mb-4 pl-6;
+.guide-content ul,
+.guide-content ol {
+    @apply mb-4 pl-6;
 }
 
 .guide-content li {
-  @apply mb-2;
+    @apply mb-2;
 }
 
 .guide-content ul li {
-  @apply list-disc;
+    @apply list-disc;
 }
 
 .guide-content ol li {
-  @apply list-decimal;
+    @apply list-decimal;
 }
 
 .guide-content code {
-  @apply bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono;
+    @apply bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono;
 }
 
 .guide-content pre {
-  @apply bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto mb-4;
+    @apply bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto mb-4;
 }
 
 .guide-content pre code {
-  @apply bg-transparent p-0 text-inherit;
+    @apply bg-transparent p-0 text-inherit;
 }
 
 .guide-content a {
-  @apply text-blue-600 underline hover:text-blue-800;
+    @apply text-blue-600 underline hover:text-blue-800;
 }
 
 .guide-content blockquote {
-  @apply border-l-4 border-black pl-4 italic my-4 text-gray-600;
+    @apply border-l-4 border-black pl-4 italic my-4 text-gray-600;
 }
 
 .guide-content img {
-  @apply max-w-full h-auto rounded my-4;
+    @apply max-w-full h-auto rounded my-4;
 }
 
 .guide-content table {
-  @apply w-full border-collapse mb-4;
+    @apply w-full border-collapse mb-4;
 }
 
-.guide-content th, .guide-content td {
-  @apply border border-gray-300 px-4 py-2 text-left;
+.guide-content th,
+.guide-content td {
+    @apply border border-gray-300 px-4 py-2 text-left;
 }
 
 .guide-content th {
-  @apply bg-gray-100 font-bold;
+    @apply bg-gray-100 font-bold;
 }
 
 /* Prose overrides for better styling */
 .prose {
-  @apply max-w-none;
+    @apply max-w-none;
 }
 
 .prose pre {
-  @apply bg-gray-900;
+    @apply bg-gray-900;
 }
 
 .prose code::before,
 .prose code::after {
-  content: none;
+    content: none;
 }
