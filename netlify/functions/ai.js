@@ -1,5 +1,4 @@
 // Netlify Serverless Function for AI Chat
-const fetch = require('node-fetch');
 
 exports.handler = async (event, context) => {
   // Handle CORS preflight
@@ -25,16 +24,14 @@ exports.handler = async (event, context) => {
   try {
     const { messages, model } = JSON.parse(event.body);
     
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await fetch('https://api.routeway.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.URL || 'https://zetsuguide.netlify.app',
-        'X-Title': 'ZetsuGuide AI'
+        'Authorization': `Bearer ${process.env.ROUTEWAY_API_KEY}`,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: model || 'moonshotai/kimi-k2-0711',
+        model: model || 'kimi-k2-0905:free',
         messages: messages,
         max_tokens: 4000,
         temperature: 0.7
