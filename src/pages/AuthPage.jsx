@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Eye, EyeOff, L
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/api'
 
 // Testimonials data
 const testimonials = [
@@ -106,12 +107,7 @@ export default function AuthPage() {
         setLoading(true)
         setMessage({ type: '', text: '' })
 
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
-
         try {
-            let endpoint = ''
-            let body = {}
-
             switch (mode) {
                 case 'register':
                     if (formData.password !== formData.confirmPassword) {
@@ -119,28 +115,42 @@ export default function AuthPage() {
                         setLoading(false)
                         return
                     }
-                    endpoint = `${API_URL}/api/auth/register`
-
-                    // Critical Fix: Always check localStorage for referral code
-                    // This handles cases where user refreshes page (losing URL params)
-                    const pendingRef = localStorage.getItem('pending_referral_code')
-
-                    body = {
-                        name: formData.name,
+                    
+                    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
                         email: formData.email,
                         password: formData.password,
-                        referralCode: pendingRef // Send it if it exists, backend will validate
-                    }
+                        options: {
+                            data: {
+                                name: formData.name
+                            }
+                        }
+                    })
+
+                    if (signUpError) throw signUpError
+                    setMessage({ type: 'success', text: 'Check your email for verification link!' })
                     break
 
                 case 'login':
-                    endpoint = `${API_URL}/api/auth/login`
-                    body = { email: formData.email, password: formData.password }
+                    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                        email: formData.email,
+                        password: formData.password
+                    })
+
+                    if (signInError) throw signInError
+                    
+                    if (signInData.user) {
+                        login(signInData.session.access_token, signInData.user)
+                        navigate('/')
+                    }
                     break
 
                 case 'forgot':
-                    endpoint = `${API_URL}/api/auth/forgot-password`
-                    body = { email: formData.email }
+                    const { error: resetError } = await supabase.auth.resetPasswordForEmail(formData.email, {
+                        redirectTo: `${window.location.origin}/reset-password`
+                    })
+
+                    if (resetError) throw resetError
+                    setMessage({ type: 'success', text: 'Password reset link sent to your email!' })
                     break
 
                 case 'reset':
@@ -149,25 +159,16 @@ export default function AuthPage() {
                         setLoading(false)
                         return
                     }
-                    endpoint = `${API_URL}/api/auth/reset-password`
-                    body = { token: searchParams.get('token'), password: formData.password }
+
+                    const { error: updateError } = await supabase.auth.updateUser({
+                        password: formData.password
+                    })
+
+                    if (updateError) throw updateError
+                    setMessage({ type: 'success', text: 'Password updated successfully!' })
+                    setTimeout(() => navigate('/'), 2000)
                     break
             }
-
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            })
-
-            const data = await response.json()
-
-            if (data.success) {
-                if (mode === 'login' && data.token) {
-                    login(data.token, data.user)
-                    navigate('/')
-                } else {
-                    setMessage({ type: 'success', text: data.message })
                     if (mode === 'register') {
                         setTimeout(() => setMode('login'), 3000)
                     }
@@ -176,15 +177,9 @@ export default function AuthPage() {
                             setMode('login')
                             navigate('/auth')
                         }, 2000)
-                    }
-                }
-            } else {
-                setMessage({ type: 'error', text: data.error || 'An error occurred' })
-            }
-
         } catch (error) {
             console.error('Auth error:', error)
-            setMessage({ type: 'error', text: 'Server connection error' })
+            setMessage({ type: 'error', text: error.message || 'Authentication failed' })
         } finally {
             setLoading(false)
         }
