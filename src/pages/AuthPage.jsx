@@ -120,6 +120,7 @@ export default function AuthPage() {
                         email: formData.email,
                         password: formData.password,
                         options: {
+                            emailRedirectTo: `${window.location.origin}/auth`,
                             data: {
                                 name: formData.name
                             }
@@ -146,7 +147,7 @@ export default function AuthPage() {
 
                 case 'forgot':
                     const { error: resetError } = await supabase.auth.resetPasswordForEmail(formData.email, {
-                        redirectTo: `${window.location.origin}/reset-password`
+                        redirectTo: `${window.location.origin}/auth`
                     })
 
                     if (resetError) throw resetError
@@ -177,7 +178,25 @@ export default function AuthPage() {
             
         } catch (error) {
             console.error('Auth error:', error)
-            setMessage({ type: 'error', text: error.message || 'Authentication failed' })
+            
+            let errorMessage = 'Authentication failed'
+            
+            // Handle specific Supabase errors
+            if (error.message.includes('Invalid login credentials')) {
+                errorMessage = 'Incorrect email or password. Please check your credentials or create an account.'
+            } else if (error.message.includes('Email not confirmed')) {
+                errorMessage = 'Please check your email and click the verification link before signing in.'
+            } else if (error.message.includes('User already registered')) {
+                errorMessage = 'An account with this email already exists. Please sign in instead.'
+            } else if (error.message.includes('Password should be at least')) {
+                errorMessage = 'Password must be at least 6 characters long.'
+            } else if (error.message.includes('Unable to validate email address')) {
+                errorMessage = 'Please enter a valid email address.'
+            } else if (error.message) {
+                errorMessage = error.message
+            }
+            
+            setMessage({ type: 'error', text: errorMessage })
         } finally {
             setLoading(false)
         }
