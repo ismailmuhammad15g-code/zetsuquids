@@ -169,14 +169,12 @@ export default function AuthPage() {
                     setTimeout(() => navigate('/'), 2000)
                     break
             }
-                    if (mode === 'register') {
-                        setTimeout(() => setMode('login'), 3000)
-                    }
-                    if (mode === 'reset') {
-                        setTimeout(() => {
-                            setMode('login')
-                            navigate('/auth')
-                        }, 2000)
+
+            // Handle success messages for different modes
+            if (mode === 'register') {
+                setTimeout(() => setMode('login'), 3000)
+            }
+            
         } catch (error) {
             console.error('Auth error:', error)
             setMessage({ type: 'error', text: error.message || 'Authentication failed' })
