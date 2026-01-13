@@ -11,9 +11,10 @@ import { TextGenerateEffect } from '../components/ui/text-generate-effect'
 import { useAuth } from '../contexts/AuthContext'
 import { guidesApi, isSupabaseConfigured, supabase } from '../lib/api'
 
-// AI API Configuration - Using backend proxy to avoid CORS
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000'
-const AI_API_URL = `${API_BASE}/api/ai/chat`
+// AI API Configuration - Using Netlify Functions in production, local backend in dev
+const isDev = import.meta.env.DEV
+const API_BASE = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:5000' : '')
+const AI_API_URL = isDev ? `${API_BASE}/api/ai/chat` : '/.netlify/functions/ai'
 const AI_MODEL = import.meta.env.VITE_AI_MODEL || 'kimi-k2-0905:free'
 
 // Agent Thinking Phases
