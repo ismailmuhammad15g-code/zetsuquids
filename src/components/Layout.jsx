@@ -1,14 +1,18 @@
-import { BookOpen, Home, Menu, Plus, Search, X } from 'lucide-react'
+import { BookOpen, Bot, Home, LogIn, LogOut, Menu, Plus, Search, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import AddGuideModal from './AddGuideModal'
 import SearchModal from './SearchModal'
 
 export default function Layout() {
     const location = useLocation()
+    const navigate = useNavigate()
+    const { user, logout, isAuthenticated } = useAuth()
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [showAddModal, setShowAddModal] = useState(false)
     const [showSearchModal, setShowSearchModal] = useState(false)
+    const [showUserMenu, setShowUserMenu] = useState(false)
 
     // Close mobile menu on route change
     useEffect(() => {
@@ -46,8 +50,8 @@ export default function Layout() {
                             <Link
                                 to="/"
                                 className={`flex items-center gap-2 px-4 py-2 font-medium transition-all duration-200 ${location.pathname === '/'
-                                        ? 'bg-black text-white'
-                                        : 'hover:bg-gray-100'
+                                    ? 'bg-black text-white'
+                                    : 'hover:bg-gray-100'
                                     }`}
                             >
                                 <Home size={18} />
@@ -56,12 +60,23 @@ export default function Layout() {
                             <Link
                                 to="/guides"
                                 className={`flex items-center gap-2 px-4 py-2 font-medium transition-all duration-200 ${location.pathname.startsWith('/guide')
-                                        ? 'bg-black text-white'
-                                        : 'hover:bg-gray-100'
+                                    ? 'bg-black text-white'
+                                    : 'hover:bg-gray-100'
                                     }`}
                             >
                                 <BookOpen size={18} />
                                 <span>Guides</span>
+                            </Link>
+                            <Link
+                                to="/zetsuguide-ai"
+                                className={`flex items-center gap-2 px-4 py-2 font-medium transition-all duration-200 relative ${location.pathname === '/zetsuguide-ai'
+                                    ? 'bg-black text-white'
+                                    : 'hover:bg-gray-100'
+                                    }`}
+                            >
+                                <Bot size={18} />
+                                <span>ZetsuGuide AI</span>
+                                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[10px] font-bold bg-black text-white rounded-full animate-pulse">NEW</span>
                             </Link>
                         </nav>
 
@@ -87,6 +102,66 @@ export default function Layout() {
                                 <Plus size={18} />
                                 <span className="hidden sm:inline">Add Guide</span>
                             </button>
+
+                            {/* Auth Section */}
+                            {isAuthenticated() ? (
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowUserMenu(!showUserMenu)}
+                                        className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:border-black transition-colors rounded-lg"
+                                    >
+                                        <div className="w-7 h-7 bg-black rounded-full flex items-center justify-center">
+                                            <span className="text-white text-sm font-bold">
+                                                {user?.name?.charAt(0).toUpperCase()}
+                                            </span>
+                                        </div>
+                                        <span className="hidden sm:inline text-sm font-medium">{user?.name}</span>
+                                    </button>
+
+                                    {showUserMenu && (
+                                        <>
+                                            <div
+                                                className="fixed inset-0 z-[998]"
+                                                onClick={() => setShowUserMenu(false)}
+                                            />
+                                            <div className="absolute right-0 mt-2 w-72 bg-white border-2 border-black rounded-xl shadow-2xl z-[999] overflow-hidden">
+                                                <div className="px-4 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center">
+                                                            <span className="text-white font-bold text-lg">
+                                                                {user?.name?.charAt(0).toUpperCase()}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="font-bold text-gray-900 truncate">{user?.name}</p>
+                                                            <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        logout()
+                                                        setShowUserMenu(false)
+                                                        navigate('/')
+                                                    }}
+                                                    className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors font-medium"
+                                                >
+                                                    <LogOut size={18} />
+                                                    <span>Logout</span>
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            ) : (
+                                <Link
+                                    to="/auth"
+                                    className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:border-black transition-colors"
+                                >
+                                    <LogIn size={18} />
+                                    <span className="hidden sm:inline text-sm">Login</span>
+                                </Link>
+                            )}
 
                             {/* Mobile Menu Button */}
                             <button
@@ -118,6 +193,15 @@ export default function Layout() {
                             >
                                 <BookOpen size={20} />
                                 <span>All Guides</span>
+                            </Link>
+                            <Link
+                                to="/zetsuguide-ai"
+                                className={`flex items-center gap-3 px-4 py-3 font-medium relative ${location.pathname === '/zetsuguide-ai' ? 'bg-black text-white' : 'hover:bg-gray-100'
+                                    }`}
+                            >
+                                <Bot size={20} />
+                                <span>ZetsuGuide AI</span>
+                                <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-black text-white rounded-full animate-pulse">NEW</span>
                             </Link>
                         </div>
                     </div>

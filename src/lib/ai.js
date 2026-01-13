@@ -25,7 +25,7 @@ function extractKeywords(query) {
         'هذا', 'هذه', 'ذلك', 'تلك', 'الذي', 'التي', 'و', 'أو', 'لكن', 'ثم', 'أن', 'إن',
         'كان', 'يكون', 'هو', 'هي', 'هم', 'نحن', 'أنت', 'أنا', 'لا', 'نعم', 'كل', 'بعض'
     ])
-    
+
     return query
         .toLowerCase()
         .split(/[\s,،.؟?!]+/)
@@ -37,22 +37,22 @@ function fuzzyMatch(str1, str2) {
     if (!str1 || !str2) return 0
     str1 = str1.toLowerCase()
     str2 = str2.toLowerCase()
-    
+
     if (str1 === str2) return 1
     if (str1.includes(str2) || str2.includes(str1)) return 0.9
-    
+
     const len1 = str1.length
     const len2 = str2.length
     const maxLen = Math.max(len1, len2)
-    
+
     if (maxLen === 0) return 1
-    
+
     let matches = 0
     const chars1 = new Set(str1.split(''))
     for (const char of str2) {
         if (chars1.has(char)) matches++
     }
-    
+
     return matches / maxLen
 }
 
@@ -63,7 +63,10 @@ export function basicSearch(query, guides) {
 
     const q = query.toLowerCase().trim()
     const keywords = extractKeywords(query)
-    
+
+    // If no meaningful keywords, return empty
+    if (keywords.length === 0 && q.length < 2) return []
+
     const scored = guides.map(guide => {
         let score = 0
         const title = (guide.title || '').toLowerCase()
@@ -86,50 +89,33 @@ export function basicSearch(query, guides) {
         // 3. Content contains full query
         if (content.includes(q)) score += 50
 
-        // 4. Individual keyword matching
+        // 4. Individual keyword matching (only for meaningful keywords)
         keywords.forEach(keyword => {
-            if (title.includes(keyword)) score += 30
-            if (title.startsWith(keyword)) score += 20
-            
-            keywordsArr.forEach(kw => {
-                if (kw === keyword) score += 25
-                else if (kw.includes(keyword) || keyword.includes(kw)) score += 15
-            })
-            
-            try {
-                const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
-                const contentMatches = (content.match(regex) || []).length
-                score += Math.min(contentMatches * 3, 30)
-            } catch (e) {
-                if (content.includes(keyword)) score += 10
+            if (keyword.length >= 2) {
+                if (title.includes(keyword)) score += 30
+                if (title.startsWith(keyword)) score += 20
+
+                keywordsArr.forEach(kw => {
+                    if (kw === keyword) score += 25
+                    else if (kw.includes(keyword) || keyword.includes(kw)) score += 15
+                })
+
+                try {
+                    const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+                    const contentMatches = (content.match(regex) || []).length
+                    score += Math.min(contentMatches * 3, 30)
+                } catch (e) {
+                    if (content.includes(keyword)) score += 10
+                }
             }
         })
-
-        // 5. Fuzzy matching for typos
-        keywords.forEach(keyword => {
-            const titleSim = fuzzyMatch(keyword, title)
-            if (titleSim > 0.7) score += Math.floor(titleSim * 20)
-            
-            keywordsArr.forEach(kw => {
-                const kwSim = fuzzyMatch(keyword, kw)
-                if (kwSim > 0.7) score += Math.floor(kwSim * 15)
-            })
-        })
-
-        // 6. Arabic character matching
-        if (score < 10 && q.length >= 2) {
-            for (let i = 0; i < q.length - 1; i++) {
-                const chars = q.slice(i, i + 2)
-                if (title.includes(chars)) score += 3
-                if (content.includes(chars)) score += 1
-            }
-        }
 
         return { ...guide, score }
     })
 
+    // IMPORTANT: Only return results with a minimum score of 15 (real matches)
     return scored
-        .filter(g => g.score > 0)
+        .filter(g => g.score >= 15)
         .sort((a, b) => b.score - a.score)
 }
 
@@ -137,15 +123,14 @@ export function basicSearch(query, guides) {
 export async function aiAgentSearch(query, guides) {
     if (!isAIConfigured()) {
         console.log('AI not configured')
-        return { results: [], aiInsight: null, relatedTopics: [], suggestions: [] }
+        return { results: [], aiInsight: null, found: false }
     }
 
     if (!guides || guides.length === 0) {
-        return { 
-            results: [], 
-            aiInsight: 'لا توجد أدلة في قاعدة البيانات. أضف بعض الأدلة أولاً!', 
-            relatedTopics: [],
-            suggestions: ['أضف دليل جديد باستخدام زر "Add Guide"']
+        return {
+            results: [],
+            aiInsight: 'No guides in database. Add a new guide!',
+            found: false
         }
     }
 
@@ -157,36 +142,31 @@ export async function aiAgentSearch(query, guides) {
             preview: (g.content || g.markdown || g.html_content || '').slice(0, 400)
         }))
 
-        const prompt = `أنت وكيل بحث ذكي (AI Search Agent) متخصص ومحترف. مهمتك فهم نية المستخدم والعثور على أفضل النتائج.
+        const prompt = `You are a smart search engine. Your only task is to find results that actually match.
 
-📚 الأدلة المتاحة:
+📚 Available guides list:
 ${JSON.stringify(guidesContext, null, 2)}
 
-🔍 استعلام المستخدم: "${query}"
+🔍 User search: "${query}"
 
-📋 مهمتك:
-1. افهم نية المستخدم الحقيقية - ماذا يريد أن يتعلم؟
-2. ابحث عن كل الأدلة ذات الصلة (مباشرة وغير مباشرة)
-3. فكر بطريقة إبداعية - ربما يبحث عن شيء مرتبط
-4. قدم إجابة مفيدة وعملية
+⚠️ Strict rules:
+1. Only return guides that actually match the search
+2. Do not invent non-existent results
+3. Do not suggest random unrelated topics
+4. If the search is unclear or not related to programming/tech, say so honestly
+5. If you don't find any matching result, respond honestly without inventing
 
-أجب بـ JSON فقط بهذا الشكل:
-{
-    "indices": [0, 2, 5],
-    "insight": "إجابة مختصرة ومفيدة توضح ما وجدته",
-    "relatedTopics": ["موضوع 1", "موضوع 2"],
-    "suggestions": ["اقتراح بحث 1", "اقتراح 2"],
-    "reasoning": "سبب اختيارك لهذه النتائج"
-}
-
-⚠️ إذا لم تجد نتائج مطابقة، اقترح بدائل:
+Reply with JSON only:
 {
     "indices": [],
-    "insight": "لم أجد نتائج مطابقة، لكن يمكنك...",
-    "relatedTopics": [],
-    "suggestions": ["جرب البحث عن...", "أو أضف دليل جديد عن..."],
-    "reasoning": "السبب"
-}`
+    "insight": "Short and honest message in English",
+    "found": true/false
+}
+
+Examples:
+- Search "python" found Python guide → {"indices": [0], "insight": "Found Python guide", "found": true}
+- Search "how are you" no guide → {"indices": [], "insight": "This is not a technical question. Try searching for a specific topic.", "found": false}
+- Search "javascript" no guide → {"indices": [], "insight": "No JavaScript guide available currently.", "found": false}`
 
         const response = await fetch(AI_API_URL, {
             method: 'POST',
@@ -204,7 +184,7 @@ ${JSON.stringify(guidesContext, null, 2)}
 
         if (!response.ok) {
             console.error('AI API error:', response.status)
-            return { results: [], aiInsight: null, relatedTopics: [], suggestions: [] }
+            return { results: [], aiInsight: null, found: false }
         }
 
         const data = await response.json()
@@ -212,7 +192,7 @@ ${JSON.stringify(guidesContext, null, 2)}
 
         console.log('🤖 AI Agent Response:', aiResponse)
 
-        let parsed = { indices: [], insight: null, relatedTopics: [], suggestions: [], reasoning: '' }
+        let parsed = { indices: [], insight: null, found: false }
         try {
             const jsonMatch = aiResponse.match(/\{[\s\S]*\}/)
             if (jsonMatch) {
@@ -229,14 +209,12 @@ ${JSON.stringify(guidesContext, null, 2)}
         return {
             results: aiResults,
             aiInsight: parsed.insight || null,
-            relatedTopics: parsed.relatedTopics || [],
-            suggestions: parsed.suggestions || [],
-            reasoning: parsed.reasoning || ''
+            found: parsed.found || aiResults.length > 0
         }
 
     } catch (error) {
         console.error('AI Agent error:', error)
-        return { results: [], aiInsight: null, relatedTopics: [], suggestions: [] }
+        return { results: [], aiInsight: null, found: false }
     }
 }
 
@@ -245,6 +223,6 @@ export async function getAIEnhancement(query, guides) {
     if (!isAIConfigured()) {
         return null
     }
-    
+
     return await aiAgentSearch(query, guides)
 }

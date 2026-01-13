@@ -1,35 +1,65 @@
-import { 
-    ArrowRight, 
-    Bot, 
-    Brain, 
-    Clock, 
-    FileText, 
-    Lightbulb, 
-    Loader2, 
-    Search, 
-    Sparkles, 
-    Tag, 
-    Wand2, 
-    X, 
-    Zap 
+import {
+    AlertTriangle,
+    ArrowRight,
+    Brain,
+    Clock,
+    FileText,
+    Loader2,
+    Search,
+    ShieldAlert,
+    Sparkles,
+    Tag,
+    Wand2,
+    X
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { basicSearch, getAIEnhancement, isAIConfigured } from '../lib/ai'
 import { guidesApi } from '../lib/api'
 
+// Blacklisted words - inappropriate content
+const BLACKLIST = [
+    // English inappropriate words
+    'vagina', 'penis', 'sex', 'nik', 'fuck', 'shit', 'ass', 'bitch', 'dick', 'pussy',
+    'cock', 'cum', 'porn', 'nude', 'naked', 'xxx', 'horny', 'slut', 'whore',
+    // Arabic inappropriate words
+    'كس', 'زب', 'نيك', 'شرموط', 'عاهر', 'قحب', 'طيز', 'منيوك', 'خول', 'عرص',
+    'متناك', 'زانية', 'لعن', 'ابن الكلب', 'يلعن', 'كلب', 'حمار', 'غبي', 'احمق'
+]
+
+// Check if query contains blacklisted words
+function checkBlacklist(text) {
+    const words = text.toLowerCase().split(/\s+/)
+    const violations = []
+
+    for (const word of words) {
+        for (const banned of BLACKLIST) {
+            if (word.includes(banned.toLowerCase()) || banned.toLowerCase().includes(word)) {
+                if (word.length >= 2) {
+                    violations.push(word)
+                }
+            }
+        }
+    }
+
+    return [...new Set(violations)]
+}
+
 export default function SearchModal({ onClose }) {
     const navigate = useNavigate()
     const inputRef = useRef(null)
     const aiTimeoutRef = useRef(null)
-    
+
     const [query, setQuery] = useState('')
     const [results, setResults] = useState([])
     const [loading, setLoading] = useState(false)
     const [selectedIndex, setSelectedIndex] = useState(0)
     const [recentSearches, setRecentSearches] = useState([])
     const [allGuides, setAllGuides] = useState([])
-    
+
+    // Blacklist violation state
+    const [violations, setViolations] = useState([])
+
     // AI States
     const [aiState, setAiState] = useState('idle') // idle, thinking, ready
     const [aiResults, setAiResults] = useState(null)
@@ -52,18 +82,39 @@ export default function SearchModal({ onClose }) {
         }
     }
 
+    // Handle query change with blacklist check
+    function handleQueryChange(e) {
+        const newQuery = e.target.value
+        setQuery(newQuery)
+
+        // Check for blacklisted words when space is pressed
+        if (newQuery.endsWith(' ') || newQuery.includes(' ')) {
+            const foundViolations = checkBlacklist(newQuery)
+            setViolations(foundViolations)
+        } else {
+            setViolations([])
+        }
+    }
+
     // Search when query changes
     useEffect(() => {
         if (aiTimeoutRef.current) {
             clearTimeout(aiTimeoutRef.current)
         }
-        
+
+        // Don't search if there are violations
+        if (violations.length > 0) {
+            setResults([])
+            setLoading(false)
+            return
+        }
+
         const timer = setTimeout(() => {
             performSearch(query)
         }, 300)
-        
+
         return () => clearTimeout(timer)
-    }, [query, allGuides])
+    }, [query, allGuides, violations])
 
     async function performSearch(searchQuery) {
         if (!searchQuery.trim()) {
@@ -110,14 +161,14 @@ export default function SearchModal({ onClose }) {
     async function triggerAISearch(searchQuery) {
         setAiState('thinking')
         setShowAiPanel(true)
-        
+
         try {
             const aiData = await getAIEnhancement(searchQuery, allGuides)
-            
+
             if (aiData) {
                 setAiResults(aiData)
                 setAiState('ready')
-                
+
                 // If AI found results, add them
                 if (aiData.results && aiData.results.length > 0) {
                     setResults(aiData.results)
@@ -133,15 +184,15 @@ export default function SearchModal({ onClose }) {
 
     async function enhanceWithAI(searchQuery) {
         setAiState('thinking')
-        
+
         try {
             const aiData = await getAIEnhancement(searchQuery, allGuides)
-            
+
             if (aiData && aiData.aiInsight) {
                 setAiResults(aiData)
                 setAiState('ready')
                 setShowAiPanel(true)
-                
+
                 // Merge AI results with basic results
                 if (aiData.results && aiData.results.length > 0) {
                     const existingIds = new Set(results.map(r => r.id))
@@ -200,31 +251,24 @@ export default function SearchModal({ onClose }) {
 
     // AI Thinking Animation Component
     const AIThinkingPanel = () => (
-        <div className="mx-4 mt-4 p-5 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 border border-indigo-200 rounded-xl">
+        <div className="mx-4 mt-4 p-4 bg-gray-50 border border-gray-300 rounded-xl">
             <div className="flex items-center gap-3">
-                <div className="relative">
-                    <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center">
-                        <Brain className="w-5 h-5 text-white animate-pulse" />
-                    </div>
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-ping" />
+                <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center">
+                    <Brain className="w-5 h-5 text-white animate-pulse" />
                 </div>
                 <div className="flex-1">
                     <div className="flex items-center gap-2">
-                        <span className="font-bold text-indigo-800">المساعد الذكي يفكر</span>
+                        <span className="font-bold text-black">Searching</span>
                         <div className="flex gap-1">
-                            <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                            <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                            <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                            <span className="w-1.5 h-1.5 bg-black rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1.5 h-1.5 bg-black rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1.5 h-1.5 bg-black rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                         </div>
                     </div>
-                    <p className="text-sm text-indigo-600 mt-1">
-                        يحلل استعلامك ويبحث عن أفضل النتائج...
-                    </p>
                 </div>
             </div>
-            <div className="mt-3 h-1 bg-indigo-100 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full animate-[shimmer_1.5s_ease-in-out_infinite]" 
-                     style={{ width: '60%', animation: 'shimmer 1.5s ease-in-out infinite' }} />
+            <div className="mt-3 h-1 bg-gray-200 rounded-full overflow-hidden">
+                <div className="h-full bg-black rounded-full animate-pulse" style={{ width: '60%' }} />
             </div>
         </div>
     )
@@ -232,54 +276,23 @@ export default function SearchModal({ onClose }) {
     // AI Results Panel Component
     const AIResultsPanel = () => {
         if (!aiResults) return null
-        
+
         return (
-            <div className="mx-4 mt-4 p-5 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-200 rounded-xl">
+            <div className="mx-4 mt-4 p-4 bg-gray-50 border border-gray-300 rounded-xl">
                 <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center flex-shrink-0">
                         <Wand2 className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
-                            <span className="font-bold text-emerald-800">المساعد الذكي</span>
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded-full">AI</span>
+                            <span className="font-bold text-black">AI Assistant</span>
+                            <span className="px-2 py-0.5 bg-black text-white text-xs rounded-full">AI</span>
                         </div>
-                        
+
                         {aiResults.aiInsight && (
                             <p className="text-gray-700 text-sm leading-relaxed">
                                 {aiResults.aiInsight}
                             </p>
-                        )}
-                        
-                        {/* Related Topics */}
-                        {aiResults.relatedTopics && aiResults.relatedTopics.length > 0 && (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                                {aiResults.relatedTopics.map((topic, i) => (
-                                    <button 
-                                        key={i}
-                                        onClick={() => setQuery(topic)}
-                                        className="inline-flex items-center gap-1 px-3 py-1 bg-white/70 hover:bg-white border border-emerald-200 rounded-full text-xs text-emerald-700 transition-colors"
-                                    >
-                                        <Lightbulb size={12} />
-                                        {topic}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                        
-                        {/* Suggestions */}
-                        {aiResults.suggestions && aiResults.suggestions.length > 0 && results.length === 0 && (
-                            <div className="mt-3 p-3 bg-white/50 rounded-lg">
-                                <p className="text-xs font-medium text-gray-500 mb-2">💡 اقتراحات:</p>
-                                <ul className="space-y-1">
-                                    {aiResults.suggestions.map((suggestion, i) => (
-                                        <li key={i} className="text-sm text-gray-600 flex items-center gap-2">
-                                            <Zap size={12} className="text-amber-500" />
-                                            {suggestion}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
                         )}
                     </div>
                 </div>
@@ -299,9 +312,11 @@ export default function SearchModal({ onClose }) {
             <div className="relative min-h-screen flex items-start justify-center pt-[10vh] px-4">
                 <div className="relative bg-white w-full max-w-2xl shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200">
                     {/* Search Input */}
-                    <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-200">
+                    <div className={`flex items-center gap-3 px-5 py-4 border-b ${violations.length > 0 ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
                         {loading ? (
                             <Loader2 size={22} className="animate-spin text-gray-400" />
+                        ) : violations.length > 0 ? (
+                            <ShieldAlert size={22} className="text-red-500" />
                         ) : (
                             <Search size={22} className="text-gray-400" />
                         )}
@@ -309,14 +324,17 @@ export default function SearchModal({ onClose }) {
                             ref={inputRef}
                             type="text"
                             value={query}
-                            onChange={e => setQuery(e.target.value)}
+                            onChange={handleQueryChange}
                             onKeyDown={handleKeyDown}
-                            className="flex-1 text-lg outline-none placeholder:text-gray-400"
-                            placeholder="ابحث في الأدلة..."
+                            className={`flex-1 text-lg outline-none placeholder:text-gray-400 bg-transparent ${violations.length > 0 ? 'text-red-600' : ''}`}
+                            placeholder="Start searching..."
                         />
                         {query && (
                             <button
-                                onClick={() => setQuery('')}
+                                onClick={() => {
+                                    setQuery('')
+                                    setViolations([])
+                                }}
                                 className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
                             >
                                 <X size={18} />
@@ -327,16 +345,47 @@ export default function SearchModal({ onClose }) {
                         </div>
                     </div>
 
+                    {/* Violation Warning */}
+                    {violations.length > 0 && (
+                        <div className="mx-4 mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl">
+                            <div className="flex items-start gap-3">
+                                <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                                    <AlertTriangle className="w-5 h-5 text-white" />
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="font-bold text-red-700 mb-1">Content Policy Violation</h4>
+                                    <p className="text-red-600 text-sm mb-2">
+                                        The following word(s) violate our privacy policy:
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {violations.map((word, idx) => (
+                                            <span
+                                                key={idx}
+                                                className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 border border-red-300 rounded-lg text-red-700 text-sm font-medium"
+                                            >
+                                                <X size={12} />
+                                                {word}
+                                            </span>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-red-500 mt-3">
+                                        Please use appropriate search terms to continue.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Content Area */}
                     <div className="max-h-[65vh] overflow-y-auto">
                         {/* Loading State */}
-                        {loading && query && (
+                        {loading && query && violations.length === 0 && (
                             <div className="flex flex-col items-center justify-center py-12">
                                 <div className="relative">
                                     <div className="w-12 h-12 border-4 border-gray-200 rounded-full"></div>
                                     <div className="absolute inset-0 w-12 h-12 border-4 border-black rounded-full border-t-transparent animate-spin"></div>
                                 </div>
-                                <p className="mt-4 text-gray-500">جاري البحث...</p>
+                                <p className="mt-4 text-gray-500">Searching...</p>
                             </div>
                         )}
 
@@ -356,7 +405,7 @@ export default function SearchModal({ onClose }) {
                                 {recentSearches.length > 0 ? (
                                     <>
                                         <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3 px-2">
-                                            عمليات البحث الأخيرة
+                                            Recent Searches
                                         </p>
                                         <div className="space-y-1">
                                             {recentSearches.map((item) => (
@@ -376,11 +425,11 @@ export default function SearchModal({ onClose }) {
                                         <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                                             <Search size={28} className="text-gray-400" />
                                         </div>
-                                        <p className="text-gray-500">ابدأ بالكتابة للبحث في الأدلة...</p>
+                                        <p className="text-gray-500">Start typing to search guides...</p>
                                         {isAIConfigured() && (
                                             <p className="text-xs text-indigo-500 mt-2 flex items-center justify-center gap-1">
                                                 <Sparkles size={12} />
-                                                مدعوم بالذكاء الاصطناعي
+                                                Powered by AI
                                             </p>
                                         )}
                                     </div>
@@ -389,28 +438,26 @@ export default function SearchModal({ onClose }) {
                         )}
 
                         {/* Results */}
-                        {!loading && query && results.length > 0 && (
+                        {!loading && query && results.length > 0 && violations.length === 0 && (
                             <div className="p-2">
                                 <p className="text-xs font-medium text-gray-400 px-3 py-2">
-                                    {results.length} نتيجة
+                                    {results.length} {results.length === 1 ? 'result' : 'results'}
                                 </p>
                                 {results.map((guide, i) => (
                                     <button
                                         key={guide.id}
                                         onClick={() => handleSelect(guide)}
-                                        className={`w-full flex items-start gap-3 px-4 py-3 text-left rounded-xl transition-all ${
-                                            i === selectedIndex 
-                                                ? 'bg-gray-100 shadow-sm' 
-                                                : 'hover:bg-gray-50'
-                                        }`}
+                                        className={`w-full flex items-start gap-3 px-4 py-3 text-left rounded-xl transition-all ${i === selectedIndex
+                                            ? 'bg-gray-100 shadow-sm'
+                                            : 'hover:bg-gray-50'
+                                            }`}
                                     >
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                                            guide.isAIResult 
-                                                ? 'bg-gradient-to-r from-indigo-500 to-purple-500' 
-                                                : 'bg-gray-100'
-                                        }`}>
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${guide.isAIResult
+                                            ? 'bg-black'
+                                            : 'bg-gray-100'
+                                            }`}>
                                             {guide.isAIResult ? (
-                                                <Bot size={18} className="text-white" />
+                                                <Sparkles size={18} className="text-white" />
                                             ) : (
                                                 <FileText size={18} className="text-gray-500" />
                                             )}
@@ -419,7 +466,7 @@ export default function SearchModal({ onClose }) {
                                             <h4 className="font-bold truncate flex items-center gap-2">
                                                 {highlightMatch(guide.title, query)}
                                                 {guide.isAIResult && (
-                                                    <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-600 text-xs rounded">
+                                                    <span className="px-1.5 py-0.5 bg-gray-200 text-black text-xs rounded">
                                                         AI
                                                     </span>
                                                 )}
@@ -442,24 +489,24 @@ export default function SearchModal({ onClose }) {
                         )}
 
                         {/* No Results State */}
-                        {!loading && query && results.length === 0 && aiState !== 'thinking' && !aiResults && (
+                        {!loading && query && results.length === 0 && violations.length === 0 && aiState !== 'thinking' && !aiResults && (
                             <div className="flex flex-col items-center justify-center py-12 px-4">
                                 <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
                                     <Search size={28} className="text-gray-400" />
                                 </div>
-                                <h4 className="text-lg font-bold mb-2">لا توجد نتائج</h4>
+                                <h4 className="text-lg font-bold mb-2">No Results</h4>
                                 <p className="text-gray-500 text-center mb-4">
-                                    لم يتم العثور على نتائج لـ "{query}"
+                                    No results found for "{query}"
                                 </p>
                                 {isAIConfigured() && (
                                     <p className="text-sm text-indigo-500 flex items-center gap-2">
                                         <Brain size={16} className="animate-pulse" />
-                                        المساعد الذكي سيبدأ البحث قريباً...
+                                        AI assistant will start searching soon...
                                     </p>
                                 )}
                                 {allGuides.length === 0 && (
                                     <p className="text-sm text-amber-600 mt-4 bg-amber-50 px-4 py-2 rounded-lg">
-                                        💡 قاعدة البيانات فارغة - أضف أدلة جديدة!
+                                        💡 Database is empty - Add new guides!
                                     </p>
                                 )}
                             </div>
@@ -479,17 +526,17 @@ export default function SearchModal({ onClose }) {
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-1">
                                 <kbd className="px-1.5 py-0.5 bg-white border rounded text-xs">↑↓</kbd>
-                                <span className="text-xs">تنقل</span>
+                                <span className="text-xs">toggle</span>
                             </div>
                             <div className="flex items-center gap-1">
                                 <kbd className="px-1.5 py-0.5 bg-white border rounded text-xs">↵</kbd>
-                                <span className="text-xs">اختر</span>
+                                <span className="text-xs">select</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            
+
             {/* Custom Animations */}
             <style>{`
                 @keyframes shimmer {

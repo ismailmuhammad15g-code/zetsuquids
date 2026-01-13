@@ -1,7 +1,14 @@
 import { ArrowRight, BookOpen, FileText, Plus, Search, Sparkles, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
+import { AICard } from '../components/ui/ai-card'
+import { ComicText } from '../components/ui/comic-text'
+import { FlipWords } from '../components/ui/flip-words'
+import { Meteors } from '../components/ui/meteors'
+import { Spotlight } from '../components/ui/spotlight'
+import { StickyBanner } from '../components/ui/sticky-banner'
 import { guidesApi, initializeSampleData } from '../lib/api'
+import { cn } from '../lib/utils'
 
 export default function HomePage() {
     const { openAddModal } = useOutletContext()
@@ -57,39 +64,79 @@ export default function HomePage() {
 
     return (
         <div>
-            {/* Hero Section */}
-            <section className="relative overflow-hidden border-b-2 border-black">
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-                <div className="relative max-w-7xl mx-auto px-4 py-24 sm:py-32">
+            {/* Sticky Banner */}
+            <StickyBanner className="bg-black border-b border-white/10">
+                <p className="mx-0 max-w-[90%] text-white/90 text-sm">
+                    <span className="inline-flex items-center gap-2">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                        </span>
+                        <span>New! <strong className="font-semibold text-white">ZetsuGuide AI</strong> - Your intelligent coding assistant</span>
+                        <Link to="/zetsuguide-ai" className="ml-2 px-3 py-1 bg-white text-black text-xs font-medium rounded-full hover:bg-gray-200 transition-all">
+                            Try it →
+                        </Link>
+                    </span>
+                </p>
+            </StickyBanner>
+
+            {/* Hero Section with Spotlight and Meteors */}
+            <section className="relative overflow-hidden border-b-2 border-black bg-black/[0.96]">
+                {/* Grid Background */}
+                <div
+                    className={cn(
+                        "pointer-events-none absolute inset-0 select-none",
+                        "[background-image:linear-gradient(to_right,#171717_1px,transparent_1px),linear-gradient(to_bottom,#171717_1px,transparent_1px)]",
+                        "[background-size:40px_40px]"
+                    )}
+                />
+
+                {/* Spotlight Effect */}
+                <Spotlight className="-top-40 left-0 md:-top-20 md:left-60" fill="white" />
+
+                {/* Meteors Effect */}
+                <Meteors number={30} />
+
+                <div className="relative z-10 max-w-7xl mx-auto px-4 py-24 sm:py-32">
                     <div className="text-center">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white text-sm font-medium mb-6">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium mb-6 rounded-full">
                             <Sparkles size={16} />
                             Your Personal Knowledge Base
                         </div>
                         <h1 className="text-5xl sm:text-7xl font-black tracking-tight mb-6">
-                            Save. Search.<br />
-                            <span className="relative">
-                                Learn.
+                            <span className="bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent">
+                                Save. Search.
+                            </span>
+                            <br />
+                            <span className="relative inline-block">
+                                <FlipWords
+                                    words={["Learn.", "Build.", "Create.", "Grow."]}
+                                    className="text-white"
+                                    duration={2500}
+                                />
                                 <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 200 12" fill="none">
-                                    <path d="M2 10C50 2 150 2 198 10" stroke="black" strokeWidth="4" strokeLinecap="round" />
+                                    <path d="M2 10C50 2 150 2 198 10" stroke="white" strokeWidth="4" strokeLinecap="round" />
                                 </svg>
                             </span>
                         </h1>
-                        <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-10">
-                            DevVault is your personal space to store guides, tutorials, and documentation.
+                        <p className="text-xl text-neutral-300 max-w-2xl mx-auto mb-10">
+                            <ComicText fontSize={2} className="mr-2">
+                                DevVault
+                            </ComicText>
+                            is your personal space to store guides, tutorials, and documentation.
                             Search instantly with AI-powered intelligence.
                         </p>
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                             <button
                                 onClick={openAddModal}
-                                className="flex items-center gap-2 px-8 py-4 bg-black text-white text-lg font-bold hover:bg-gray-800 transition-colors"
+                                className="flex items-center gap-2 px-8 py-4 bg-white text-black text-lg font-bold hover:bg-gray-200 transition-colors rounded-lg"
                             >
                                 <Plus size={24} />
                                 Add Guide
                             </button>
                             <Link
                                 to="/guides"
-                                className="flex items-center gap-2 px-8 py-4 border-2 border-black text-lg font-bold hover:bg-gray-100 transition-colors"
+                                className="flex items-center gap-2 px-8 py-4 border-2 border-white text-white text-lg font-bold hover:bg-white/10 transition-colors rounded-lg"
                             >
                                 <BookOpen size={24} />
                                 Browse Guides
@@ -100,36 +147,43 @@ export default function HomePage() {
             </section>
 
             {/* Features */}
-            <section className="py-20 border-b-2 border-black">
+            <section className="py-20 border-b-2 border-black bg-black">
                 <div className="max-w-7xl mx-auto px-4">
-                    <h2 className="text-3xl font-black text-center mb-12">
-                        Everything you need
-                    </h2>
-                    <div className="grid md:grid-cols-3 gap-8">
-                        <div className="p-8 border-2 border-black hover:shadow-lg transition-shadow">
-                            <div className="w-12 h-12 bg-black flex items-center justify-center mb-4">
-                                <FileText size={24} className="text-white" />
+                    <div className="text-center mb-12">
+                        <h2 className="text-4xl font-black text-white mb-4">Everything you need</h2>
+                        <p className="text-neutral-400">Powerful tools for developers</p>
+                    </div>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {/* AI Card */}
+                        <div className="lg:col-span-1">
+                            <AICard />
+                        </div>
+
+                        {/* Other Feature Cards */}
+                        <div className="p-8 border border-white/10 bg-black/70 rounded-xl hover:border-white/30 transition-all">
+                            <div className="w-12 h-12 bg-white flex items-center justify-center mb-4 rounded-lg">
+                                <FileText size={24} className="text-black" />
                             </div>
-                            <h3 className="text-xl font-bold mb-2">Markdown Support</h3>
-                            <p className="text-gray-600">
+                            <h3 className="text-xl font-bold mb-2 text-white">Markdown Support</h3>
+                            <p className="text-neutral-400">
                                 Write guides in Markdown with full formatting support. Code blocks, lists, headers, and more.
                             </p>
                         </div>
-                        <div className="p-8 border-2 border-black hover:shadow-lg transition-shadow">
-                            <div className="w-12 h-12 bg-black flex items-center justify-center mb-4">
-                                <Search size={24} className="text-white" />
+                        <div className="p-8 border border-white/10 bg-black/70 rounded-xl hover:border-white/30 transition-all">
+                            <div className="w-12 h-12 bg-white flex items-center justify-center mb-4 rounded-lg">
+                                <Search size={24} className="text-black" />
                             </div>
-                            <h3 className="text-xl font-bold mb-2">Smart Search</h3>
-                            <p className="text-gray-600">
+                            <h3 className="text-xl font-bold mb-2 text-white">Smart Search</h3>
+                            <p className="text-neutral-400">
                                 AI-powered search that understands context. Find exactly what you need in seconds.
                             </p>
                         </div>
-                        <div className="p-8 border-2 border-black hover:shadow-lg transition-shadow">
-                            <div className="w-12 h-12 bg-black flex items-center justify-center mb-4">
-                                <Zap size={24} className="text-white" />
+                        <div className="p-8 border border-white/10 bg-black/70 rounded-xl hover:border-white/30 transition-all">
+                            <div className="w-12 h-12 bg-white flex items-center justify-center mb-4 rounded-lg">
+                                <Zap size={24} className="text-black" />
                             </div>
-                            <h3 className="text-xl font-bold mb-2">HTML/CSS Advanced</h3>
-                            <p className="text-gray-600">
+                            <h3 className="text-xl font-bold mb-2 text-white">HTML/CSS Advanced</h3>
+                            <p className="text-neutral-400">
                                 Need more control? Use raw HTML and CSS to create rich, interactive guides.
                             </p>
                         </div>
@@ -141,12 +195,16 @@ export default function HomePage() {
             <section className="py-20">
                 <div className="max-w-7xl mx-auto px-4">
                     <div className="flex items-center justify-between mb-8">
-                        <h2 className="text-3xl font-black">Recent Guides</h2>
+                        <ComicText fontSize={4}>
+                            Recent Guides
+                        </ComicText>
                         <Link
                             to="/guides"
                             className="flex items-center gap-2 font-medium hover:underline"
                         >
-                            View all
+                            <ComicText fontSize={2}>
+                                View all
+                            </ComicText>
                             <ArrowRight size={18} />
                         </Link>
                     </div>
@@ -216,9 +274,11 @@ export default function HomePage() {
             {/* CTA */}
             <section className="bg-black text-white py-20">
                 <div className="max-w-4xl mx-auto px-4 text-center">
-                    <h2 className="text-4xl font-black mb-6">
-                        Ready to get started?
-                    </h2>
+                    <div className="mb-6">
+                        <ComicText fontSize={5}>
+                            Ready to get started?
+                        </ComicText>
+                    </div>
                     <p className="text-xl text-gray-300 mb-8">
                         Start building your personal knowledge base today.
                     </p>
