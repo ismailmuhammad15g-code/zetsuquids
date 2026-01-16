@@ -681,12 +681,6 @@ npm run format
 - Monitor query performance
 - Review Supabase logs
 
-## License
-
-MIT License - feel free to use this project however you want!
-
-## Support
-
 ## 📝 Contributing
 
 Contributions are welcome! Please follow these guidelines:
