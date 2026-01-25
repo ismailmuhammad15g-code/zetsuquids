@@ -27,14 +27,15 @@ export default async function handler(req, res) {
         const { messages, model } = req.body
         console.log('Sending to Routeway API, model:', model || 'kimi-k2-0905:free')
 
-        if (!process.env.ROUTEWAY_API_KEY) {
-            throw new Error('Missing ROUTEWAY_API_KEY')
+        const apiKey = process.env.ROUTEWAY_API_KEY || process.env.VITE_AI_API_KEY
+        if (!apiKey) {
+            throw new Error('Missing API Key (ROUTEWAY_API_KEY or VITE_AI_API_KEY)')
         }
 
         const response = await fetch('https://api.routeway.ai/v1/chat/completions', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${process.env.ROUTEWAY_API_KEY}`,
+                'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
