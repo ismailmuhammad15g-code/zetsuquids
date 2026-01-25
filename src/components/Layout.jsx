@@ -17,6 +17,7 @@ export default function Layout() {
     const [showSearchModal, setShowSearchModal] = useState(false)
     const [showUserMenu, setShowUserMenu] = useState(false)
     const [showAccountSetup, setShowAccountSetup] = useState(false)
+    const [accountDeleted, setAccountDeleted] = useState(false)
     const [userProfile, setUserProfile] = useState(null)
 
     // Close mobile menu on route change
@@ -49,8 +50,14 @@ export default function Layout() {
 
             setUserProfile(data)
 
-            // If no profile data found, show setup modal
+            // If no profile data found, verify if account actually exists (it might be deleted)
             if (!data) {
+                const { error } = await supabase.auth.getUser()
+                if (error) {
+                    // Auth user is gone, triggering deletion flow
+                    setAccountDeleted(true)
+                    return
+                }
                 setShowAccountSetup(true)
             }
         }
@@ -305,6 +312,30 @@ export default function Layout() {
                         checkProfile()
                     }}
                 />
+            )}
+            {/* Account Deleted Modal */}
+            {accountDeleted && (
+                <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white border-2 border-black rounded-xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
+                        <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 mx-auto border-2 border-red-500">
+                            <LogOut className="w-6 h-6 text-red-600" />
+                        </div>
+                        <h2 className="text-xl font-black text-center mb-2">Account Deleted</h2>
+                        <p className="text-gray-600 text-center mb-6">
+                            This account has been permanently deleted as requested. You will now be logged out.
+                        </p>
+                        <button
+                            onClick={() => {
+                                logout()
+                                setAccountDeleted(false)
+                                navigate('/')
+                            }}
+                            className="w-full py-3 bg-black text-white font-bold rounded-lg hover:bg-gray-800 transition-colors"
+                        >
+                            Return to Home
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     )
