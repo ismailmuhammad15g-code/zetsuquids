@@ -1,4 +1,4 @@
-import { Bot, History, Menu, MessageSquare, Plus, Trash2, User, X, Zap } from 'lucide-react'
+import { ArrowRight, Bot, History, Menu, MessageSquare, Plus, Trash2, User, X, Zap } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CodeBlock } from '../components/ui/code-block'
@@ -10,6 +10,10 @@ import { SparklesText } from '../components/ui/sparkles-text'
 import { TextGenerateEffect } from '../components/ui/text-generate-effect'
 import { useAuth } from '../contexts/AuthContext'
 import { guidesApi, isSupabaseConfigured, supabase } from '../lib/api'
+import Lottie from 'lottie-react'
+import robotAnimation from '../assets/robotwelcomming.json'
+import guidePublishAnimation from '../assets/Guidepublish.json'
+import aiLogoAnimation from '../assets/ailogo.json'
 
 // AI API Configuration - Using Netlify Functions in production, local backend in dev
 const isDev = import.meta.env.DEV
@@ -37,6 +41,8 @@ function isArabicText(text) {
     // If more Arabic than Latin, consider it Arabic text
     return arabicMatches > latinMatches * 0.3
 }
+
+import { getAvatarForUser } from '../lib/avatar'
 
 // Improved markdown parser that handles Arabic text properly
 function parseMarkdownText(text) {
@@ -71,7 +77,7 @@ async function getCreditsFromDB(userEmail) {
                 .from('zetsuguide_credits')
                 .select('credits, referred_by')
                 .eq('user_email', userEmail)
-                .single()
+                .maybeSingle() // Fix 406 error: use maybeSingle instead of single
 
             if (!error && data) {
                 console.log('Credits from DB:', data.credits)
@@ -79,8 +85,9 @@ async function getCreditsFromDB(userEmail) {
             }
 
             // User doesn't have credits record yet - create one with 5 credits
-            if (error && error.code === 'PGRST116') {
+            if (!data) {
                 console.log('Creating new credits record for user')
+                // Fix 409 error: Using explicit insert, handle conflict gracefully if race condition
                 const { data: newData, error: insertError } = await supabase
                     .from('zetsuguide_credits')
                     .insert({
@@ -93,6 +100,15 @@ async function getCreditsFromDB(userEmail) {
 
                 if (!insertError && newData) {
                     return newData.credits
+                } else if (insertError && insertError.code === '23505') {
+                    // Handle race condition: fetch again if insert failed due to duplicate
+                    console.log('Credits record already exists (race condition), fetching again...')
+                    const { data: retryData } = await supabase
+                        .from('zetsuguide_credits')
+                        .select('credits')
+                        .eq('user_email', userEmail)
+                        .maybeSingle()
+                    return retryData?.credits || 5
                 }
             }
         } catch (err) {
@@ -104,8 +120,40 @@ async function getCreditsFromDB(userEmail) {
     return 5
 }
 
+// Log credit usage
+async function logCreditUsage(userEmail, action, details = '') {
+    try {
+        await supabase.from('zetsuguide_usage_logs').insert({
+            user_email: userEmail,
+            action,
+            details,
+            cost: 1,
+            created_at: new Date().toISOString()
+        })
+    } catch (err) {
+        console.warn('Failed to log usage:', err)
+    }
+}
+
+// Fetch usage history
+async function fetchUsageLogs(userEmail) {
+    try {
+        const { data, error } = await supabase
+            .from('zetsuguide_usage_logs')
+            .select('*')
+            .eq('user_email', userEmail)
+            .order('created_at', { ascending: false })
+            .limit(20)
+
+        return data || []
+    } catch (err) {
+        console.error('Error fetching logs:', err)
+        return []
+    }
+}
+
 // Use credit - deducts ONLY from Supabase (no localStorage)
-async function useCreditsFromDB(userEmail) {
+async function useCreditsFromDB(userEmail, action = 'AI Chat', details = '') {
     if (!isSupabaseConfigured() || !userEmail || userEmail === 'guest') {
         return { success: false, remaining: 0 }
     }
@@ -145,6 +193,9 @@ async function useCreditsFromDB(userEmail) {
             console.error('Error updating credits:', updateError)
             return { success: false, remaining: currentCredits }
         }
+
+        // Log the usage
+        logCreditUsage(userEmail, action, details)
 
         console.log('Credit used - New balance:', newCredits)
         return { success: true, remaining: newCredits }
@@ -390,83 +441,23 @@ function FormattedTextWithLinks({ content, isRtl }) {
     )
 }
 
-// Enhanced Streaming Text Component with Text Generate Effect and Code Blocks
-function StreamingText({ text, onComplete, speed = 12 }) {
+// Enhanced Streaming Text Component that maintains Markdown formatting
+function StreamingText({ text, onComplete, speed = 10 }) {
+    const { displayedText, isComplete } = useStreamingText(text, true, speed)
     const isRtl = isArabicText(text)
-    const parts = parseContentWithCodeBlocks(text)
+
+    // Notify parent when complete
+    useEffect(() => {
+        if (isComplete && onComplete) {
+            onComplete()
+        }
+    }, [isComplete, onComplete])
 
     return (
-        <div
-            className={`zetsu-ai-message-text ${isRtl ? 'rtl-text' : ''}`}
-            dir={isRtl ? 'rtl' : 'ltr'}
-            style={{
-                textAlign: isRtl ? 'right' : 'left',
-                width: '100%',
-                display: 'block',
-            }}
-        >
-            {parts.map((part, idx) => {
-                if (part.type === 'code') {
-                    // Detect filename from language
-                    const langToFile = {
-                        'javascript': 'script.js',
-                        'js': 'script.js',
-                        'typescript': 'script.ts',
-                        'ts': 'script.ts',
-                        'jsx': 'Component.jsx',
-                        'tsx': 'Component.tsx',
-                        'python': 'script.py',
-                        'py': 'script.py',
-                        'html': 'index.html',
-                        'css': 'styles.css',
-                        'json': 'data.json',
-                        'bash': 'terminal',
-                        'sh': 'terminal',
-                        'sql': 'query.sql',
-                    }
-                    const filename = langToFile[part.language.toLowerCase()] || null
-
-                    return (
-                        <CodeBlock
-                            key={idx}
-                            code={part.content}
-                            language={part.language}
-                            filename={filename}
-                        />
-                    )
-                } else {
-                    // For first text part, use streaming effect
-                    if (idx === 0) {
-                        return (
-                            <div key={idx} className="chat-text-content">
-                                <TextGenerateEffect
-                                    words={part.content}
-                                    className="text-white/95 leading-relaxed"
-                                    onComplete={parts.length === 1 ? onComplete : undefined}
-                                />
-                            </div>
-                        )
-                    }
-                    // For subsequent text parts, render with markdown
-                    return (
-                        <div
-                            key={idx}
-                            className="chat-text-content"
-                            style={{ direction: isRtl ? 'rtl' : 'ltr', textAlign: isRtl ? 'right' : 'left' }}
-                        >
-                            <FormattedTextWithLinks content={part.content} isRtl={isRtl} />
-                        </div>
-                    )
-                }
-            })}
-
-            {/* Mark complete when last part renders */}
-            {parts.length > 1 && (
-                <span style={{ display: 'none' }} ref={(el) => {
-                    if (el && onComplete) {
-                        setTimeout(onComplete, 500)
-                    }
-                }} />
+        <div className={`zetsu-streaming-wrapper ${isComplete ? 'completed' : 'typing'}`}>
+            <MessageContent content={displayedText} isRtl={isRtl} />
+            {!isComplete && (
+                <span className="zetsu-ai-cursor">|</span>
             )}
         </div>
     )
@@ -665,6 +656,10 @@ export default function ZetsuGuideAIPage() {
     const [isPublishing, setIsPublishing] = useState(false)
     const [publishComplete, setPublishComplete] = useState(false)
     const [publishedGuideSlug, setPublishedGuideSlug] = useState(null)
+    const [showProfileModal, setShowProfileModal] = useState(false)
+    const [usageLogs, setUsageLogs] = useState([])
+    const [showUsageHistory, setShowUsageHistory] = useState(false)
+    const [isLoadingLogs, setIsLoadingLogs] = useState(false)
 
     // Default prompts
     const defaultPrompts = [
@@ -1012,6 +1007,23 @@ export default function ZetsuGuideAIPage() {
         setShowHistory(false)
     }
 
+    const [userProfile, setUserProfile] = useState(null)
+
+    // Fetch user profile for custom avatar
+    useEffect(() => {
+        if (!user?.email) return
+
+        async function fetchProfile() {
+            const { data } = await supabase
+                .from('zetsuguide_user_profiles')
+                .select('*')
+                .eq('user_email', user.email)
+                .maybeSingle()
+            setUserProfile(data)
+        }
+        fetchProfile()
+    }, [user])
+
     // Load credits and guides on mount
     useEffect(() => {
         async function loadCredits() {
@@ -1167,6 +1179,7 @@ export default function ZetsuGuideAIPage() {
         }
 
         const userEmail = user.email
+        const userQuery = input.trim()
 
         // Check credits
         if (credits <= 0) {
@@ -1175,14 +1188,13 @@ export default function ZetsuGuideAIPage() {
         }
 
         // Use credit from DB
-        const creditResult = await useCreditsFromDB(userEmail)
+        const creditResult = await useCreditsFromDB(userEmail, 'AI Chat', `Query: ${userQuery.substring(0, 50)}${userQuery.length > 50 ? '...' : ''}`)
         if (!creditResult.success) {
             navigate('/pricing')
             return
         }
         setCredits(creditResult.remaining)
 
-        const userQuery = input.trim()
         const userMessage = {
             role: 'user',
             content: userQuery,
@@ -1275,6 +1287,11 @@ Do NOT include source citations - they are added automatically.`
                     const guideUrl = `/guide/${source.slug}`
                     aiContent += `${idx + 1}. [${source.title}](${guideUrl})\n`
                 })
+            }
+
+            // Final safety check for empty content
+            if (!aiContent || !aiContent.trim()) {
+                aiContent = "⚠️ **Error**: Received empty response from AI provider. Please try again."
             }
 
             setIsThinking(false)
@@ -1543,15 +1560,20 @@ Do NOT include source citations - they are added automatically.`
                             <Menu size={20} />
                         </button>
                     )}
-                    <div className="zetsu-ai-brand">
-                        <div className="zetsu-ai-logo">
-                            <Bot size={24} />
+                    <Link to="/" className="zetsu-ai-brand" style={{ background: 'none', border: 'none', textDecoration: 'none' }}>
+                        <div className="zetsu-ai-logo" style={{ width: 50, height: 50, background: 'transparent', border: 'none' }}>
+                            <Lottie
+                                animationData={aiLogoAnimation}
+                                loop={true}
+                                autoplay={true}
+                                style={{ width: '100%', height: '100%' }}
+                            />
                         </div>
                         <div className="zetsu-ai-title">
                             <h1>ZetsuGuide AI</h1>
                             <span className="zetsu-ai-badge">BETA</span>
                         </div>
-                    </div>
+                    </Link>
                 </div>
 
                 <div className="zetsu-ai-user-section">
@@ -1570,12 +1592,343 @@ Do NOT include source citations - they are added automatically.`
                         <span>{credits} Credits</span>
                     </Link>
 
+
                     {isAuthenticated() ? (
-                        <div className="zetsu-ai-user">
-                            <div className="zetsu-ai-avatar">
-                                {user?.name?.charAt(0).toUpperCase() || 'U'}
+                        <div className="zetsu-profile-wrapper" style={{ position: 'relative' }}>
+                            <div
+                                className="zetsu-ai-user"
+                                onClick={() => setShowProfileModal(!showProfileModal)}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                <div className="zetsu-ai-avatar">
+                                    <img
+                                        src={getAvatarForUser(user?.email, userProfile?.avatar_url)}
+                                        alt="Avatar"
+                                        style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                    />
+                                </div>
+                                <span className="zetsu-ai-username">{user?.name || 'User'}</span>
                             </div>
-                            <span className="zetsu-ai-username">{user?.name || 'User'}</span>
+
+                            {/* Profile Popover */}
+                            {showProfileModal && (
+                                <>
+                                    <div
+                                        style={{
+                                            position: 'fixed',
+                                            top: 0,
+                                            left: 0,
+                                            width: '100vw',
+                                            height: '100vh',
+                                            zIndex: 40,
+                                            cursor: 'default'
+                                        }}
+                                        onClick={(e) => {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            setShowProfileModal(false)
+                                            setShowUsageHistory(false)
+                                        }}
+                                    />
+                                    <div className="zetsu-profile-popover">
+                                        {!showUsageHistory ? (
+                                            <>
+                                                {/* Normal Profile View */}
+                                                <div className="zetsu-popover-header">
+                                                    <div className="zetsu-popover-user">
+                                                        <div className="zetsu-popover-avatar">
+                                                            <img
+                                                                src={getAvatarForUser(user?.email, userProfile?.avatar_url)}
+                                                                alt="Avatar"
+                                                                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                                            />
+                                                        </div>
+                                                        <div className="zetsu-popover-info">
+                                                            <span className="zetsu-popover-name">{user?.name || 'User'}</span>
+                                                            <span className="zetsu-popover-email">{user?.email}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="zetsu-popover-credits">
+                                                    <div className="zetsu-credits-header">
+                                                        <span>Available Credits</span>
+                                                        <span className="zetsu-credits-count">{credits}</span>
+                                                    </div>
+                                                    <div className="zetsu-credits-bar">
+                                                        <div
+                                                            className="zetsu-credits-fill"
+                                                            style={{ width: `${Math.min((credits / 10) * 100, 100)}%` }}
+                                                        />
+                                                    </div>
+                                                    <div
+                                                        className="zetsu-credits-usage"
+                                                        onClick={async () => {
+                                                            setIsLoadingLogs(true)
+                                                            setShowUsageHistory(true)
+                                                            if (user?.email) {
+                                                                const logs = await fetchUsageLogs(user.email)
+                                                                setUsageLogs(logs)
+                                                            }
+                                                            setIsLoadingLogs(false)
+                                                        }}
+                                                    >
+                                                        <span>Usage</span>
+                                                        <ArrowRight size={14} />
+                                                    </div>
+                                                </div>
+
+                                                <Link to="/pricing" className="zetsu-upgrade-btn-popover">
+                                                    <Zap size={16} fill="currentColor" />
+                                                    <span>Upgrade Plan</span>
+                                                </Link>
+                                            </>
+                                        ) : (
+                                            <>
+                                                {/* Usage History View */}
+                                                <div className="zetsu-popover-header">
+                                                    <div
+                                                        className="zetsu-popover-back"
+                                                        onClick={() => setShowUsageHistory(false)}
+                                                    >
+                                                        <ArrowRight size={16} className="rotate-180" />
+                                                        <span>Back to Profile</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="zetsu-usage-list">
+                                                    {isLoadingLogs ? (
+                                                        <div className="zetsu-usage-loading">Loading history...</div>
+                                                    ) : usageLogs.length === 0 ? (
+                                                        <div className="zetsu-usage-empty">No usage history yet</div>
+                                                    ) : (
+                                                        usageLogs.map((log, idx) => (
+                                                            <div key={idx} className="zetsu-usage-item">
+                                                                <div className="zetsu-usage-info">
+                                                                    <span className="zetsu-usage-action">{log.action || 'Credit Used'}</span>
+                                                                    <span className="zetsu-usage-date">
+                                                                        {new Date(log.created_at).toLocaleDateString()}
+                                                                    </span>
+                                                                </div>
+                                                                <span className="zetsu-usage-cost">-{log.cost || 1}</span>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </>
+                                        )}
+
+                                        <style>{`
+                                            .zetsu-profile-popover {
+                                                position: absolute;
+                                                top: 120%;
+                                                right: 0;
+                                                width: 300px;
+                                                min-height: 200px;
+                                                background: #1a1a1a;
+                                                border: 1px solid rgba(255,255,255,0.1);
+                                                border-radius: 16px;
+                                                box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5);
+                                                padding: 16px;
+                                                z-index: 50;
+                                                animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+                                                display: flex;
+                                                flex-direction: column;
+                                            }
+
+                                            .zetsu-popover-header {
+                                                padding-bottom: 16px;
+                                                border-bottom: 1px solid rgba(255,255,255,0.1);
+                                                margin-bottom: 16px;
+                                            }
+
+                                            .zetsu-popover-user {
+                                                display: flex;
+                                                align-items: center;
+                                                gap: 12px;
+                                            }
+
+                                            .zetsu-popover-avatar {
+                                                width: 40px;
+                                                height: 40px;
+                                                border-radius: 50%;
+                                                background: rgba(255,255,255,0.1);
+                                                display: flex;
+                                                align-items: center;
+                                                justify-content: center;
+                                                font-weight: 600;
+                                                font-size: 1.1rem;
+                                                color: white;
+                                                overflow: hidden;
+                                            }
+
+                                            .zetsu-popover-info {
+                                                display: flex;
+                                                flex-direction: column;
+                                            }
+
+                                            .zetsu-popover-name {
+                                                font-weight: 600;
+                                                color: white;
+                                                font-size: 0.95rem;
+                                            }
+
+                                            .zetsu-popover-email {
+                                                font-size: 0.8rem;
+                                                color: rgba(255,255,255,0.5);
+                                                max-width: 180px;
+                                                overflow: hidden;
+                                                text-overflow: ellipsis;
+                                                white-space: nowrap;
+                                            }
+
+                                            .zetsu-popover-credits {
+                                                background: rgba(255,255,255,0.03);
+                                                border-radius: 12px;
+                                                padding: 12px;
+                                                margin-bottom: 12px;
+                                            }
+
+                                            .zetsu-credits-header {
+                                                display: flex;
+                                                justify-content: space-between;
+                                                align-items: center;
+                                                margin-bottom: 8px;
+                                                font-size: 0.85rem;
+                                                color: rgba(255,255,255,0.7);
+                                            }
+
+                                            .zetsu-credits-count {
+                                                font-weight: 700;
+                                                color: white;
+                                                font-size: 1rem;
+                                            }
+
+                                            .zetsu-credits-bar {
+                                                height: 6px;
+                                                background: rgba(255,255,255,0.1);
+                                                border-radius: 3px;
+                                                margin-bottom: 8px;
+                                                overflow: hidden;
+                                            }
+
+                                            .zetsu-credits-fill {
+                                                height: 100%;
+                                                background: #4ade80;
+                                                border-radius: 3px;
+                                                transition: width 0.3s ease;
+                                            }
+
+                                            .zetsu-credits-usage {
+                                                display: flex;
+                                                justify-content: flex-end;
+                                                align-items: center;
+                                                gap: 4px;
+                                                font-size: 0.75rem;
+                                                color: rgba(255,255,255,0.4);
+                                                cursor: pointer;
+                                                transition: color 0.2s;
+                                            }
+
+                                            .zetsu-credits-usage:hover {
+                                                color: #fff;
+                                            }
+
+                                            .zetsu-upgrade-btn-popover {
+                                                display: flex;
+                                                align-items: center;
+                                                justify-content: center;
+                                                gap: 8px;
+                                                width: 100%;
+                                                padding: 10px;
+                                                background: linear-gradient(135deg, #a855f7, #ec4899);
+                                                border-radius: 10px;
+                                                color: white;
+                                                font-weight: 600;
+                                                font-size: 0.9rem;
+                                                text-decoration: none;
+                                                transition: all 0.2s;
+                                            }
+
+                                            .zetsu-upgrade-btn-popover:hover {
+                                                transform: translateY(-2px);
+                                                box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+                                            }
+
+                                            /* Usage History Styles */
+                                            .zetsu-popover-back {
+                                                display: flex;
+                                                align-items: center;
+                                                gap: 8px;
+                                                cursor: pointer;
+                                                color: rgba(255,255,255,0.8);
+                                                font-size: 0.9rem;
+                                                font-weight: 500;
+                                                transition: color 0.2s;
+                                            }
+
+                                            .zetsu-popover-back:hover {
+                                                color: #fff;
+                                            }
+
+                                            .rotate-180 {
+                                                transform: rotate(180deg);
+                                            }
+
+                                            .zetsu-usage-list {
+                                                flex: 1;
+                                                overflow-y: auto;
+                                                max-height: 200px;
+                                            }
+
+                                            .zetsu-usage-item {
+                                                display: flex;
+                                                justify-content: space-between;
+                                                align-items: center;
+                                                padding: 8px 0;
+                                                border-bottom: 1px solid rgba(255,255,255,0.05);
+                                            }
+
+                                            .zetsu-usage-item:last-child {
+                                                border-bottom: none;
+                                            }
+
+                                            .zetsu-usage-info {
+                                                display: flex;
+                                                flex-direction: column;
+                                            }
+
+                                            .zetsu-usage-action {
+                                                font-size: 0.85rem;
+                                                color: rgba(255,255,255,0.9);
+                                            }
+
+                                            .zetsu-usage-date {
+                                                font-size: 0.75rem;
+                                                color: rgba(255,255,255,0.5);
+                                            }
+
+                                            .zetsu-usage-cost {
+                                                font-size: 0.85rem;
+                                                font-weight: 600;
+                                                color: #ef4444;
+                                            }
+
+                                            .zetsu-usage-loading, .zetsu-usage-empty {
+                                                text-align: center;
+                                                color: rgba(255,255,255,0.5);
+                                                padding: 20px 0;
+                                                font-size: 0.9rem;
+                                            }
+
+                                            @keyframes popIn {
+                                                from { opacity: 0; transform: translateY(-10px) scale(0.95); }
+                                                to { opacity: 1; transform: translateY(0) scale(1); }
+                                            }
+                                        `}</style>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     ) : (
                         <button
@@ -1587,6 +1940,227 @@ Do NOT include source citations - they are added automatically.`
                     )}
                 </div>
             </header>
+
+            {/* Publish to Guide Modal */}
+            {showPublishModal && (
+                <div className="zetsu-publish-overlay" onClick={closePublishModal}>
+                    <div className="zetsu-publish-modal glass-panel" onClick={e => e.stopPropagation()}>
+                        <button className="zetsu-publish-close" onClick={closePublishModal}>
+                            <X size={20} />
+                        </button>
+
+                        <div className="zetsu-publish-header">
+                            <div className="zetsu-publish-anim-container">
+                                <Lottie
+                                    animationData={guidePublishAnimation}
+                                    loop={!publishComplete}
+                                    autoplay={true}
+                                    style={{ width: 120, height: 120 }}
+                                />
+                            </div>
+                            <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
+                                {publishComplete ? '🎉 Published Successfully!' : 'Creating Your Guide...'}
+                            </h2>
+                        </div>
+
+                        <div className="zetsu-publish-steps-container">
+                            {/* Step 1: Generating Title */}
+                            <div className={`zetsu-modern-step ${publishStep >= 1 ? 'active' : ''} ${publishStep > 1 ? 'completed' : ''}`}>
+                                <div className="step-icon">
+                                    {publishStep > 1 ? <div className="check-mark">✓</div> : <div className="spinner-ring"></div>}
+                                </div>
+                                <div className="step-info">
+                                    <span className="step-label">Generating Title</span>
+                                    {publishData.title && <span className="step-value">{publishData.title}</span>}
+                                </div>
+                            </div>
+
+                            {/* Step 2: Extracting Keywords */}
+                            <div className={`zetsu-modern-step ${publishStep >= 2 ? 'active' : ''} ${publishStep > 2 ? 'completed' : ''}`}>
+                                <div className="step-icon">
+                                    {publishStep > 2 ? <div className="check-mark">✓</div> : <div className="spinner-ring"></div>}
+                                </div>
+                                <div className="step-info">
+                                    <span className="step-label">Extracting Keywords</span>
+                                    {publishData.keywords.length > 0 && (
+                                        <div className="step-tags">
+                                            {publishData.keywords.slice(0, 3).map((kw, i) => (
+                                                <span key={i} className="mini-tag">{kw}</span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Step 3: Formatting */}
+                            <div className={`zetsu-modern-step ${publishStep >= 3 ? 'active' : ''} ${publishStep > 3 ? 'completed' : ''}`}>
+                                <div className="step-icon">
+                                    {publishStep > 3 ? <div className="check-mark">✓</div> : <div className="spinner-ring"></div>}
+                                </div>
+                                <div className="step-info">
+                                    <span className="step-label">Formatting Content</span>
+                                </div>
+                            </div>
+
+                            {/* Step 4: Finalizing */}
+                            <div className={`zetsu-modern-step ${publishStep >= 4 ? 'active' : ''} ${publishStep >= 5 ? 'completed' : ''}`}>
+                                <div className="step-icon">
+                                    {publishStep >= 5 ? <div className="check-mark">✓</div> : <div className="spinner-ring"></div>}
+                                </div>
+                                <div className="step-info">
+                                    <span className="step-label">Publishing to Database</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Success Actions */}
+                        {publishComplete && publishedGuideSlug && (
+                            <div className="zetsu-publish-actions fade-in-up">
+                                <Link
+                                    to={`/guide/${publishedGuideSlug}`}
+                                    className="zetsu-view-btn"
+                                    onClick={closePublishModal}
+                                >
+                                    <span>View Guide</span>
+                                    <ArrowRight size={16} />
+                                </Link>
+                            </div>
+                        )}
+
+                        <style>{`
+                            .glass-panel {
+                                background: rgba(20, 20, 20, 0.85);
+                                backdrop-filter: blur(20px);
+                                border: 1px solid rgba(255, 255, 255, 0.1);
+                                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                                border-radius: 24px;
+                                padding: 2rem;
+                                width: 100%;
+                                max-width: 450px;
+                                color: white;
+                                overflow: hidden;
+                                position: relative;
+                            }
+                            
+                            .glass-panel::before {
+                                content: '';
+                                position: absolute;
+                                top: 0; left: 0; right: 0; height: 1px;
+                                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+                            }
+
+                            .zetsu-publish-header {
+                                display: flex;
+                                flex-direction: column;
+                                align-items: center;
+                                margin-bottom: 2rem;
+                            }
+
+                            .zetsu-publish-anim-container {
+                                margin-bottom: 1rem;
+                                filter: drop-shadow(0 0 15px rgba(168, 85, 247, 0.4));
+                            }
+
+                            .zetsu-modern-step {
+                                display: flex;
+                                align-items: flex-start;
+                                gap: 1rem;
+                                padding: 0.75rem;
+                                margin-bottom: 0.5rem;
+                                border-radius: 12px;
+                                transition: all 0.3s;
+                                opacity: 0.4;
+                            }
+
+                            .zetsu-modern-step.active {
+                                opacity: 1;
+                                background: rgba(255, 255, 255, 0.05);
+                            }
+                            
+                            .zetsu-modern-step.completed {
+                                opacity: 1;
+                            }
+
+                            .step-icon {
+                                width: 24px;
+                                height: 24px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            }
+
+                            .spinner-ring {
+                                width: 18px;
+                                height: 18px;
+                                border: 2px solid rgba(255,255,255,0.2);
+                                border-top-color: #fff;
+                                border-radius: 50%;
+                                animation: spin 1s linear infinite;
+                            }
+
+                            .check-mark {
+                                color: #4ade80;
+                                font-weight: bold;
+                                scale: 1.2;
+                            }
+
+                            .step-info {
+                                display: flex;
+                                flex-direction: column;
+                            }
+
+                            .step-label {
+                                font-weight: 500;
+                                font-size: 0.95rem;
+                            }
+
+                            .step-value {
+                                font-size: 0.8rem;
+                                color: rgba(255,255,255,0.6);
+                                margin-top: 2px;
+                            }
+
+                            .step-tags {
+                                display: flex;
+                                gap: 4px;
+                                margin-top: 4px;
+                            }
+
+                            .mini-tag {
+                                background: rgba(255,255,255,0.1);
+                                padding: 2px 6px;
+                                border-radius: 4px;
+                                font-size: 0.7rem;
+                                color: rgba(255,255,255,0.8);
+                            }
+
+                            .zetsu-view-btn {
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 8px;
+                                width: 100%;
+                                padding: 12px;
+                                background: linear-gradient(135deg, #a855f7, #ec4899);
+                                border-radius: 12px;
+                                color: white;
+                                font-weight: 600;
+                                transition: all 0.3s;
+                                margin-top: 1rem;
+                            }
+
+                            .zetsu-view-btn:hover {
+                                transform: translateY(-2px);
+                                box-shadow: 0 10px 20px -5px rgba(236, 72, 153, 0.4);
+                            }
+
+                            @keyframes spin { to { transform: rotate(360deg); } }
+                            .fade-in-up { animation: fadeInUp 0.5s ease; }
+                        `}</style>
+                    </div>
+                </div>
+            )}
+
 
             {/* Add Prompt Modal */}
             {showPromptModal && (
@@ -1652,10 +2226,10 @@ Do NOT include source citations - they are added automatically.`
                         />
 
                         <div className="zetsu-ai-welcome-icon" style={{ position: 'relative', zIndex: 1 }}>
-                            <img
-                                src="/images/catfull.gif"
-                                alt="ZetsuGuide AI"
-                                className="zetsu-welcome-gif"
+                            <Lottie
+                                animationData={robotAnimation}
+                                loop={true}
+                                style={{ width: '100%', height: '100%' }}
                             />
                         </div>
                         <h2 style={{ position: 'relative', zIndex: 1 }}>
@@ -1729,7 +2303,11 @@ Do NOT include source citations - they are added automatically.`
                             >
                                 <div className="zetsu-ai-message-avatar">
                                     {msg.role === 'user' ? (
-                                        <User size={20} />
+                                        <img
+                                            src={getAvatarForUser(user?.email, userProfile?.avatar_url)}
+                                            alt="User"
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+                                        />
                                     ) : (
                                         <Bot size={20} />
                                     )}
@@ -1761,16 +2339,22 @@ Do NOT include source citations - they are added automatically.`
                                             {/* Publish to Guide button - for all AI messages */}
                                             {msg.role === 'assistant' && !msg.isStreaming && msg.content.length > 100 && (
                                                 <button
-                                                    className="zetsu-publish-guide-btn"
+                                                    className="zetsu-publish-guide-btn group"
                                                     onClick={() => publishToGuide(msg.content)}
                                                     title="Publish as Guide"
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)', transition: 'all 0.2s' }}
                                                 >
-                                                    <img
-                                                        src="/images/submittoreview.gif"
-                                                        alt="Publish"
-                                                        className="zetsu-publish-icon"
-                                                    />
-                                                    <span>{isArabicText(msg.content) ? 'نشر كدليل' : 'Publish as Guide'}</span>
+                                                    <div style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <Lottie
+                                                            animationData={guidePublishAnimation}
+                                                            loop={true}
+                                                            autoplay={true}
+                                                            style={{ width: 32, height: 32 }}
+                                                        />
+                                                    </div>
+                                                    <span className="font-medium group-hover:text-purple-300 transition-colors">
+                                                        {isArabicText(msg.content) ? 'نشر كدليل' : 'Publish as Guide'}
+                                                    </span>
                                                 </button>
                                             )}
                                         </>
@@ -2319,21 +2903,14 @@ Do NOT include source citations - they are added automatically.`
                 }
 
                 .zetsu-ai-welcome-icon {
-                    width: 160px;
-                    height: 160px;
-                    margin: 0 auto 32px;
-                    background: #ffffff;
-                    border-radius: 32px;
+                    width: 280px;
+                    height: 280px;
+                    margin: 0 auto 10px;
+                    background: transparent;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     animation: iconFloat 4s ease-in-out infinite;
-                    box-shadow:
-                        0 20px 60px rgba(0,0,0,0.5),
-                        0 0 0 1px rgba(255,255,255,0.1),
-                        inset 0 -4px 10px rgba(0,0,0,0.05);
-                    overflow: hidden;
-                    border: 3px solid rgba(255,255,255,0.15);
                     position: relative;
                 }
 
@@ -2688,6 +3265,35 @@ Do NOT include source citations - they are added automatically.`
                     }
                 }
 
+                .zetsu-ai-avatar {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 50%;
+                    /* background: linear-gradient(135deg, #a855f7, #ec4899); */
+                    background: rgba(255,255,255,0.1);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 600;
+                    font-size: 1.1rem;
+                    color: white;
+                    overflow: hidden;
+                }
+
+                .zetsu-popover-avatar {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 50%;
+                    /* background: linear-gradient(135deg, #a855f7, #ec4899); */
+                    background: rgba(255,255,255,0.1);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 600;
+                    font-size: 1.1rem;
+                    color: white;
+                    overflow: hidden;
+                }
                 .zetsu-ai-message-avatar {
                     width: 36px;
                     height: 36px;

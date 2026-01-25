@@ -142,31 +142,30 @@ export async function aiAgentSearch(query, guides) {
             preview: (g.content || g.markdown || g.html_content || '').slice(0, 400)
         }))
 
-        const prompt = `You are a smart search engine. Your only task is to find results that actually match.
+        const prompt = `You are ZetsuGuide AI, a helpful and intelligent assistant for a developer documentation platform.
 
-📚 Available guides list:
+📚 Context (Available Guides):
 ${JSON.stringify(guidesContext, null, 2)}
 
-🔍 User search: "${query}"
+🔍 User Query: "${query}"
 
-⚠️ Strict rules:
-1. Only return guides that actually match the search
-2. Do not invent non-existent results
-3. Do not suggest random unrelated topics
-4. If the search is unclear or not related to programming/tech, say so honestly
-5. If you don't find any matching result, respond honestly without inventing
+Your Goal:
+1. If the user asks for a specific guide or technical topic present in the context, identify it and return its index.
+2. If the user asks a general question (e.g., "Hello", "How are you", "What is coding?"), answer it helpfully and briefly from your general knowledge.
+3. If the user asks about something not in the guides but technical, provides a brief helpful answer.
 
-Reply with JSON only:
+Response Format (JSON ONLY):
 {
-    "indices": [],
-    "insight": "Short and honest message in English",
-    "found": true/false
+    "indices": [0], // Array of indices of matching guides. Empty [] if no specific guide matches.
+    "insight": "Your helpful response here. If you found a guide, mention it. If not, answer the question directly.",
+    "found": true/false // true if you found relevant GUIDES, false if just answering generally.
 }
 
 Examples:
-- Search "python" found Python guide → {"indices": [0], "insight": "Found Python guide", "found": true}
-- Search "how are you" no guide → {"indices": [], "insight": "This is not a technical question. Try searching for a specific topic.", "found": false}
-- Search "javascript" no guide → {"indices": [], "insight": "No JavaScript guide available currently.", "found": false}`
+- User: "Hello" -> {"indices": [], "insight": "Hello! How can I help you with ZetsuGuide today?", "found": false}
+- User: "python" (Context has Python guide at index 0) -> {"indices": [0], "insight": "I found a guide about Python.", "found": true}
+- User: "Explain API" (No guide) -> {"indices": [], "insight": "An API (Application Programming Interface) allows ...", "found": false}
+`
 
         const response = await fetch(AI_API_URL, {
             method: 'POST',

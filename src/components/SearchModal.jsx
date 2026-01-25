@@ -1,11 +1,20 @@
 import {
     AlertTriangle,
     ArrowRight,
+    BookOpen,
     Brain,
+    CircuitBoard,
     Clock,
+    Command,
+    Compass,
+    CreditCard,
     FileText,
+    Home,
+    LayoutGrid,
     Loader2,
+    Plus,
     Search,
+    Settings,
     ShieldAlert,
     Sparkles,
     Tag,
@@ -56,6 +65,28 @@ export default function SearchModal({ onClose }) {
     const [selectedIndex, setSelectedIndex] = useState(0)
     const [recentSearches, setRecentSearches] = useState([])
     const [allGuides, setAllGuides] = useState([])
+
+    // Quick Actions Definition
+    const QUICK_ACTIONS = [
+        { id: 'action-ai', title: 'Ask ZetsuGuide AI', icon: Brain, path: '/zetsuguide-ai', color: 'text-indigo-500', bg: 'bg-indigo-50' },
+        { id: 'action-add', title: 'Add New Guide', icon: Plus, path: 'modal:add', color: 'text-green-500', bg: 'bg-green-50' },
+        { id: 'action-pro', title: 'Upgrade Plan', icon: CreditCard, path: '/pricing', color: 'text-amber-500', bg: 'bg-amber-50' },
+        { id: 'action-home', title: 'Go Home', icon: Home, path: '/', color: 'text-blue-500', bg: 'bg-blue-50' },
+    ]
+
+    // Filter State
+    const [activeFilter, setActiveFilter] = useState('all') // all, guides, actions
+
+    function handleActionClick(action) {
+        if (action.path === 'modal:add') {
+            // Dispatch event for Layout to handle
+            window.dispatchEvent(new CustomEvent('open-add-guide'))
+            onClose()
+        } else {
+            navigate(action.path)
+            onClose()
+        }
+    }
 
     // Blacklist violation state
     const [violations, setViolations] = useState([])
@@ -133,7 +164,20 @@ export default function SearchModal({ onClose }) {
 
         try {
             // Step 1: Basic search (instant)
-            const basicResults = basicSearch(searchQuery, allGuides)
+            let basicResults = basicSearch(searchQuery, allGuides)
+
+            // Search Actions
+            const actionResults = QUICK_ACTIONS.filter(action =>
+                action.title.toLowerCase().includes(searchQuery.toLowerCase())
+            ).map(action => ({
+                ...action,
+                isAction: true,
+                keywords: ['shortcut', 'action']
+            }))
+
+            // Combine (Actions first if they match)
+            basicResults = [...actionResults, ...basicResults]
+
             setResults(basicResults)
             setSelectedIndex(0)
             setLoading(false)
@@ -195,11 +239,11 @@ export default function SearchModal({ onClose }) {
 
                 // Merge AI results with basic results
                 if (aiData.results && aiData.results.length > 0) {
-                    const existingIds = new Set(results.map(r => r.id))
-                    const newResults = aiData.results.filter(r => !existingIds.has(r.id))
-                    if (newResults.length > 0) {
-                        setResults(prev => [...prev, ...newResults])
-                    }
+                    setResults(prev => {
+                        const existingIds = new Set(prev.map(r => r.id))
+                        const uniqueNewResults = aiData.results.filter(r => !existingIds.has(r.id))
+                        return [...prev, ...uniqueNewResults]
+                    })
                 }
             }
         } catch (err) {
@@ -309,40 +353,66 @@ export default function SearchModal({ onClose }) {
             />
 
             {/* Modal */}
-            <div className="relative min-h-screen flex items-start justify-center pt-[10vh] px-4">
-                <div className="relative bg-white w-full max-w-2xl shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200">
-                    {/* Search Input */}
-                    <div className={`flex items-center gap-3 px-5 py-4 border-b ${violations.length > 0 ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
-                        {loading ? (
-                            <Loader2 size={22} className="animate-spin text-gray-400" />
-                        ) : violations.length > 0 ? (
-                            <ShieldAlert size={22} className="text-red-500" />
-                        ) : (
-                            <Search size={22} className="text-gray-400" />
-                        )}
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={query}
-                            onChange={handleQueryChange}
-                            onKeyDown={handleKeyDown}
-                            className={`flex-1 text-lg outline-none placeholder:text-gray-400 bg-transparent ${violations.length > 0 ? 'text-red-600' : ''}`}
-                            placeholder="Start searching..."
-                        />
-                        {query && (
-                            <button
-                                onClick={() => {
-                                    setQuery('')
-                                    setViolations([])
-                                }}
-                                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <X size={18} />
-                            </button>
-                        )}
-                        <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-lg">
-                            <kbd className="text-xs text-gray-500">ESC</kbd>
+            <div
+                className="relative min-h-screen flex items-start justify-center pt-[10vh] px-4"
+                onClick={onClose}
+            >
+                <div
+                    className="relative bg-white w-full max-w-2xl shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* Header: Search Input + Tabs */}
+                    <div className="border-b border-gray-100 bg-white z-10">
+                        <div className={`flex items-center gap-3 px-5 py-4 ${violations.length > 0 ? 'bg-red-50' : ''}`}>
+                            {loading ? (
+                                <Loader2 size={24} className="animate-spin text-indigo-500" />
+                            ) : (
+                                <Search size={24} className="text-gray-400" />
+                            )}
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={query}
+                                onChange={handleQueryChange}
+                                onKeyDown={handleKeyDown}
+                                className={`flex-1 text-xl outline-none placeholder:text-gray-300 bg-transparent font-medium ${violations.length > 0 ? 'text-red-600' : 'text-gray-900'}`}
+                                placeholder="What would you like to do?"
+                            />
+                            {query && (
+                                <button
+                                    onClick={() => {
+                                        setQuery('')
+                                        setViolations([])
+                                    }}
+                                    className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    <X size={18} />
+                                </button>
+                            )}
+                            <div className="flex items-center gap-2">
+                                <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-md">
+                                    <kbd className="text-xs font-semibold text-gray-500">ESC</kbd>
+                                </div>
+                            </div>
                         </div>
+
+                        {/* Filter Tabs (Only show when searching) */}
+                        {query && !violations.length && (
+                            <div className="flex items-center gap-1 px-4 pb-0 overflow-x-auto scrollbar-hide">
+                                {['all', 'guides', 'actions'].map(filter => (
+                                    <button
+                                        key={filter}
+                                        onClick={() => setActiveFilter(filter)}
+                                        className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeFilter === filter
+                                            ? 'border-black text-black'
+                                            : 'border-transparent text-gray-500 hover:text-gray-800'
+                                            }`}
+                                    >
+                                        {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Violation Warning */}
@@ -399,92 +469,137 @@ export default function SearchModal({ onClose }) {
                             <AIResultsPanel />
                         )}
 
-                        {/* No Query - Show Recent */}
+                        {/* No Query - Show Quick Actions & Recent */}
                         {!query && !loading && (
-                            <div className="p-4">
-                                {recentSearches.length > 0 ? (
-                                    <>
-                                        <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3 px-2">
-                                            Recent Searches
-                                        </p>
+                            <div className="p-4 space-y-8">
+                                {/* Quick Actions */}
+                                <div>
+                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                        <LayoutGrid size={14} />
+                                        Quick Actions
+                                    </h3>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                        {QUICK_ACTIONS.map(action => (
+                                            <button
+                                                key={action.id}
+                                                onClick={() => handleActionClick(action)}
+                                                className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-gray-200 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group"
+                                            >
+                                                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${action.bg} ${action.color} group-hover:scale-110 transition-transform`}>
+                                                    <action.icon size={24} />
+                                                </div>
+                                                <span className="text-sm font-semibold text-gray-700 group-hover:text-black">
+                                                    {action.title}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Recent Searches */}
+                                {recentSearches.length > 0 && (
+                                    <div>
+                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                            <Clock size={14} />
+                                            Recent
+                                        </h3>
                                         <div className="space-y-1">
                                             {recentSearches.map((item) => (
                                                 <button
                                                     key={item.id}
                                                     onClick={() => handleSelect(item)}
-                                                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 rounded-lg transition-colors text-left"
+                                                    className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors group text-left"
                                                 >
-                                                    <Clock size={16} className="text-gray-400" />
-                                                    <span>{item.title}</span>
+                                                    <Clock size={18} className="text-gray-400 group-hover:text-gray-600" />
+                                                    <span className="font-medium text-gray-600 group-hover:text-gray-900">{item.title}</span>
+                                                    <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <ArrowRight size={16} className="text-gray-400" />
+                                                    </div>
                                                 </button>
                                             ))}
                                         </div>
-                                    </>
-                                ) : (
-                                    <div className="text-center py-12">
-                                        <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                            <Search size={28} className="text-gray-400" />
-                                        </div>
-                                        <p className="text-gray-500">Start typing to search guides...</p>
-                                        {isAIConfigured() && (
-                                            <p className="text-xs text-indigo-500 mt-2 flex items-center justify-center gap-1">
-                                                <Sparkles size={12} />
-                                                Powered by AI
-                                            </p>
-                                        )}
                                     </div>
                                 )}
                             </div>
                         )}
 
-                        {/* Results */}
+                        {/* Search Results */}
                         {!loading && query && results.length > 0 && violations.length === 0 && (
-                            <div className="p-2">
-                                <p className="text-xs font-medium text-gray-400 px-3 py-2">
-                                    {results.length} {results.length === 1 ? 'result' : 'results'}
-                                </p>
-                                {results.map((guide, i) => (
-                                    <button
-                                        key={guide.id}
-                                        onClick={() => handleSelect(guide)}
-                                        className={`w-full flex items-start gap-3 px-4 py-3 text-left rounded-xl transition-all ${i === selectedIndex
-                                            ? 'bg-gray-100 shadow-sm'
-                                            : 'hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${guide.isAIResult
-                                            ? 'bg-black'
-                                            : 'bg-gray-100'
-                                            }`}>
-                                            {guide.isAIResult ? (
-                                                <Sparkles size={18} className="text-white" />
-                                            ) : (
-                                                <FileText size={18} className="text-gray-500" />
-                                            )}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="font-bold truncate flex items-center gap-2">
-                                                {highlightMatch(guide.title, query)}
-                                                {guide.isAIResult && (
-                                                    <span className="px-1.5 py-0.5 bg-gray-200 text-black text-xs rounded">
-                                                        AI
-                                                    </span>
+                            <div className="p-2 space-y-1">
+                                {results.filter(item => {
+                                    if (activeFilter === 'all') return true
+                                    if (activeFilter === 'guides') return !item.isAction
+                                    if (activeFilter === 'actions') return item.isAction
+                                    return true
+                                }).length > 0 ? (
+                                    results.filter(item => {
+                                        if (activeFilter === 'all') return true
+                                        if (activeFilter === 'guides') return !item.isAction
+                                        if (activeFilter === 'actions') return item.isAction
+                                        return true
+                                    }).map((item, i) => (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => item.isAction ? handleActionClick(item) : handleSelect(item)}
+                                            className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all ${i === selectedIndex ? 'bg-indigo-50/50 border border-indigo-100 shadow-sm' : 'hover:bg-gray-50 border border-transparent'
+                                                }`}
+                                        >
+                                            {/* Icon Box */}
+                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${item.isAction
+                                                    ? 'bg-amber-100 text-amber-600'
+                                                    : item.isAIResult
+                                                        ? 'bg-indigo-100 text-indigo-600'
+                                                        : 'bg-gray-100 text-gray-500'
+                                                }`}>
+                                                {item.isAction ? (
+                                                    <Command size={20} />
+                                                ) : item.isAIResult ? (
+                                                    <Sparkles size={20} />
+                                                ) : (
+                                                    <FileText size={20} />
                                                 )}
-                                            </h4>
-                                            {guide.keywords && guide.keywords.length > 0 && (
-                                                <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                                                    {guide.keywords.slice(0, 3).map((kw, j) => (
-                                                        <span key={j} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-gray-100 rounded-full">
-                                                            <Tag size={10} />
-                                                            {highlightMatch(kw, query)}
-                                                        </span>
-                                                    ))}
+                                            </div>
+
+                                            {/* Text Content */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className={`font-semibold truncate ${i === selectedIndex ? 'text-indigo-900' : 'text-gray-900'}`}>
+                                                        {highlightMatch(item.title, query)}
+                                                    </h4>
+                                                    {item.isAIResult && (
+                                                        <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold uppercase rounded">AI</span>
+                                                    )}
+                                                    {item.isAction && (
+                                                        <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold uppercase rounded">Command</span>
+                                                    )}
+                                                </div>
+                                                {item.keywords && !item.isAction && (
+                                                    <p className="text-sm text-gray-500 truncate mt-0.5">
+                                                        {item.keywords.slice(0, 3).join(', ')}
+                                                    </p>
+                                                )}
+                                                {item.isAction && (
+                                                    <p className="text-sm text-gray-400 mt-0.5">Quick Action</p>
+                                                )}
+                                            </div>
+
+                                            {/* Enter Hint */}
+                                            {i === selectedIndex && (
+                                                <div className="flex items-center gap-2 text-indigo-400 text-sm font-medium animate-in fade-in duration-200">
+                                                    <span>Open</span>
+                                                    <kbd className="hidden sm:inline-flex items-center justify-center h-5 w-5 bg-white rounded border border-indigo-200 text-xs shadow-sm">↵</kbd>
                                                 </div>
                                             )}
+                                        </button>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-12">
+                                        <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                            <Search size={32} className="text-gray-300" />
                                         </div>
-                                        <ArrowRight size={16} className="mt-3 text-gray-400" />
-                                    </button>
-                                ))}
+                                        <p className="text-gray-900 font-medium">No matches in this category</p>
+                                    </div>
+                                )}
                             </div>
                         )}
 

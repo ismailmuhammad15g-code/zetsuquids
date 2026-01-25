@@ -9,7 +9,7 @@ export function AICard() {
             <CardSkeletonContainer>
                 <Skeleton />
             </CardSkeletonContainer>
-            <CardTitle>Powered by AI</CardTitle>
+            <CardTitle>Powered by Zetsuserv</CardTitle>
             <CardDescription>
                 ZetsuGuide AI uses cutting-edge AI models to help you learn, code, and create amazing projects.
             </CardDescription>

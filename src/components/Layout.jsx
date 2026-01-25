@@ -1,9 +1,12 @@
-import { BookOpen, Bot, Home, LogIn, LogOut, Menu, Plus, Search, X } from 'lucide-react'
+import { BookOpen, Bot, Home, LogIn, LogOut, Menu, Plus, Search, Sparkles, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
+import { getAvatarForUser } from '../lib/avatar'
 import AddGuideModal from './AddGuideModal'
 import SearchModal from './SearchModal'
+import AccountSetupModal from './AccountSetupModal'
 
 export default function Layout() {
     const location = useLocation()
@@ -13,13 +16,15 @@ export default function Layout() {
     const [showAddModal, setShowAddModal] = useState(false)
     const [showSearchModal, setShowSearchModal] = useState(false)
     const [showUserMenu, setShowUserMenu] = useState(false)
+    const [showAccountSetup, setShowAccountSetup] = useState(false)
+    const [userProfile, setUserProfile] = useState(null)
 
     // Close mobile menu on route change
     useEffect(() => {
         setMobileMenuOpen(false)
     }, [location])
 
-    // Keyboard shortcut for search (Ctrl+K or Cmd+K)
+    // Keyboard shortcut for search
     useEffect(() => {
         const handleKeyDown = (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -31,10 +36,31 @@ export default function Layout() {
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [])
 
+    // Check for user profile setup
+    useEffect(() => {
+        if (!user?.email) return
+
+        async function checkProfile() {
+            const { data } = await supabase
+                .from('zetsuguide_user_profiles')
+                .select('*')
+                .eq('user_email', user.email)
+                .maybeSingle()
+
+            setUserProfile(data)
+
+            // If no profile data found, show setup modal
+            if (!data) {
+                setShowAccountSetup(true)
+            }
+        }
+        checkProfile()
+    }, [user])
+
     return (
         <div className="min-h-screen bg-white">
             {/* Header */}
-            <header className="sticky top-0 z-40 bg-white border-b-2 border-black">
+            <header className="sticky top-0 z-[100] bg-white border-b-2 border-black">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         {/* Logo */}
@@ -76,7 +102,7 @@ export default function Layout() {
                             >
                                 <Bot size={18} />
                                 <span>ZetsuGuide AI</span>
-                                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[10px] font-bold bg-black text-white rounded-full animate-pulse">NEW</span>
+                                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[10px] font-bold bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-full animate-pulse shadow-sm">NEW</span>
                             </Link>
                         </nav>
 
@@ -108,12 +134,14 @@ export default function Layout() {
                                 <div className="relative">
                                     <button
                                         onClick={() => setShowUserMenu(!showUserMenu)}
-                                        className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:border-black transition-colors rounded-lg"
+                                        className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:border-black transition-colors rounded-lg group"
                                     >
-                                        <div className="w-7 h-7 bg-black rounded-full flex items-center justify-center">
-                                            <span className="text-white text-sm font-bold">
-                                                {user?.name?.charAt(0).toUpperCase()}
-                                            </span>
+                                        <div className="w-7 h-7 rounded-full flex items-center justify-center overflow-hidden border border-black group-hover:scale-105 transition-transform">
+                                            <img
+                                                src={getAvatarForUser(user?.email, userProfile?.avatar_url)}
+                                                alt="User"
+                                                className="w-full h-full object-cover"
+                                            />
                                         </div>
                                         <span className="hidden sm:inline text-sm font-medium">{user?.name}</span>
                                     </button>
@@ -124,19 +152,42 @@ export default function Layout() {
                                                 className="fixed inset-0 z-[998]"
                                                 onClick={() => setShowUserMenu(false)}
                                             />
-                                            <div className="absolute right-0 mt-2 w-72 bg-white border-2 border-black rounded-xl shadow-2xl z-[999] overflow-hidden">
+                                            <div className="absolute right-0 mt-2 w-72 bg-white border-2 border-black rounded-xl shadow-2xl z-[999] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                                 <div className="px-4 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center">
-                                                            <span className="text-white font-bold text-lg">
-                                                                {user?.name?.charAt(0).toUpperCase()}
-                                                            </span>
+                                                        <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-black shadow-md">
+                                                            <img
+                                                                src={getAvatarForUser(user?.email, userProfile?.avatar_url)}
+                                                                alt="User"
+                                                                className="w-full h-full object-cover"
+                                                            />
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <p className="font-bold text-gray-900 truncate">{user?.name}</p>
                                                             <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                                                         </div>
                                                     </div>
+                                                </div>
+                                                <div className="py-2 border-b border-gray-200">
+                                                    <Link
+                                                        to="/zetsuguide-ai"
+                                                        onClick={() => setShowUserMenu(false)}
+                                                        className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                                                    >
+                                                        <Bot size={18} />
+                                                        <div className="flex-1 flex items-center justify-between">
+                                                            <span>ZetsuGuide AI</span>
+                                                            <span className="text-[10px] font-bold bg-gradient-to-r from-pink-500 to-violet-500 text-white px-1.5 py-0.5 rounded-full">NEW</span>
+                                                        </div>
+                                                    </Link>
+                                                    <Link
+                                                        to="/pricing"
+                                                        onClick={() => setShowUserMenu(false)}
+                                                        className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                                                    >
+                                                        <Sparkles size={18} className="text-yellow-500" />
+                                                        <span>Upgrade to Pro</span>
+                                                    </Link>
                                                 </div>
                                                 <button
                                                     onClick={() => {
@@ -201,7 +252,7 @@ export default function Layout() {
                             >
                                 <Bot size={20} />
                                 <span>ZetsuGuide AI</span>
-                                <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-black text-white rounded-full animate-pulse">NEW</span>
+                                <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-full animate-pulse shadow-sm">NEW</span>
                             </Link>
                         </div>
                     </div>
@@ -236,6 +287,24 @@ export default function Layout() {
             )}
             {showSearchModal && (
                 <SearchModal onClose={() => setShowSearchModal(false)} />
+            )}
+            {showAccountSetup && user && (
+                <AccountSetupModal
+                    user={user}
+                    onClose={() => setShowAccountSetup(false)}
+                    onComplete={() => {
+                        // Refresh profile data
+                        const checkProfile = async () => {
+                            const { data } = await supabase
+                                .from('zetsuguide_user_profiles')
+                                .select('*')
+                                .eq('user_email', user.email)
+                                .maybeSingle()
+                            setUserProfile(data)
+                        }
+                        checkProfile()
+                    }}
+                />
             )}
         </div>
     )

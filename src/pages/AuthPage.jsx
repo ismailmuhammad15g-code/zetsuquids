@@ -1,8 +1,18 @@
-import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Loader2, Lock, Mail, User, Gift } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Gift, Loader2, Lock, Mail, User } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/api'
+import Lottie from 'lottie-react'
+import celebrateAnimation from '../assets/celebrate.json'
+import bg1 from '../assets/auth/bg1.png'
+import bg2 from '../assets/auth/bg2.png'
+import bg3 from '../assets/auth/bg3.png'
+import bg4 from '../assets/auth/bg4.png'
+import avatar1 from '../assets/auth/avatar1.png'
+import avatar2 from '../assets/auth/avatar2.png'
+import avatar3 from '../assets/auth/avatar3.png'
+import avatar4 from '../assets/auth/avatar4.png'
 
 // Testimonials data
 const testimonials = [
@@ -10,35 +20,30 @@ const testimonials = [
         quote: "The best platform for saving and organizing programming guides. Saved me hours of searching!",
         author: "John Smith",
         role: "Full Stack Developer",
-        image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face"
+        image: avatar1
     },
     {
         quote: "Amazing user interface and so easy to use. I rely on it daily.",
         author: "Sarah Johnson",
         role: "Software Engineer",
-        image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop&crop=face"
+        image: avatar2
     },
     {
         quote: "The AI-powered search completely changed how I work. Incredible!",
         author: "Mike Chen",
         role: "DevOps Engineer",
-        image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face"
+        image: avatar3
     },
     {
         quote: "A professional platform that brings everything I need in one place.",
         author: "Emily Davis",
         role: "Frontend Developer",
-        image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=face"
+        image: avatar4
     }
 ]
 
 // Background images for slider
-const bgImages = [
-    "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80",
-    "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&q=80",
-    "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&q=80",
-    "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&q=80"
-]
+const bgImages = [bg1, bg2, bg3, bg4]
 
 export default function AuthPage() {
     const [mode, setMode] = useState('login') // login, register, forgot, reset
@@ -54,6 +59,7 @@ export default function AuthPage() {
     const [message, setMessage] = useState({ type: '', text: '' })
     const [referralCode, setReferralCode] = useState('')
     const [isValidReferral, setIsValidReferral] = useState(false)
+    const [showCelebration, setShowCelebration] = useState(false)
 
     const navigate = useNavigate()
     const [searchParams] = useSearchParams()
@@ -115,11 +121,17 @@ export default function AuthPage() {
                         setLoading(false)
                         return
                     }
-                    
+
+                    // Smart redirect logic: Use production URL in build, localhost in dev
+                    const redirectUrl = import.meta.env.PROD
+                        ? 'https://zetsugui.netlify.app/auth'
+                        : `${window.location.origin}/auth`
+
                     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
                         email: formData.email,
                         password: formData.password,
                         options: {
+                            emailRedirectTo: redirectUrl,
                             data: {
                                 name: formData.name
                             }
@@ -127,7 +139,16 @@ export default function AuthPage() {
                     })
 
                     if (signUpError) throw signUpError
-                    setMessage({ type: 'success', text: 'Check your email for verification link!' })
+
+                    // Show celebration
+                    setShowCelebration(true)
+
+                    // Show appropriate message based on environment
+                    const emailProvider = formData.email.includes('gmail') ? 'Gmail' : 'your email provider'
+                    setMessage({
+                        type: 'success',
+                        text: `Verification link sent! Please check ${emailProvider}. (Redirects to: ${new URL(redirectUrl).hostname})`
+                    })
                     break
 
                 case 'login':
@@ -137,7 +158,7 @@ export default function AuthPage() {
                     })
 
                     if (signInError) throw signInError
-                    
+
                     if (signInData.user) {
                         login(signInData.session.access_token, signInData.user)
                         navigate('/')
@@ -146,7 +167,7 @@ export default function AuthPage() {
 
                 case 'forgot':
                     const { error: resetError } = await supabase.auth.resetPasswordForEmail(formData.email, {
-                        redirectTo: `${window.location.origin}/reset-password`
+                        redirectTo: `${window.location.origin}/auth`
                     })
 
                     if (resetError) throw resetError
@@ -169,17 +190,33 @@ export default function AuthPage() {
                     setTimeout(() => navigate('/'), 2000)
                     break
             }
-                    if (mode === 'register') {
-                        setTimeout(() => setMode('login'), 3000)
-                    }
-                    if (mode === 'reset') {
-                        setTimeout(() => {
-                            setMode('login')
-                            navigate('/auth')
-                        }, 2000)
+
+            // Handle success messages for different modes
+            if (mode === 'register') {
+                setTimeout(() => setMode('login'), 3000)
+            }
+
         } catch (error) {
             console.error('Auth error:', error)
-            setMessage({ type: 'error', text: error.message || 'Authentication failed' })
+
+            let errorMessage = 'Authentication failed'
+
+            // Handle specific Supabase errors
+            if (error.message.includes('Invalid login credentials')) {
+                errorMessage = 'Incorrect email or password. Please check your credentials or create an account.'
+            } else if (error.message.includes('Email not confirmed')) {
+                errorMessage = 'Please check your email and click the verification link before signing in.'
+            } else if (error.message.includes('User already registered')) {
+                errorMessage = 'An account with this email already exists. Please sign in instead.'
+            } else if (error.message.includes('Password should be at least')) {
+                errorMessage = 'Password must be at least 6 characters long.'
+            } else if (error.message.includes('Unable to validate email address')) {
+                errorMessage = 'Please enter a valid email address.'
+            } else if (error.message) {
+                errorMessage = error.message
+            }
+
+            setMessage({ type: 'error', text: errorMessage })
         } finally {
             setLoading(false)
         }
@@ -198,7 +235,19 @@ export default function AuthPage() {
     }
 
     return (
-        <div className="min-h-screen flex">
+        <div className="min-h-screen flex animate-in fade-in duration-700 relative">
+            {/* Celebration Animation */}
+            {showCelebration && (
+                <div className="fixed inset-0 z-50 pointer-events-none flex items-start justify-center overflow-hidden">
+                    <Lottie
+                        animationData={celebrateAnimation}
+                        loop={false}
+                        onComplete={() => setTimeout(() => setShowCelebration(false), 3000)}
+                        style={{ width: '100%', height: '100%' }}
+                    />
+                </div>
+            )}
+
             {/* Left Side - Testimonials & Images */}
             <div className="hidden lg:flex lg:w-1/2 relative bg-black overflow-hidden">
                 {/* Background Image */}
@@ -206,7 +255,7 @@ export default function AuthPage() {
                     {bgImages.map((img, idx) => (
                         <div
                             key={idx}
-                            className={`absolute inset-0 transition-opacity duration-1000 ${idx === currentSlide ? 'opacity-30' : 'opacity-0'
+                            className={`absolute inset-0 transition-opacity duration-1000 ${idx === currentSlide ? 'opacity-40' : 'opacity-0'
                                 }`}
                             style={{
                                 backgroundImage: `url(${img})`,
@@ -215,45 +264,54 @@ export default function AuthPage() {
                             }}
                         />
                     ))}
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
                 </div>
 
                 {/* Content Overlay */}
-                <div className="relative z-10 flex flex-col justify-between p-12 w-full">
+                <div className="relative z-10 flex flex-col justify-between p-16 w-full h-full">
                     {/* Logo */}
                     <div>
-                        <Link to="/" className="inline-flex items-center gap-3 text-white hover:opacity-80 transition-opacity">
-                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
+                        <Link to="/" className="inline-flex items-center gap-3 text-white hover:opacity-80 transition-opacity group">
+                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-white/10 group-hover:scale-105 transition-transform duration-300">
                                 <span className="text-black text-2xl font-black">Z</span>
                             </div>
-                            <span className="text-2xl font-bold">ZetsuGuides</span>
+                            <span className="text-3xl font-bold tracking-tight">ZetsuGuides</span>
                         </Link>
                     </div>
 
                     {/* Testimonial */}
                     <div className="flex-1 flex items-center">
-                        <div className="max-w-lg">
+                        <div className="max-w-xl">
                             {testimonials.map((testimonial, idx) => (
                                 <div
                                     key={idx}
-                                    className={`transition-all duration-700 ${idx === currentSlide
-                                        ? 'opacity-100 translate-y-0'
-                                        : 'opacity-0 translate-y-8 absolute'
+                                    className={`transition-all duration-1000 ease-out ${idx === currentSlide
+                                        ? 'opacity-100 translate-y-0 filter blur-0'
+                                        : 'opacity-0 translate-y-12 absolute filter blur-sm'
                                         }`}
                                 >
                                     {idx === currentSlide && (
                                         <>
-                                            <blockquote className="text-white text-3xl font-light leading-relaxed mb-8">
-                                                "{testimonial.quote}"
-                                            </blockquote>
-                                            <div className="flex items-center gap-4">
+                                            <div className="mb-8">
+                                                <div className="flex gap-1 mb-6">
+                                                    {[1, 2, 3, 4, 5].map(star => (
+                                                        <span key={star} className="text-yellow-400 text-xl">★</span>
+                                                    ))}
+                                                </div>
+                                                <blockquote className="text-white text-4xl font-medium leading-tight mb-8 drop-shadow-lg">
+                                                    "{testimonial.quote}"
+                                                </blockquote>
+                                            </div>
+                                            <div className="flex items-center gap-5 backdrop-blur-md bg-white/10 p-4 rounded-2xl border border-white/10 w-fit">
                                                 <img
                                                     src={testimonial.image}
                                                     alt={testimonial.author}
-                                                    className="w-14 h-14 rounded-full object-cover border-2 border-white/30"
+                                                    className="w-14 h-14 rounded-full object-cover border-2 border-white/50"
                                                 />
                                                 <div>
-                                                    <p className="text-white font-bold text-lg">{testimonial.author}</p>
-                                                    <p className="text-white/60">{testimonial.role}</p>
+                                                    <p className="text-white font-bold text-xl">{testimonial.author}</p>
+                                                    <p className="text-white/70 font-medium">{testimonial.role}</p>
                                                 </div>
                                             </div>
                                         </>
@@ -264,29 +322,29 @@ export default function AuthPage() {
                     </div>
 
                     {/* Navigation Arrows */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex gap-2">
+                    <div className="flex items-center justify-between mt-12">
+                        <div className="flex gap-3">
                             {testimonials.map((_, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => setCurrentSlide(idx)}
-                                    className={`w-2 h-2 rounded-full transition-all ${idx === currentSlide ? 'bg-white w-8' : 'bg-white/30'
+                                    className={`h-1.5 rounded-full transition-all duration-500 ${idx === currentSlide ? 'bg-white w-12' : 'bg-white/20 w-3 hover:bg-white/40'
                                         }`}
                                 />
                             ))}
                         </div>
-                        <div className="flex gap-3">
+                        <div className="flex gap-4">
                             <button
                                 onClick={prevSlide}
-                                className="w-12 h-12 border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-white/10 transition-colors"
+                                className="w-14 h-14 border border-white/20 rounded-full flex items-center justify-center text-white hover:bg-white hover:text-black transition-all duration-300 hover:scale-105 backdrop-blur-sm"
                             >
-                                <ChevronRight size={20} />
+                                <ChevronLeft size={24} />
                             </button>
                             <button
                                 onClick={nextSlide}
-                                className="w-12 h-12 border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-white/10 transition-colors"
+                                className="w-14 h-14 border border-white/20 rounded-full flex items-center justify-center text-white hover:bg-white hover:text-black transition-all duration-300 hover:scale-105 backdrop-blur-sm"
                             >
-                                <ChevronLeft size={20} />
+                                <ChevronRight size={24} />
                             </button>
                         </div>
                     </div>
@@ -294,82 +352,82 @@ export default function AuthPage() {
             </div>
 
             {/* Right Side - Form */}
-            <div className="flex-1 flex items-center justify-center p-8 bg-white">
-                <div className="w-full max-w-md">
+            <div className="flex-1 flex items-center justify-center p-8 bg-gray-50/50">
+                <div className="w-full max-w-md animate-in slide-in-from-right-8 duration-700 bg-white p-8 sm:p-10 rounded-3xl shadow-2xl shadow-gray-200/50 border border-gray-100">
                     {/* Mobile Logo */}
                     <div className="lg:hidden mb-8 text-center">
                         <Link to="/" className="inline-flex items-center gap-3">
-                            <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center">
+                            <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center shadow-lg shadow-black/20">
                                 <span className="text-white text-2xl font-black">Z</span>
                             </div>
-                            <span className="text-2xl font-bold">ZetsuGuides</span>
+                            <span className="text-2xl font-bold tracking-tight">ZetsuGuides</span>
                         </Link>
                     </div>
 
                     {/* Form Header */}
-                    <div className="mb-8">
-                        <h1 className="text-3xl font-black mb-2">{getTitle()}</h1>
-                        <p className="text-gray-500">
+                    <div className="mb-10">
+                        <h1 className="text-4xl font-extrabold mb-3 text-gray-900 tracking-tight">{getTitle()}</h1>
+                        <p className="text-gray-500 text-lg font-medium">
                             {mode === 'login' && 'Welcome back! Sign in to continue'}
-                            {mode === 'register' && 'Join us today and save your guides'}
-                            {mode === 'forgot' && 'Enter your email to reset your password'}
-                            {mode === 'reset' && 'Enter your new password'}
+                            {mode === 'register' && 'Join today and save your guides'}
+                            {mode === 'forgot' && 'Enter email to reset password'}
+                            {mode === 'reset' && 'Create your new password'}
                         </p>
                     </div>
 
                     {/* Referral Banner */}
                     {referralCode && mode === 'register' && isValidReferral && (
-                        <div className="mb-6 p-4 rounded-xl flex items-center gap-3 bg-black text-white border border-gray-800">
-                            <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0">
-                                <Gift size={20} />
+                        <div className="mb-8 p-5 rounded-2xl flex items-center gap-4 bg-gradient-to-r from-gray-900 to-black text-white shadow-xl shadow-gray-200 ring-1 ring-black/5">
+                            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 backdrop-blur-sm">
+                                <Gift size={24} className="text-yellow-300" />
                             </div>
                             <div>
-                                <p className="font-semibold text-sm">🎉 You've been invited!</p>
-                                <p className="text-xs text-gray-300">Create your account and both you and your friend will receive bonus credits!</p>
+                                <p className="font-bold text-base mb-0.5">🎉 Invitation Accepted!</p>
+                                <p className="text-sm text-gray-300">You'll receive existing bonus credits.</p>
                             </div>
                         </div>
                     )}
 
                     {/* Invalid Referral Banner */}
                     {referralCode && mode === 'register' && !isValidReferral && (
-                        <div className="mb-6 p-4 rounded-xl flex items-center gap-3 bg-gray-100 text-gray-800 border border-gray-300">
-                            <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
-                                <Gift size={20} className="text-gray-500" />
+                        <div className="mb-8 p-5 rounded-2xl flex items-center gap-4 bg-red-50 text-red-900 border border-red-100">
+                            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                <Gift size={24} className="text-red-500" />
                             </div>
                             <div>
-                                <p className="font-semibold text-sm">⚠️ Invalid Referral Code</p>
-                                <p className="text-xs text-gray-500">The referral code in the link is not valid. You can still create an account normally.</p>
+                                <p className="font-bold text-base mb-0.5">⚠️ Invalid Link</p>
+                                <p className="text-sm text-red-600">This referral code doesn't look right.</p>
                             </div>
                         </div>
                     )}
 
                     {/* Message */}
                     {message.text && (
-                        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${message.type === 'success'
-                            ? 'bg-gray-100 text-black border border-gray-300'
-                            : 'bg-red-50 text-red-600 border border-red-200'
-                            }`}>
-                            {message.type === 'success' && <Check size={20} />}
-                            <p className="text-sm">{message.text}</p>
+                        <div className={`mb-8 p-4 rounded-2xl flex items-center gap-3 ${message.type === 'success'
+                            ? 'bg-green-50 text-green-900 border border-green-100'
+                            : 'bg-red-50 text-red-900 border border-red-100'
+                            } animate-in zoom-in-95 duration-200`}>
+                            {message.type === 'success' ? <Check size={20} className="text-green-600" /> : <div className="w-2 h-2 rounded-full bg-red-500" />}
+                            <p className="text-sm font-medium">{message.text}</p>
                         </div>
                     )}
 
                     {/* Form */}
-                    <form onSubmit={handleSubmit} className="space-y-5">
+                    <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Name Field (Register only) */}
                         {mode === 'register' && (
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Name</label>
+                            <div className="group">
+                                <label className="block text-sm font-semibold mb-2 text-gray-700 ml-1">Full Name</label>
                                 <div className="relative">
-                                    <User size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <User size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors" />
                                     <input
                                         type="text"
                                         name="name"
                                         value={formData.name}
                                         onChange={handleChange}
                                         required
-                                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-black focus:outline-none transition-colors"
-                                        placeholder="Enter your name"
+                                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black focus:outline-none focus:ring-4 focus:ring-gray-100 transition-all font-medium placeholder:text-gray-400"
+                                        placeholder="John Doe"
                                     />
                                 </div>
                             </div>
@@ -377,18 +435,18 @@ export default function AuthPage() {
 
                         {/* Email Field */}
                         {(mode === 'login' || mode === 'register' || mode === 'forgot') && (
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Email</label>
+                            <div className="group">
+                                <label className="block text-sm font-semibold mb-2 text-gray-700 ml-1">Email Address</label>
                                 <div className="relative">
-                                    <Mail size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <Mail size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors" />
                                     <input
                                         type="email"
                                         name="email"
                                         value={formData.email}
                                         onChange={handleChange}
                                         required
-                                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-black focus:outline-none transition-colors"
-                                        placeholder="example@email.com"
+                                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black focus:outline-none focus:ring-4 focus:ring-gray-100 transition-all font-medium placeholder:text-gray-400"
+                                        placeholder="name@example.com"
                                     />
                                 </div>
                             </div>
@@ -396,10 +454,10 @@ export default function AuthPage() {
 
                         {/* Password Field */}
                         {(mode === 'login' || mode === 'register' || mode === 'reset') && (
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Password</label>
+                            <div className="group">
+                                <label className="block text-sm font-semibold mb-2 text-gray-700 ml-1">Password</label>
                                 <div className="relative">
-                                    <Lock size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <Lock size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors" />
                                     <input
                                         type={showPassword ? 'text' : 'password'}
                                         name="password"
@@ -407,13 +465,13 @@ export default function AuthPage() {
                                         onChange={handleChange}
                                         required
                                         minLength={6}
-                                        className="w-full pl-12 pr-12 py-3 border-2 border-gray-200 rounded-xl focus:border-black focus:outline-none transition-colors"
+                                        className="w-full pl-12 pr-12 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black focus:outline-none focus:ring-4 focus:ring-gray-100 transition-all font-medium placeholder:text-gray-400"
                                         placeholder="••••••••"
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black transition-colors p-1"
                                     >
                                         {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                                     </button>
@@ -423,10 +481,10 @@ export default function AuthPage() {
 
                         {/* Confirm Password (Register & Reset) */}
                         {(mode === 'register' || mode === 'reset') && (
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Confirm Password</label>
+                            <div className="group">
+                                <label className="block text-sm font-semibold mb-2 text-gray-700 ml-1">Confirm Password</label>
                                 <div className="relative">
-                                    <Lock size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <Lock size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors" />
                                     <input
                                         type={showPassword ? 'text' : 'password'}
                                         name="confirmPassword"
@@ -434,7 +492,7 @@ export default function AuthPage() {
                                         onChange={handleChange}
                                         required
                                         minLength={6}
-                                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-black focus:outline-none transition-colors"
+                                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black focus:outline-none focus:ring-4 focus:ring-gray-100 transition-all font-medium placeholder:text-gray-400"
                                         placeholder="••••••••"
                                     />
                                 </div>
@@ -447,7 +505,7 @@ export default function AuthPage() {
                                 <button
                                     type="button"
                                     onClick={() => setMode('forgot')}
-                                    className="text-sm text-gray-500 hover:text-black transition-colors"
+                                    className="text-sm font-semibold text-gray-500 hover:text-black transition-colors"
                                 >
                                     Forgot password?
                                 </button>
@@ -458,41 +516,41 @@ export default function AuthPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-black text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors disabled:opacity-50"
+                            className="w-full bg-black text-white py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 hover:bg-gray-800 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:hover:scale-100 shadow-xl shadow-black/10"
                         >
                             {loading ? (
-                                <Loader2 size={20} className="animate-spin" />
+                                <Loader2 size={24} className="animate-spin" />
                             ) : (
                                 <>
                                     {mode === 'login' && 'Sign In'}
                                     {mode === 'register' && 'Create Account'}
                                     {mode === 'forgot' && 'Send Reset Link'}
                                     {mode === 'reset' && 'Reset Password'}
-                                    <ArrowRight size={20} />
+                                    <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                                 </>
                             )}
                         </button>
                     </form>
 
                     {/* Switch Mode */}
-                    <div className="mt-8 text-center">
+                    <div className="mt-8 text-center bg-gray-50 p-4 rounded-xl border border-gray-100">
                         {mode === 'login' && (
-                            <p className="text-gray-500">
-                                Don't have an account?{' '}
+                            <p className="text-gray-600 font-medium">
+                                New to ZetsuGuides?{' '}
                                 <button
                                     onClick={() => setMode('register')}
-                                    className="text-black font-bold hover:underline"
+                                    className="text-black font-bold hover:underline ml-1"
                                 >
                                     Create Account
                                 </button>
                             </p>
                         )}
                         {mode === 'register' && (
-                            <p className="text-gray-500">
+                            <p className="text-gray-600 font-medium">
                                 Already have an account?{' '}
                                 <button
                                     onClick={() => setMode('login')}
-                                    className="text-black font-bold hover:underline"
+                                    className="text-black font-bold hover:underline ml-1"
                                 >
                                     Sign In
                                 </button>

@@ -25,7 +25,8 @@ router.post('/chat', async (req, res) => {
             return res.status(500).json({ error: 'AI service not configured' })
         }
 
-        const useModel = model || AI_MODEL
+        // FORCE use of backend configured model (ignores frontend legacy defaults like 'kimi')
+        const useModel = AI_MODEL
         console.log('Proxying AI request to:', AI_API_URL, 'with model:', useModel)
 
         // Create AbortController with 120 second timeout (AI can take time)
@@ -52,7 +53,20 @@ router.post('/chat', async (req, res) => {
 
             if (!response.ok) {
                 const errorText = await response.text()
-                console.error('AI API error:', response.status, errorText)
+                console.error(`AI API error: ${response.status}`, errorText)
+
+                // Fallback for 5xx/429 errors (Upstream issues) to prevent UI crash
+                if (response.status >= 500 || response.status === 429) {
+                    return res.json({
+                        choices: [{
+                            message: {
+                                role: 'assistant',
+                                content: `⚠️ **Service Unavailable (${response.status})**\n\nThe external AI provider is currently experiencing downtime (Gateway Timeout).`
+                            }
+                        }]
+                    })
+                }
+
                 return res.status(response.status).json({
                     error: `AI API error: ${response.status}`,
                     details: errorText
@@ -60,16 +74,36 @@ router.post('/chat', async (req, res) => {
             }
 
             const data = await response.json()
-            console.log('AI response received successfully')
 
+            // Validate response structure
+            if (!data || !data.choices || !data.choices.length || !data.choices[0].message) {
+                console.error('Invalid AI response structure:', JSON.stringify(data))
+                return res.json({
+                    choices: [{
+                        message: {
+                            role: 'assistant',
+                            content: "⚠️ **Provider Error**\n\nThe AI service returned an empty or invalid response. Please try again or switch models."
+                        }
+                    }]
+                })
+            }
+
+            console.log('AI response received successfully')
             res.json(data)
         } catch (fetchError) {
             clearTimeout(timeoutId)
+            console.error('Fetch error:', fetchError)
+
             if (fetchError.name === 'AbortError') {
                 console.error('AI request timed out after 120 seconds')
-                return res.status(504).json({
-                    error: 'AI request timed out',
-                    details: 'The AI service took too long to respond. Please try again with a shorter question.'
+                // Fallback: Return a friendly message
+                return res.json({
+                    choices: [{
+                        message: {
+                            role: 'assistant',
+                            content: "⚠️ **Connection Timeout**\n\nI apologize, but the AI service is taking too long to respond (120s).\nThis usually means the upstream provider is overloaded.\nPlease try again in a few minutes."
+                        }
+                    }]
                 })
             }
             throw fetchError

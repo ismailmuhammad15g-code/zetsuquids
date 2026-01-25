@@ -1,29 +1,36 @@
 import { ArrowRight, BookOpen, FileText, Plus, Search, Sparkles, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
+import Chatbot from '../components/Chatbot'
 import { AICard } from '../components/ui/ai-card'
 import { ComicText } from '../components/ui/comic-text'
 import { FlipWords } from '../components/ui/flip-words'
 import { Meteors } from '../components/ui/meteors'
 import { Spotlight } from '../components/ui/spotlight'
 import { StickyBanner } from '../components/ui/sticky-banner'
+import { useAuth } from '../contexts/AuthContext'
 import { guidesApi, initializeSampleData } from '../lib/api'
 import { cn } from '../lib/utils'
 
 export default function HomePage() {
     const { openAddModal } = useOutletContext()
+    const { user } = useAuth()
     const [recentGuides, setRecentGuides] = useState([])
     const [loading, setLoading] = useState(true)
     const [syncing, setSyncing] = useState(false)
 
     useEffect(() => {
         initializeAndLoad()
-    }, [])
+    }, [user]) // Re-run when user loads to sync with email
 
     async function initializeAndLoad() {
         try {
             // Try to sync local guides to Supabase first
-            await guidesApi.syncToSupabase()
+            if (user?.email) {
+                await guidesApi.syncToSupabase(user.email)
+            } else {
+                await guidesApi.syncToSupabase()
+            }
 
             // Initialize sample data if empty
             const initialized = await initializeSampleData();
@@ -43,7 +50,7 @@ export default function HomePage() {
     async function handleSync() {
         setSyncing(true)
         try {
-            const result = await guidesApi.syncToSupabase()
+            const result = await guidesApi.syncToSupabase(user?.email)
             if (result.synced > 0) {
                 alert(`تم مزامنة ${result.synced} دليل بنجاح!`)
                 // Reload guides
@@ -291,6 +298,8 @@ export default function HomePage() {
                     </button>
                 </div>
             </section>
+            {/* Chatbot Widget */}
+            <Chatbot />
         </div>
     )
 }

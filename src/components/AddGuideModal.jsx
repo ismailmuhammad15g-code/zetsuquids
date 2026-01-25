@@ -1,10 +1,12 @@
 import { Code, FileText, Loader2, Save, X } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { guidesApi } from '../lib/api'
 
 export default function AddGuideModal({ onClose }) {
     const navigate = useNavigate()
+    const { user } = useAuth()
     const [saving, setSaving] = useState(false)
     const [showAdvanced, setShowAdvanced] = useState(false)
     const [activeTab, setActiveTab] = useState('markdown') // markdown or advanced
@@ -43,7 +45,8 @@ export default function AddGuideModal({ onClose }) {
                 markdown: formData.content,
                 html_content: formData.html_content,
                 css_content: formData.css_content,
-                content_type: activeTab === 'advanced' ? 'html' : 'markdown'
+                content_type: activeTab === 'advanced' ? 'html' : 'markdown',
+                user_email: user?.email // Pass owner email
             })
 
             if (guide && guide.slug) {

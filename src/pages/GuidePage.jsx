@@ -2,6 +2,7 @@ import { ArrowLeft, Calendar, Check, ExternalLink, Loader2, Share2, Tag, Trash2 
 import { marked } from 'marked'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { guidesApi } from '../lib/api'
 
 // Configure marked
@@ -14,6 +15,7 @@ marked.setOptions({
 export default function GuidePage() {
     const { slug } = useParams()
     const navigate = useNavigate()
+    const { user } = useAuth() // Get current user
     const [guide, setGuide] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -52,6 +54,16 @@ export default function GuidePage() {
     }
 
     async function handleDelete() {
+        if (!guide.user_email) {
+            alert('Cannot delete legacy guides or guides without owner.')
+            return
+        }
+
+        if (guide.user_email !== user?.email) {
+            alert('You can only delete your own guides.')
+            return
+        }
+
         if (!confirm('Are you sure you want to delete this guide? This action cannot be undone.')) {
             return
         }
@@ -201,6 +213,12 @@ export default function GuidePage() {
                             HTML/CSS
                         </span>
                     )}
+                    {/* Show author if available */}
+                    {guide.user_email && (
+                        <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-800 text-xs font-medium rounded-full">
+                            By {guide.user_email.split('@')[0]}
+                        </span>
+                    )}
                 </div>
 
                 {/* Keywords */}
@@ -233,18 +251,22 @@ export default function GuidePage() {
                             </>
                         )}
                     </button>
-                    <button
-                        onClick={handleDelete}
-                        disabled={deleting}
-                        className="flex items-center gap-2 px-4 py-2 border border-red-300 text-red-600 hover:bg-red-50 transition-colors text-sm disabled:opacity-50"
-                    >
-                        {deleting ? (
-                            <Loader2 size={16} className="animate-spin" />
-                        ) : (
-                            <Trash2 size={16} />
-                        )}
-                        Delete
-                    </button>
+
+                    {/* ONLY SHOW DELETE IF OWNER */}
+                    {user?.email && guide.user_email === user.email && (
+                        <button
+                            onClick={handleDelete}
+                            disabled={deleting}
+                            className="flex items-center gap-2 px-4 py-2 border border-red-300 text-red-600 hover:bg-red-50 transition-colors text-sm disabled:opacity-50"
+                        >
+                            {deleting ? (
+                                <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                                <Trash2 size={16} />
+                            )}
+                            Delete
+                        </button>
+                    )}
                 </div>
             </header>
 

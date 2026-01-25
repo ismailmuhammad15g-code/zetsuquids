@@ -27,6 +27,9 @@ export const guidesApi = {
     async getAll() {
         console.log('getAll called, Supabase configured:', isSupabaseConfigured())
 
+        let supabaseGuides = []
+        let localGuides = JSON.parse(localStorage.getItem('guides') || '[]')
+
         // Try Supabase FIRST if configured
         if (isSupabaseConfigured()) {
             try {
@@ -38,23 +41,38 @@ export const guidesApi = {
 
                 if (error) {
                     console.error('Supabase getAll error:', error.message)
-                } else if (data && data.length > 0) {
+                } else if (data) {
                     console.log('Got', data.length, 'guides from Supabase')
-                    // Cache in localStorage
-                    localStorage.setItem('guides', JSON.stringify(data))
-                    return data
-                } else {
-                    console.log('No guides in Supabase, checking localStorage')
+                    supabaseGuides = data
                 }
             } catch (err) {
                 console.error('Supabase connection error:', err)
             }
         }
 
-        // Fallback to localStorage
-        const localGuides = JSON.parse(localStorage.getItem('guides') || '[]')
-        console.log('Returning', localGuides.length, 'guides from localStorage')
-        return localGuides
+        // MERGE: Combine Supabase guides with LocalStorage guides
+        // Priority: Supabase (latest) > LocalStorage (unsynced)
+
+        const mergedMap = new Map()
+
+        // 1. Add local guides first
+        localGuides.forEach(g => mergedMap.set(g.slug, g))
+
+        // 2. Overwrite/Add Supabase guides (authoritative source)
+        supabaseGuides.forEach(g => mergedMap.set(g.slug, g))
+
+        // 3. Convert back to array
+        const mergedGuides = Array.from(mergedMap.values())
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+
+        console.log('Merged total guides:', mergedGuides.length)
+
+        // Safe Update of LocalStorage
+        if (mergedGuides.length > 0) {
+            localStorage.setItem('guides', JSON.stringify(mergedGuides))
+        }
+
+        return mergedGuides
     },
 
     async getBySlug(slug) {
@@ -125,6 +143,7 @@ export const guidesApi = {
             css_content: guide.css_content || '',
             keywords: guide.keywords || [],
             content_type: guide.content_type || 'markdown',
+            user_email: guide.user_email, // Add owner
             created_at: new Date().toISOString()
         }
 
@@ -273,7 +292,7 @@ export const guidesApi = {
     },
 
     // Sync localStorage guides to Supabase
-    async syncToSupabase() {
+    async syncToSupabase(userEmail) {
         if (!isSupabaseConfigured()) {
             console.log('Supabase not configured, cannot sync')
             return { synced: 0, failed: 0 }
@@ -299,11 +318,20 @@ export const guidesApi = {
                     .single()
 
                 if (existing) {
+                    // Update user_email if missing in DB but present in local or provided
+                    const ownerEmail = guide.user_email || userEmail
+                    if (ownerEmail) {
+                        await supabase
+                            .from('guides')
+                            .update({ user_email: ownerEmail })
+                            .eq('id', existing.id)
+                            .is('user_email', null) // Only update if currently null
+                    }
                     console.log('Guide already exists:', guide.title)
                     continue
                 }
 
-                // Insert to Supabase
+                // Insert to Supabase (Add owner)
                 const guideData = {
                     title: guide.title,
                     slug: guide.slug,
@@ -313,6 +341,7 @@ export const guidesApi = {
                     css_content: guide.css_content || '',
                     keywords: guide.keywords || [],
                     content_type: guide.content_type || 'markdown',
+                    user_email: guide.user_email || userEmail, // Backfill owner if provided
                     created_at: guide.created_at || new Date().toISOString()
                 }
 

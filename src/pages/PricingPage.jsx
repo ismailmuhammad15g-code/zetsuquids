@@ -1,8 +1,12 @@
 import { ArrowLeft, Check, ChevronRight, Copy, Crown, Gift, Sparkles, Star, Users, X, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import Lottie from 'lottie-react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import pricingAnimation from '../assets/pricing.json'
+import giftAnimation from '../assets/gift.json'
+import PricingDecoration from '../components/PricingDecoration'
 
 // Generate a simple referral code for guest/demo
 function generateGuestReferralCode() {
@@ -20,6 +24,18 @@ export default function PricingPage() {
     const [copied, setCopied] = useState(false)
     const [referralCode, setReferralCode] = useState('')
     const [referralStats, setReferralStats] = useState({ totalReferrals: 0, creditsEarned: 0 })
+
+    // Prevent background scrolling when modal is open
+    useEffect(() => {
+        if (showEarnModal) {
+            document.body.style.overflow = 'hidden'
+        } else {
+            document.body.style.overflow = 'unset'
+        }
+        return () => {
+            document.body.style.overflow = 'unset'
+        }
+    }, [showEarnModal])
 
     // Get or generate referral code and save to database
     useEffect(() => {
@@ -96,8 +112,8 @@ export default function PricingPage() {
             name: 'Free',
             price: '0',
             period: 'forever',
-            description: 'Perfect for trying out ZetsuGuide AI',
-            features: ['5 AI credits', 'Access to all guides', 'Basic search functionality', 'Community support'],
+            description: 'Perfect for exploring',
+            features: ['3 Daily AI Queries', 'Access to all guides', 'Basic search functionality', 'Community support'],
             cta: 'Current Plan',
             popular: false,
             disabled: true
@@ -106,8 +122,8 @@ export default function PricingPage() {
             name: 'Pro',
             price: '9.99',
             period: 'month',
-            description: 'For developers who need more power',
-            features: ['100 AI credits per month', 'Priority AI responses', 'Advanced search filters', 'Email support', 'Early access to new features'],
+            description: 'For power users & devs',
+            features: ['Unlimited AI Queries', 'Priority AI responses', 'Advanced search filters', 'Email support', 'Early access to new features'],
             cta: 'Coming Soon',
             popular: true,
             disabled: true
@@ -116,8 +132,8 @@ export default function PricingPage() {
             name: 'Enterprise',
             price: '49.99',
             period: 'month',
-            description: 'For teams and organizations',
-            features: ['Unlimited AI credits', 'Custom AI training', 'API access', 'Dedicated support', 'Custom integrations', 'Analytics dashboard'],
+            description: 'For teams & organizations',
+            features: ['Unlimited AI & Members', 'Custom AI training', 'API access', 'Dedicated Slack support', 'Custom integrations', 'Analytics dashboard'],
             cta: 'Contact Us',
             popular: false,
             disabled: true
@@ -139,6 +155,10 @@ export default function PricingPage() {
                 </Link>
             </header>
 
+
+
+            <PricingDecoration />
+
             <section className="pricing-hero">
                 <div className="pricing-badge">
                     <Sparkles size={16} />
@@ -152,7 +172,12 @@ export default function PricingPage() {
             <section className="earn-credits-section">
                 <div className="earn-credits-card">
                     <div className="earn-credits-icon">
-                        <Gift size={32} />
+                        <Lottie
+                            animationData={giftAnimation}
+                            loop={true}
+                            autoPlay={true}
+                            style={{ width: '100%', height: '100%' }}
+                        />
                     </div>
                     <div className="earn-credits-content">
                         <h3>Earn More Credits!</h3>
@@ -180,6 +205,15 @@ export default function PricingPage() {
                                 <span className="pricing-currency">$</span>
                                 <span className="pricing-amount">{plan.price}</span>
                                 <span className="pricing-period">/{plan.period}</span>
+                            </div>
+                            {/* Animation under price */}
+                            <div className="pricing-animation">
+                                <Lottie
+                                    animationData={pricingAnimation}
+                                    loop={true}
+                                    autoPlay={true}
+                                    style={{ width: '100%', height: 60 }}
+                                />
                             </div>
                             <p>{plan.description}</p>
                         </div>
@@ -239,7 +273,12 @@ export default function PricingPage() {
 
                         <div className="earn-modal-header">
                             <div className="earn-modal-icon">
-                                <Gift size={40} />
+                                <Lottie
+                                    animationData={giftAnimation}
+                                    loop={true}
+                                    autoPlay={true}
+                                    style={{ width: '100%', height: '100%' }}
+                                />
                             </div>
                             <h2>Earn More Credits!</h2>
                             <p>Share your referral link and earn 5 credits for every friend who signs up</p>
@@ -317,110 +356,203 @@ export default function PricingPage() {
             <style>{`
                 .pricing-page { min-height: 100vh; background: #000; color: #fff; position: relative; overflow-x: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding-bottom: 80px; }
                 .pricing-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-                .pricing-grid { position: absolute; inset: 0; background-image: linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px); background-size: 60px 60px; }
-                .pricing-glow { position: absolute; width: 800px; height: 800px; border-radius: 50%; filter: blur(200px); opacity: 0.1; }
-                .pricing-glow-1 { background: #fff; top: -400px; right: -400px; }
-                .pricing-glow-2 { background: #888; bottom: -400px; left: -400px; }
+                .pricing-grid { position: absolute; inset: 0; background-image: linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px); background-size: 60px 60px; mask-image: radial-gradient(circle at center, black, transparent 80%); }
+                .pricing-glow { position: absolute; width: 800px; height: 800px; border-radius: 50%; filter: blur(200px); opacity: 0.15; animation: glowPulse 10s infinite alternate; }
+                .pricing-glow-1 { background: #fff; top: -200px; right: -200px; }
+                .pricing-glow-2 { background: #888; bottom: -200px; left: -200px; animation-delay: 5s; }
+                @keyframes glowPulse { 0% { opacity: 0.1; transform: scale(1); } 100% { opacity: 0.2; transform: scale(1.1); } }
+
                 .pricing-header { position: relative; z-index: 10; padding: 24px 32px; }
-                .pricing-back { display: inline-flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
-                .pricing-back:hover { color: #fff; }
-                .pricing-hero { position: relative; z-index: 10; text-align: center; padding: 40px 24px 40px; }
-                .pricing-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 50px; font-size: 0.85rem; margin-bottom: 24px; }
-                .pricing-hero h1 { font-size: 3.5rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 16px; background: linear-gradient(135deg, #fff 0%, #888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-                .pricing-hero p { font-size: 1.2rem; color: rgba(255,255,255,0.6); max-width: 500px; margin: 0 auto; }
+                .pricing-back { display: inline-flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; padding: 8px 16px; border-radius: 50px; background: rgba(255,255,255,0.05); }
+                .pricing-back:hover { color: #fff; background: rgba(255,255,255,0.1); transform: translateX(-4px); }
+                
+                .pricing-hero { position: relative; z-index: 10; text-align: center; padding: 60px 24px; animation: slideDown 0.8s ease-out; }
+                @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+                
+                .pricing-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 50px; font-size: 0.85rem; margin-bottom: 24px; backdrop-filter: blur(10px); }
+                .pricing-hero h1 { font-size: 4rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 16px; background: linear-gradient(135deg, #fff 0%, #888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-shadow: 0 0 30px rgba(255,255,255,0.2); }
+                .pricing-hero p { font-size: 1.25rem; color: rgba(255,255,255,0.6); max-width: 600px; margin: 0 auto; line-height: 1.6; }
 
                 /* Earn Credits Section */
-                .earn-credits-section { position: relative; z-index: 10; max-width: 900px; margin: 0 auto 40px; padding: 0 24px; }
-                .earn-credits-card { display: flex; align-items: center; gap: 20px; padding: 24px 32px; background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); border: 1px solid rgba(255,255,255,0.2); border-radius: 16px; transition: all 0.3s; }
-                .earn-credits-card:hover { border-color: rgba(255,255,255,0.4); transform: translateY(-2px); }
-                .earn-credits-icon { width: 64px; height: 64px; background: rgba(255,255,255,0.1); border-radius: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+                .earn-credits-section { position: relative; z-index: 10; max-width: 900px; margin: 0 auto 60px; padding: 0 24px; animation: fadeIn 1s ease-out 0.2s backwards; }
+                .earn-credits-card { display: flex; align-items: center; gap: 24px; padding: 32px; background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.2); border-radius: 24px; transition: all 0.3s; backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+                .earn-credits-card:hover { border-color: rgba(255,255,255,0.4); transform: translateY(-4px); box-shadow: 0 12px 40px rgba(255,255,255,0.1); }
+                .earn-credits-icon { width: 100px; height: 100px; background: transparent; border-radius: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: none; }
                 .earn-credits-content { flex: 1; }
-                .earn-credits-content h3 { font-size: 1.3rem; font-weight: 700; margin-bottom: 4px; }
-                .earn-credits-content p { color: rgba(255,255,255,0.6); font-size: 0.95rem; }
-                .earn-credits-btn { display: flex; align-items: center; gap: 8px; padding: 14px 24px; background: #fff; color: #000; border: none; border-radius: 12px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
-                .earn-credits-btn:hover { transform: scale(1.05); box-shadow: 0 10px 30px rgba(255,255,255,0.2); }
+                .earn-credits-content h3 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+                .earn-credits-content p { color: rgba(255,255,255,0.7); font-size: 1rem; line-height: 1.5; }
+                .earn-credits-btn { display: flex; align-items: center; gap: 8px; padding: 16px 28px; background: #fff; color: #000; border: none; border-radius: 14px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+                .earn-credits-btn:hover { transform: scale(1.05); box-shadow: 0 10px 30px rgba(255,255,255,0.3); }
 
                 /* Plans */
-                .pricing-plans { position: relative; z-index: 10; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; max-width: 1100px; margin: 0 auto; padding: 0 24px; }
-                .pricing-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 32px; position: relative; transition: all 0.3s; }
-                .pricing-card:hover { border-color: rgba(255,255,255,0.2); transform: translateY(-4px); }
-                .pricing-card-popular { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.3); }
-                .pricing-popular-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 6px 16px; background: #fff; color: #000; border-radius: 50px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
-                .pricing-card-header { text-align: center; margin-bottom: 28px; }
-                .pricing-card-header h3 { font-size: 1.3rem; font-weight: 600; margin-bottom: 16px; }
-                .pricing-price { display: flex; align-items: baseline; justify-content: center; gap: 4px; margin-bottom: 12px; }
-                .pricing-currency { font-size: 1.5rem; font-weight: 500; opacity: 0.7; }
-                .pricing-amount { font-size: 3.5rem; font-weight: 800; letter-spacing: -0.03em; }
-                .pricing-period { font-size: 1rem; opacity: 0.5; }
-                .pricing-card-header p { font-size: 0.9rem; color: rgba(255,255,255,0.6); }
-                .pricing-features { list-style: none; padding: 0; margin: 0 0 28px 0; }
-                .pricing-features li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.95rem; }
-                .pricing-features li:last-child { border-bottom: none; }
-                .pricing-features svg { color: #fff; flex-shrink: 0; }
-                .pricing-cta { width: 100%; padding: 16px; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; }
-                .pricing-cta:hover:not(:disabled) { background: rgba(255,255,255,0.15); }
-                .pricing-cta:disabled { opacity: 0.6; cursor: not-allowed; }
-                .pricing-cta-primary { background: #fff; color: #000; border-color: #fff; }
-                .pricing-cta-primary:hover:not(:disabled) { background: rgba(255,255,255,0.9); }
+                .pricing-plans { position: relative; z-index: 10; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 32px; max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+                
+                .pricing-card { 
+                    background: rgba(10, 10, 10, 0.6); 
+                    border: 1px solid rgba(255,255,255,0.08); 
+                    border-radius: 24px; 
+                    padding: 40px; 
+                    position: relative; 
+                    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+                    backdrop-filter: blur(20px);
+                    animation: slideUp 0.8s ease-out backwards;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .pricing-card:nth-child(1) { animation-delay: 0.1s; }
+                .pricing-card:nth-child(2) { animation-delay: 0.2s; }
+                .pricing-card:nth-child(3) { animation-delay: 0.3s; }
+                
+                @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+
+                .pricing-card:hover {
+                    border-color: rgba(255,255,255,0.2);
+                    transform: translateY(-8px);
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+                }
+                .pricing-card-popular {
+                    background: linear-gradient(145deg, rgba(20,20,20,0.9), rgba(10,10,10,0.95));
+                    border: 1px solid rgba(99, 102, 241, 0.3);
+                    box-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
+                    transform: scale(1.02);
+                    z-index: 2;
+                }
+                .pricing-card-popular:hover {
+                    border-color: rgba(99, 102, 241, 0.6);
+                    box-shadow: 0 0 50px rgba(99, 102, 241, 0.2);
+                    transform: scale(1.02) translateY(-8px);
+                }
+                .pricing-card-popular .pricing-card-header h3 { color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.4); }
+                
+                .pricing-popular-badge {
+                    position: absolute;
+                    top: -12px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: linear-gradient(90deg, #6366f1, #a855f7);
+                    padding: 6px 16px;
+                    border-radius: 20px;
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    color: #fff;
+                }
+
+                .pricing-card-header { text-align: center; margin-bottom: 32px; flex: 1; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 24px; }
+                .pricing-card h3 { font-size: 1.5rem; font-weight: 700; margin-bottom: 16px; color: #fff; }
+                .pricing-price { display: flex; align-items: baseline; justify-content: center; margin-bottom: 16px; }
+                .pricing-currency { font-size: 1.5rem; color: rgba(255,255,255,0.6); margin-right: 4px; }
+                .pricing-amount { font-size: 3.5rem; font-weight: 800; letter-spacing: -0.02em; color: #fff; }
+                .pricing-period { color: rgba(255,255,255,0.4); margin-left: 8px; font-size: 1rem; }
+                .pricing-card p { color: rgba(255,255,255,0.5); font-size: 0.95rem; line-height: 1.5; }
+
+                /* Animation Container */
+                .pricing-animation { display: flex; justify-content: center; margin: 0 auto 16px; opacity: 0.8; }
+                .pricing-card:hover .pricing-animation { opacity: 1; transform: scale(1.1); transition: all 0.3s; }
+
+                .pricing-features { list-style: none; margin-bottom: 32px; text-align: left; padding: 0; }
+                .pricing-features li { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; color: rgba(255,255,255,0.8); font-size: 0.95rem; line-height: 1.5; }
+                .pricing-features li svg { color: #6366f1; flex-shrink: 0; margin-top: 2px; }
+                .pricing-cta { width: 100%; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 1rem; transition: all 0.2s; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: #fff; margin-top: auto; }
+                .pricing-cta:hover:not(:disabled) { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); }
+                .pricing-cta-primary { background: #fff; color: #000; border: none; }
+                .pricing-cta-primary:hover:not(:disabled) { background: #f0f0f0; transform: scale(1.02); }
 
                 /* Notice */
-                .pricing-notice { position: relative; z-index: 10; max-width: 700px; margin: 60px auto 0; padding: 0 24px; }
-                .pricing-notice-content { background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 40px; text-align: center; }
-                .pricing-notice-content svg { color: #fff; margin-bottom: 16px; }
+                .pricing-notice { position: relative; z-index: 10; max-width: 700px; margin: 80px auto 0; padding: 0 24px; animation: fadeIn 1s ease-out 0.5s backwards; }
+                .pricing-notice-content { background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 40px; text-align: center; backdrop-filter: blur(10px); }
+                .pricing-notice-content svg { color: #fff; margin-bottom: 16px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.5)); }
                 .pricing-notice-content h3 { font-size: 1.5rem; font-weight: 700; margin-bottom: 12px; }
-                .pricing-notice-content p { color: rgba(255,255,255,0.6); margin-bottom: 24px; }
+                .pricing-notice-content p { color: rgba(255,255,255,0.6); margin-bottom: 24px; font-size: 1.1rem; }
                 .pricing-notice-btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; background: #fff; color: #000; text-decoration: none; border-radius: 10px; font-weight: 600; transition: all 0.2s; }
                 .pricing-notice-btn:hover { transform: scale(1.05); box-shadow: 0 10px 30px rgba(255,255,255,0.2); }
 
                 /* FAQ */
-                .pricing-faq { position: relative; z-index: 10; max-width: 900px; margin: 80px auto 0; padding: 0 24px; }
-                .pricing-faq h2 { text-align: center; font-size: 2rem; font-weight: 700; margin-bottom: 40px; }
+                .pricing-faq { position: relative; z-index: 10; max-width: 900px; margin: 100px auto 0; padding: 0 24px; }
+                .pricing-faq h2 { text-align: center; font-size: 2.2rem; font-weight: 800; margin-bottom: 48px; }
                 .pricing-faq-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
-                .pricing-faq-item { padding: 24px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; }
-                .pricing-faq-item h4 { font-size: 1.05rem; font-weight: 600; margin-bottom: 12px; }
-                .pricing-faq-item p { font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.6; }
+                .pricing-faq-item { padding: 28px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; transition: all 0.2s; }
+                .pricing-faq-item:hover { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.15); }
+                .pricing-faq-item h4 { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; }
+                .pricing-faq-item p { font-size: 0.95rem; color: rgba(255,255,255,0.6); line-height: 1.6; }
 
                 /* Modal */
-                .earn-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; animation: fadeIn 0.2s ease-out; }
+                .earn-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; animation: fadeIn 0.2s ease-out; }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-                .earn-modal { background: #111; border: 1px solid rgba(255,255,255,0.2); border-radius: 24px; max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; animation: slideUp 0.3s ease-out; }
-                @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-                .earn-modal-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; transition: all 0.2s; }
-                .earn-modal-close:hover { background: rgba(255,255,255,0.2); }
-                .earn-modal-header { text-align: center; padding: 40px 32px 24px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-                .earn-modal-icon { width: 80px; height: 80px; background: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05)); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
-                .earn-modal-header h2 { font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; }
-                .earn-modal-header p { color: rgba(255,255,255,0.6); }
-                .earn-modal-stats { display: flex; gap: 16px; padding: 24px 32px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-                .earn-stat { flex: 1; background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; text-align: center; }
-                .earn-stat svg { margin-bottom: 8px; opacity: 0.7; }
-                .earn-stat-value { display: block; font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
-                .earn-stat-label { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
-                .earn-modal-section { padding: 20px 32px; }
-                .earn-modal-section label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; color: rgba(255,255,255,0.7); }
-                .earn-code-box { display: flex; align-items: center; gap: 12px; padding: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; }
-                .earn-code { flex: 1; font-size: 1.2rem; font-weight: 700; font-family: monospace; letter-spacing: 0.1em; }
-                .earn-link-box { display: flex; gap: 12px; }
-                .earn-link-input { flex: 1; padding: 14px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; color: #fff; font-size: 0.9rem; }
-                .earn-copy-btn { display: flex; align-items: center; gap: 6px; padding: 12px 16px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: #fff; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-                .earn-copy-btn:hover { background: rgba(255,255,255,0.15); }
-                .earn-copy-btn-primary { background: #fff; color: #000; border-color: #fff; }
-                .earn-copy-btn-primary:hover { background: rgba(255,255,255,0.9); }
-                .earn-modal-howto { padding: 24px 32px; border-top: 1px solid rgba(255,255,255,0.1); }
-                .earn-modal-howto h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; }
-                .earn-steps { display: flex; flex-direction: column; gap: 16px; }
-                .earn-step { display: flex; gap: 16px; }
-                .earn-step-number { width: 32px; height: 32px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
-                .earn-step-content h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
-                .earn-step-content p { font-size: 0.85rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
-                .earn-modal-note { margin: 0 32px 32px; padding: 16px; background: rgba(255,255,255,0.05); border-radius: 12px; font-size: 0.85rem; color: rgba(255,255,255,0.7); }
-                .earn-modal-note strong { color: #fff; }
+                .earn-modal { 
+                    background: #0a0a0a; 
+                    border: 1px solid rgba(255,255,255,0.15); 
+                    border-radius: 28px; 
+                    max-width: 600px; 
+                    width: 100%; 
+                    max-height: 90vh; 
+                    overflow-y: auto; 
+                    position: relative; 
+                    animation: slideUpModal 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+                    box-shadow: 0 40px 80px rgba(0,0,0,0.5); 
+                    scrollbar-width: thin;
+                    scrollbar-color: rgba(255,255,255,0.2) transparent;
+                }
+                
+                /* Custom Scrollbar for Webkit */
+                .earn-modal::-webkit-scrollbar { width: 6px; }
+                .earn-modal::-webkit-scrollbar-track { background: transparent; margin: 20px 0; }
+                .earn-modal::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,0.2); border-radius: 20px; }
+                .earn-modal::-webkit-scrollbar-thumb:hover { background-color: rgba(255,255,255,0.3); }
 
+                @keyframes slideUpModal { from { opacity: 0; transform: translateY(40px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+                .earn-modal-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.05); border: none; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; transition: all 0.2s; }
+                .earn-modal-close:hover { background: rgba(255,255,255,0.15); transform: rotate(90deg); }
+                .earn-modal-header { text-align: center; padding: 48px 32px 32px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+                .earn-modal-icon { width: 120px; height: 120px; background: transparent; border-radius: 0; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; box-shadow: none; }
+                .earn-modal-icon svg { color: #000; fill: #000; }
+                .earn-modal-header h2 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; }
+                .earn-modal-header p { color: rgba(255,255,255,0.6); font-size: 1.1rem; }
+                
+                .earn-modal-stats { display: flex; gap: 16px; padding: 24px 32px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+                .earn-stat { flex: 1; background: rgba(255,255,255,0.03); border-radius: 16px; padding: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
+                .earn-stat svg { margin-bottom: 12px; opacity: 0.8; color: #fff; }
+                .earn-stat-value { display: block; font-size: 1.8rem; font-weight: 800; margin-bottom: 4px; color: #fff; }
+                .earn-stat-label { font-size: 0.85rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+                
+                .earn-modal-section { padding: 24px 32px 0; }
+                .earn-modal-section label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 12px; color: rgba(255,255,255,0.8); }
+                
+                .earn-code-box { display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; transition: all 0.2s; }
+                .earn-code-box:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); }
+                .earn-code { flex: 1; font-size: 1.4rem; font-weight: 800; font-family: 'Courier New', monospace; letter-spacing: 0.15em; color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.3); }
+                
+                .earn-link-box { display: flex; gap: 12px; }
+                .earn-link-input { flex: 1; padding: 16px 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; color: rgba(255,255,255,0.8); font-size: 0.95rem; font-family: monospace; outline: none; transition: all 0.2s; }
+                .earn-link-input:focus { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); }
+                
+                .earn-copy-btn { display: flex; align-items: center; gap: 8px; padding: 14px 24px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: #fff; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+                .earn-copy-btn:hover { background: rgba(255,255,255,0.15); transform: translateY(-1px); }
+                .earn-copy-btn-primary { background: #fff; color: #000; border-color: #fff; }
+                .earn-copy-btn-primary:hover { background: #f0f0f0; box-shadow: 0 4px 15px rgba(255,255,255,0.2); }
+                
+                .earn-modal-howto { padding: 32px 32px 24px; }
+                .earn-modal-howto h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 24px; color: #fff; }
+                .earn-steps { display: flex; flex-direction: column; gap: 20px; }
+                .earn-step { display: flex; gap: 16px; align-items: flex-start; }
+                .earn-step-number { width: 36px; height: 36px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; flex-shrink: 0; color: #fff; border: 1px solid rgba(255,255,255,0.1); }
+                .earn-step-content { padding-top: 6px; }
+                .earn-step-content h4 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; color: #fff; }
+                .earn-step-content p { font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
+                
+                .earn-modal-note { margin: 8px 32px 32px; padding: 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.6; text-align: center; }
+                .earn-modal-note strong { color: #fff; font-weight: 600; }
+                
                 @media (max-width: 768px) {
                     .pricing-hero h1 { font-size: 2.5rem; }
                     .pricing-hero p { font-size: 1rem; }
                     .pricing-card { padding: 24px; }
-                    .pricing-amount { font-size: 2.5rem; }
+                    .pricing-amount { font-size: 3rem; }
                     .earn-credits-card { flex-direction: column; text-align: center; }
                     .earn-link-box { flex-direction: column; }
                     .earn-modal-stats { flex-direction: column; }
