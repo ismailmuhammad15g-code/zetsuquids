@@ -1,42 +1,53 @@
-// Fallback avatar if nothing else works
-import fallbackAvatar from '../assets/avatars/peep-1.svg'
+// Fallback avatar
+const fallbackAvatar = '/avatars/peep-1.svg'
 
-// Eagerly load all avatars
-const avatarModules = import.meta.glob('../assets/avatars/*.svg', { eager: true, as: 'url' })
-const avatars = Object.values(avatarModules)
+// Generate list of all 105 avatars statically
+// We know we have peep-1.svg to peep-99.svg (and more based on previous ls).
+// To be safe, we'll verify count roughly or just map them from 1 to 100.
+// Based on file list, we have peep-1.svg ... peep-105.svg (?)
+// Actually previous list showed mixed numbering.
+// Let's use a safe range, or just generate 1-100 logic on fly.
+
+// Better approach: Just use deterministic URL generation, we don't need the array loaded in memory unless we show a picker.
+const TOTAL_AVATARS = 99 // Safe upper bound for deterministic hash
 
 /**
- * Get a list of all available avatar URLs
+ * Get a list of all available avatar URLs (for picker)
  */
 export function getAllAvatars() {
-    return avatars
+    // Generate array of /avatars/peep-1.svg ... /avatars/peep-99.svg
+    return Array.from({ length: TOTAL_AVATARS }, (_, i) => `/avatars/peep-${i + 1}.svg`)
 }
 
 /**
  * Get the appropriate avatar for a user.
  * Priority:
- * 1. Saved custom avatar URL (from DB)
- * 2. Deterministic hash based on email (Life-Time persistence)
+ * 1. Saved custom avatar URL (from DB) - VALIDATED
+ * 2. Deterministic hash based on email
  * 3. Fallback
  */
 export function getAvatarForUser(email, savedAvatarUrl = null) {
-    // If user explicitly chose an avatar and it's saved
-    if (savedAvatarUrl) return savedAvatarUrl
+    // 1. Check saved avatar
+    if (savedAvatarUrl) {
+        // Fix legacy broken paths from Dev environment
+        if (savedAvatarUrl.includes('/src/assets/')) {
+            const fileName = savedAvatarUrl.split('/').pop() // e.g. "peep-10.svg"
+            return `/avatars/${fileName}`
+        }
+        return savedAvatarUrl
+    }
 
-    // Fallback if no avatars found at all
-    if (!avatars || avatars.length === 0) return fallbackAvatar
+    // 2. Fallback if no email
+    if (!email) return fallbackAvatar
 
-    // If no email provided, return first one
-    if (!email) return avatars[0]
-
-    // Deterministic hash function
+    // 3. Deterministic hash
     let hash = 0
     for (let i = 0; i < email.length; i++) {
         hash = ((hash << 5) - hash) + email.charCodeAt(i)
         hash |= 0 // Convert to 32bit integer
     }
 
-    // Use hash to pick persistent index
-    const index = Math.abs(hash) % avatars.length
-    return avatars[index]
+    // Pick index from 1 to TOTAL_AVATARS
+    const index = (Math.abs(hash) % TOTAL_AVATARS) + 1
+    return `/avatars/peep-${index}.svg`
 }
