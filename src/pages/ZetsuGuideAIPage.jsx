@@ -18,7 +18,7 @@ import aiLogoAnimation from '../assets/ailogo.json'
 // AI API Configuration - Using Netlify Functions in production, local backend in dev
 const isDev = import.meta.env.DEV
 const API_BASE = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:5000' : '')
-const AI_API_URL = isDev ? `${API_BASE}/api/ai/chat` : '/.netlify/functions/ai'
+const AI_API_URL = isDev ? `${API_BASE}/api/ai/chat` : '/api/ai'
 const AI_MODEL = import.meta.env.VITE_AI_MODEL || 'kimi-k2-0905:free'
 
 // Agent Thinking Phases
