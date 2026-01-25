@@ -24,8 +24,15 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { messages, model } = req.body
+        let body = req.body
+        if (typeof body === 'string') {
+            try { body = JSON.parse(body) } catch (e) {}
+        }
+        
+        const { messages, model } = body || {}
+        
         console.log('Sending to Routeway API, model:', model || 'kimi-k2-0905:free')
+        console.log('Env Keys available:', Object.keys(process.env).filter(k => k.includes('KEY')).join(', '))
 
         const apiKey = process.env.ROUTEWAY_API_KEY || process.env.VITE_AI_API_KEY
         if (!apiKey) {

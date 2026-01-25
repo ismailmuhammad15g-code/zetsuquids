@@ -14,8 +14,37 @@ export default function AccountSetupModal({ user, onClose, onComplete }) {
         referralSource: null
     })
 
+
     const avatars = getAllAvatars()
-    const socialLogos = import.meta.glob('../assets/PNG/Front View/*.png', { eager: true, as: 'url' })
+
+    // Static list of social icons available in /public/social
+    const socialSources = [
+        { name: 'Behance', url: '/social/Behance.png' },
+        { name: 'Discord', url: '/social/Discord.png' },
+        { name: 'Dribbble', url: '/social/Dribbble.png' },
+        { name: 'Drive', url: '/social/Drive.png' },
+        { name: 'Dropbox', url: '/social/Dropbox.png' },
+        { name: 'Excel', url: '/social/Excel.png' },
+        { name: 'Facebook', url: '/social/Facebook.png' },
+        { name: 'Instagram', url: '/social/Instagram.png' },
+        { name: 'LinkedIn', url: '/social/LinkedIn.png' },
+        { name: 'Messenger', url: '/social/Messenger.png' },
+        { name: 'Outlook', url: '/social/Outlook.png' },
+        { name: 'Pinterest', url: '/social/Pinterest.png' },
+        { name: 'Reddit', url: '/social/Reddit.png' },
+        { name: 'Skype', url: '/social/Skype.png' },
+        { name: 'Slack', url: '/social/Slack.png' },
+        { name: 'Snapchat', url: '/social/Snapchat.png' },
+        { name: 'Spotify', url: '/social/Spotify.png' },
+        { name: 'Telegram', url: '/social/Telegram.png' },
+        { name: 'Tiktok', url: '/social/Tiktok.png' },
+        { name: 'Twitch', url: '/social/Twitch.png' },
+        { name: 'Twitter', url: '/social/Twitter.png' },
+        { name: 'Whatsapp', url: '/social/Whatsapp.png' },
+        { name: 'X', url: '/social/X.png' },
+        { name: 'Youtube', url: '/social/Youtube.png' },
+        { name: 'Zoom', url: '/social/Zoom.png' }
+    ]
 
     const handleNext = () => setStep(prev => prev + 1)
     const handleBack = () => setStep(prev => prev - 1)
@@ -132,17 +161,11 @@ export default function AccountSetupModal({ user, onClose, onComplete }) {
 
     // Step 3: Referral Source
     const Step3 = () => {
-        // Clean names from paths
-        const sources = Object.entries(socialLogos).map(([path, url]) => {
-            const name = path.split('/').pop().replace('.png', '')
-            return { name, url }
-        })
-
         return (
             <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                 <h2 className="text-2xl font-bold">Where did you hear about us?</h2>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 max-h-[400px] overflow-y-auto pr-2">
-                    {sources.map(({ name, url }) => (
+                    {socialSources.map(({ name, url }) => (
                         <button
                             key={name}
                             onClick={() => setSetupData({ ...setupData, referralSource: name })}

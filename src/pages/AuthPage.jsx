@@ -5,14 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/api'
 import Lottie from 'lottie-react'
 import celebrateAnimation from '../assets/celebrate.json'
-import bg1 from '../assets/auth/bg1.png'
-import bg2 from '../assets/auth/bg2.png'
-import bg3 from '../assets/auth/bg3.png'
-import bg4 from '../assets/auth/bg4.png'
-import avatar1 from '../assets/auth/avatar1.png'
-import avatar2 from '../assets/auth/avatar2.png'
-import avatar3 from '../assets/auth/avatar3.png'
-import avatar4 from '../assets/auth/avatar4.png'
+
 
 // Testimonials data
 const testimonials = [
@@ -20,30 +13,30 @@ const testimonials = [
         quote: "The best platform for saving and organizing programming guides. Saved me hours of searching!",
         author: "John Smith",
         role: "Full Stack Developer",
-        image: avatar1
+        image: '/auth/avatar1.png'
     },
     {
         quote: "Amazing user interface and so easy to use. I rely on it daily.",
         author: "Sarah Johnson",
         role: "Software Engineer",
-        image: avatar2
+        image: '/auth/avatar2.png'
     },
     {
         quote: "The AI-powered search completely changed how I work. Incredible!",
         author: "Mike Chen",
         role: "DevOps Engineer",
-        image: avatar3
+        image: '/auth/avatar3.png'
     },
     {
         quote: "A professional platform that brings everything I need in one place.",
         author: "Emily Davis",
         role: "Frontend Developer",
-        image: avatar4
+        image: '/auth/avatar4.png'
     }
 ]
 
 // Background images for slider
-const bgImages = [bg1, bg2, bg3, bg4]
+const bgImages = ['/auth/bg1.png', '/auth/bg2.png', '/auth/bg3.png', '/auth/bg4.png']
 
 export default function AuthPage() {
     const [mode, setMode] = useState('login') // login, register, forgot, reset
