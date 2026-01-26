@@ -120,20 +120,23 @@ export default function AuthPage() {
                         ? 'https://zetsuquids.vercel.app/auth'
                         : `${window.location.origin}/auth`
 
-
-
-                    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-                        email: formData.email,
-                        password: formData.password,
-                        options: {
-                            emailRedirectTo: redirectUrl,
-                            data: {
-                                name: formData.name
-                            }
-                        }
+                    // Use Custom API for Registration (Bypasses Supabase Email Limits)
+                    const response = await fetch('/api/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: formData.email,
+                            password: formData.password,
+                            name: formData.name,
+                            redirectUrl
+                        })
                     })
 
-                    if (signUpError) throw signUpError
+                    const result = await response.json()
+
+                    if (!response.ok) {
+                        throw new Error(result.error || 'Registration failed')
+                    }
 
                     // Show celebration
                     setShowCelebration(true)
@@ -142,7 +145,7 @@ export default function AuthPage() {
                     const emailProvider = formData.email.includes('gmail') ? 'Gmail' : 'your email provider'
                     setMessage({
                         type: 'success',
-                        text: `Verification link sent! Please check ${emailProvider}. (Redirects to: ${new URL(redirectUrl).hostname})`
+                        text: `Verification link sent via Gmail! Please check ${emailProvider}.`
                     })
                     break
 
