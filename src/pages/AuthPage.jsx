@@ -120,8 +120,7 @@ export default function AuthPage() {
                         ? 'https://zetsuquids.vercel.app/auth'
                         : `${window.location.origin}/auth`
 
-                    console.log('DEBUG: Registering with Redirect URL:', redirectUrl)
-                    console.log('DEBUG: User Email:', formData.email)
+
 
                     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
                         email: formData.email,
