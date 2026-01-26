@@ -70,7 +70,7 @@ export default function SearchModal({ onClose }) {
     const QUICK_ACTIONS = [
         { id: 'action-ai', title: 'Ask ZetsuGuide AI', icon: Brain, path: '/zetsuguide-ai', color: 'text-indigo-500', bg: 'bg-indigo-50' },
         { id: 'action-add', title: 'Add New Guide', icon: Plus, path: 'modal:add', color: 'text-green-500', bg: 'bg-green-50' },
-        { id: 'action-pro', title: 'Upgrade Plan', icon: CreditCard, path: '/pricing', color: 'text-amber-500', bg: 'bg-amber-50' },
+        { id: 'action-pro', title: 'Upgrade Plan', icon: CreditCard, path: '/pricing', color: 'text-black-500', bg: 'bg-white-50' },
         { id: 'action-home', title: 'Go Home', icon: Home, path: '/', color: 'text-blue-500', bg: 'bg-blue-50' },
     ]
 

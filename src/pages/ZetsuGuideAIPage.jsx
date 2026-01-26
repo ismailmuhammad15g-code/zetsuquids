@@ -1251,7 +1251,13 @@ FORMAT REQUIREMENTS:
 - Use code blocks with language specification
 - Add emojis for visual appeal (📝 💡 ⚠️ ✅)
 
-Do NOT include source citations - they are added automatically.`
+CRITICAL: RESPONSE FORMAT
+You must return a valid JSON object with the following structure:
+{
+  "content": "The actual markdown content of your response...",
+  "publishable": boolean // true if this is an educational guide worth publishing, false for greetings/chit-chat
+}
+Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
 
             // Phase: Responding
             setAgentPhase(AGENT_PHASES.RESPONDING)
@@ -1278,7 +1284,21 @@ Do NOT include source citations - they are added automatically.`
             }
 
             const data = await response.json()
-            let aiContent = data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.'
+            let aiRaw = data.choices?.[0]?.message?.content || '{}'
+            let aiContent = ''
+            let isPublishable = false
+
+            try {
+                // Remove any markdown code blocks if present
+                const cleanJson = aiRaw.replace(/```json\n?|\n?```/g, '').trim()
+                const parsed = JSON.parse(cleanJson)
+                aiContent = parsed.content || 'Error parsing content.'
+                isPublishable = !!parsed.publishable
+            } catch (e) {
+                console.error('Failed to parse AI JSON:', e)
+                aiContent = aiRaw // Fallback to raw text
+                isPublishable = aiContent.length > 200 // Fallback heuristic
+            }
 
             // Add sources section with clickable links if any relevant guides were found
             if (sources.length > 0) {
@@ -1306,7 +1326,8 @@ Do NOT include source citations - they are added automatically.`
                     content: aiContent,
                     timestamp: new Date().toISOString(),
                     isStreaming: true,
-                    sources: sources
+                    sources: sources,
+                    publishable: isPublishable
                 }]
             })
 
@@ -2337,7 +2358,7 @@ Do NOT include source citations - they are added automatically.`
                                                 <MessageContent content={msg.content} isRtl={isArabicText(msg.content)} />
                                             </div>
                                             {/* Publish to Guide button - for all AI messages */}
-                                            {msg.role === 'assistant' && !msg.isStreaming && msg.content.length > 100 && (
+                                            {msg.role === 'assistant' && !msg.isStreaming && msg.publishable && (
                                                 <button
                                                     className="zetsu-publish-guide-btn group"
                                                     onClick={() => publishToGuide(msg.content)}
