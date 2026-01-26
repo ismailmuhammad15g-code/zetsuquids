@@ -1028,9 +1028,14 @@ export default function ZetsuGuideAIPage() {
     // Load credits and guides on mount
     useEffect(() => {
         async function loadCredits() {
+            if (user) {
+                const creditCount = await getCreditsFromDB(user)
+                setCredits(creditCount)
+            } else {
+                setCredits(5)
+            }
+
             const userEmail = user?.email || 'guest'
-            const creditCount = await getCreditsFromDB(userEmail)
-            setCredits(creditCount)
 
             // Check if user was referred and hasn't seen the notification
             const referralNotificationKey = `referral_notified_${userEmail}`
