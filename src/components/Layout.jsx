@@ -7,6 +7,7 @@ import { getAvatarForUser } from '../lib/avatar'
 import AddGuideModal from './AddGuideModal'
 import SearchModal from './SearchModal'
 import AccountSetupModal from './AccountSetupModal'
+import ReferralSuccessModal from './ReferralSuccessModal'
 import GlobalLoader from './GlobalLoader'
 
 export default function Layout() {
@@ -19,6 +20,7 @@ export default function Layout() {
     const [showUserMenu, setShowUserMenu] = useState(false)
     const [showAccountSetup, setShowAccountSetup] = useState(false)
     const [accountDeleted, setAccountDeleted] = useState(false)
+    const [showReferralSuccess, setShowReferralSuccess] = useState(false)
     const [userProfile, setUserProfile] = useState(null)
 
     // Close mobile menu on route change
@@ -73,6 +75,33 @@ export default function Layout() {
             }
         }
         checkProfile()
+    }, [user])
+
+    // Check for pending referral (Robustness Fix)
+    // If a user has 'referral_pending' in metadata, we try to claim it automatically
+    // This handles cases where the modal closed early, network failed, or page reloaded
+    useEffect(() => {
+        if (!user?.id || !user?.user_metadata?.referral_pending) return
+
+        async function tryClaimReferral() {
+            try {
+                const response = await fetch('/api/claim_referral', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: user.id })
+                })
+                const result = await response.json()
+
+                if (result.success && result.bonusApplied) {
+                    setShowReferralSuccess(true)
+                    // Refresh session to clear metadata from local user state eventually
+                    supabase.auth.refreshSession()
+                }
+            } catch (err) {
+                console.error('Retry claim referral failed:', err)
+            }
+        }
+        tryClaimReferral()
     }, [user])
 
     return (
@@ -325,6 +354,12 @@ export default function Layout() {
                 />
             )}
             {/* Account Deleted Modal */}
+            {showReferralSuccess && (
+                <ReferralSuccessModal
+                    onClose={() => setShowReferralSuccess(false)}
+                    bonusCredits={5}
+                />
+            )}
             {accountDeleted && (
                 <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white border-2 border-black rounded-xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
