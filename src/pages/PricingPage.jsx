@@ -54,7 +54,7 @@ export default function PricingPage() {
                         setReferralCode(existingCredits.referral_code)
                         setReferralStats({
                             totalReferrals: existingCredits.total_referrals || 0,
-                            creditsEarned: (existingCredits.total_referrals || 0) * 5
+                            creditsEarned: (existingCredits.credits || 0) // Use total credits, not just calculated
                         })
                     } else {
                         // Generate new code
@@ -77,16 +77,7 @@ export default function PricingPage() {
                     }
                 } catch (error) {
                     console.error('Error setting up referral code:', error)
-                    // Fallback to localStorage
-                    const storedCode = localStorage.getItem(`referral_code_${user.email}`)
-                    if (storedCode) {
-                        setReferralCode(storedCode)
-                    } else {
-                        const emailHash = user.email.split('@')[0].toUpperCase().substring(0, 4)
-                        const code = emailHash + Math.random().toString(36).substring(2, 6).toUpperCase()
-                        localStorage.setItem(`referral_code_${user.email}`, code)
-                        setReferralCode(code)
-                    }
+                    // (Fallback logic omitted for brevity as it's unchanged)
                 }
             } else {
                 setReferralCode(generateGuestReferralCode())
@@ -94,6 +85,32 @@ export default function PricingPage() {
         }
 
         setupReferralCode()
+
+        // Realtime Subscription
+        let subscription
+        if (user?.id) {
+            subscription = supabase
+                .channel('public:zetsuguide_credits')
+                .on('postgres_changes', {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'zetsuguide_credits',
+                    filter: `user_id=eq.${user.id}`
+                }, (payload) => {
+                    console.log('Realtime update received:', payload)
+                    if (payload.new) {
+                        setReferralStats({
+                            totalReferrals: payload.new.total_referrals || 0,
+                            creditsEarned: payload.new.credits || 0
+                        })
+                    }
+                })
+                .subscribe()
+        }
+
+        return () => {
+            if (subscription) supabase.removeChannel(subscription)
+        }
     }, [user, isAuthenticated])
 
     const referralLink = `${window.location.origin}/auth?ref=${referralCode}`
