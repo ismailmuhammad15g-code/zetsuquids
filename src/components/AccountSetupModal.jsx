@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronRight, Check, Users, User, Building2, Briefcase } from 'lucide-react'
 import Lottie from 'lottie-react'
@@ -166,35 +166,78 @@ export default function AccountSetupModal({ user, onClose, onComplete }) {
         </div>
     )
 
+    // Optimized Social Icon Component
+    const SocialIcon = ({ name, icon, isSelected, onClick }) => {
+        const lottieRef = useRef()
+
+        // Freeze effect: Pause animation when selected
+        useEffect(() => {
+            if (lottieRef.current) {
+                if (isSelected) {
+                    lottieRef.current.pause()
+                } else {
+                    lottieRef.current.play()
+                }
+            }
+        }, [isSelected])
+
+        return (
+            <button
+                onClick={onClick}
+                className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all group relative overflow-hidden ${isSelected
+                    ? 'border-black bg-blue-50/50 scale-95 ring-1 ring-black/5'
+                    : 'border-gray-100 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+            >
+                <div className="w-12 h-12 relative z-10">
+                    <Lottie
+                        lottieRef={lottieRef}
+                        animationData={icon}
+                        loop={true}
+                        autoplay={false} // Start manually to control perf
+                        onDOMLoaded={() => {
+                            // Randomize start time to prevent CPU spike from 25 concurrent starts
+                            setTimeout(() => lottieRef.current?.play(), Math.random() * 1000)
+                        }}
+                        className="w-full h-full"
+                        rendererSettings={{
+                            preserveAspectRatio: 'xMidYMid slice',
+                            progressiveLoad: true, // Help low RAM
+                            hideOnTransparent: true
+                        }}
+                    />
+                </div>
+                <span className={`text-xs font-medium text-center truncate w-full transition-colors relative z-10 ${isSelected ? 'text-black font-bold' : 'text-gray-500 group-hover:text-black'}`}>
+                    {name}
+                </span>
+
+                {/* Freeze/Ice Effect Overlay */}
+                {isSelected && (
+                    <div className="absolute inset-0 bg-blue-100/30 backdrop-blur-[1px] animate-in fade-in duration-300 pointer-events-none" />
+                )}
+            </button>
+        )
+    }
+
     // Step 3: Referral Source
     const Step3 = () => {
         return (
             <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                 <h2 className="text-2xl font-bold">Where did you hear about us?</h2>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 max-h-[400px] overflow-y-auto pr-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 max-h-[400px] overflow-y-auto pr-2 pb-2">
                     {socialSources.map(({ name, icon }) => (
-                        <button
+                        <SocialIcon
                             key={name}
+                            name={name}
+                            icon={icon}
+                            isSelected={setupData.referralSource === name}
                             onClick={() => setSetupData({ ...setupData, referralSource: name })}
-                            className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all group ${setupData.referralSource === name
-                                ? 'border-black bg-gray-50'
-                                : 'border-gray-100 hover:border-gray-300'
-                                }`}
-                        >
-                            <div className="w-12 h-12">
-                                <Lottie
-                                    animationData={icon}
-                                    loop={true}
-                                    autoplay={true}
-                                />
-                            </div>
-                            <span className="text-xs font-medium text-center truncate w-full group-hover:text-black transition-colors">{name}</span>
-                        </button>
+                        />
                     ))}
                     <button
                         onClick={() => setSetupData({ ...setupData, referralSource: 'Other' })}
                         className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${setupData.referralSource === 'Other'
-                            ? 'border-black bg-gray-50'
+                            ? 'border-black bg-blue-50/50'
                             : 'border-gray-100 hover:border-gray-300'
                             }`}
                     >
