@@ -4,6 +4,7 @@ import { ChevronRight, Check, Users, User, Building2, Briefcase } from 'lucide-r
 import Lottie from 'lottie-react'
 import { supabase } from '../lib/supabase'
 import { getAllAvatars } from '../lib/avatar'
+import ReferralSuccessModal from './ReferralSuccessModal'
 
 // Import Lottie JSONs
 import chromeAnim from '../assets/socialicons/Chrome logo burst.json'
@@ -141,6 +142,9 @@ export default function AccountSetupModal({ user, onClose, onComplete }) {
         { name: 'Android', icon: androidAnim, staticIcon: AndroidIcon }
     ]
 
+    const [showSuccessModal, setShowSuccessModal] = useState(false)
+    const [bonusCredits, setBonusCredits] = useState(0)
+
     const handleNext = () => setStep(prev => prev + 1)
     const handleBack = () => setStep(prev => prev - 1)
 
@@ -160,6 +164,25 @@ export default function AccountSetupModal({ user, onClose, onComplete }) {
                 }, { onConflict: 'user_email' })
 
             if (error) throw error
+
+            // Try to claim referral bonus
+            try {
+                const response = await fetch('/api/claim_referral', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: user.id })
+                })
+                const result = await response.json()
+
+                if (result.success && result.bonusApplied) {
+                    setBonusCredits(result.newCredits || 10) // Fallback if API doesn't return
+                    setShowSuccessModal(true)
+                    return // Don't close yet, wait for success modal
+                }
+            } catch (refError) {
+                console.error('Referral claim error:', refError)
+                // Continue anyway
+            }
 
             // Notify parent to refresh user data
             if (onComplete) onComplete()
@@ -288,60 +311,75 @@ export default function AccountSetupModal({ user, onClose, onComplete }) {
 
     return (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm" />
+            {showSuccessModal && (
+                <ReferralSuccessModal
+                    onClose={() => {
+                        setShowSuccessModal(false)
+                        if (onComplete) onComplete()
+                        onClose()
+                    }}
+                    bonusCredits={5} // Just show bonus amount +5
+                />
+            )}
 
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="bg-white border-2 border-black rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden relative z-10 flex flex-col max-h-[85vh]"
-            >
-                {/* Header */}
-                <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                    <div>
-                        <h1 className="text-xl font-black tracking-tight">Setup Account</h1>
-                        <p className="text-sm text-gray-500">Just a few details to customize your experience</p>
-                    </div>
-                    <div className="flex gap-1.5">
-                        {[1, 2, 3].map(s => (
-                            <div
-                                key={s}
-                                className={`h-2 rounded-full transition-all duration-300 ${s === step ? 'w-8 bg-black' : s < step ? 'w-2 bg-black' : 'w-2 bg-gray-200'
-                                    }`}
-                            />
-                        ))}
-                    </div>
-                </div>
+            {!showSuccessModal && (
+                <>
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm" />
 
-                {/* Content */}
-                <div className="p-8 flex-1 overflow-y-auto">
-                    {step === 1 && <Step1 />}
-                    {step === 2 && <Step2 />}
-                    {step === 3 && <Step3 />}
-                </div>
-
-                {/* Footer */}
-                <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                    {step > 1 ? (
-                        <button
-                            onClick={handleBack}
-                            className="text-sm font-bold text-gray-500 hover:text-black transition-colors px-4 py-2"
-                        >
-                            Back
-                        </button>
-                    ) : (
-                        <div></div>
-                    )}
-
-                    <button
-                        onClick={step === 3 ? handleComplete : handleNext}
-                        disabled={loading}
-                        className="flex items-center gap-2 bg-black text-white px-8 py-3 rounded-full font-bold hover:bg-gray-800 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="bg-white border-2 border-black rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden relative z-10 flex flex-col max-h-[85vh]"
                     >
-                        {loading ? 'Saving...' : step === 3 ? 'Finish Setup' : 'Next'}
-                        {!loading && step !== 3 && <ChevronRight size={18} />}
-                    </button>
-                </div>
-            </motion.div>
+                        {/* Header */}
+                        <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <div>
+                                <h1 className="text-xl font-black tracking-tight">Setup Account</h1>
+                                <p className="text-sm text-gray-500">Just a few details to customize your experience</p>
+                            </div>
+                            <div className="flex gap-1.5">
+                                {[1, 2, 3].map(s => (
+                                    <div
+                                        key={s}
+                                        className={`h-2 rounded-full transition-all duration-300 ${s === step ? 'w-8 bg-black' : s < step ? 'w-2 bg-black' : 'w-2 bg-gray-200'
+                                            }`}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-8 flex-1 overflow-y-auto">
+                            {step === 1 && <Step1 />}
+                            {step === 2 && <Step2 />}
+                            {step === 3 && <Step3 />}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                            {step > 1 ? (
+                                <button
+                                    onClick={handleBack}
+                                    className="text-sm font-bold text-gray-500 hover:text-black transition-colors px-4 py-2"
+                                >
+                                    Back
+                                </button>
+                            ) : (
+                                <div></div>
+                            )}
+
+                            <button
+                                onClick={step === 3 ? handleComplete : handleNext}
+                                disabled={loading}
+                                className="flex items-center gap-2 bg-black text-white px-8 py-3 rounded-full font-bold hover:bg-gray-800 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                            >
+                                {loading ? 'Saving...' : step === 3 ? 'Finish Setup' : 'Next'}
+                                {!loading && step !== 3 && <ChevronRight size={18} />}
+                            </button>
+                        </div>
+                    </motion.div>
+                </>
+            )}
         </div>
     )
 }

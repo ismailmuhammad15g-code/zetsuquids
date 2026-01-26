@@ -7,7 +7,7 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' })
     }
 
-    const { email, password, name, redirectUrl } = req.body
+    const { email, password, name, redirectUrl, referralCode } = req.body
 
     if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required' })
@@ -32,8 +32,11 @@ export default async function handler(req, res) {
             email,
             password,
             options: {
-                data: { name },
-                redirectTo: redirectUrl || 'https://zetsuquids.vercel.app/auth'
+                data: {
+                    name,
+                    referral_pending: referralCode || null // Store for later claim
+                },
+                redirectTo: redirectUrl || 'https://zetsusave2.vercel.app/auth'
             }
         })
 

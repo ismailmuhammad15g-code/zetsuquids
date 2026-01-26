@@ -120,6 +120,9 @@ export default function AuthPage() {
                         ? 'https://zetsuquids.vercel.app/auth'
                         : `${window.location.origin}/auth`
 
+                    // Get referral code if valid
+                    const finalReferralCode = isValidReferral ? referralCode : ''
+
                     // Use Custom API for Registration (Bypasses Supabase Email Limits)
                     const response = await fetch('/api/register', {
                         method: 'POST',
@@ -128,7 +131,8 @@ export default function AuthPage() {
                             email: formData.email,
                             password: formData.password,
                             name: formData.name,
-                            redirectUrl
+                            redirectUrl,
+                            referralCode: finalReferralCode
                         })
                     })
 

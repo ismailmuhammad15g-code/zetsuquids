@@ -45,9 +45,9 @@ export default function PricingPage() {
                     // First check if user already has a referral code in database
                     const { data: existingCredits } = await supabase
                         .from('zetsuguide_credits')
-                        .select('referral_code, total_referrals')
-                        .eq('user_email', user.email.toLowerCase())
-                        .single()
+                        .select('referral_code, total_referrals, credits')
+                        .eq('user_id', user.id)
+                        .maybeSingle()
 
                     if (existingCredits?.referral_code) {
                         // Use existing code from database
@@ -65,11 +65,12 @@ export default function PricingPage() {
                         await supabase
                             .from('zetsuguide_credits')
                             .upsert({
+                                user_id: user.id,
                                 user_email: user.email.toLowerCase(),
                                 referral_code: newCode,
                                 credits: existingCredits ? existingCredits.credits : 5,
                                 updated_at: new Date().toISOString()
-                            }, { onConflict: 'user_email' })
+                            }, { onConflict: 'user_id' })
 
                         setReferralCode(newCode)
                         console.log('Referral code saved to database:', newCode)

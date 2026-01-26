@@ -43,22 +43,32 @@ export default function Layout() {
         if (!user?.email) return
 
         async function checkProfile() {
-            const { data } = await supabase
-                .from('zetsuguide_user_profiles')
-                .select('*')
-                .eq('user_email', user.email)
-                .maybeSingle()
+            // Parallel check: Get Profile AND Verify Auth Session
+            const [profileResult, authResult] = await Promise.all([
+                supabase
+                    .from('zetsuguide_user_profiles')
+                    .select('*')
+                    .eq('user_email', user.email)
+                    .maybeSingle(),
+                supabase.auth.getUser()
+            ])
 
+            const { data } = profileResult
+            const { error: authError } = authResult
+
+            // Priority 1: If Auth User is gone (Deleted by Admin), trigger deletion flow
+            if (authError) {
+                console.error('Auth verification failed:', authError)
+                setAccountDeleted(true)
+                setUserProfile(null)
+                return
+            }
+
+            // Priority 2: Auth is good, set profile if exists
             setUserProfile(data)
 
-            // If no profile data found, verify if account actually exists (it might be deleted)
+            // Priority 3: If Auth good but no profile => Setup needed
             if (!data) {
-                const { error } = await supabase.auth.getUser()
-                if (error) {
-                    // Auth user is gone, triggering deletion flow
-                    setAccountDeleted(true)
-                    return
-                }
                 setShowAccountSetup(true)
             }
         }

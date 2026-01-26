@@ -69,15 +69,15 @@ function parseMarkdownText(text) {
 }
 
 // Get credits - ONLY from Supabase (no localStorage)
-async function getCreditsFromDB(userEmail) {
+async function getCreditsFromDB(user) {
     // For authenticated users - get from Supabase only
-    if (isSupabaseConfigured() && userEmail && userEmail !== 'guest') {
+    if (isSupabaseConfigured() && user && user.email !== 'guest') {
         try {
             const { data, error } = await supabase
                 .from('zetsuguide_credits')
                 .select('credits, referred_by')
-                .eq('user_email', userEmail)
-                .maybeSingle() // Fix 406 error: use maybeSingle instead of single
+                .eq('user_id', user.id) // Use stable ID
+                .maybeSingle()
 
             if (!error && data) {
                 console.log('Credits from DB:', data.credits)
@@ -91,7 +91,8 @@ async function getCreditsFromDB(userEmail) {
                 const { data: newData, error: insertError } = await supabase
                     .from('zetsuguide_credits')
                     .insert({
-                        user_email: userEmail,
+                        user_id: user.id,
+                        user_email: user.email,
                         credits: 5,
                         created_at: new Date().toISOString()
                     })
@@ -106,7 +107,7 @@ async function getCreditsFromDB(userEmail) {
                     const { data: retryData } = await supabase
                         .from('zetsuguide_credits')
                         .select('credits')
-                        .eq('user_email', userEmail)
+                        .eq('user_id', user.id)
                         .maybeSingle()
                     return retryData?.credits || 5
                 }
@@ -153,8 +154,8 @@ async function fetchUsageLogs(userEmail) {
 }
 
 // Use credit - deducts ONLY from Supabase (no localStorage)
-async function useCreditsFromDB(userEmail, action = 'AI Chat', details = '') {
-    if (!isSupabaseConfigured() || !userEmail || userEmail === 'guest') {
+async function useCreditsFromDB(user, action = 'AI Chat', details = '') {
+    if (!isSupabaseConfigured() || !user || user.email === 'guest') {
         return { success: false, remaining: 0 }
     }
 
@@ -163,7 +164,7 @@ async function useCreditsFromDB(userEmail, action = 'AI Chat', details = '') {
         const { data: currentData, error: fetchError } = await supabase
             .from('zetsuguide_credits')
             .select('credits')
-            .eq('user_email', userEmail)
+            .eq('user_id', user.id)
             .single()
 
         if (fetchError || !currentData) {
@@ -187,7 +188,7 @@ async function useCreditsFromDB(userEmail, action = 'AI Chat', details = '') {
                 credits: newCredits,
                 updated_at: new Date().toISOString()
             })
-            .eq('user_email', userEmail)
+            .eq('user_id', user.id)
 
         if (updateError) {
             console.error('Error updating credits:', updateError)
@@ -195,7 +196,7 @@ async function useCreditsFromDB(userEmail, action = 'AI Chat', details = '') {
         }
 
         // Log the usage
-        logCreditUsage(userEmail, action, details)
+        logCreditUsage(user.email, action, details)
 
         console.log('Credit used - New balance:', newCredits)
         return { success: true, remaining: newCredits }
@@ -1188,7 +1189,7 @@ export default function ZetsuGuideAIPage() {
         }
 
         // Use credit from DB
-        const creditResult = await useCreditsFromDB(userEmail, 'AI Chat', `Query: ${userQuery.substring(0, 50)}${userQuery.length > 50 ? '...' : ''}`)
+        const creditResult = await useCreditsFromDB(user, 'AI Chat', `Query: ${userQuery.substring(0, 50)}${userQuery.length > 50 ? '...' : ''}`)
         if (!creditResult.success) {
             navigate('/pricing')
             return
@@ -1690,6 +1691,13 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                                             if (user?.email) {
                                                                 const logs = await fetchUsageLogs(user.email)
                                                                 setUsageLogs(logs)
+                                                            }
+                                                            // Load credits
+                                                            if (user) {
+                                                                const dbCredits = await getCreditsFromDB(user)
+                                                                setCredits(dbCredits)
+                                                            } else {
+                                                                setCredits(5)
                                                             }
                                                             setIsLoadingLogs(false)
                                                         }}
