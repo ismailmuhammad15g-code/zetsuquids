@@ -117,7 +117,7 @@ export default function AuthPage() {
 
                     // Smart redirect logic: Use production URL in build, localhost in dev
                     const redirectUrl = import.meta.env.PROD
-                        ? 'https://zetsugui.netlify.app/auth'
+                        ? 'https://zetsuquids.vercel.app/auth'
                         : `${window.location.origin}/auth`
 
                     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
