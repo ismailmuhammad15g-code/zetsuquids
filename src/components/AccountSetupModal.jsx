@@ -22,12 +22,27 @@ import androidAnim from '../assets/socialicons/android logo burst.json'
 import dribbbleAnim from '../assets/socialicons/dribbble logo burst.json'
 import messengerAnim from '../assets/socialicons/messenger logo burst.json'
 
+// Import static icons
+import {
+    GoogleIcon, DropboxIcon, DribbbleIcon, FacebookIcon, GmailIcon,
+    MessengerIcon, SnapchatIcon, TikTokIcon, TwitterIcon, WhatsAppIcon,
+    YouTubeIcon, ChromeIcon, FigmaIcon, HtmlIcon, AndroidIcon
+} from './BrandIcons'
+
 // Optimized Social Icon Component
-const SocialIcon = ({ name, icon, isSelected, onClick }) => {
+const SocialIcon = ({ name, icon, staticIcon: StaticIcon, isSelected, onClick }) => {
     const lottieRef = useRef()
     const [isHovered, setIsHovered] = useState(false)
+    const [shouldLoadLottie, setShouldLoadLottie] = useState(false)
 
-    // Helper to show the static full icon (Last Frame)
+    // Only load Lottie if hovered or selected (LAZY LOADING)
+    useEffect(() => {
+        if (isHovered || isSelected) {
+            setShouldLoadLottie(true)
+        }
+    }, [isHovered, isSelected])
+
+    // Helper to show the static full icon (Last Frame) - only needed if Lottie runs
     const showStaticIcon = () => {
         if (lottieRef.current) {
             const duration = lottieRef.current.getDuration(true)
@@ -44,9 +59,9 @@ const SocialIcon = ({ name, icon, isSelected, onClick }) => {
             lottieRef.current.pause()
         } else if (isHovered) {
             lottieRef.current.goToAndPlay(0, true)
-        } else {
-            showStaticIcon()
         }
+        // If unhovered, Lottie handles itself or we unmount?
+        // Actually, better to keep it mounted once loaded to avoid flicker
     }, [isSelected, isHovered])
 
     return (
@@ -59,20 +74,29 @@ const SocialIcon = ({ name, icon, isSelected, onClick }) => {
                 : 'border-gray-100 hover:border-gray-300 hover:bg-gray-50'
                 }`}
         >
-            <div className="w-12 h-12 relative z-10">
-                <Lottie
-                    lottieRef={lottieRef}
-                    animationData={icon}
-                    loop={true}
-                    autoplay={false}
-                    onDOMLoaded={showStaticIcon} // Show icon immediately on load
-                    className="w-full h-full"
-                    rendererSettings={{
-                        preserveAspectRatio: 'xMidYMid slice',
-                        progressiveLoad: true,
-                        hideOnTransparent: true
-                    }}
-                />
+            <div className="w-12 h-12 relative z-10 flex items-center justify-center">
+                {/* Static Fallback (Always visible initially) */}
+                <div className={`absolute inset-0 transition-opacity duration-300 ${shouldLoadLottie && (isHovered || isSelected) ? 'opacity-0' : 'opacity-100'}`}>
+                    <StaticIcon />
+                </div>
+
+                {/* Heavy Lottie (Only mounted after interaction) */}
+                {shouldLoadLottie && (
+                    <div className={`absolute inset-0 transition-opacity duration-300 ${isHovered || isSelected ? 'opacity-100' : 'opacity-0'}`}>
+                        <Lottie
+                            lottieRef={lottieRef}
+                            animationData={icon}
+                            loop={true}
+                            autoplay={false}
+                            className="w-full h-full"
+                            rendererSettings={{
+                                preserveAspectRatio: 'xMidYMid slice',
+                                progressiveLoad: true,
+                                hideOnTransparent: true
+                            }}
+                        />
+                    </div>
+                )}
             </div>
             <span className={`text-xs font-medium text-center truncate w-full transition-colors relative z-10 ${isSelected ? 'text-black font-bold' : 'text-gray-500 group-hover:text-black'}`}>
                 {name}
@@ -100,21 +124,21 @@ export default function AccountSetupModal({ user, onClose, onComplete }) {
 
     // Lottie Social Options
     const socialSources = [
-        { name: 'Google', icon: googleAnim },
-        { name: 'Dropbox', icon: dropboxAnim },
-        { name: 'Dribbble', icon: dribbbleAnim },
-        { name: 'Facebook', icon: metaAnim },
-        { name: 'Gmail', icon: gmailAnim },
-        { name: 'Messenger', icon: messengerAnim },
-        { name: 'Snapchat', icon: snapchatAnim },
-        { name: 'TikTok', icon: tiktokAnim },
-        { name: 'Twitter', icon: twitterAnim },
-        { name: 'WhatsApp', icon: whatsappAnim },
-        { name: 'YouTube', icon: youtubeAnim },
-        { name: 'Chrome', icon: chromeAnim },
-        { name: 'Figma', icon: figmaAnim },
-        { name: 'HTML5', icon: htmlAnim },
-        { name: 'Android', icon: androidAnim }
+        { name: 'Google', icon: googleAnim, staticIcon: GoogleIcon },
+        { name: 'Dropbox', icon: dropboxAnim, staticIcon: DropboxIcon },
+        { name: 'Dribbble', icon: dribbbleAnim, staticIcon: DribbbleIcon },
+        { name: 'Facebook', icon: metaAnim, staticIcon: FacebookIcon },
+        { name: 'Gmail', icon: gmailAnim, staticIcon: GmailIcon },
+        { name: 'Messenger', icon: messengerAnim, staticIcon: MessengerIcon },
+        { name: 'Snapchat', icon: snapchatAnim, staticIcon: SnapchatIcon },
+        { name: 'TikTok', icon: tiktokAnim, staticIcon: TikTokIcon },
+        { name: 'Twitter', icon: twitterAnim, staticIcon: TwitterIcon },
+        { name: 'WhatsApp', icon: whatsappAnim, staticIcon: WhatsAppIcon },
+        { name: 'YouTube', icon: youtubeAnim, staticIcon: YouTubeIcon },
+        { name: 'Chrome', icon: chromeAnim, staticIcon: ChromeIcon },
+        { name: 'Figma', icon: figmaAnim, staticIcon: FigmaIcon },
+        { name: 'HTML5', icon: htmlAnim, staticIcon: HtmlIcon },
+        { name: 'Android', icon: androidAnim, staticIcon: AndroidIcon }
     ]
 
     const handleNext = () => setStep(prev => prev + 1)
