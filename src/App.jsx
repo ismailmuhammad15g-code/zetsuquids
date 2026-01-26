@@ -10,22 +10,26 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import ZetsuGuideAIPage from './pages/ZetsuGuideAIPage'
 
+import { LoadingProvider } from './contexts/LoadingContext'
+
 function App() {
     return (
-        <AuthProvider>
-            <Routes>
-                <Route path="/" element={<Layout />}>
-                    <Route index element={<HomePage />} />
-                    <Route path="guides" element={<AllGuidesPage />} />
-                    <Route path="guide/:slug" element={<GuidePage />} />
-                </Route>
-                <Route path="/auth" element={<AuthPage />} />
-                <Route path="/verify-email" element={<VerifyEmailPage />} />
-                <Route path="/reset-password" element={<ResetPasswordPage />} />
-                <Route path="/zetsuguide-ai" element={<ZetsuGuideAIPage />} />
-                <Route path="/pricing" element={<PricingPage />} />
-            </Routes>
-        </AuthProvider>
+        <LoadingProvider>
+            <AuthProvider>
+                <Routes>
+                    <Route path="/" element={<Layout />}>
+                        <Route index element={<HomePage />} />
+                        <Route path="guides" element={<AllGuidesPage />} />
+                        <Route path="guide/:slug" element={<GuidePage />} />
+                    </Route>
+                    <Route path="/auth" element={<AuthPage />} />
+                    <Route path="/verify-email" element={<VerifyEmailPage />} />
+                    <Route path="/reset-password" element={<ResetPasswordPage />} />
+                    <Route path="/zetsuguide-ai" element={<ZetsuGuideAIPage />} />
+                    <Route path="/pricing" element={<PricingPage />} />
+                </Routes>
+            </AuthProvider>
+        </LoadingProvider>
     )
 }
 

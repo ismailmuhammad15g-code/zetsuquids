@@ -7,6 +7,7 @@ import { getAvatarForUser } from '../lib/avatar'
 import AddGuideModal from './AddGuideModal'
 import SearchModal from './SearchModal'
 import AccountSetupModal from './AccountSetupModal'
+import GlobalLoader from './GlobalLoader'
 
 export default function Layout() {
     const location = useLocation()
@@ -337,6 +338,9 @@ export default function Layout() {
                     </div>
                 </div>
             )}
+
+            {/* Global Loader Helper */}
+            <GlobalLoader />
         </div>
     )
 }
