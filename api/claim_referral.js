@@ -12,12 +12,15 @@ export default async function handler(req, res) {
     }
 
     // 1. Init Supabase Admin
-    const supabaseUrl = process.env.VITE_SUPABASE_URL
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://bfsausazslehkvrdrhcq.supabase.co'
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY
 
     if (!supabaseUrl || !supabaseServiceKey) {
-        console.error('Missing Supabase Config')
-        return res.status(500).json({ error: 'Server configuration error' })
+        console.error('Missing Supabase Config:', {
+            hasUrl: !!supabaseUrl,
+            hasKey: !!supabaseServiceKey
+        })
+        return res.status(500).json({ error: 'Server configuration error: Missing URL or Key' })
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)

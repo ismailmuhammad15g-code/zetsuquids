@@ -1048,7 +1048,7 @@ export default function ZetsuGuideAIPage() {
                         .from('zetsuguide_credits')
                         .select('referred_by')
                         .eq('user_email', userEmail)
-                        .single()
+                        .maybeSingle()
 
                     if (data?.referred_by) {
                         // Show bonus notification
