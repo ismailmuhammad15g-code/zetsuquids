@@ -1,8 +1,26 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronRight, Check, Users, User, Building2, Briefcase } from 'lucide-react'
+import Lottie from 'lottie-react'
 import { supabase } from '../lib/supabase'
 import { getAllAvatars } from '../lib/avatar'
+
+// Import Lottie JSONs
+import chromeAnim from '../assets/socialicons/Chrome logo burst.json'
+import dropboxAnim from '../assets/socialicons/Dropbox logo burst.json'
+import figmaAnim from '../assets/socialicons/Figma.json'
+import gmailAnim from '../assets/socialicons/Gmail logo burst.json'
+import googleAnim from '../assets/socialicons/Google logo burst.json'
+import htmlAnim from '../assets/socialicons/Html5 logo burst.json'
+import metaAnim from '../assets/socialicons/Meta_1.json'
+import snapchatAnim from '../assets/socialicons/Snapchat.json'
+import tiktokAnim from '../assets/socialicons/TikTok logo burst.json'
+import twitterAnim from '../assets/socialicons/Twitter logo burst.json'
+import whatsappAnim from '../assets/socialicons/Whatsapp logo burst.json'
+import youtubeAnim from '../assets/socialicons/Youtube logo burst.json'
+import androidAnim from '../assets/socialicons/android logo burst.json'
+import dribbbleAnim from '../assets/socialicons/dribbble logo burst.json'
+import messengerAnim from '../assets/socialicons/messenger logo burst.json'
 
 export default function AccountSetupModal({ user, onClose, onComplete }) {
     const [step, setStep] = useState(1)
@@ -14,36 +32,25 @@ export default function AccountSetupModal({ user, onClose, onComplete }) {
         referralSource: null
     })
 
-
     const avatars = getAllAvatars()
 
-    // Static list of social icons available in /public/social
+    // Lottie Social Options
     const socialSources = [
-        { name: 'Behance', url: '/social/Behance.png' },
-        { name: 'Discord', url: '/social/Discord.png' },
-        { name: 'Dribbble', url: '/social/Dribbble.png' },
-        { name: 'Drive', url: '/social/Drive.png' },
-        { name: 'Dropbox', url: '/social/Dropbox.png' },
-        { name: 'Excel', url: '/social/Excel.png' },
-        { name: 'Facebook', url: '/social/Facebook.png' },
-        { name: 'Instagram', url: '/social/Instagram.png' },
-        { name: 'LinkedIn', url: '/social/LinkedIn.png' },
-        { name: 'Messenger', url: '/social/Messenger.png' },
-        { name: 'Outlook', url: '/social/Outlook.png' },
-        { name: 'Pinterest', url: '/social/Pinterest.png' },
-        { name: 'Reddit', url: '/social/Reddit.png' },
-        { name: 'Skype', url: '/social/Skype.png' },
-        { name: 'Slack', url: '/social/Slack.png' },
-        { name: 'Snapchat', url: '/social/Snapchat.png' },
-        { name: 'Spotify', url: '/social/Spotify.png' },
-        { name: 'Telegram', url: '/social/Telegram.png' },
-        { name: 'Tiktok', url: '/social/Tiktok.png' },
-        { name: 'Twitch', url: '/social/Twitch.png' },
-        { name: 'Twitter', url: '/social/Twitter.png' },
-        { name: 'Whatsapp', url: '/social/Whatsapp.png' },
-        { name: 'X', url: '/social/X.png' },
-        { name: 'Youtube', url: '/social/Youtube.png' },
-        { name: 'Zoom', url: '/social/Zoom.png' }
+        { name: 'Google', icon: googleAnim },
+        { name: 'Dropbox', icon: dropboxAnim },
+        { name: 'Dribbble', icon: dribbbleAnim },
+        { name: 'Facebook', icon: metaAnim },
+        { name: 'Gmail', icon: gmailAnim },
+        { name: 'Messenger', icon: messengerAnim },
+        { name: 'Snapchat', icon: snapchatAnim },
+        { name: 'TikTok', icon: tiktokAnim },
+        { name: 'Twitter', icon: twitterAnim },
+        { name: 'WhatsApp', icon: whatsappAnim },
+        { name: 'YouTube', icon: youtubeAnim },
+        { name: 'Chrome', icon: chromeAnim },
+        { name: 'Figma', icon: figmaAnim },
+        { name: 'HTML5', icon: htmlAnim },
+        { name: 'Android', icon: androidAnim }
     ]
 
     const handleNext = () => setStep(prev => prev + 1)
@@ -165,17 +172,23 @@ export default function AccountSetupModal({ user, onClose, onComplete }) {
             <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                 <h2 className="text-2xl font-bold">Where did you hear about us?</h2>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 max-h-[400px] overflow-y-auto pr-2">
-                    {socialSources.map(({ name, url }) => (
+                    {socialSources.map(({ name, icon }) => (
                         <button
                             key={name}
                             onClick={() => setSetupData({ ...setupData, referralSource: name })}
-                            className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${setupData.referralSource === name
+                            className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all group ${setupData.referralSource === name
                                 ? 'border-black bg-gray-50'
                                 : 'border-gray-100 hover:border-gray-300'
                                 }`}
                         >
-                            <img src={url} alt={name} className="w-10 h-10 object-contain" />
-                            <span className="text-xs font-medium text-center truncate w-full">{name}</span>
+                            <div className="w-12 h-12">
+                                <Lottie
+                                    animationData={icon}
+                                    loop={true}
+                                    autoplay={true}
+                                />
+                            </div>
+                            <span className="text-xs font-medium text-center truncate w-full group-hover:text-black transition-colors">{name}</span>
                         </button>
                     ))}
                     <button
