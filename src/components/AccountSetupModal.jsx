@@ -172,16 +172,20 @@ export default function AccountSetupModal({ user, onClose, onComplete }) {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: user.id })
                 })
-                const result = await response.json()
+
+                // Always try to parse JSON, even if status is not 200
+                const result = await response.json().catch(() => ({}))
+
+                console.log('[AccountSetup] Referral Claim Result:', result)
 
                 if (result.success && result.bonusApplied) {
-                    setBonusCredits(result.newCredits || 10) // Fallback if API doesn't return
+                    setBonusCredits(result.newCredits || 10)
                     setShowSuccessModal(true)
-                    return // Don't close yet, wait for success modal
+                    return // Stop execution here, let the SuccessModal handle closing on dismiss
                 }
             } catch (refError) {
-                console.error('Referral claim error:', refError)
-                // Continue anyway
+                console.error('[AccountSetup] Referral claim exception:', refError)
+                // If it fails, we fall through to close the modal as normal
             }
 
             // Notify parent to refresh user data

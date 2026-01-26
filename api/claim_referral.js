@@ -5,42 +5,45 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' })
     }
 
-    const { userId } = req.body
-
-    if (!userId) {
-        return res.status(400).json({ error: 'User ID is required' })
-    }
-
-    // 1. Init Supabase Admin
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-        console.error('Missing Supabase Config:', {
-            hasUrl: !!supabaseUrl,
-            hasKey: !!supabaseServiceKey
-        })
-        return res.status(500).json({ error: 'Server configuration error: Missing URL or Key' })
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
     try {
+        const { userId } = req.body
+
+        if (!userId) {
+            return res.status(400).json({ error: 'User ID is required' })
+        }
+
+        // 1. Init Supabase Admin
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY
+
+        if (!supabaseUrl || !supabaseServiceKey) {
+            console.error('[ClaimReferral] Missing Supabase Config:', {
+                hasUrl: !!supabaseUrl,
+                hasKey: !!supabaseServiceKey
+            })
+            return res.status(500).json({ error: 'Server configuration error: Missing URL or Key' })
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
         // 2. Get User Metadata to check for pending referral
         const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(userId)
 
         if (userError || !user) {
+            console.error('[ClaimReferral] User not found:', userId, userError)
             return res.status(404).json({ error: 'User not found' })
         }
 
         const referralCode = user.user_metadata?.referral_pending
 
         if (!referralCode) {
+            console.log('[ClaimReferral] No pending referral for user:', userId)
             return res.status(200).json({ success: false, message: 'No pending referral found' })
         }
 
+        console.log('[ClaimReferral] Processing referral code:', referralCode, 'for user:', userId)
+
         // 3. Find Referrer by Code
-        // Assuming 'zetsuguide_credits' table has 'referral_code' and 'user_id'
         const { data: referrerData, error: referrerError } = await supabase
             .from('zetsuguide_credits')
             .select('user_id, total_referrals, credits')
@@ -48,7 +51,7 @@ export default async function handler(req, res) {
             .single()
 
         if (referrerError || !referrerData) {
-            console.log('Invalid referral code:', referralCode)
+            console.warn('[ClaimReferral] Invalid referral code:', referralCode)
             // Clear invalid code so we don't retry
             await supabase.auth.admin.updateUserById(userId, {
                 user_metadata: { ...user.user_metadata, referral_pending: null }
@@ -60,6 +63,7 @@ export default async function handler(req, res) {
 
         // Prevent self-referral
         if (referrerId === userId) {
+            console.warn('[ClaimReferral] Self-referral attempt:', userId)
             await supabase.auth.admin.updateUserById(userId, {
                 user_metadata: { ...user.user_metadata, referral_pending: null }
             })
@@ -87,7 +91,10 @@ export default async function handler(req, res) {
                 referred_by: referrerId
             }, { onConflict: 'user_id' })
 
-        if (updateNewUserError) throw updateNewUserError
+        if (updateNewUserError) {
+            console.error('[ClaimReferral] Failed to update new user credits:', updateNewUserError)
+            throw updateNewUserError
+        }
 
         // B. Bonus for Referrer (+5)
         const referrerNewCredits = (referrerData.credits || 0) + 5
@@ -101,7 +108,10 @@ export default async function handler(req, res) {
             })
             .eq('user_id', referrerId)
 
-        if (updateReferrerError) throw updateReferrerError
+        if (updateReferrerError) {
+            console.error('[ClaimReferral] Failed to update referrer credits:', updateReferrerError)
+            throw updateReferrerError
+        }
 
         // 5. Cleanup: Remove pending code to prevent double claiming
         await supabase.auth.admin.updateUserById(userId, {
@@ -113,6 +123,8 @@ export default async function handler(req, res) {
             }
         })
 
+        console.log('[ClaimReferral] Success! +5 credits for both users.')
+
         return res.status(200).json({
             success: true,
             bonusApplied: true,
@@ -121,7 +133,7 @@ export default async function handler(req, res) {
         })
 
     } catch (err) {
-        console.error('Claim Referral Error:', err)
+        console.error('[ClaimReferral] Critical Error:', err)
         return res.status(500).json({ error: 'Internal Server Error: ' + err.message })
     }
 }
