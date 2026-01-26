@@ -45,10 +45,13 @@ export default async function handler(req, res) {
         const { action_link } = data.properties
 
         // 3. Send Email via Gmail SMTP
+        const mailPort = parseInt(process.env.MAIL_PORT || '587')
+        const isSecure = mailPort === 465 // Gmail: 465=true (SSL), 587=false (STARTTLS)
+
         const transporter = nodemailer.createTransport({
             host: process.env.MAIL_SERVER || 'smtp.gmail.com',
-            port: parseInt(process.env.MAIL_PORT || '587'),
-            secure: process.env.MAIL_USE_TLS === 'True', // true for 465, false for other ports
+            port: mailPort,
+            secure: isSecure,
             auth: {
                 user: process.env.MAIL_USERNAME,
                 pass: process.env.MAIL_PASSWORD,
