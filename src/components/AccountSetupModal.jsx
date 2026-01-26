@@ -37,10 +37,10 @@ const SocialIcon = ({ name, icon, staticIcon: StaticIcon, isSelected, onClick })
 
     // Only load Lottie if hovered or selected (LAZY LOADING)
     useEffect(() => {
-        if (isHovered || isSelected) {
+        if ((isHovered || isSelected) && icon) {
             setShouldLoadLottie(true)
         }
-    }, [isHovered, isSelected])
+    }, [isHovered, isSelected, icon])
 
     // Helper to show the static full icon (Last Frame) - only needed if Lottie runs
     const showStaticIcon = () => {
@@ -77,11 +77,11 @@ const SocialIcon = ({ name, icon, staticIcon: StaticIcon, isSelected, onClick })
             <div className="w-12 h-12 relative z-10 flex items-center justify-center">
                 {/* Static Fallback (Always visible initially) */}
                 <div className={`absolute inset-0 transition-opacity duration-300 ${shouldLoadLottie && (isHovered || isSelected) ? 'opacity-0' : 'opacity-100'}`}>
-                    <StaticIcon />
+                    {StaticIcon ? <StaticIcon /> : <div className="w-full h-full bg-gray-100 rounded-full" />}
                 </div>
 
                 {/* Heavy Lottie (Only mounted after interaction) */}
-                {shouldLoadLottie && (
+                {shouldLoadLottie && icon && (
                     <div className={`absolute inset-0 transition-opacity duration-300 ${isHovered || isSelected ? 'opacity-100' : 'opacity-0'}`}>
                         <Lottie
                             lottieRef={lottieRef}
