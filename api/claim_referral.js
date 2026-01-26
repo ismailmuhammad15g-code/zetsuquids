@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     }
 
     // 1. Init Supabase Admin
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://bfsausazslehkvrdrhcq.supabase.co'
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY
 
     if (!supabaseUrl || !supabaseServiceKey) {
