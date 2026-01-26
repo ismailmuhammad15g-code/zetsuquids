@@ -182,8 +182,9 @@ Examples:
         })
 
         if (!response.ok) {
-            console.error('AI API error:', response.status)
-            return { results: [], aiInsight: null, found: false }
+            const errData = await response.json().catch(() => ({}))
+            console.error('AI API error:', response.status, errData)
+            return { results: [], aiInsight: `System Error (${response.status}): ${errData.error || 'Please check API configuration.'}`, found: false }
         }
 
         const data = await response.json()

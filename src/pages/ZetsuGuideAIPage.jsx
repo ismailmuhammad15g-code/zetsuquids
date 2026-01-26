@@ -2378,7 +2378,7 @@ Do NOT include source citations - they are added automatically.`
                                         {/* GIF + Phase Text */}
                                         <div className="zetsu-agent-phase-display">
                                             <img
-                                                src="/images/Black.gif"
+                                                src="/images/ai-thinking.gif"
                                                 alt="Thinking"
                                                 className="zetsu-agent-gif"
                                             />
