@@ -27,15 +27,25 @@ const SocialIcon = ({ name, icon, isSelected, onClick }) => {
     const lottieRef = useRef()
     const [isHovered, setIsHovered] = useState(false)
 
+    // Helper to show the static full icon (Last Frame)
+    const showStaticIcon = () => {
+        if (lottieRef.current) {
+            const duration = lottieRef.current.getDuration(true)
+            if (duration > 0) {
+                lottieRef.current.goToAndStop(duration - 1, true)
+            }
+        }
+    }
+
     useEffect(() => {
         if (!lottieRef.current) return
 
         if (isSelected) {
             lottieRef.current.pause()
         } else if (isHovered) {
-            lottieRef.current.play()
+            lottieRef.current.goToAndPlay(0, true)
         } else {
-            lottieRef.current.stop()
+            showStaticIcon()
         }
     }, [isSelected, isHovered])
 
@@ -55,6 +65,7 @@ const SocialIcon = ({ name, icon, isSelected, onClick }) => {
                     animationData={icon}
                     loop={true}
                     autoplay={false}
+                    onDOMLoaded={showStaticIcon} // Show icon immediately on load
                     className="w-full h-full"
                     rendererSettings={{
                         preserveAspectRatio: 'xMidYMid slice',
