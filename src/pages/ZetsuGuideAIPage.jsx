@@ -129,8 +129,12 @@ async function getCreditsFromDB(user) {
         }
     }
 
-    // Guest users - return 5 (they can't really use the AI anyway)
-    return 5
+    // Guest users - return default object
+    return {
+        credits: 5,
+        total_referrals: 0,
+        referred_by: null
+    }
 }
 
 // Log credit usage
@@ -1054,16 +1058,14 @@ export default function ZetsuGuideAIPage() {
         async function loadCredits() {
             if (user) {
                 const creditData = await getCreditsFromDB(user)
-                if (typeof creditData === 'object') {
-                    setCredits(creditData.credits)
-                    setTotalReferrals(creditData.total_referrals || 0)
-                    setReferralEarnings((creditData.total_referrals || 0) * 5)
-                } else {
-                    setCredits(creditData)
-                }
+                setCredits(creditData.credits || 5)
+                setTotalReferrals(creditData.total_referrals || 0)
+                setReferralEarnings((creditData.total_referrals || 0) * 5)
                 setCreditsLoading(false)
             } else {
                 setCredits(5)
+                setTotalReferrals(0)
+                setReferralEarnings(0)
                 setCreditsLoading(false)
             }
 
@@ -1758,15 +1760,13 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                                             // Load credits with referral data
                                                             if (user) {
                                                                 const creditData = await getCreditsFromDB(user)
-                                                                if (typeof creditData === 'object') {
-                                                                    setCredits(creditData.credits)
-                                                                    setTotalReferrals(creditData.total_referrals || 0)
-                                                                    setReferralEarnings((creditData.total_referrals || 0) * 5)
-                                                                } else {
-                                                                    setCredits(creditData)
-                                                                }
+                                                                setCredits(creditData.credits || 5)
+                                                                setTotalReferrals(creditData.total_referrals || 0)
+                                                                setReferralEarnings((creditData.total_referrals || 0) * 5)
                                                             } else {
                                                                 setCredits(5)
+                                                                setTotalReferrals(0)
+                                                                setReferralEarnings(0)
                                                             }
                                                             setIsLoadingLogs(false)
                                                         }}
@@ -1884,7 +1884,8 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                                         )}
                                                         {!user?.user_metadata?.referral_completed && totalReferrals === 0 && (
                                                             <div style={{ textAlign: 'center', padding: '20px 0', color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem' }}>
-                                                                No referral bonus yet. <br /> Get one by using a referral link!
+                                                                <p>No referral bonus yet.</p>
+                                                                <p>Get one by using a referral link!</p>
                                                             </div>
                                                         )}
                                                     </div>
