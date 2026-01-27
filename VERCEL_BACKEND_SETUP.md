@@ -85,7 +85,7 @@ Or trigger a redeployment via Vercel Dashboard.
 
 ### Expected Flow:
 ```
-Frontend (Vercel) 
+Frontend (Vercel)
   → sends message to /api/ai/chat
   → Backend receives at https://your-backend-url/api/ai/chat
   → Backend proxies to Grok API
