@@ -155,8 +155,8 @@ export default function UserWorkspacePage() {
                     <div className="flex items-start gap-8">
                         {/* Avatar */}
                         {avatarUrl ? (
-                            <img 
-                                src={avatarUrl} 
+                            <img
+                                src={avatarUrl}
                                 alt={userProfile?.author_name}
                                 className="w-24 h-24 rounded-full flex-shrink-0 object-cover"
                             />
