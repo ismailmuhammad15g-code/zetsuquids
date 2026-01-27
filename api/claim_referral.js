@@ -78,7 +78,8 @@ export default async function handler(req, res) {
             .from('zetsuguide_credits')
             .select('credits')
             .eq('user_id', userId)
-            .single()
+            .eq('user_id', userId)
+            .maybeSingle() // Use maybeSingle to avoid error if no row exists yet
 
         const currentUserCredits = newUserCredits?.credits || 5 // Default start is 5
         const newUserNewCredits = currentUserCredits + 5

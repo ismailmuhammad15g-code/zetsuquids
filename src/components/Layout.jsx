@@ -88,7 +88,9 @@ export default function Layout() {
 
         async function tryClaimReferral() {
             // Check if we even have a pending referral to claim
+            console.log('Checking for pending referral...', user?.user_metadata)
             if (!user?.user_metadata?.referral_pending) {
+                console.log('No pending referral found in metadata.')
                 setCheckingReferral(false)
                 return
             }
@@ -111,6 +113,7 @@ export default function Layout() {
             } catch (err) {
                 console.error('Retry claim referral failed:', err)
             } finally {
+                console.log('Referral check complete.')
                 setCheckingReferral(false)
             }
         }
@@ -331,7 +334,10 @@ export default function Layout() {
 
             {/* Main Content */}
             <main className="flex-1">
-                <Outlet context={{ openAddModal: () => setShowAddModal(true) }} />
+                <Outlet context={{
+                    openAddModal: () => setShowAddModal(true),
+                    checkingReferral
+                }} />
             </main>
 
             {/* Footer */}

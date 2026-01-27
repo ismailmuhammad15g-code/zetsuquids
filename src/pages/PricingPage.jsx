@@ -19,366 +19,355 @@ function generateGuestReferralCode() {
 
 export default function PricingPage() {
     const { user, isAuthenticated } = useAuth()
+    const { openAddModal, checkingReferral } = useOutletContext()
     const navigate = useNavigate()
-    const [showEarnModal, setShowEarnModal] = useState(false)
     const [copied, setCopied] = useState(false)
     const [referralCode, setReferralCode] = useState('')
-    const [referralStats, setReferralStats] = useState({ totalReferrals: 0, creditsEarned: 0 })
-
-    // Prevent background scrolling when modal is open
-    useEffect(() => {
-        if (showEarnModal) {
-            document.body.style.overflow = 'hidden'
-        } else {
-            document.body.style.overflow = 'unset'
-        }
-        return () => {
-            document.body.style.overflow = 'unset'
-        }
+}
     }, [showEarnModal])
 
-    // Get or generate referral code and save to database
-    useEffect(() => {
-        async function setupReferralCode() {
-            if (isAuthenticated() && user?.email) {
-                try {
-                    // First check if user already has a referral code in database
-                    const { data: existingCredits } = await supabase
+// Get or generate referral code and save to database
+useEffect(() => {
+    async function setupReferralCode() {
+        if (isAuthenticated() && user?.email) {
+            try {
+                // First check if user already has a referral code in database
+                const { data: existingCredits } = await supabase
+                    .from('zetsuguide_credits')
+                    .select('referral_code, total_referrals, credits')
+                    .eq('user_id', user.id)
+                    .maybeSingle()
+
+                if (existingCredits?.referral_code) {
+                    // Use existing code from database
+                    setReferralCode(existingCredits.referral_code)
+                    setReferralStats({
+                        totalReferrals: existingCredits.total_referrals || 0,
+                        creditsEarned: (existingCredits.credits || 0) // Use total credits, not just calculated
+                    })
+                } else {
+                    // Generate new code
+                    const emailHash = user.email.split('@')[0].toUpperCase().substring(0, 4)
+                    const newCode = emailHash + Math.random().toString(36).substring(2, 6).toUpperCase()
+
+                    // Save to database (upsert to create or update)
+                    const { data: newCreditsData } = await supabase
                         .from('zetsuguide_credits')
-                        .select('referral_code, total_referrals, credits')
-                        .eq('user_id', user.id)
-                        .maybeSingle()
+                        .upsert({
+                            user_id: user.id,
+                            user_email: user.email.toLowerCase(),
+                            referral_code: newCode,
+                            credits: existingCredits ? existingCredits.credits : 5,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'user_id' })
+                        .select()
+                        .single()
 
-                    if (existingCredits?.referral_code) {
-                        // Use existing code from database
-                        setReferralCode(existingCredits.referral_code)
-                        setReferralStats({
-                            totalReferrals: existingCredits.total_referrals || 0,
-                            creditsEarned: (existingCredits.credits || 0) // Use total credits, not just calculated
-                        })
-                    } else {
-                        // Generate new code
-                        const emailHash = user.email.split('@')[0].toUpperCase().substring(0, 4)
-                        const newCode = emailHash + Math.random().toString(36).substring(2, 6).toUpperCase()
-
-                        // Save to database (upsert to create or update)
-                        const { data: newCreditsData } = await supabase
-                            .from('zetsuguide_credits')
-                            .upsert({
-                                user_id: user.id,
-                                user_email: user.email.toLowerCase(),
-                                referral_code: newCode,
-                                credits: existingCredits ? existingCredits.credits : 5,
-                                updated_at: new Date().toISOString()
-                            }, { onConflict: 'user_id' })
-                            .select()
-                            .single()
-
-                        setReferralCode(newCode)
-                        // Force update state immediately for new users
-                        setReferralStats({
-                            totalReferrals: (newCreditsData?.total_referrals || 0),
-                            creditsEarned: (newCreditsData?.credits || 5)
-                        })
-                        console.log('Referral code saved to database:', newCode)
-                    }
-                } catch (error) {
-                    console.error('Error setting up referral code:', error)
-                    // (Fallback logic omitted for brevity as it's unchanged)
+                    setReferralCode(newCode)
+                    // Force update state immediately for new users
+                    setReferralStats({
+                        totalReferrals: (newCreditsData?.total_referrals || 0),
+                        creditsEarned: (newCreditsData?.credits || 5)
+                    })
+                    console.log('Referral code saved to database:', newCode)
                 }
-            } else {
-                setReferralCode(generateGuestReferralCode())
+            } catch (error) {
+                console.error('Error setting up referral code:', error)
+                // (Fallback logic omitted for brevity as it's unchanged)
             }
-        }
-
-        setupReferralCode()
-
-        // Realtime Subscription
-        let subscription
-        if (user?.id) {
-            subscription = supabase
-                .channel('public:zetsuguide_credits')
-                .on('postgres_changes', {
-                    event: '*', // Listen to INSERT and UPDATE
-                    schema: 'public',
-                    table: 'zetsuguide_credits',
-                    filter: `user_id=eq.${user.id}`
-                }, (payload) => {
-                    console.log('Realtime update received:', payload)
-                    if (payload.new) {
-                        setReferralStats({
-                            totalReferrals: payload.new.total_referrals || 0,
-                            creditsEarned: payload.new.credits || 0
-                        })
-                    }
-                })
-                .subscribe()
-        }
-
-        return () => {
-            if (subscription) supabase.removeChannel(subscription)
-        }
-    }, [user, isAuthenticated])
-
-    const referralLink = `${window.location.origin}/auth?ref=${referralCode}`
-
-    const copyToClipboard = async (text) => {
-        try {
-            await navigator.clipboard.writeText(text)
-            setCopied(true)
-            setTimeout(() => setCopied(false), 2000)
-        } catch (err) {
-            console.error('Failed to copy:', err)
+        } else {
+            setReferralCode(generateGuestReferralCode())
         }
     }
 
-    const plans = [
-        {
-            name: 'Free',
-            price: '0',
-            period: 'forever',
-            description: 'Perfect for exploring',
-            features: ['3 Daily AI Queries', 'Access to all guides', 'Basic search functionality', 'Community support'],
-            cta: 'Current Plan',
-            popular: false,
-            disabled: true
-        },
-        {
-            name: 'Pro',
-            price: '9.99',
-            period: 'month',
-            description: 'For power users & devs',
-            features: ['Unlimited AI Queries', 'Priority AI responses', 'Advanced search filters', 'Email support', 'Early access to new features'],
-            cta: 'Coming Soon',
-            popular: true,
-            disabled: true
-        },
-        {
-            name: 'Enterprise',
-            price: '49.99',
-            period: 'month',
-            description: 'For teams & organizations',
-            features: ['Unlimited AI & Members', 'Custom AI training', 'API access', 'Dedicated Slack support', 'Custom integrations', 'Analytics dashboard'],
-            cta: 'Contact Us',
-            popular: false,
-            disabled: true
-        }
-    ]
+    setupReferralCode()
 
-    return (
-        <div className="pricing-page">
-            <div className="pricing-bg">
-                <div className="pricing-grid"></div>
-                <div className="pricing-glow pricing-glow-1"></div>
-                <div className="pricing-glow pricing-glow-2"></div>
+    // Realtime Subscription
+    let subscription
+    if (user?.id) {
+        subscription = supabase
+            .channel('public:zetsuguide_credits')
+            .on('postgres_changes', {
+                event: '*', // Listen to INSERT and UPDATE
+                schema: 'public',
+                table: 'zetsuguide_credits',
+                filter: `user_id=eq.${user.id}`
+            }, (payload) => {
+                console.log('Realtime update received:', payload)
+                if (payload.new) {
+                    setReferralStats({
+                        totalReferrals: payload.new.total_referrals || 0,
+                        creditsEarned: payload.new.credits || 0
+                    })
+                }
+            })
+            .subscribe()
+    }
+
+    return () => {
+        if (subscription) supabase.removeChannel(subscription)
+    }
+}, [user, isAuthenticated])
+
+const referralLink = `${window.location.origin}/auth?ref=${referralCode}`
+
+const copyToClipboard = async (text) => {
+    try {
+        await navigator.clipboard.writeText(text)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+        console.error('Failed to copy:', err)
+    }
+}
+
+const plans = [
+    {
+        name: 'Free',
+        price: '0',
+        period: 'forever',
+        description: 'Perfect for exploring',
+        features: ['3 Daily AI Queries', 'Access to all guides', 'Basic search functionality', 'Community support'],
+        cta: 'Current Plan',
+        popular: false,
+        disabled: true
+    },
+    {
+        name: 'Pro',
+        price: '9.99',
+        period: 'month',
+        description: 'For power users & devs',
+        features: ['Unlimited AI Queries', 'Priority AI responses', 'Advanced search filters', 'Email support', 'Early access to new features'],
+        cta: 'Coming Soon',
+        popular: true,
+        disabled: true
+    },
+    {
+        name: 'Enterprise',
+        price: '49.99',
+        period: 'month',
+        description: 'For teams & organizations',
+        features: ['Unlimited AI & Members', 'Custom AI training', 'API access', 'Dedicated Slack support', 'Custom integrations', 'Analytics dashboard'],
+        cta: 'Contact Us',
+        popular: false,
+        disabled: true
+    }
+]
+
+return (
+    <div className="pricing-page">
+        <div className="pricing-bg">
+            <div className="pricing-grid"></div>
+            <div className="pricing-glow pricing-glow-1"></div>
+            <div className="pricing-glow pricing-glow-2"></div>
+        </div>
+
+        <header className="pricing-header">
+            <Link to="/zetsuguide-ai" className="pricing-back">
+                <ArrowLeft size={20} />
+                <span>Back to ZetsuGuide AI</span>
+            </Link>
+        </header>
+
+
+
+        <PricingDecoration />
+
+        <section className="pricing-hero">
+            <div className="pricing-badge">
+                <Sparkles size={16} />
+                <span>Pricing Plans</span>
             </div>
+            <h1>Choose Your Plan</h1>
+            <p>Unlock the full power of ZetsuGuide AI with our flexible pricing options</p>
+        </section>
 
-            <header className="pricing-header">
-                <Link to="/zetsuguide-ai" className="pricing-back">
-                    <ArrowLeft size={20} />
-                    <span>Back to ZetsuGuide AI</span>
-                </Link>
-            </header>
-
-
-
-            <PricingDecoration />
-
-            <section className="pricing-hero">
-                <div className="pricing-badge">
-                    <Sparkles size={16} />
-                    <span>Pricing Plans</span>
+        {/* Earn More Credits Section */}
+        <section className="earn-credits-section">
+            <div className="earn-credits-card">
+                <div className="earn-credits-icon">
+                    <Lottie
+                        animationData={giftAnimation}
+                        loop={true}
+                        autoPlay={true}
+                        style={{ width: '100%', height: '100%' }}
+                    />
                 </div>
-                <h1>Choose Your Plan</h1>
-                <p>Unlock the full power of ZetsuGuide AI with our flexible pricing options</p>
-            </section>
+                <div className="earn-credits-content">
+                    <h3>Earn More Credits!</h3>
+                    <p>Invite friends and earn 5 credits for each new user who signs up with your referral link.</p>
+                </div>
+                <button className="earn-credits-btn" onClick={() => setShowEarnModal(true)}>
+                    <span>Get Referral Link</span>
+                    <ChevronRight size={18} />
+                </button>
+            </div>
+        </section>
 
-            {/* Earn More Credits Section */}
-            <section className="earn-credits-section">
-                <div className="earn-credits-card">
-                    <div className="earn-credits-icon">
-                        <Lottie
-                            animationData={giftAnimation}
-                            loop={true}
-                            autoPlay={true}
-                            style={{ width: '100%', height: '100%' }}
-                        />
+        <section className="pricing-plans">
+            {plans.map((plan, index) => (
+                <div key={index} className={`pricing-card ${plan.popular ? 'pricing-card-popular' : ''}`}>
+                    {plan.popular && (
+                        <div className="pricing-popular-badge">
+                            <Star size={14} />
+                            <span>Most Popular</span>
+                        </div>
+                    )}
+                    <div className="pricing-card-header">
+                        <h3>{plan.name}</h3>
+                        <div className="pricing-price">
+                            <span className="pricing-currency">$</span>
+                            <span className="pricing-amount">{plan.price}</span>
+                            <span className="pricing-period">/{plan.period}</span>
+                        </div>
+                        {/* Animation under price */}
+                        <div className="pricing-animation">
+                            <Lottie
+                                animationData={pricingAnimation}
+                                loop={true}
+                                autoPlay={true}
+                                style={{ width: '100%', height: 60 }}
+                            />
+                        </div>
+                        <p>{plan.description}</p>
                     </div>
-                    <div className="earn-credits-content">
-                        <h3>Earn More Credits!</h3>
-                        <p>Invite friends and earn 5 credits for each new user who signs up with your referral link.</p>
-                    </div>
-                    <button className="earn-credits-btn" onClick={() => setShowEarnModal(true)}>
-                        <span>Get Referral Link</span>
-                        <ChevronRight size={18} />
+                    <ul className="pricing-features">
+                        {plan.features.map((feature, i) => (
+                            <li key={i}>
+                                <Check size={18} />
+                                <span>{feature}</span>
+                            </li>
+                        ))}
+                    </ul>
+                    <button className={`pricing-cta ${plan.popular ? 'pricing-cta-primary' : ''}`} disabled={plan.disabled}>
+                        {plan.cta}
                     </button>
                 </div>
-            </section>
+            ))}
+        </section>
 
-            <section className="pricing-plans">
-                {plans.map((plan, index) => (
-                    <div key={index} className={`pricing-card ${plan.popular ? 'pricing-card-popular' : ''}`}>
-                        {plan.popular && (
-                            <div className="pricing-popular-badge">
-                                <Star size={14} />
-                                <span>Most Popular</span>
-                            </div>
-                        )}
-                        <div className="pricing-card-header">
-                            <h3>{plan.name}</h3>
-                            <div className="pricing-price">
-                                <span className="pricing-currency">$</span>
-                                <span className="pricing-amount">{plan.price}</span>
-                                <span className="pricing-period">/{plan.period}</span>
-                            </div>
-                            {/* Animation under price */}
-                            <div className="pricing-animation">
-                                <Lottie
-                                    animationData={pricingAnimation}
-                                    loop={true}
-                                    autoPlay={true}
-                                    style={{ width: '100%', height: 60 }}
-                                />
-                            </div>
-                            <p>{plan.description}</p>
-                        </div>
-                        <ul className="pricing-features">
-                            {plan.features.map((feature, i) => (
-                                <li key={i}>
-                                    <Check size={18} />
-                                    <span>{feature}</span>
-                                </li>
-                            ))}
-                        </ul>
-                        <button className={`pricing-cta ${plan.popular ? 'pricing-cta-primary' : ''}`} disabled={plan.disabled}>
-                            {plan.cta}
-                        </button>
-                    </div>
-                ))}
-            </section>
+        <section className="pricing-notice">
+            <div className="pricing-notice-content">
+                <Crown size={32} />
+                <h3>Premium Features Coming Soon</h3>
+                <p>We're currently in development mode. Premium plans will be available soon. Stay tuned for updates!</p>
+                <Link to="/zetsuguide-ai" className="pricing-notice-btn">Return to ZetsuGuide AI</Link>
+            </div>
+        </section>
 
-            <section className="pricing-notice">
-                <div className="pricing-notice-content">
-                    <Crown size={32} />
-                    <h3>Premium Features Coming Soon</h3>
-                    <p>We're currently in development mode. Premium plans will be available soon. Stay tuned for updates!</p>
-                    <Link to="/zetsuguide-ai" className="pricing-notice-btn">Return to ZetsuGuide AI</Link>
+        <section className="pricing-faq">
+            <h2>Frequently Asked Questions</h2>
+            <div className="pricing-faq-grid">
+                <div className="pricing-faq-item">
+                    <h4>What are AI credits?</h4>
+                    <p>Each question you ask ZetsuGuide AI uses one credit. Credits help us manage server costs and ensure quality responses.</p>
                 </div>
-            </section>
-
-            <section className="pricing-faq">
-                <h2>Frequently Asked Questions</h2>
-                <div className="pricing-faq-grid">
-                    <div className="pricing-faq-item">
-                        <h4>What are AI credits?</h4>
-                        <p>Each question you ask ZetsuGuide AI uses one credit. Credits help us manage server costs and ensure quality responses.</p>
-                    </div>
-                    <div className="pricing-faq-item">
-                        <h4>How does the referral program work?</h4>
-                        <p>Share your unique referral link with friends. When they sign up and create an account, you automatically receive 5 free credits!</p>
-                    </div>
-                    <div className="pricing-faq-item">
-                        <h4>Can I get more free credits?</h4>
-                        <p>Yes! Use our referral program to earn unlimited free credits. Each friend who signs up gives you 5 credits.</p>
-                    </div>
-                    <div className="pricing-faq-item">
-                        <h4>Is there a limit to referrals?</h4>
-                        <p>No limit! You can refer as many friends as you want and earn 5 credits for each successful signup.</p>
-                    </div>
+                <div className="pricing-faq-item">
+                    <h4>How does the referral program work?</h4>
+                    <p>Share your unique referral link with friends. When they sign up and create an account, you automatically receive 5 free credits!</p>
                 </div>
-            </section>
+                <div className="pricing-faq-item">
+                    <h4>Can I get more free credits?</h4>
+                    <p>Yes! Use our referral program to earn unlimited free credits. Each friend who signs up gives you 5 credits.</p>
+                </div>
+                <div className="pricing-faq-item">
+                    <h4>Is there a limit to referrals?</h4>
+                    <p>No limit! You can refer as many friends as you want and earn 5 credits for each successful signup.</p>
+                </div>
+            </div>
+        </section>
 
-            {/* Earn Credits Modal */}
-            {showEarnModal && (
-                <div className="earn-modal-overlay" onClick={() => setShowEarnModal(false)}>
-                    <div className="earn-modal" onClick={(e) => e.stopPropagation()}>
-                        <button className="earn-modal-close" onClick={() => setShowEarnModal(false)}>
-                            <X size={24} />
-                        </button>
+        {/* Earn Credits Modal */}
+        {showEarnModal && (
+            <div className="earn-modal-overlay" onClick={() => setShowEarnModal(false)}>
+                <div className="earn-modal" onClick={(e) => e.stopPropagation()}>
+                    <button className="earn-modal-close" onClick={() => setShowEarnModal(false)}>
+                        <X size={24} />
+                    </button>
 
-                        <div className="earn-modal-header">
-                            <div className="earn-modal-icon">
-                                <Lottie
-                                    animationData={giftAnimation}
-                                    loop={true}
-                                    autoPlay={true}
-                                    style={{ width: '100%', height: '100%' }}
-                                />
-                            </div>
-                            <h2>Earn More Credits!</h2>
-                            <p>Share your referral link and earn 5 credits for every friend who signs up</p>
+                    <div className="earn-modal-header">
+                        <div className="earn-modal-icon">
+                            <Lottie
+                                animationData={giftAnimation}
+                                loop={true}
+                                autoPlay={true}
+                                style={{ width: '100%', height: '100%' }}
+                            />
                         </div>
+                        <h2>Earn More Credits!</h2>
+                        <p>Share your referral link and earn 5 credits for every friend who signs up</p>
+                    </div>
 
-                        <div className="earn-modal-stats">
-                            <div className="earn-stat">
-                                <Users size={20} />
-                                <span className="earn-stat-value">{referralStats.totalReferrals}</span>
-                                <span className="earn-stat-label">Friends Referred</span>
-                            </div>
-                            <div className="earn-stat">
-                                <Zap size={20} />
-                                <span className="earn-stat-value">{referralStats.creditsEarned}</span>
-                                <span className="earn-stat-label">Credits Earned</span>
-                            </div>
+                    <div className="earn-modal-stats">
+                        <div className="earn-stat">
+                            <Users size={20} />
+                            <span className="earn-stat-value">{referralStats.totalReferrals}</span>
+                            <span className="earn-stat-label">Friends Referred</span>
                         </div>
-
-                        <div className="earn-modal-section">
-                            <label>Your Referral Code</label>
-                            <div className="earn-code-box">
-                                <span className="earn-code">{referralCode}</span>
-                                <button className="earn-copy-btn" onClick={() => copyToClipboard(referralCode)}>
-                                    <Copy size={16} />
-                                    {copied ? 'Copied!' : 'Copy'}
-                                </button>
-                            </div>
+                        <div className="earn-stat">
+                            <Zap size={20} />
+                            <span className="earn-stat-value">{referralStats.creditsEarned}</span>
+                            <span className="earn-stat-label">Credits Earned</span>
                         </div>
+                    </div>
 
-                        <div className="earn-modal-section">
-                            <label>Your Referral Link</label>
-                            <div className="earn-link-box">
-                                <input type="text" value={referralLink} readOnly className="earn-link-input" />
-                                <button className="earn-copy-btn earn-copy-btn-primary" onClick={() => copyToClipboard(referralLink)}>
-                                    <Copy size={16} />
-                                    {copied ? 'Copied!' : 'Copy Link'}
-                                </button>
-                            </div>
+                    <div className="earn-modal-section">
+                        <label>Your Referral Code</label>
+                        <div className="earn-code-box">
+                            <span className="earn-code">{referralCode}</span>
+                            <button className="earn-copy-btn" onClick={() => copyToClipboard(referralCode)}>
+                                <Copy size={16} />
+                                {copied ? 'Copied!' : 'Copy'}
+                            </button>
                         </div>
+                    </div>
 
-                        <div className="earn-modal-howto">
-                            <h3>How It Works</h3>
-                            <div className="earn-steps">
-                                <div className="earn-step">
-                                    <div className="earn-step-number">1</div>
-                                    <div className="earn-step-content">
-                                        <h4>Share Your Link</h4>
-                                        <p>Copy your unique referral link and share it with friends, on social media, or anywhere else.</p>
-                                    </div>
+                    <div className="earn-modal-section">
+                        <label>Your Referral Link</label>
+                        <div className="earn-link-box">
+                            <input type="text" value={referralLink} readOnly className="earn-link-input" />
+                            <button className="earn-copy-btn earn-copy-btn-primary" onClick={() => copyToClipboard(referralLink)}>
+                                <Copy size={16} />
+                                {copied ? 'Copied!' : 'Copy Link'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="earn-modal-howto">
+                        <h3>How It Works</h3>
+                        <div className="earn-steps">
+                            <div className="earn-step">
+                                <div className="earn-step-number">1</div>
+                                <div className="earn-step-content">
+                                    <h4>Share Your Link</h4>
+                                    <p>Copy your unique referral link and share it with friends, on social media, or anywhere else.</p>
                                 </div>
-                                <div className="earn-step">
-                                    <div className="earn-step-number">2</div>
-                                    <div className="earn-step-content">
-                                        <h4>Friend Signs Up</h4>
-                                        <p>When someone clicks your link and creates an account, they become your referral.</p>
-                                    </div>
+                            </div>
+                            <div className="earn-step">
+                                <div className="earn-step-number">2</div>
+                                <div className="earn-step-content">
+                                    <h4>Friend Signs Up</h4>
+                                    <p>When someone clicks your link and creates an account, they become your referral.</p>
                                 </div>
-                                <div className="earn-step">
-                                    <div className="earn-step-number">3</div>
-                                    <div className="earn-step-content">
-                                        <h4>Earn 5 Credits</h4>
-                                        <p>You automatically receive 5 free credits added to your account. No limits!</p>
-                                    </div>
+                            </div>
+                            <div className="earn-step">
+                                <div className="earn-step-number">3</div>
+                                <div className="earn-step-content">
+                                    <h4>Earn 5 Credits</h4>
+                                    <p>You automatically receive 5 free credits added to your account. No limits!</p>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div className="earn-modal-note">
-                            <strong>Important:</strong> Credits are awarded automatically when your referral completes registration. Each person can only be referred once.
-                        </div>
+                    <div className="earn-modal-note">
+                        <strong>Important:</strong> Credits are awarded automatically when your referral completes registration. Each person can only be referred once.
                     </div>
                 </div>
-            )}
+            </div>
+        )}
 
-            <style>{`
+        <style>{`
                 .pricing-page { min-height: 100vh; background: #000; color: #fff; position: relative; overflow-x: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding-bottom: 80px; }
                 .pricing-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
                 .pricing-grid { position: absolute; inset: 0; background-image: linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px); background-size: 60px 60px; mask-image: radial-gradient(circle at center, black, transparent 80%); }
@@ -583,6 +572,6 @@ export default function PricingPage() {
                     .earn-modal-stats { flex-direction: column; }
                 }
             `}</style>
-        </div>
-    )
+    </div>
+)
 }
