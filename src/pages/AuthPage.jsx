@@ -1,10 +1,10 @@
+import Lottie from 'lottie-react'
 import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Gift, Loader2, Lock, Mail, User } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import celebrateAnimation from '../assets/celebrate.json'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/api'
-import Lottie from 'lottie-react'
-import celebrateAnimation from '../assets/celebrate.json'
 
 
 // Testimonials data
@@ -79,7 +79,7 @@ export default function AuthPage() {
     useEffect(() => {
         const ref = searchParams.get('ref')
         const storedRef = localStorage.getItem('pending_referral_code')
-        
+
         // SAFETY: Only use stored ref if current URL has a ref parameter
         // This prevents showing referral banner on plain /auth visits
         const effectiveRef = ref || (ref ? storedRef : null)
