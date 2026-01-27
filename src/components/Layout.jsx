@@ -335,7 +335,7 @@ export default function Layout() {
             {showSearchModal && (
                 <SearchModal onClose={() => setShowSearchModal(false)} />
             )}
-            {showAccountSetup && user && (
+            {showAccountSetup && user && !showReferralSuccess && (
                 <AccountSetupModal
                     user={user}
                     onClose={() => setShowAccountSetup(false)}

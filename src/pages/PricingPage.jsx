@@ -62,7 +62,7 @@ export default function PricingPage() {
                         const newCode = emailHash + Math.random().toString(36).substring(2, 6).toUpperCase()
 
                         // Save to database (upsert to create or update)
-                        await supabase
+                        const { data: newCreditsData } = await supabase
                             .from('zetsuguide_credits')
                             .upsert({
                                 user_id: user.id,
@@ -71,8 +71,15 @@ export default function PricingPage() {
                                 credits: existingCredits ? existingCredits.credits : 5,
                                 updated_at: new Date().toISOString()
                             }, { onConflict: 'user_id' })
+                            .select()
+                            .single()
 
                         setReferralCode(newCode)
+                        // Force update state immediately for new users
+                        setReferralStats({
+                            totalReferrals: (newCreditsData?.total_referrals || 0),
+                            creditsEarned: (newCreditsData?.credits || 5)
+                        })
                         console.log('Referral code saved to database:', newCode)
                     }
                 } catch (error) {
@@ -92,7 +99,7 @@ export default function PricingPage() {
             subscription = supabase
                 .channel('public:zetsuguide_credits')
                 .on('postgres_changes', {
-                    event: 'UPDATE',
+                    event: '*', // Listen to INSERT and UPDATE
                     schema: 'public',
                     table: 'zetsuguide_credits',
                     filter: `user_id=eq.${user.id}`

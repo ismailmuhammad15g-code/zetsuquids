@@ -16,11 +16,7 @@ export function isSupabaseConfigured() {
     return configured
 }
 
-export function isSupabaseConfigured() {
-    const configured = supabaseUrl && supabaseAnonKey && supabaseUrl.includes('supabase.co')
-    console.log('Supabase configured:', configured)
-    return configured
-}
+
 
 // Generate unique slug from title
 function generateSlug(title) {

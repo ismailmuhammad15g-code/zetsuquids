@@ -75,21 +75,28 @@ export default function AuthPage() {
         }
     }, [searchParams])
 
-    // Check for referral code
+    // Check for referral code (URL or LocalStorage)
     useEffect(() => {
         const ref = searchParams.get('ref')
-        if (ref) {
-            setReferralCode(ref)
-            setMode('register') // Auto switch to register for invited users
+        const storedRef = localStorage.getItem('pending_referral_code')
+        const effectiveRef = ref || storedRef
+
+        if (effectiveRef) {
+            setReferralCode(effectiveRef)
+            if (!storedRef) {
+                localStorage.setItem('pending_referral_code', effectiveRef)
+            }
+
+            // Only switch mode if we are not already in a specific flow (like reset)
+            if (mode === 'login' && !searchParams.get('token')) {
+                setMode('register')
+            }
 
             // Validate referral code - must be alphanumeric only, 6-12 characters
-            const isValid = /^[A-Za-z0-9]{6,12}$/.test(ref)
+            const isValid = /^[A-Za-z0-9]{6,12}$/.test(effectiveRef)
             setIsValidReferral(isValid)
 
-            if (isValid) {
-                // Store referral code for later use during registration
-                localStorage.setItem('pending_referral_code', ref)
-            } else {
+            if (!isValid) {
                 // Remove any invalid stored code
                 localStorage.removeItem('pending_referral_code')
             }
