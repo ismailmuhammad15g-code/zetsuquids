@@ -26,7 +26,8 @@ export default function PricingPage() {
     const [showEarnModal, setShowEarnModal] = useState(false)
     const [referralStats, setReferralStats] = useState({
         totalReferrals: 0,
-        creditsEarned: 0
+        totalBalance: 0,
+        creditsEarned: 0  // Only from referrals, not total
     })
 
     // Close earn modal when component unmounts or showEarnModal changes
@@ -49,9 +50,11 @@ export default function PricingPage() {
                     if (existingCredits?.referral_code) {
                         // Use existing code from database
                         setReferralCode(existingCredits.referral_code)
+                        const referralEarnings = (existingCredits.total_referrals || 0) * 5
                         setReferralStats({
                             totalReferrals: existingCredits.total_referrals || 0,
-                            creditsEarned: (existingCredits.credits || 0) // Use total credits, not just calculated
+                            totalBalance: existingCredits.credits || 0,  // Total = 5 initial + (referrals * 5)
+                            creditsEarned: referralEarnings  // Only referral earnings
                         })
                     } else {
                         // Generate new code
@@ -73,9 +76,11 @@ export default function PricingPage() {
 
                         setReferralCode(newCode)
                         // Force update state immediately for new users
+                        const referralEarnings = (newCreditsData?.total_referrals || 0) * 5
                         setReferralStats({
                             totalReferrals: (newCreditsData?.total_referrals || 0),
-                            creditsEarned: (newCreditsData?.credits || 5)
+                            totalBalance: (newCreditsData?.credits || 5),  // Total = 5 initial + (referrals * 5)
+                            creditsEarned: referralEarnings  // Only referral earnings
                         })
                         console.log('Referral code saved to database:', newCode)
                     }
@@ -104,13 +109,16 @@ export default function PricingPage() {
                 }, (payload) => {
                     console.log('[RealTime] Referral stats updated:', payload)
                     if (payload.new) {
+                        const referralEarnings = (payload.new.total_referrals || 0) * 5
                         setReferralStats({
                             totalReferrals: payload.new.total_referrals || 0,
-                            creditsEarned: payload.new.credits || 0
+                            totalBalance: payload.new.credits || 0,  // Total balance
+                            creditsEarned: referralEarnings  // Only referral earnings
                         })
                         console.log('[RealTime] Updated state to:', {
                             totalReferrals: payload.new.total_referrals || 0,
-                            creditsEarned: payload.new.credits || 0
+                            totalBalance: payload.new.credits || 0,
+                            creditsEarned: referralEarnings
                         })
                     }
                 })

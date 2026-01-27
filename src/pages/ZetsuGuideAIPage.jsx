@@ -1,19 +1,18 @@
-import { ArrowRight, Bot, History, Menu, MessageSquare, Plus, Trash2, User, X, Zap } from 'lucide-react'
+import Lottie from 'lottie-react'
+import { ArrowRight, Bot, History, Menu, MessageSquare, Plus, Trash2, X, Zap } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import guidePublishAnimation from '../assets/Guidepublish.json'
+import aiLogoAnimation from '../assets/ailogo.json'
+import robotAnimation from '../assets/robotwelcomming.json'
 import { CodeBlock } from '../components/ui/code-block'
 import { Confetti } from '../components/ui/confetti'
 import { LinkPreview } from '../components/ui/link-preview'
 import { PlaceholdersAndVanishInput } from '../components/ui/placeholders-and-vanish-input'
 import { ShimmerButton } from '../components/ui/shimmer-button'
 import { SparklesText } from '../components/ui/sparkles-text'
-import { TextGenerateEffect } from '../components/ui/text-generate-effect'
 import { useAuth } from '../contexts/AuthContext'
 import { guidesApi, isSupabaseConfigured, supabase } from '../lib/api'
-import Lottie from 'lottie-react'
-import robotAnimation from '../assets/robotwelcomming.json'
-import guidePublishAnimation from '../assets/Guidepublish.json'
-import aiLogoAnimation from '../assets/ailogo.json'
 
 // AI API Configuration - Using Netlify Functions in production, local backend in dev
 const isDev = import.meta.env.DEV
@@ -76,7 +75,7 @@ async function getCreditsFromDB(user) {
             const { data, error } = await supabase
                 .from('zetsuguide_credits')
                 .select('credits, referred_by')
-                .eq('user_id', user.id) // Use stable ID
+                .eq('user_email', user.email.toLowerCase())
                 .maybeSingle()
 
             if (!error && data) {
@@ -91,8 +90,7 @@ async function getCreditsFromDB(user) {
                 const { data: newData, error: insertError } = await supabase
                     .from('zetsuguide_credits')
                     .insert({
-                        user_id: user.id,
-                        user_email: user.email,
+                        user_email: user.email.toLowerCase(),
                         credits: 5,
                         created_at: new Date().toISOString()
                     })
@@ -107,7 +105,7 @@ async function getCreditsFromDB(user) {
                     const { data: retryData } = await supabase
                         .from('zetsuguide_credits')
                         .select('credits')
-                        .eq('user_id', user.id)
+                        .eq('user_email', user.email.toLowerCase())
                         .maybeSingle()
                     return retryData?.credits || 5
                 }
@@ -164,7 +162,7 @@ async function useCreditsFromDB(user, action = 'AI Chat', details = '') {
         const { data: currentData, error: fetchError } = await supabase
             .from('zetsuguide_credits')
             .select('credits')
-            .eq('user_id', user.id)
+            .eq('user_email', user.email.toLowerCase())
             .single()
 
         if (fetchError || !currentData) {
@@ -188,7 +186,7 @@ async function useCreditsFromDB(user, action = 'AI Chat', details = '') {
                 credits: newCredits,
                 updated_at: new Date().toISOString()
             })
-            .eq('user_id', user.id)
+            .eq('user_email', user.email.toLowerCase())
 
         if (updateError) {
             console.error('Error updating credits:', updateError)
@@ -1063,6 +1061,31 @@ export default function ZetsuGuideAIPage() {
         loadCredits()
         loadGuides()
         loadConversations() // Load chat history
+
+        // Setup realtime subscription for credits updates
+        let subscription
+        if (user?.email && isSupabaseConfigured()) {
+            subscription = supabase
+                .channel(`public:zetsuguide_credits:user_email=eq.${user.email.toLowerCase()}`)
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'zetsuguide_credits',
+                    filter: `user_email=eq.${user.email.toLowerCase()}`
+                }, (payload) => {
+                    if (payload.new?.credits !== undefined) {
+                        console.log('[RealTime Credits] Updated to:', payload.new.credits)
+                        setCredits(payload.new.credits)
+                    }
+                })
+                .subscribe()
+        }
+
+        return () => {
+            if (subscription) {
+                supabase.removeChannel(subscription)
+            }
+        }
     }, [user])
 
     async function loadGuides() {
@@ -2076,7 +2099,7 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                 overflow: hidden;
                                 position: relative;
                             }
-                            
+
                             .glass-panel::before {
                                 content: '';
                                 position: absolute;
@@ -2111,7 +2134,7 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                 opacity: 1;
                                 background: rgba(255, 255, 255, 0.05);
                             }
-                            
+
                             .zetsu-modern-step.completed {
                                 opacity: 1;
                             }
