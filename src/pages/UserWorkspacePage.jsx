@@ -2,6 +2,8 @@ import { BookOpen, Calendar, Loader2, Mail } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { guidesApi } from '../lib/api'
+import { getAvatarForUser } from '../lib/avatar'
+import { supabase } from '../lib/supabase'
 
 export default function UserWorkspacePage() {
     const { username: rawUsername } = useParams()
@@ -11,6 +13,7 @@ export default function UserWorkspacePage() {
     const [userGuides, setUserGuides] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
+    const [avatarUrl, setAvatarUrl] = useState(null)
 
     useEffect(() => {
         loadUserWorkspace()
@@ -64,6 +67,26 @@ export default function UserWorkspacePage() {
                 guides_count: matchingGuides.length,
                 created_at: matchingGuides[matchingGuides.length - 1].created_at // Earliest guide date
             }
+
+            // Fetch user profile with avatar from database
+            let userAvatarUrl = null
+            try {
+                const { data: profileData } = await supabase
+                    .from('zetsuguide_user_profiles')
+                    .select('avatar_url')
+                    .eq('user_email', firstGuide.user_email)
+                    .maybeSingle()
+
+                if (profileData?.avatar_url) {
+                    userAvatarUrl = profileData.avatar_url
+                }
+            } catch (err) {
+                console.error('Error fetching avatar:', err)
+            }
+
+            // Get avatar: from profile, or deterministic hash based on email
+            const finalAvatarUrl = getAvatarForUser(firstGuide.user_email, userAvatarUrl)
+            setAvatarUrl(finalAvatarUrl)
 
             setUserProfile(profile)
             setUserGuides(matchingGuides.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)))
@@ -131,9 +154,17 @@ export default function UserWorkspacePage() {
                 <div className="max-w-6xl mx-auto px-4 py-12">
                     <div className="flex items-start gap-8">
                         {/* Avatar */}
-                        <div className="w-24 h-24 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white text-4xl font-bold flex-shrink-0">
-                            {userProfile?.author_name?.[0]?.toUpperCase() || '👤'}
-                        </div>
+                        {avatarUrl ? (
+                            <img 
+                                src={avatarUrl} 
+                                alt={userProfile?.author_name}
+                                className="w-24 h-24 rounded-full flex-shrink-0 object-cover"
+                            />
+                        ) : (
+                            <div className="w-24 h-24 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white text-4xl font-bold flex-shrink-0">
+                                {userProfile?.author_name?.[0]?.toUpperCase() || '👤'}
+                            </div>
+                        )}
 
                         {/* Profile Info */}
                         <div className="flex-1">
