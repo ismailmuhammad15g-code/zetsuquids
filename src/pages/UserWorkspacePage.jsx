@@ -33,10 +33,14 @@ export default function UserWorkspacePage() {
                 const authorName = guide.author_name || ''
 
                 // Match by username/email prefix or exact author name
+                // Also check if email starts with the username (more flexible)
+                const emailPrefix = userEmail.split('@')[0].toLowerCase()
+                
                 return (
-                    userEmail.toLowerCase().startsWith(username.toLowerCase()) ||
-                    authorName.toLowerCase() === username.toLowerCase() ||
-                    userEmail.toLowerCase().includes(username.toLowerCase())
+                    userEmail.toLowerCase().includes(username.toLowerCase()) ||
+                    emailPrefix === username.toLowerCase() ||
+                    authorName.toLowerCase().includes(username.toLowerCase()) ||
+                    authorName.toLowerCase() === username.toLowerCase()
                 )
             })
 
@@ -89,6 +93,26 @@ export default function UserWorkspacePage() {
                     <h1 className="text-3xl font-bold mb-2">{error}</h1>
                     <p className="text-gray-500 mb-6">
                         We couldn't find a workspace for <strong>@{username}</strong>
+                    </p>
+                    <p className="text-gray-400 text-sm mb-6">
+                        Make sure you have published at least one guide first!
+                    </p>
+                    <a href="/guides" className="inline-block px-6 py-3 bg-black text-white font-medium hover:bg-gray-800 transition-colors">
+                        Browse All Guides
+                    </a>
+                </div>
+            </div>
+        )
+    }
+
+    if (!userProfile) {
+        return (
+            <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center p-4">
+                <div className="text-center max-w-md">
+                    <div className="text-6xl mb-4">⚠️</div>
+                    <h1 className="text-3xl font-bold mb-2">No Profile Data</h1>
+                    <p className="text-gray-500 mb-6">
+                        Unable to load profile for <strong>@{username}</strong>
                     </p>
                     <a href="/guides" className="inline-block px-6 py-3 bg-black text-white font-medium hover:bg-gray-800 transition-colors">
                         Browse All Guides
