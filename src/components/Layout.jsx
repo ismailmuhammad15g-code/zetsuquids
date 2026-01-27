@@ -235,6 +235,14 @@ export default function Layout() {
                                                 </div>
                                                 <div className="py-2 border-b border-gray-200">
                                                     <Link
+                                                        to={`/@${(user?.user_metadata?.full_name || user?.email?.split('@')[0]).toLowerCase()}/workspace`}
+                                                        onClick={() => setShowUserMenu(false)}
+                                                        className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                                                    >
+                                                        <BookOpen size={18} />
+                                                        <span>My Workspace</span>
+                                                    </Link>
+                                                    <Link
                                                         to="/zetsuguide-ai"
                                                         onClick={() => setShowUserMenu(false)}
                                                         className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"

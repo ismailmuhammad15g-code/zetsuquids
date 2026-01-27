@@ -260,17 +260,19 @@ export default function AllGuidesPage() {
                             to={`/guide/${guide.slug}`}
                             className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors group"
                         >
-                            <div className="flex-1 min-w-0 flex items-center gap-3">
-                                {/* Author avatar */}
-                                {guide.user_email && (
-                                    <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                                        {(guide.author_name || guide.user_email)?.[0]?.toUpperCase()}
-                                    </div>
-                                )}
-                                <h3 className="font-bold group-hover:underline truncate">
-                                    {highlight(guide.title)}
-                                </h3>
-                                <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-2">
+                                    {/* Author avatar */}
+                                    {guide.user_email && (
+                                        <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                            {(guide.author_name || guide.user_email)?.[0]?.toUpperCase()}
+                                        </div>
+                                    )}
+                                    <h3 className="font-bold group-hover:underline truncate">
+                                        {highlight(guide.title)}
+                                    </h3>
+                                </div>
+                                <div className="flex items-center gap-4 text-xs text-gray-500 ml-11">
                                     <span className="flex items-center gap-1">
                                         <Calendar size={12} />
                                         {new Date(guide.created_at).toLocaleDateString()}
@@ -279,7 +281,6 @@ export default function AllGuidesPage() {
                                         <span className="flex items-center gap-1">
                                             <Tag size={12} />
                                             {guide.keywords.slice(0, 2).join(', ')}
-                                            {guide.keywords.length > 2 && ` +${guide.keywords.length - 2}`}
                                         </span>
                                     )}
                                 </div>
