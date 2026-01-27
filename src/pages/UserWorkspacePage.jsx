@@ -35,7 +35,7 @@ export default function UserWorkspacePage() {
                 // Match by username/email prefix or exact author name
                 // Also check if email starts with the username (more flexible)
                 const emailPrefix = userEmail.split('@')[0].toLowerCase()
-                
+
                 return (
                     userEmail.toLowerCase().includes(username.toLowerCase()) ||
                     emailPrefix === username.toLowerCase() ||
