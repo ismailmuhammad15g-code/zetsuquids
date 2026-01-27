@@ -626,6 +626,7 @@ export default function ZetsuGuideAIPage() {
     const [isThinking, setIsThinking] = useState(false)
     const [isStreamingResponse, setIsStreamingResponse] = useState(false)
     const [credits, setCredits] = useState(5)
+    const [creditsLoading, setCreditsLoading] = useState(true)
     const [guides, setGuides] = useState([])
     const [streamingMessageIndex, setStreamingMessageIndex] = useState(-1)
     const [showReferralBonus, setShowReferralBonus] = useState(false)
@@ -1029,8 +1030,10 @@ export default function ZetsuGuideAIPage() {
             if (user) {
                 const creditCount = await getCreditsFromDB(user)
                 setCredits(creditCount)
+                setCreditsLoading(false)
             } else {
                 setCredits(5)
+                setCreditsLoading(false)
             }
 
             const userEmail = user?.email || 'guest'
@@ -1640,7 +1643,7 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                     )}
                     <Link to="/pricing" className="zetsu-ai-credits">
                         <Zap size={16} />
-                        <span>{credits} Credits</span>
+                        <span>{creditsLoading ? '... Credits' : `${credits} Credits`}</span>
                     </Link>
 
 
