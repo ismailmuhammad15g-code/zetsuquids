@@ -4,7 +4,9 @@ import { useParams } from 'react-router-dom'
 import { guidesApi } from '../lib/api'
 
 export default function UserWorkspacePage() {
-    const { username } = useParams()
+    const { username: rawUsername } = useParams()
+    // Remove @ prefix if it exists
+    const username = rawUsername?.replace(/^@/, '') || ''
     const [userProfile, setUserProfile] = useState(null)
     const [userGuides, setUserGuides] = useState([])
     const [loading, setLoading] = useState(true)
