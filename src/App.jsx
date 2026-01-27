@@ -22,7 +22,7 @@ function App() {
                         <Route index element={<HomePage />} />
                         <Route path="guides" element={<AllGuidesPage />} />
                         <Route path="guide/:slug" element={<GuidePage />} />
-                        <Route path=":username" element={<UserWorkspacePage />} />
+                        <Route path="@:username" element={<UserWorkspacePage />} />
                     </Route>
                     <Route path="/auth" element={<AuthPage />} />
                     <Route path="/verify-email" element={<VerifyEmailPage />} />

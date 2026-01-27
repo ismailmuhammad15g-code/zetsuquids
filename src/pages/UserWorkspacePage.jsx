@@ -5,8 +5,6 @@ import { guidesApi } from '../lib/api'
 
 export default function UserWorkspacePage() {
     const { username } = useParams()
-    // Remove the @ symbol if present
-    const cleanUsername = username?.replace(/^@/, '') || ''
     const [userProfile, setUserProfile] = useState(null)
     const [userGuides, setUserGuides] = useState([])
     const [loading, setLoading] = useState(true)
@@ -14,7 +12,7 @@ export default function UserWorkspacePage() {
 
     useEffect(() => {
         loadUserWorkspace()
-    }, [cleanUsername])
+    }, [username])
 
     async function loadUserWorkspace() {
         setLoading(true)
@@ -33,9 +31,9 @@ export default function UserWorkspacePage() {
 
                 // Match by username/email prefix or exact author name
                 return (
-                    userEmail.toLowerCase().startsWith(cleanUsername.toLowerCase()) ||
-                    authorName.toLowerCase() === cleanUsername.toLowerCase() ||
-                    userEmail.toLowerCase().includes(cleanUsername.toLowerCase())
+                    userEmail.toLowerCase().startsWith(username.toLowerCase()) ||
+                    authorName.toLowerCase() === username.toLowerCase() ||
+                    userEmail.toLowerCase().includes(username.toLowerCase())
                 )
             })
 
@@ -84,7 +82,7 @@ export default function UserWorkspacePage() {
                     <div className="text-6xl mb-4">😔</div>
                     <h1 className="text-3xl font-bold mb-2">{error}</h1>
                     <p className="text-gray-500 mb-6">
-                        We couldn't find a workspace for <strong>@{cleanUsername}</strong>
+                        We couldn't find a workspace for <strong>@{username}</strong>
                     </p>
                     <a href="/guides" className="inline-block px-6 py-3 bg-black text-white font-medium hover:bg-gray-800 transition-colors">
                         Browse All Guides
