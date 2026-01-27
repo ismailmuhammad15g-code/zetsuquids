@@ -1,8 +1,8 @@
-import { BookOpen, Calendar, Loader2, Mail, Edit2, X } from 'lucide-react'
+import { BookOpen, Calendar, Edit2, Loader2, Mail, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { getAvatarForUser, getAllAvatars } from '../lib/avatar'
+import { getAllAvatars, getAvatarForUser } from '../lib/avatar'
 import { supabase } from '../lib/supabase'
 
 export default function UserWorkspacePage() {
@@ -457,11 +457,10 @@ export default function UserWorkspacePage() {
                                         <button
                                             key={avatarPath}
                                             onClick={() => setSelectedAvatar(avatarPath)}
-                                            className={`p-2 rounded border-2 transition-all ${
-                                                selectedAvatar === avatarPath
+                                            className={`p-2 rounded border-2 transition-all ${selectedAvatar === avatarPath
                                                     ? 'border-black bg-black/5'
                                                     : 'border-gray-300 hover:border-gray-400'
-                                            }`}
+                                                }`}
                                         >
                                             <img
                                                 src={avatarPath}
