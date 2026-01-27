@@ -1281,7 +1281,8 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                         { role: 'user', content: userQuery }
                     ],
                     temperature: 0.7,
-                    max_tokens: 4096
+                    max_tokens: 4096,
+                    userId: user?.id
                 })
             })
 
