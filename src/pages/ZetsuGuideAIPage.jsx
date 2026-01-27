@@ -1029,16 +1029,11 @@ export default function ZetsuGuideAIPage() {
         async function loadCredits() {
             if (user) {
                 const creditCount = await getCreditsFromDB(user)
-                // Ensure we show loading state for at least 300ms for UX
-                setTimeout(() => {
-                    setCredits(creditCount)
-                    setCreditsLoading(false)
-                }, 300)
+                setCredits(creditCount)
+                setCreditsLoading(false)
             } else {
-                setTimeout(() => {
-                    setCredits(5)
-                    setCreditsLoading(false)
-                }, 300)
+                setCredits(5)
+                setCreditsLoading(false)
             }
 
             const userEmail = user?.email || 'guest'
