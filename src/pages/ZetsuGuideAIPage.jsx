@@ -15,9 +15,11 @@ import { useAuth } from '../contexts/AuthContext'
 import { guidesApi, isSupabaseConfigured, supabase } from '../lib/api'
 
 // AI API Configuration - Using Grok API via backend proxy
+// IMPORTANT: Backend and Frontend are on DIFFERENT SERVERS
+// Must set VITE_API_URL to your backend server URL in production
 const isDev = import.meta.env.DEV
-const API_BASE = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:5000' : '')
-const AI_API_URL = isDev ? `${API_BASE}/api/ai/chat` : '/api/ai/chat'
+const API_BASE = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:5000' : 'https://your-backend-url.com')
+const AI_API_URL = `${API_BASE}/api/ai/chat`  // Always use absolute URL
 const AI_MODEL = import.meta.env.VITE_AI_MODEL || 'grok-2'
 
 // Agent Thinking Phases
