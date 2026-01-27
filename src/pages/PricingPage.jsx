@@ -52,12 +52,12 @@ export default function PricingPage() {
                         // Use existing code from database
                         setReferralCode(existingCredits.referral_code)
                         const referralEarnings = (existingCredits.total_referrals || 0) * 5
-                        const bonusReceived = existingCredits.referred_by ? 5 : 0
+                        const bonusReceived = referralEarnings  // Total earned from referrals
                         setReferralStats({
                             totalReferrals: existingCredits.total_referrals || 0,
                             totalBalance: existingCredits.credits || 0,  // Total = 5 initial + (referrals * 5)
-                            creditsEarned: referralEarnings,  // Only referral earnings
-                            bonusReceived: bonusReceived  // 5 if referred, 0 if not
+                            creditsEarned: referralEarnings,  // Earnings from referrals
+                            bonusReceived: bonusReceived  // Total referral bonus earned
                         })
                     } else {
                         // Generate new code
@@ -80,12 +80,12 @@ export default function PricingPage() {
                         setReferralCode(newCode)
                         // Force update state immediately for new users
                         const referralEarnings = (newCreditsData?.total_referrals || 0) * 5
-                        const bonusReceived = newCreditsData?.referred_by ? 5 : 0
+                        const bonusReceived = referralEarnings  // Total earned from referrals
                         setReferralStats({
                             totalReferrals: (newCreditsData?.total_referrals || 0),
                             totalBalance: (newCreditsData?.credits || 5),  // Total = 5 initial + (referrals * 5)
-                            creditsEarned: referralEarnings,  // Only referral earnings
-                            bonusReceived: bonusReceived  // 5 if referred, 0 if not
+                            creditsEarned: referralEarnings,  // Earnings from referrals
+                            bonusReceived: bonusReceived  // Total referral bonus earned
                         })
                         console.log('Referral code saved to database:', newCode)
                     }

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { guidesApi } from '../lib/api'
+import { getAvatarForUser } from '../lib/avatar'
+import { supabase } from '../lib/supabase'
 
 // Configure marked
 marked.setOptions({
@@ -21,6 +23,7 @@ export default function GuidePage() {
     const [error, setError] = useState(null)
     const [copied, setCopied] = useState(false)
     const [deleting, setDeleting] = useState(false)
+    const [authorAvatar, setAuthorAvatar] = useState(null)
 
     useEffect(() => {
         loadGuide()
@@ -45,6 +48,24 @@ export default function GuidePage() {
             }
 
             setGuide(guideData)
+
+            // Fetch author avatar
+            if (guideData.user_email) {
+                try {
+                    const { data: profileData } = await supabase
+                        .from('zetsuguide_user_profiles')
+                        .select('avatar_url')
+                        .eq('user_email', guideData.user_email)
+                        .maybeSingle()
+
+                    const avatarUrl = getAvatarForUser(guideData.user_email, profileData?.avatar_url)
+                    setAuthorAvatar(avatarUrl)
+                } catch (err) {
+                    console.error('Error fetching author avatar:', err)
+                    // Fallback to deterministic avatar
+                    setAuthorAvatar(getAvatarForUser(guideData.user_email, null))
+                }
+            }
         } catch (err) {
             console.error('Error loading guide:', err)
             setError('Failed to load guide')
@@ -220,9 +241,17 @@ export default function GuidePage() {
                     <div className="mb-8 p-4 border-2 border-black bg-gradient-to-r from-purple-50 to-pink-50">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                                    {(guide.author_name || guide.user_email)?.[0]?.toUpperCase()}
-                                </div>
+                                {authorAvatar ? (
+                                    <img
+                                        src={authorAvatar}
+                                        alt={guide.author_name}
+                                        className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                                    />
+                                ) : (
+                                    <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                                        {(guide.author_name || guide.user_email)?.[0]?.toUpperCase()}
+                                    </div>
+                                )}
                                 <div>
                                     <p className="text-sm text-gray-600">By</p>
                                     <p className="font-bold text-lg">{guide.author_name || guide.user_email.split('@')[0]}</p>

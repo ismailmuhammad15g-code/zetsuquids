@@ -133,6 +133,20 @@ export default async function handler(req, res) {
             throw updateReferrerError
         }
 
+        // C. Insert notification for real-time popup
+        const { error: notificationError } = await supabase
+            .from('referral_notifications')
+            .insert([{
+                referrer_email: referrerEmail.toLowerCase(),
+                referred_email: userEmail.toLowerCase(),
+                credit_amount: 5
+            }])
+
+        if (notificationError) {
+            console.warn('[ClaimReferral] Failed to insert notification (non-critical):', notificationError)
+            // Don't throw - this is non-critical
+        }
+
         // 5. Cleanup: Remove pending code to prevent double claiming
         await supabase.auth.admin.updateUserById(userId, {
             user_metadata: {

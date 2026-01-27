@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import AccountSetupModal from './AccountSetupModal'
 import AddGuideModal from './AddGuideModal'
 import GlobalLoader from './GlobalLoader'
+import ReferralBonusNotification from './ReferralBonusNotification'
 import ReferralSuccessModal from './ReferralSuccessModal'
 import SearchModal from './SearchModal'
 
@@ -419,6 +420,9 @@ export default function Layout() {
 
             {/* Global Loader Helper */}
             <GlobalLoader />
+
+            {/* Real-time Referral Bonus Notification */}
+            <ReferralBonusNotification />
         </div>
     )
 }
