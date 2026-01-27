@@ -1,11 +1,13 @@
-import { BookOpen, Calendar, Loader2, Mail } from 'lucide-react'
+import { BookOpen, Calendar, Loader2, Mail, Edit2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { getAvatarForUser } from '../lib/avatar'
+import { useAuth } from '../contexts/AuthContext'
+import { getAvatarForUser, getAllAvatars } from '../lib/avatar'
 import { supabase } from '../lib/supabase'
 
 export default function UserWorkspacePage() {
     const { username: rawUsername } = useParams()
+    const { user } = useAuth()
     // Remove @ prefix if it exists
     const username = rawUsername?.replace(/^@/, '') || ''
     const [userProfile, setUserProfile] = useState(null)
@@ -13,6 +15,13 @@ export default function UserWorkspacePage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [avatarUrl, setAvatarUrl] = useState(null)
+    const [showEditModal, setShowEditModal] = useState(false)
+    const [editBio, setEditBio] = useState('')
+    const [selectedAvatar, setSelectedAvatar] = useState(null)
+    const [savingProfile, setSavingProfile] = useState(false)
+
+    // Check if this is the current user's workspace
+    const isOwnWorkspace = user?.email && userProfile?.author_email === user.email
 
     useEffect(() => {
         loadUserWorkspace()
@@ -115,12 +124,51 @@ export default function UserWorkspacePage() {
 
             setUserProfile(profile)
             setUserGuides(matchingGuides.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)))
+            setEditBio(userBio || '')
+            setSelectedAvatar(userAvatarUrl || null)
 
         } catch (err) {
             console.error('Error loading workspace:', err)
             setError('Failed to load workspace')
         } finally {
             setLoading(false)
+        }
+    }
+
+    async function saveProfileChanges() {
+        if (!user?.email || !userProfile) return
+
+        setSavingProfile(true)
+        try {
+            // Update profile in database
+            const { error } = await supabase
+                .from('zetsuguide_user_profiles')
+                .update({
+                    bio: editBio,
+                    avatar_url: selectedAvatar
+                })
+                .eq('user_email', user.email)
+
+            if (error) {
+                console.error('Error saving profile:', error)
+                alert('Failed to save profile')
+                return
+            }
+
+            // Update local state
+            setUserProfile({
+                ...userProfile,
+                bio: editBio
+            })
+            setAvatarUrl(getAvatarForUser(user.email, selectedAvatar))
+            setShowEditModal(false)
+            alert('Profile updated successfully!')
+
+        } catch (err) {
+            console.error('Save error:', err)
+            alert('Error saving profile')
+        } finally {
+            setSavingProfile(false)
         }
     }
 
@@ -193,7 +241,18 @@ export default function UserWorkspacePage() {
 
                         {/* Profile Info */}
                         <div className="flex-1">
-                            <h1 className="text-4xl font-black mb-2">@{userProfile?.author_name}</h1>
+                            <div className="flex items-center gap-3 mb-2">
+                                <h1 className="text-4xl font-black">@{userProfile?.author_name}</h1>
+                                {isOwnWorkspace && (
+                                    <button
+                                        onClick={() => setShowEditModal(true)}
+                                        className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                                        title="Edit profile"
+                                    >
+                                        <Edit2 size={20} className="text-gray-600" />
+                                    </button>
+                                )}
+                            </div>
 
                             {userProfile?.bio && (
                                 <p className="text-gray-700 mb-4 text-lg italic">"{userProfile.bio}"</p>
@@ -372,6 +431,84 @@ export default function UserWorkspacePage() {
                     </div>
                 )}
             </div>
+
+            {/* Edit Profile Modal */}
+            {showEditModal && isOwnWorkspace && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between p-6 border-b-2 border-black sticky top-0 bg-white">
+                            <h2 className="text-2xl font-bold">Edit Profile</h2>
+                            <button
+                                onClick={() => setShowEditModal(false)}
+                                className="p-1 hover:bg-gray-200 rounded transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6 space-y-6">
+                            {/* Avatar Picker */}
+                            <div>
+                                <h3 className="font-bold text-lg mb-4">Choose Your Avatar</h3>
+                                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+                                    {getAllAvatars().map((avatarPath) => (
+                                        <button
+                                            key={avatarPath}
+                                            onClick={() => setSelectedAvatar(avatarPath)}
+                                            className={`p-2 rounded border-2 transition-all ${
+                                                selectedAvatar === avatarPath
+                                                    ? 'border-black bg-black/5'
+                                                    : 'border-gray-300 hover:border-gray-400'
+                                            }`}
+                                        >
+                                            <img
+                                                src={avatarPath}
+                                                alt="avatar"
+                                                className="w-full h-auto"
+                                            />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Bio Editor */}
+                            <div>
+                                <label className="block font-bold text-lg mb-2">Bio</label>
+                                <textarea
+                                    value={editBio}
+                                    onChange={(e) => setEditBio(e.target.value)}
+                                    placeholder="Tell us about yourself..."
+                                    maxLength={200}
+                                    className="w-full p-3 border-2 border-gray-300 rounded focus:border-black outline-none resize-none"
+                                    rows={4}
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    {editBio.length}/200 characters
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="flex gap-3 p-6 border-t-2 border-black sticky bottom-0 bg-white">
+                            <button
+                                onClick={() => setShowEditModal(false)}
+                                className="flex-1 px-4 py-3 border-2 border-black hover:bg-gray-100 transition-colors font-bold"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={saveProfileChanges}
+                                disabled={savingProfile}
+                                className="flex-1 px-4 py-3 bg-black text-white hover:bg-gray-800 disabled:opacity-50 transition-colors font-bold"
+                            >
+                                {savingProfile ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
