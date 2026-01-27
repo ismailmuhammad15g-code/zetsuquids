@@ -19,9 +19,12 @@ export default function UserWorkspacePage() {
         setError(null)
 
         try {
+            console.log('Loading workspace for username:', username)
+            
             // First, try to find the user by username/email in the guides table
             // We'll fetch all guides and filter by author email matching the username pattern
             const allGuides = await guidesApi.getAll()
+            console.log('All guides fetched:', allGuides.length)
 
             // Try to extract email from username (it might be part of email like 'john' from 'john@example.com')
             // OR find exact matches where user_email contains the username
@@ -36,8 +39,11 @@ export default function UserWorkspacePage() {
                     userEmail.toLowerCase().includes(username.toLowerCase())
                 )
             })
+            
+            console.log('Matching guides found:', matchingGuides.length)
 
             if (matchingGuides.length === 0) {
+                console.warn('No guides found for user:', username)
                 setError('User not found or has no guides')
                 setLoading(false)
                 return
