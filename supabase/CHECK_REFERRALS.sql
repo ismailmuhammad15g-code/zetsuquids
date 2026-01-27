@@ -1,5 +1,5 @@
 -- Check your referral data directly
-SELECT 
+SELECT
     user_email,
     credits,
     total_referrals,
@@ -9,7 +9,7 @@ FROM zetsuguide_credits
 WHERE LOWER(user_email) = 'solomismailyt12@gmail.com';
 
 -- If total_referrals is still 0, this will show you how many people are referred by you
-SELECT 
+SELECT
     user_email,
     referred_by
 FROM zetsuguide_credits

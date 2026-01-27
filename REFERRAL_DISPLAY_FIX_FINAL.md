@@ -42,7 +42,7 @@ If it still shows "No referral bonus yet":
 
 1. Run this in Supabase SQL Editor:
 ```sql
-SELECT 
+SELECT
     user_email,
     credits,
     total_referrals,
@@ -57,7 +57,7 @@ WHERE LOWER(user_email) = 'solomismailyt12@gmail.com';
 
 3. Check if 3 people have `referred_by = 'solomismailyt12@gmail.com'`:
 ```sql
-SELECT COUNT(*) 
+SELECT COUNT(*)
 FROM zetsuguide_credits
 WHERE LOWER(referred_by) = 'solomismailyt12@gmail.com';
 ```
@@ -78,7 +78,7 @@ Your profile earnings tab should display:
 🎁 Welcome Bonus
 On signup                                              +5
 
-👥 Referral Earnings  
+👥 Referral Earnings
 From 3 friends                                        +15
 ```
 
