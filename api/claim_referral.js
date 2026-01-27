@@ -46,7 +46,7 @@ export default async function handler(req, res) {
         // 3. Find Referrer by Code
         const { data: referrerData, error: referrerError } = await supabase
             .from('zetsuguide_credits')
-            .select('user_id, total_referrals, credits')
+            .select('user_email, total_referrals, credits')
             .eq('referral_code', referralCode)
             .single()
 
@@ -59,11 +59,11 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: false, message: 'Invalid referral code' })
         }
 
-        const referrerId = referrerData.user_id
+        const referrerEmail = referrerData.user_email
 
-        // Prevent self-referral
-        if (referrerId === userId) {
-            console.warn('[ClaimReferral] Self-referral attempt:', userId)
+        // Prevent self-referral (compare emails, not IDs)
+        if (referrerEmail?.toLowerCase() === user.email?.toLowerCase()) {
+            console.warn('[ClaimReferral] Self-referral attempt:', user.email)
             await supabase.auth.admin.updateUserById(userId, {
                 user_metadata: { ...user.user_metadata, referral_pending: null }
             })
@@ -73,12 +73,18 @@ export default async function handler(req, res) {
         // 4. Apply Credits (Transaction-like logic)
 
         // A. Bonus for New User (+5)
+        // Get user email to associate credits
+        const userEmail = user.email || user.user_metadata?.email
+        if (!userEmail) {
+            console.error('[ClaimReferral] User email not found')
+            return res.status(500).json({ error: 'User email not found' })
+        }
+
         // First check if they already have a credits row
         const { data: newUserCredits } = await supabase
             .from('zetsuguide_credits')
             .select('credits')
-            .eq('user_id', userId)
-            .eq('user_id', userId)
+            .eq('user_email', userEmail.toLowerCase())
             .maybeSingle() // Use maybeSingle to avoid error if no row exists yet
 
         const currentUserCredits = newUserCredits?.credits || 5 // Default start is 5
@@ -87,10 +93,12 @@ export default async function handler(req, res) {
         const { error: updateNewUserError } = await supabase
             .from('zetsuguide_credits')
             .upsert({
-                user_id: userId,
+                user_email: userEmail.toLowerCase(),
                 credits: newUserNewCredits,
-                referred_by: referrerId
-            }, { onConflict: 'user_id' })
+                referred_by: referrerEmail,
+                total_referrals: 0,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_email' })
 
         if (updateNewUserError) {
             console.error('[ClaimReferral] Failed to update new user credits:', updateNewUserError)
@@ -105,9 +113,10 @@ export default async function handler(req, res) {
             .from('zetsuguide_credits')
             .update({
                 credits: referrerNewCredits,
-                total_referrals: referrerNewTotalRef
+                total_referrals: referrerNewTotalRef,
+                updated_at: new Date().toISOString()
             })
-            .eq('user_id', referrerId)
+            .eq('user_email', referrerEmail)
 
         if (updateReferrerError) {
             console.error('[ClaimReferral] Failed to update referrer credits:', updateReferrerError)

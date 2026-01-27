@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronRight, Check, Users, User, Building2, Briefcase } from 'lucide-react'
+import { motion } from 'framer-motion'
 import Lottie from 'lottie-react'
-import { supabase } from '../lib/supabase'
+import { Briefcase, Building2, Check, ChevronRight, User, Users } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { getAllAvatars } from '../lib/avatar'
+import { supabase } from '../lib/supabase'
 import ReferralSuccessModal from './ReferralSuccessModal'
 
 // Import Lottie JSONs
@@ -25,9 +25,17 @@ import messengerAnim from '../assets/socialicons/messenger logo burst.json'
 
 // Import static icons
 import {
-    GoogleIcon, DropboxIcon, DribbbleIcon, FacebookIcon, GmailIcon,
+    AndroidIcon,
+    ChromeIcon,
+    DribbbleIcon,
+    DropboxIcon,
+    FacebookIcon,
+    FigmaIcon,
+    GmailIcon,
+    GoogleIcon,
+    HtmlIcon,
     MessengerIcon, SnapchatIcon, TikTokIcon, TwitterIcon, WhatsAppIcon,
-    YouTubeIcon, ChromeIcon, FigmaIcon, HtmlIcon, AndroidIcon
+    YouTubeIcon
 } from './BrandIcons'
 
 // Optimized Social Icon Component
@@ -165,7 +173,7 @@ export default function AccountSetupModal({ user, onClose, onComplete }) {
 
             if (error) throw error
 
-            // Try to claim referral bonus
+            // Try to claim referral bonus (only if it wasn't already claimed)
             try {
                 const response = await fetch('/api/claim_referral', {
                     method: 'POST',
@@ -182,6 +190,8 @@ export default function AccountSetupModal({ user, onClose, onComplete }) {
                     setBonusCredits(result.newCredits || 10)
                     setShowSuccessModal(true)
                     return // Stop execution here, let the SuccessModal handle closing on dismiss
+                } else {
+                    console.log('[AccountSetup] No bonus applied or already claimed')
                 }
             } catch (refError) {
                 console.error('[AccountSetup] Referral claim exception:', refError)

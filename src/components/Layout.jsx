@@ -2,13 +2,13 @@ import { BookOpen, Bot, Home, LogIn, LogOut, Menu, Plus, Search, Sparkles, X } f
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase } from '../lib/supabase'
 import { getAvatarForUser } from '../lib/avatar'
-import AddGuideModal from './AddGuideModal'
-import SearchModal from './SearchModal'
+import { supabase } from '../lib/supabase'
 import AccountSetupModal from './AccountSetupModal'
-import ReferralSuccessModal from './ReferralSuccessModal'
+import AddGuideModal from './AddGuideModal'
 import GlobalLoader from './GlobalLoader'
+import ReferralSuccessModal from './ReferralSuccessModal'
+import SearchModal from './SearchModal'
 
 export default function Layout() {
     const location = useLocation()
@@ -22,6 +22,7 @@ export default function Layout() {
     const [accountDeleted, setAccountDeleted] = useState(false)
     const [showReferralSuccess, setShowReferralSuccess] = useState(false)
     const [userProfile, setUserProfile] = useState(null)
+    const [checkingReferral, setCheckingReferral] = useState(true)
 
     // Close mobile menu on route change
     useEffect(() => {
@@ -39,6 +40,48 @@ export default function Layout() {
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [])
+
+    // First: Check for pending referral strictly before anything else
+    useEffect(() => {
+        if (!user?.id) {
+            setCheckingReferral(false)
+            return
+        }
+
+        async function tryClaimReferral() {
+            // Check if we even have a pending referral to claim
+            console.log('Checking for pending referral...', user?.user_metadata)
+            if (!user?.user_metadata?.referral_pending) {
+                console.log('No pending referral found in metadata.')
+                setCheckingReferral(false)
+                return
+            }
+
+            console.log('Found pending referral, claiming...')
+            try {
+                const response = await fetch('/api/claim_referral', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: user.id })
+                })
+                const result = await response.json()
+                console.log('Claim Result:', result)
+
+                if (result.success && result.bonusApplied) {
+                    console.log('Bonus applied! Showing success modal...')
+                    setShowReferralSuccess(true)
+                    // DON'T set checkingReferral to false yet - let modal close handle it
+                } else {
+                    console.log('Bonus not applied, marking as checked anyway')
+                    setCheckingReferral(false)
+                }
+            } catch (err) {
+                console.error('Retry claim referral failed:', err)
+                setCheckingReferral(false)
+            }
+        }
+        tryClaimReferral()
+    }, [user])
 
     // Second: Check for user profile setup ONLY after referral check is done
     useEffect(() => {
@@ -75,60 +118,7 @@ export default function Layout() {
             }
         }
         checkProfile()
-    }, [user])
-
-    const [checkingReferral, setCheckingReferral] = useState(true)
-
-    // First: Check for pending referral strictly before anything else
-    useEffect(() => {
-        if (!user?.id) {
-            setCheckingReferral(false)
-            return
-        }
-
-        async function tryClaimReferral() {
-            // Check if we even have a pending referral to claim
-            console.log('Checking for pending referral...', user?.user_metadata)
-            if (!user?.user_metadata?.referral_pending) {
-                console.log('No pending referral found in metadata.')
-                setCheckingReferral(false)
-                return
-            }
-
-            console.log('Found pending referral, claiming...')
-            try {
-                const response = await fetch('/api/claim_referral', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: user.id })
-                })
-                const result = await response.json()
-                console.log('Claim Result:', result)
-
-                if (result.success && result.bonusApplied) {
-                    setShowReferralSuccess(true)
-                    // Refresh session to clear metadata
-                    await supabase.auth.refreshSession()
-                }
-            } catch (err) {
-                console.error('Retry claim referral failed:', err)
-            } finally {
-                console.log('Referral check complete.')
-                setCheckingReferral(false)
-            }
-        }
-        tryClaimReferral()
-    }, [user])
-
-    // Second: Check for user profile setup ONLY after referral check is done
-    useEffect(() => {
-        if (!user?.email || checkingReferral) return
-
-        async function checkProfile() {
-            // ... (rest of logic)
-        }
-        checkProfile()
-    }, [user])
+    }, [user, checkingReferral])
 
     return (
         <div className="min-h-screen bg-white">
@@ -364,7 +354,7 @@ export default function Layout() {
             {showSearchModal && (
                 <SearchModal onClose={() => setShowSearchModal(false)} />
             )}
-            {showAccountSetup && user && !showReferralSuccess && (
+            {showAccountSetup && user && !checkingReferral && (
                 <AccountSetupModal
                     user={user}
                     onClose={() => setShowAccountSetup(false)}
@@ -382,10 +372,12 @@ export default function Layout() {
                     }}
                 />
             )}
-            {/* Account Deleted Modal */}
             {showReferralSuccess && (
                 <ReferralSuccessModal
-                    onClose={() => setShowReferralSuccess(false)}
+                    onClose={() => {
+                        setShowReferralSuccess(false)
+                        setCheckingReferral(false)
+                    }}
                     bonusCredits={5}
                 />
             )}
