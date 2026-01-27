@@ -74,13 +74,17 @@ async function getCreditsFromDB(user) {
         try {
             const { data, error } = await supabase
                 .from('zetsuguide_credits')
-                .select('credits, referred_by')
+                .select('credits, referred_by, total_referrals')
                 .eq('user_email', user.email.toLowerCase())
                 .maybeSingle()
 
             if (!error && data) {
-                console.log('Credits from DB:', data.credits)
-                return data.credits
+                console.log('Credits from DB:', data.credits, 'Referrals:', data.total_referrals)
+                return {
+                    credits: data.credits,
+                    total_referrals: data.total_referrals || 0,
+                    referred_by: data.referred_by
+                }
             }
 
             // User doesn't have credits record yet - UPSERT to avoid duplicates
@@ -95,21 +99,29 @@ async function getCreditsFromDB(user) {
                         created_at: new Date().toISOString(),
                         updated_at: new Date().toISOString()
                     }, { onConflict: 'user_email' })
-                    .select('credits')
+                    .select('credits, total_referrals')
                     .single()
 
                 if (!upsertError && newData) {
                     console.log('Credits created/verified:', newData.credits)
-                    return newData.credits
+                    return {
+                        credits: newData.credits,
+                        total_referrals: newData.total_referrals || 0,
+                        referred_by: null
+                    }
                 } else if (upsertError) {
                     console.error('Upsert error:', upsertError)
                     // Fallback: fetch the data
                     const { data: retryData } = await supabase
                         .from('zetsuguide_credits')
-                        .select('credits')
+                        .select('credits, total_referrals')
                         .eq('user_email', user.email.toLowerCase())
                         .maybeSingle()
-                    return retryData?.credits || 5
+                    return {
+                        credits: retryData?.credits || 5,
+                        total_referrals: retryData?.total_referrals || 0,
+                        referred_by: null
+                    }
                 }
             }
         } catch (err) {
@@ -628,6 +640,8 @@ export default function ZetsuGuideAIPage() {
     const [isThinking, setIsThinking] = useState(false)
     const [isStreamingResponse, setIsStreamingResponse] = useState(false)
     const [credits, setCredits] = useState(5)
+    const [totalReferrals, setTotalReferrals] = useState(0)
+    const [referralEarnings, setReferralEarnings] = useState(0)
     const [creditsLoading, setCreditsLoading] = useState(true)
     const [guides, setGuides] = useState([])
     const [streamingMessageIndex, setStreamingMessageIndex] = useState(-1)
@@ -1039,8 +1053,14 @@ export default function ZetsuGuideAIPage() {
     useEffect(() => {
         async function loadCredits() {
             if (user) {
-                const creditCount = await getCreditsFromDB(user)
-                setCredits(creditCount)
+                const creditData = await getCreditsFromDB(user)
+                if (typeof creditData === 'object') {
+                    setCredits(creditData.credits)
+                    setTotalReferrals(creditData.total_referrals || 0)
+                    setReferralEarnings((creditData.total_referrals || 0) * 5)
+                } else {
+                    setCredits(creditData)
+                }
                 setCreditsLoading(false)
             } else {
                 setCredits(5)
@@ -1735,10 +1755,16 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                                                 const logs = await fetchUsageLogs(user.email)
                                                                 setUsageLogs(logs)
                                                             }
-                                                            // Load credits
+                                                            // Load credits with referral data
                                                             if (user) {
-                                                                const dbCredits = await getCreditsFromDB(user)
-                                                                setCredits(dbCredits)
+                                                                const creditData = await getCreditsFromDB(user)
+                                                                if (typeof creditData === 'object') {
+                                                                    setCredits(creditData.credits)
+                                                                    setTotalReferrals(creditData.total_referrals || 0)
+                                                                    setReferralEarnings((creditData.total_referrals || 0) * 5)
+                                                                } else {
+                                                                    setCredits(creditData)
+                                                                }
                                                             } else {
                                                                 setCredits(5)
                                                             }
@@ -1841,13 +1867,22 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                                         {user?.user_metadata?.referral_completed && (
                                                             <div className="zetsu-usage-item">
                                                                 <div className="zetsu-usage-info">
-                                                                    <span className="zetsu-usage-action">🎉 Referral Bonus</span>
+                                                                    <span className="zetsu-usage-action">🎉 Referred Bonus</span>
                                                                     <span className="zetsu-usage-date">Accepted invite</span>
                                                                 </div>
                                                                 <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#4ade80' }}>+5</span>
                                                             </div>
                                                         )}
-                                                        {!user?.user_metadata?.referral_completed && (
+                                                        {totalReferrals > 0 && (
+                                                            <div className="zetsu-usage-item">
+                                                                <div className="zetsu-usage-info">
+                                                                    <span className="zetsu-usage-action">👥 Referral Earnings</span>
+                                                                    <span className="zetsu-usage-date">From {totalReferrals} friend{totalReferrals !== 1 ? 's' : ''}</span>
+                                                                </div>
+                                                                <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#4ade80' }}>+{referralEarnings}</span>
+                                                            </div>
+                                                        )}
+                                                        {!user?.user_metadata?.referral_completed && totalReferrals === 0 && (
                                                             <div style={{ textAlign: 'center', padding: '20px 0', color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem' }}>
                                                                 No referral bonus yet. <br /> Get one by using a referral link!
                                                             </div>
