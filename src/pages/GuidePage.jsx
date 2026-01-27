@@ -1,4 +1,4 @@
-import { ArrowLeft, Calendar, Check, ExternalLink, Loader2, Share2, Tag, Trash2 } from 'lucide-react'
+import { ArrowLeft, Calendar, Check, ExternalLink, Loader2, Mail, Share2, Tag, Trash2 } from 'lucide-react'
 import { marked } from 'marked'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -213,13 +213,36 @@ export default function GuidePage() {
                             HTML/CSS
                         </span>
                     )}
-                    {/* Show author if available */}
-                    {guide.user_email && (
-                        <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-800 text-xs font-medium rounded-full">
-                            By {guide.user_email.split('@')[0]}
-                        </span>
-                    )}
                 </div>
+
+                {/* Author Card */}
+                {guide.user_email && (
+                    <div className="mb-8 p-4 border-2 border-black bg-gradient-to-r from-purple-50 to-pink-50">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                    {(guide.author_name || guide.user_email)?.[0]?.toUpperCase()}
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-600">By</p>
+                                    <p className="font-bold text-lg">{guide.author_name || guide.user_email.split('@')[0]}</p>
+                                    {guide.user_email && (
+                                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                                            <Mail size={12} />
+                                            {guide.user_email}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                            <Link
+                                to={`/@${(guide.author_name || guide.user_email.split('@')[0]).toLowerCase()}/workspace`}
+                                className="px-4 py-2 bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+                            >
+                                View Profile
+                            </Link>
+                        </div>
+                    </div>
+                )}
 
                 {/* Keywords */}
                 {guide.keywords && guide.keywords.length > 0 && (

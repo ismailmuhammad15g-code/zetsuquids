@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured as isSupabaseConfiguredLib } from './supabase'
+import { isSupabaseConfigured as isSupabaseConfiguredLib, supabase } from './supabase'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
@@ -147,11 +147,18 @@ export const guidesApi = {
             css_content: guide.css_content || '',
             keywords: guide.keywords || [],
             content_type: guide.content_type || 'markdown',
-            user_email: guide.user_email, // Add owner
+            user_email: guide.user_email, // Author email
+            author_name: guide.author_name || '', // Author name
+            author_id: guide.author_id || null, // Author ID
             created_at: new Date().toISOString()
         }
 
-        console.log('Creating guide:', guideData)
+        console.log('Creating guide with author info:', {
+            title: guideData.title,
+            author_email: guideData.user_email,
+            author_name: guideData.author_name,
+            author_id: guideData.author_id
+        })
         console.log('Supabase configured?', isSupabaseConfigured())
 
         // Try Supabase FIRST if configured

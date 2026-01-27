@@ -7,6 +7,7 @@ import GuidePage from './pages/GuidePage'
 import HomePage from './pages/HomePage'
 import PricingPage from './pages/PricingPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import UserWorkspacePage from './pages/UserWorkspacePage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import ZetsuGuideAIPage from './pages/ZetsuGuideAIPage'
 
@@ -21,6 +22,7 @@ function App() {
                         <Route index element={<HomePage />} />
                         <Route path="guides" element={<AllGuidesPage />} />
                         <Route path="guide/:slug" element={<GuidePage />} />
+                        <Route path="@:username/workspace" element={<UserWorkspacePage />} />
                     </Route>
                     <Route path="/auth" element={<AuthPage />} />
                     <Route path="/verify-email" element={<VerifyEmailPage />} />
@@ -34,4 +36,3 @@ function App() {
 }
 
 export default App
-

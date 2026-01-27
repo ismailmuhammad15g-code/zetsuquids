@@ -183,14 +183,16 @@ export default function Layout() {
                                 </kbd>
                             </button>
 
-                            {/* Add Guide Button */}
-                            <button
-                                onClick={() => setShowAddModal(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-black text-white font-medium hover:bg-gray-800 transition-colors"
-                            >
-                                <Plus size={18} />
-                                <span className="hidden sm:inline">Add Guide</span>
-                            </button>
+                            {/* Add Guide Button - Only for authenticated users */}
+                            {isAuthenticated() && (
+                                <button
+                                    onClick={() => setShowAddModal(true)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-black text-white font-medium hover:bg-gray-800 transition-colors"
+                                >
+                                    <Plus size={18} />
+                                    <span className="hidden sm:inline">Add Guide</span>
+                                </button>
+                            )}
 
                             {/* Auth Section */}
                             {isAuthenticated() ? (

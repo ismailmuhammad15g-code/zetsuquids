@@ -6,7 +6,7 @@ import { guidesApi } from '../lib/api'
 
 export default function AddGuideModal({ onClose }) {
     const navigate = useNavigate()
-    const { user } = useAuth()
+    const { user, isAuthenticated } = useAuth()
     const [saving, setSaving] = useState(false)
     const [showAdvanced, setShowAdvanced] = useState(false)
     const [activeTab, setActiveTab] = useState('markdown') // markdown or advanced
@@ -17,6 +17,49 @@ export default function AddGuideModal({ onClose }) {
         html_content: '',
         css_content: ''
     })
+
+    // Prevent non-authenticated users from creating guides
+    if (!isAuthenticated() || !user) {
+        return (
+            <div className="fixed inset-0 z-50 overflow-y-auto">
+                {/* Backdrop */}
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+                    onClick={onClose}
+                />
+
+                {/* Modal */}
+                <div className="relative min-h-screen flex items-center justify-center p-4">
+                    <div className="relative bg-white w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
+                        <div className="p-8 flex flex-col items-center justify-center min-h-96">
+                            <div className="text-6xl mb-4">🔐</div>
+                            <h2 className="text-3xl font-black text-center mb-4">Sign In Required</h2>
+                            <p className="text-gray-600 text-center mb-8 max-w-md">
+                                You must be signed in to create guides. This helps us track authorship and maintain guide quality.
+                            </p>
+                            <div className="flex items-center justify-center gap-4">
+                                <button
+                                    onClick={onClose}
+                                    className="px-6 py-3 border-2 border-black font-medium hover:bg-gray-100 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        onClose()
+                                        navigate('/auth?redirect=guides')
+                                    }}
+                                    className="px-6 py-3 bg-black text-white font-medium hover:bg-gray-800 transition-colors"
+                                >
+                                    Sign In
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     async function handleSubmit(e) {
         e.preventDefault()
@@ -46,7 +89,9 @@ export default function AddGuideModal({ onClose }) {
                 html_content: formData.html_content,
                 css_content: formData.css_content,
                 content_type: activeTab === 'advanced' ? 'html' : 'markdown',
-                user_email: user?.email // Pass owner email
+                user_email: user?.email, // Pass owner email
+                author_name: user?.user_metadata?.full_name || user?.email?.split('@')[0], // Author name
+                author_id: user?.id // Author ID
             })
 
             if (guide && guide.slug) {

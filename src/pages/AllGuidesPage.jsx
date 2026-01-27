@@ -135,8 +135,8 @@ export default function AllGuidesPage() {
                         <button
                             onClick={() => setSelectedTag(null)}
                             className={`px-3 py-1 text-sm font-medium transition-colors ${!selectedTag
-                                    ? 'bg-black text-white'
-                                    : 'bg-gray-100 hover:bg-gray-200'
+                                ? 'bg-black text-white'
+                                : 'bg-gray-100 hover:bg-gray-200'
                                 }`}
                         >
                             All
@@ -146,8 +146,8 @@ export default function AllGuidesPage() {
                                 key={tag}
                                 onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
                                 className={`px-3 py-1 text-sm font-medium transition-colors ${selectedTag === tag
-                                        ? 'bg-black text-white'
-                                        : 'bg-gray-100 hover:bg-gray-200'
+                                    ? 'bg-black text-white'
+                                    : 'bg-gray-100 hover:bg-gray-200'
                                     }`}
                             >
                                 {tag}
@@ -202,7 +202,7 @@ export default function AllGuidesPage() {
                         <Link
                             key={guide.id}
                             to={`/guide/${guide.slug}`}
-                            className="group border-2 border-black p-6 hover:shadow-lg transition-all hover:-translate-y-1"
+                            className="group border-2 border-black p-6 hover:shadow-lg transition-all hover:-translate-y-1 flex flex-col"
                         >
                             <div className="flex items-start justify-between mb-3">
                                 <h3 className="text-xl font-bold group-hover:underline flex-1">
@@ -210,6 +210,19 @@ export default function AllGuidesPage() {
                                 </h3>
                                 <ArrowUpRight size={20} className="text-gray-400 group-hover:text-black transition-colors" />
                             </div>
+
+                            {/* Author info */}
+                            {guide.user_email && (
+                                <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
+                                    <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                                        {(guide.author_name || guide.user_email)?.[0]?.toUpperCase()}
+                                    </div>
+                                    <span className="text-gray-600 font-medium">
+                                        {guide.author_name || guide.user_email.split('@')[0]}
+                                    </span>
+                                </div>
+                            )}
+
                             <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
                                 <Calendar size={14} />
                                 {new Date(guide.created_at).toLocaleDateString('en-US', {
@@ -247,7 +260,13 @@ export default function AllGuidesPage() {
                             to={`/guide/${guide.slug}`}
                             className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors group"
                         >
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 flex items-center gap-3">
+                                {/* Author avatar */}
+                                {guide.user_email && (
+                                    <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                        {(guide.author_name || guide.user_email)?.[0]?.toUpperCase()}
+                                    </div>
+                                )}
                                 <h3 className="font-bold group-hover:underline truncate">
                                     {highlight(guide.title)}
                                 </h3>

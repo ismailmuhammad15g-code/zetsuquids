@@ -689,6 +689,11 @@ export default function ZetsuGuideAIPage() {
         }
     }, [messages.length, isThinking])
 
+    // Reset loading state on mount
+    useEffect(() => {
+        setCreditsLoading(true)
+    }, [])
+
     // Load saved prompts from localStorage
     useEffect(() => {
         const saved = localStorage.getItem('zetsuguide_saved_prompts')
@@ -867,7 +872,10 @@ export default function ZetsuGuideAIPage() {
                 markdown: cleanContent,
                 content: cleanContent,
                 keywords: keywords,
-                content_type: 'markdown'
+                content_type: 'markdown',
+                user_email: user?.email, // Author email
+                author_name: user?.user_metadata?.full_name || user?.email?.split('@')[0], // Author name
+                author_id: user?.id // Author ID
             })
 
             if (newGuide) {
