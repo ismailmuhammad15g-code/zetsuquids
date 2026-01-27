@@ -1,6 +1,7 @@
 import { BookOpen, Calendar, Edit2, Loader2, Mail, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import Toast from '../components/Toast'
 import { useAuth } from '../contexts/AuthContext'
 import { getAllAvatars, getAvatarForUser } from '../lib/avatar'
 import { supabase } from '../lib/supabase'
@@ -19,6 +20,7 @@ export default function UserWorkspacePage() {
     const [editBio, setEditBio] = useState('')
     const [selectedAvatar, setSelectedAvatar] = useState(null)
     const [savingProfile, setSavingProfile] = useState(false)
+    const [toast, setToast] = useState(null)
 
     // Check if this is the current user's workspace
     const isOwnWorkspace = user?.email && userProfile?.author_email === user.email
@@ -160,7 +162,7 @@ export default function UserWorkspacePage() {
 
                 if (error) {
                     console.error('Error updating profile:', error.message)
-                    alert(`Failed to save profile: ${error.message}`)
+                    setToast({ type: 'error', message: `Failed to save profile: ${error.message}` })
                     return
                 }
             } else {
@@ -176,7 +178,7 @@ export default function UserWorkspacePage() {
 
                 if (error) {
                     console.error('Error creating profile:', error.message)
-                    alert(`Failed to create profile: ${error.message}`)
+                    setToast({ type: 'error', message: `Failed to create profile: ${error.message}` })
                     return
                 }
             }
@@ -188,11 +190,11 @@ export default function UserWorkspacePage() {
             })
             setAvatarUrl(getAvatarForUser(user.email, selectedAvatar))
             setShowEditModal(false)
-            alert('Profile updated successfully!')
+            setToast({ type: 'success', message: 'Profile updated successfully!' })
 
         } catch (err) {
             console.error('Save error:', err)
-            alert('Error saving profile: ' + err.message)
+            setToast({ type: 'error', message: 'Error saving profile: ' + err.message })
         } finally {
             setSavingProfile(false)
         }
@@ -534,6 +536,13 @@ export default function UserWorkspacePage() {
                     </div>
                 </div>
             )}
-        </div>
+            {/* Toast Notification */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast(null)}
+                />
+            )}        </div>
     )
 }
