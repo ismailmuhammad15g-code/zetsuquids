@@ -14,11 +14,11 @@ import { SparklesText } from '../components/ui/sparkles-text'
 import { useAuth } from '../contexts/AuthContext'
 import { guidesApi, isSupabaseConfigured, supabase } from '../lib/api'
 
-// AI API Configuration - Using Netlify Functions in production, local backend in dev
+// AI API Configuration - Using Grok API via backend proxy
 const isDev = import.meta.env.DEV
 const API_BASE = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:5000' : '')
-const AI_API_URL = isDev ? `${API_BASE}/api/ai/chat` : '/api/ai'
-const AI_MODEL = import.meta.env.VITE_AI_MODEL || 'kimi-k2-0905:free'
+const AI_API_URL = isDev ? `${API_BASE}/api/ai/chat` : '/api/ai/chat'
+const AI_MODEL = import.meta.env.VITE_AI_MODEL || 'grok-2'
 
 // Agent Thinking Phases
 const AGENT_PHASES = {
@@ -1340,16 +1340,21 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                         { role: 'user', content: userQuery }
                     ],
                     temperature: 0.7,
-                    max_tokens: 4096,
-                    userId: user?.id
+                    max_tokens: 4096
                 })
             })
 
+            console.log('AI API Response Status:', response.status)
+
             if (!response.ok) {
-                throw new Error(`API error: ${response.status}`)
+                const errorData = await response.text()
+                console.error('AI API Error Response:', response.status, errorData)
+                throw new Error(`API error: ${response.status} - ${errorData}`)
             }
 
             const data = await response.json()
+            console.log('AI Response data received:', !!data.choices)
+
             let aiRaw = data.choices?.[0]?.message?.content || '{}'
             let aiContent = ''
             let isPublishable = false

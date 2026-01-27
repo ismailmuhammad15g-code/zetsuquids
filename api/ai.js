@@ -28,14 +28,14 @@ export default async function handler(req, res) {
             try { body = JSON.parse(body) } catch (e) { }
         }
 
-        const { messages, model, userId } = body || {}
+        const { messages, model, userId, userEmail } = body || {}
 
         // 1. Validate Inputs
-        if (!userId) {
-            return res.status(400).json({ error: 'User ID is required for credit usage.' })
+        if (!userId && !userEmail) {
+            return res.status(400).json({ error: 'User ID or email is required for credit usage.' })
         }
 
-        console.log('AI Request:', { userId, model: model || 'kimi-k2-0905:free' })
+        console.log('AI Request:', { userId, userEmail, model: model || 'kimi-k2-0905:free' })
 
         // 2. Init Supabase Admin
         const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
@@ -48,24 +48,21 @@ export default async function handler(req, res) {
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-        // 3. Check Credits
+        // 3. Check Credits - Use email as primary identifier
+        const lookupEmail = userEmail ? userEmail.toLowerCase() : userId
         const { data: creditData, error: creditError } = await supabase
             .from('zetsuguide_credits')
-            .select('credits')
-            .eq('user_id', userId)
-            .single()
+            .select('credits, user_email')
+            .eq('user_email', lookupEmail)
+            .maybeSingle()
 
         if (creditError) {
             console.error('Error fetching credits:', creditError)
-            // Allow guest usage if row missing? Or strict fail? 
-            // Let's assume strict fail for now as they should have credits initialized.
-            if (creditError.code !== 'PGRST116') { // PGRST116 is "Row not found"
-                return res.status(500).json({ error: 'Failed to verify credits' })
-            }
+            return res.status(500).json({ error: 'Failed to verify credits' })
         }
 
         const currentCredits = creditData?.credits || 0
-        console.log(`User ${userId} has ${currentCredits} credits.`)
+        console.log(`User ${lookupEmail} has ${currentCredits} credits.`)
 
         if (currentCredits < 1) {
             return res.status(403).json({ error: 'Insufficient credits. Please refer friends to earn more!' })
@@ -102,14 +99,14 @@ export default async function handler(req, res) {
         // 5. Deduct Credit (Only if AI succeeds)
         const { error: deductError } = await supabase
             .from('zetsuguide_credits')
-            .update({ credits: currentCredits - 1 })
-            .eq('user_id', userId)
+            .update({ credits: currentCredits - 1, updated_at: new Date().toISOString() })
+            .eq('user_email', lookupEmail)
 
         if (deductError) {
             console.error('Failed to deduct credit:', deductError)
             // We don't fail the request here, just log it. The user got their answer.
         } else {
-            console.log(`Deducted 1 credit for user ${userId}. New balance: ${currentCredits - 1}`)
+            console.log(`Deducted 1 credit for user ${lookupEmail}. New balance: ${currentCredits - 1}`)
         }
 
         // 6. Return Response

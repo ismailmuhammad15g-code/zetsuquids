@@ -1,15 +1,16 @@
 /**
  * AI Proxy Route
  * Proxies requests to external AI API to avoid CORS issues
+ * Now configured for Grok API
  */
 
 const express = require('express')
 const router = express.Router()
 
-// AI API Configuration
-const AI_API_URL = process.env.AI_API_URL || 'https://api.routeway.ai/v1/chat/completions'
-const AI_API_KEY = process.env.AI_API_KEY
-const AI_MODEL = process.env.AI_MODEL || 'kimi-k2-0905:free'
+// Grok API Configuration
+const AI_API_URL = process.env.GROK_API_URL || 'https://api.x.ai/v1/chat/completions'
+const AI_API_KEY = process.env.GROK_API_KEY
+const AI_MODEL = process.env.GROK_MODEL || 'grok-2'
 
 // POST /api/ai/chat - Proxy AI chat requests
 router.post('/chat', async (req, res) => {
@@ -21,13 +22,13 @@ router.post('/chat', async (req, res) => {
         }
 
         if (!AI_API_KEY) {
-            console.error('AI_API_KEY not configured')
-            return res.status(500).json({ error: 'AI service not configured' })
+            console.error('GROK_API_KEY not configured')
+            return res.status(500).json({ error: 'AI service not configured. Please set GROK_API_KEY environment variable.' })
         }
 
-        // FORCE use of backend configured model (ignores frontend legacy defaults like 'kimi')
+        // Use Grok model
         const useModel = AI_MODEL
-        console.log('Proxying AI request to:', AI_API_URL, 'with model:', useModel)
+        console.log('Proxying AI request to Grok API with model:', useModel)
 
         // Create AbortController with 120 second timeout (AI can take time)
         const controller = new AbortController()
@@ -44,7 +45,8 @@ router.post('/chat', async (req, res) => {
                     model: useModel,
                     messages,
                     temperature,
-                    max_tokens
+                    max_tokens,
+                    stream: false
                 }),
                 signal: controller.signal
             })
@@ -53,7 +55,7 @@ router.post('/chat', async (req, res) => {
 
             if (!response.ok) {
                 const errorText = await response.text()
-                console.error(`AI API error: ${response.status}`, errorText)
+                console.error(`Grok API error: ${response.status}`, errorText)
 
                 // Fallback for 5xx/429 errors (Upstream issues) to prevent UI crash
                 if (response.status >= 500 || response.status === 429) {
@@ -61,14 +63,14 @@ router.post('/chat', async (req, res) => {
                         choices: [{
                             message: {
                                 role: 'assistant',
-                                content: `⚠️ **Service Unavailable (${response.status})**\n\nThe external AI provider is currently experiencing downtime (Gateway Timeout).`
+                                content: `⚠️ **Grok Service Temporarily Unavailable (${response.status})**\n\nThe Grok AI service is currently experiencing high load.\nPlease try again in a moment.`
                             }
                         }]
                     })
                 }
 
                 return res.status(response.status).json({
-                    error: `AI API error: ${response.status}`,
+                    error: `Grok API error: ${response.status}`,
                     details: errorText
                 })
             }
@@ -77,18 +79,18 @@ router.post('/chat', async (req, res) => {
 
             // Validate response structure
             if (!data || !data.choices || !data.choices.length || !data.choices[0].message) {
-                console.error('Invalid AI response structure:', JSON.stringify(data))
+                console.error('Invalid Grok response structure:', JSON.stringify(data))
                 return res.json({
                     choices: [{
                         message: {
                             role: 'assistant',
-                            content: "⚠️ **Provider Error**\n\nThe AI service returned an empty or invalid response. Please try again or switch models."
+                            content: "⚠️ **Grok Response Error**\n\nThe AI service returned an empty or invalid response. Please try again."
                         }
                     }]
                 })
             }
 
-            console.log('AI response received successfully')
+            console.log('Grok response received successfully')
             res.json(data)
         } catch (fetchError) {
             clearTimeout(timeoutId)
@@ -101,7 +103,7 @@ router.post('/chat', async (req, res) => {
                     choices: [{
                         message: {
                             role: 'assistant',
-                            content: "⚠️ **Connection Timeout**\n\nI apologize, but the AI service is taking too long to respond (120s).\nThis usually means the upstream provider is overloaded.\nPlease try again in a few minutes."
+                            content: "⚠️ **Connection Timeout**\n\nThe Grok AI service took too long to respond (120s).\nPlease try again."
                         }
                     }]
                 })
@@ -112,7 +114,7 @@ router.post('/chat', async (req, res) => {
     } catch (error) {
         console.error('AI Proxy error:', error)
         res.status(500).json({
-            error: 'Failed to connect to AI service',
+            error: 'Failed to connect to Grok AI service',
             details: error.message
         })
     }
