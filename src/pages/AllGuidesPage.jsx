@@ -2,6 +2,8 @@ import { ArrowUpRight, Calendar, Filter, Grid, List, Loader2, Plus, Search, Tag 
 import { useEffect, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 import { guidesApi } from '../lib/api'
+import { getAvatarForUser } from '../lib/avatar'
+import { supabase } from '../lib/supabase'
 
 export default function AllGuidesPage() {
     const { openAddModal } = useOutletContext()
@@ -12,6 +14,7 @@ export default function AllGuidesPage() {
     const [viewMode, setViewMode] = useState('grid') // grid or list
     const [selectedTag, setSelectedTag] = useState(null)
     const [allTags, setAllTags] = useState([])
+    const [authorAvatars, setAuthorAvatars] = useState({}) // Cache for author avatars
 
     useEffect(() => {
         loadGuides()
@@ -30,11 +33,41 @@ export default function AllGuidesPage() {
                 (g.keywords || []).forEach(k => tags.add(k))
             })
             setAllTags(Array.from(tags))
+
+            // Fetch avatars for all unique authors
+            await fetchAuthorAvatars(data)
         } catch (err) {
             console.error('Error loading guides:', err)
         } finally {
             setLoading(false)
         }
+    }
+
+    async function fetchAuthorAvatars(guidesList) {
+        const uniqueEmails = new Set(guidesList.map(g => g.user_email).filter(Boolean))
+        const newAvatars = { ...authorAvatars }
+
+        for (const email of uniqueEmails) {
+            if (newAvatars[email]) continue // Already cached
+
+            try {
+                const { data: profileData } = await supabase
+                    .from('zetsuguide_user_profiles')
+                    .select('avatar_url')
+                    .eq('user_email', email)
+                    .maybeSingle()
+
+                // Get avatar: from profile or deterministic hash
+                const avatarUrl = getAvatarForUser(email, profileData?.avatar_url)
+                newAvatars[email] = avatarUrl
+            } catch (err) {
+                console.error(`Error fetching avatar for ${email}:`, err)
+                // Fallback to deterministic avatar
+                newAvatars[email] = getAvatarForUser(email, null)
+            }
+        }
+
+        setAuthorAvatars(newAvatars)
     }
 
     // Filter guides
@@ -214,9 +247,17 @@ export default function AllGuidesPage() {
                             {/* Author info */}
                             {guide.user_email && (
                                 <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
-                                    <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
-                                        {(guide.author_name || guide.user_email)?.[0]?.toUpperCase()}
-                                    </div>
+                                    {authorAvatars[guide.user_email] ? (
+                                        <img
+                                            src={authorAvatars[guide.user_email]}
+                                            alt={guide.author_name}
+                                            className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                                        />
+                                    ) : (
+                                        <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                            {(guide.author_name || guide.user_email)?.[0]?.toUpperCase()}
+                                        </div>
+                                    )}
                                     <span className="text-gray-600 font-medium">
                                         {guide.author_name || guide.user_email.split('@')[0]}
                                     </span>
@@ -264,9 +305,17 @@ export default function AllGuidesPage() {
                                 <div className="flex items-center gap-3 mb-2">
                                     {/* Author avatar */}
                                     {guide.user_email && (
-                                        <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                                            {(guide.author_name || guide.user_email)?.[0]?.toUpperCase()}
-                                        </div>
+                                        authorAvatars[guide.user_email] ? (
+                                            <img
+                                                src={authorAvatars[guide.user_email]}
+                                                alt={guide.author_name}
+                                                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                            />
+                                        ) : (
+                                            <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                                {(guide.author_name || guide.user_email)?.[0]?.toUpperCase()}
+                                            </div>
+                                        )
                                     )}
                                     <h3 className="font-bold group-hover:underline truncate">
                                         {highlight(guide.title)}
