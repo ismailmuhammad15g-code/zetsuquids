@@ -1,7 +1,6 @@
 import { BookOpen, Calendar, Loader2, Mail } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { guidesApi } from '../lib/api'
 import { getAvatarForUser } from '../lib/avatar'
 import { supabase } from '../lib/supabase'
 
@@ -26,19 +25,36 @@ export default function UserWorkspacePage() {
         try {
             console.log('Loading workspace for username:', username)
 
-            // First, try to find the user by username/email in the guides table
-            // We'll fetch all guides and filter by author email matching the username pattern
-            const allGuides = await guidesApi.getAll()
-            console.log('All guides fetched:', allGuides.length)
+            // PRIORITY: Fetch ONLY from Supabase (authoritative source)
+            // Ignore localStorage to prevent inconsistencies
+            let supabaseGuides = []
+            try {
+                const { data, error: fetchError } = await supabase
+                    .from('guides')
+                    .select('*')
+                    .order('created_at', { ascending: false })
 
-            // Try to extract email from username (it might be part of email like 'john' from 'john@example.com')
-            // OR find exact matches where user_email contains the username
-            const matchingGuides = allGuides.filter(guide => {
+                if (fetchError) {
+                    console.error('Supabase fetch error:', fetchError)
+                } else if (data) {
+                    console.log('Got', data.length, 'guides from Supabase')
+                    supabaseGuides = data
+                }
+            } catch (err) {
+                console.error('Supabase connection error:', err)
+            }
+
+            if (supabaseGuides.length === 0) {
+                console.warn('No guides found in Supabase')
+                setError('User not found or has no guides')
+                setLoading(false)
+                return
+            }
+
+            // Filter guides by matching username/email
+            const matchingGuides = supabaseGuides.filter(guide => {
                 const userEmail = guide.user_email || ''
                 const authorName = guide.author_name || ''
-
-                // Match by username/email prefix or exact author name
-                // Also check if email starts with the username (more flexible)
                 const emailPrefix = userEmail.split('@')[0].toLowerCase()
 
                 return (
@@ -68,25 +84,34 @@ export default function UserWorkspacePage() {
                 created_at: matchingGuides[matchingGuides.length - 1].created_at // Earliest guide date
             }
 
-            // Fetch user profile with avatar from database
+            // Fetch complete user profile with avatar and bio from database
             let userAvatarUrl = null
+            let userBio = null
             try {
                 const { data: profileData } = await supabase
                     .from('zetsuguide_user_profiles')
-                    .select('avatar_url')
+                    .select('avatar_url, bio')
                     .eq('user_email', firstGuide.user_email)
                     .maybeSingle()
 
                 if (profileData?.avatar_url) {
                     userAvatarUrl = profileData.avatar_url
                 }
+                if (profileData?.bio) {
+                    userBio = profileData.bio
+                }
             } catch (err) {
-                console.error('Error fetching avatar:', err)
+                console.error('Error fetching profile:', err)
             }
 
             // Get avatar: from profile, or deterministic hash based on email
             const finalAvatarUrl = getAvatarForUser(firstGuide.user_email, userAvatarUrl)
             setAvatarUrl(finalAvatarUrl)
+
+            // Add bio to profile if available
+            if (userBio) {
+                profile.bio = userBio
+            }
 
             setUserProfile(profile)
             setUserGuides(matchingGuides.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)))
@@ -170,6 +195,10 @@ export default function UserWorkspacePage() {
                         <div className="flex-1">
                             <h1 className="text-4xl font-black mb-2">@{userProfile?.author_name}</h1>
 
+                            {userProfile?.bio && (
+                                <p className="text-gray-700 mb-4 text-lg italic">"{userProfile.bio}"</p>
+                            )}
+
                             <div className="flex flex-col gap-3 text-gray-600 mb-6">
                                 {userProfile?.author_email && (
                                     <div className="flex items-center gap-2">
@@ -213,6 +242,70 @@ export default function UserWorkspacePage() {
                     </div>
                 </div>
             </div>
+
+            {/* Stats Section */}
+            {userGuides.length > 0 && (
+                <div className="bg-gray-100 border-y-2 border-black">
+                    <div className="max-w-6xl mx-auto px-4 py-8">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {/* Top Keywords */}
+                            <div>
+                                <h3 className="font-bold text-lg mb-3">Top Topics</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {Array.from(
+                                        new Map(
+                                            userGuides
+                                                .flatMap(g => (g.keywords || []).map(k => [k, 1]))
+                                                .reduce((acc, [k, v]) => acc.set(k, (acc.get(k) || 0) + v), new Map())
+                                                .entries()
+                                        )
+                                    )
+                                        .sort((a, b) => b[1] - a[1])
+                                        .slice(0, 5)
+                                        .map(([keyword, count]) => (
+                                            <span
+                                                key={keyword}
+                                                className="px-3 py-1 bg-black text-white text-xs font-medium rounded"
+                                            >
+                                                {keyword}
+                                            </span>
+                                        ))}
+                                </div>
+                            </div>
+
+                            {/* Stats */}
+                            <div>
+                                <h3 className="font-bold text-lg mb-3">Statistics</h3>
+                                <div className="space-y-2 text-sm">
+                                    <p><span className="font-bold">{userGuides.length}</span> Guides Published</p>
+                                    <p><span className="font-bold">{userGuides.reduce((acc, g) => acc + (g.keywords?.length || 0), 0)}</span> Total Topics Covered</p>
+                                    <p><span className="font-bold">{new Date().getFullYear() - new Date(userProfile?.created_at).getFullYear() === 0 ? 'This Year' : new Date().getFullYear() - new Date(userProfile?.created_at).getFullYear() + ' Years'}</span> Member</p>
+                                </div>
+                            </div>
+
+                            {/* Languages */}
+                            <div>
+                                <h3 className="font-bold text-lg mb-3">Content Types</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {Array.from(
+                                        new Set(
+                                            userGuides
+                                                .flatMap(g => g.keywords || [])
+                                                .filter(k => ['python', 'javascript', 'typescript', 'react', 'nodejs', 'html', 'css'].includes(k.toLowerCase()))
+                                        )
+                                    )
+                                        .slice(0, 4)
+                                        .map(lang => (
+                                            <span key={lang} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
+                                                {lang}
+                                            </span>
+                                        ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Guides Section */}
             <div className="max-w-6xl mx-auto px-4 py-12">
