@@ -1,5 +1,5 @@
 import Lottie from 'lottie-react'
-import { ArrowLeft, Check, ChevronRight, Copy, Crown, Sparkles, Star, Users, X, Zap } from 'lucide-react'
+import { ArrowLeft, Check, ChevronRight, Copy, Crown, Gift, Sparkles, Star, Users, X, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import giftAnimation from '../assets/gift.json'
@@ -27,7 +27,8 @@ export default function PricingPage() {
     const [referralStats, setReferralStats] = useState({
         totalReferrals: 0,
         totalBalance: 0,
-        creditsEarned: 0  // Only from referrals, not total
+        creditsEarned: 0,  // Only from referrals they created
+        bonusReceived: 0   // 5 if they were referred, 0 if not
     })
 
     // Close earn modal when component unmounts or showEarnModal changes
@@ -43,7 +44,7 @@ export default function PricingPage() {
                     // First check if user already has a referral code in database
                     const { data: existingCredits } = await supabase
                         .from('zetsuguide_credits')
-                        .select('referral_code, total_referrals, credits')
+                        .select('referral_code, total_referrals, credits, referred_by')
                         .eq('user_email', user.email.toLowerCase())
                         .maybeSingle()
 
@@ -51,10 +52,12 @@ export default function PricingPage() {
                         // Use existing code from database
                         setReferralCode(existingCredits.referral_code)
                         const referralEarnings = (existingCredits.total_referrals || 0) * 5
+                        const bonusReceived = existingCredits.referred_by ? 5 : 0
                         setReferralStats({
                             totalReferrals: existingCredits.total_referrals || 0,
                             totalBalance: existingCredits.credits || 0,  // Total = 5 initial + (referrals * 5)
-                            creditsEarned: referralEarnings  // Only referral earnings
+                            creditsEarned: referralEarnings,  // Only referral earnings
+                            bonusReceived: bonusReceived  // 5 if referred, 0 if not
                         })
                     } else {
                         // Generate new code
@@ -77,10 +80,12 @@ export default function PricingPage() {
                         setReferralCode(newCode)
                         // Force update state immediately for new users
                         const referralEarnings = (newCreditsData?.total_referrals || 0) * 5
+                        const bonusReceived = newCreditsData?.referred_by ? 5 : 0
                         setReferralStats({
                             totalReferrals: (newCreditsData?.total_referrals || 0),
                             totalBalance: (newCreditsData?.credits || 5),  // Total = 5 initial + (referrals * 5)
-                            creditsEarned: referralEarnings  // Only referral earnings
+                            creditsEarned: referralEarnings,  // Only referral earnings
+                            bonusReceived: bonusReceived  // 5 if referred, 0 if not
                         })
                         console.log('Referral code saved to database:', newCode)
                     }
@@ -110,15 +115,18 @@ export default function PricingPage() {
                     console.log('[RealTime] Referral stats updated:', payload)
                     if (payload.new) {
                         const referralEarnings = (payload.new.total_referrals || 0) * 5
+                        const bonusReceived = payload.new.referred_by ? 5 : 0
                         setReferralStats({
                             totalReferrals: payload.new.total_referrals || 0,
                             totalBalance: payload.new.credits || 0,  // Total balance
-                            creditsEarned: referralEarnings  // Only referral earnings
+                            creditsEarned: referralEarnings,  // Only referral earnings
+                            bonusReceived: bonusReceived  // 5 if referred, 0 if not
                         })
                         console.log('[RealTime] Updated state to:', {
                             totalReferrals: payload.new.total_referrals || 0,
                             totalBalance: payload.new.credits || 0,
-                            creditsEarned: referralEarnings
+                            creditsEarned: referralEarnings,
+                            bonusReceived: bonusReceived
                         })
                     }
                 })
@@ -329,6 +337,11 @@ export default function PricingPage() {
                                 <Zap size={20} />
                                 <span className="earn-stat-value">{referralStats.creditsEarned}</span>
                                 <span className="earn-stat-label">Credits Earned</span>
+                            </div>
+                            <div className="earn-stat">
+                                <Gift size={20} />
+                                <span className="earn-stat-value">+{referralStats.bonusReceived}</span>
+                                <span className="earn-stat-label">Bonus Received</span>
                             </div>
                         </div>
 
