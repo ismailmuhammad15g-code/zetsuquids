@@ -140,19 +140,45 @@ export default function UserWorkspacePage() {
 
         setSavingProfile(true)
         try {
-            // Update profile in database
-            const { error } = await supabase
+            // First, check if profile exists
+            const { data: existingProfile } = await supabase
                 .from('zetsuguide_user_profiles')
-                .update({
-                    bio: editBio,
-                    avatar_url: selectedAvatar
-                })
+                .select('id')
                 .eq('user_email', user.email)
+                .maybeSingle()
 
-            if (error) {
-                console.error('Error saving profile:', error)
-                alert('Failed to save profile')
-                return
+            if (existingProfile) {
+                // Update existing profile
+                const { error } = await supabase
+                    .from('zetsuguide_user_profiles')
+                    .update({
+                        bio: editBio,
+                        avatar_url: selectedAvatar,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('user_email', user.email)
+
+                if (error) {
+                    console.error('Error updating profile:', error.message)
+                    alert(`Failed to save profile: ${error.message}`)
+                    return
+                }
+            } else {
+                // Create new profile if it doesn't exist
+                const { error } = await supabase
+                    .from('zetsuguide_user_profiles')
+                    .insert([{
+                        user_email: user.email,
+                        bio: editBio,
+                        avatar_url: selectedAvatar,
+                        account_type: 'individual'
+                    }])
+
+                if (error) {
+                    console.error('Error creating profile:', error.message)
+                    alert(`Failed to create profile: ${error.message}`)
+                    return
+                }
             }
 
             // Update local state
@@ -166,7 +192,7 @@ export default function UserWorkspacePage() {
 
         } catch (err) {
             console.error('Save error:', err)
-            alert('Error saving profile')
+            alert('Error saving profile: ' + err.message)
         } finally {
             setSavingProfile(false)
         }
@@ -458,8 +484,8 @@ export default function UserWorkspacePage() {
                                             key={avatarPath}
                                             onClick={() => setSelectedAvatar(avatarPath)}
                                             className={`p-2 rounded border-2 transition-all ${selectedAvatar === avatarPath
-                                                    ? 'border-black bg-black/5'
-                                                    : 'border-gray-300 hover:border-gray-400'
+                                                ? 'border-black bg-black/5'
+                                                : 'border-gray-300 hover:border-gray-400'
                                                 }`}
                                         >
                                             <img
