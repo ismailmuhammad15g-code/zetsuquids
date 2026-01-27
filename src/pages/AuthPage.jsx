@@ -79,11 +79,14 @@ export default function AuthPage() {
     useEffect(() => {
         const ref = searchParams.get('ref')
         const storedRef = localStorage.getItem('pending_referral_code')
-        const effectiveRef = ref || storedRef
+        
+        // SAFETY: Only use stored ref if current URL has a ref parameter
+        // This prevents showing referral banner on plain /auth visits
+        const effectiveRef = ref || (ref ? storedRef : null)
 
         if (effectiveRef) {
             setReferralCode(effectiveRef)
-            if (!storedRef) {
+            if (!storedRef && ref) {
                 localStorage.setItem('pending_referral_code', effectiveRef)
             }
 
@@ -100,6 +103,10 @@ export default function AuthPage() {
                 // Remove any invalid stored code
                 localStorage.removeItem('pending_referral_code')
             }
+        } else {
+            // SAFETY: Clear referral code if no valid ref in URL
+            setReferralCode('')
+            setIsValidReferral(false)
         }
     }, [searchParams])
 
