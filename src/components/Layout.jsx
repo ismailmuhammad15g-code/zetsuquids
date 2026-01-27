@@ -374,8 +374,10 @@ export default function Layout() {
             )}
             {showReferralSuccess && (
                 <ReferralSuccessModal
-                    onClose={() => {
+                    onClose={async () => {
                         setShowReferralSuccess(false)
+                        // Refresh session to reflect updated metadata
+                        await supabase.auth.refreshSession()
                         setCheckingReferral(false)
                     }}
                     bonusCredits={5}

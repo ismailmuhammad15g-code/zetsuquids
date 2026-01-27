@@ -90,6 +90,14 @@ export default async function handler(req, res) {
         const currentUserCredits = newUserCredits?.credits || 5 // Default start is 5
         const newUserNewCredits = currentUserCredits + 5
 
+        console.log('[ClaimReferral] New User Credits:', {
+            userEmail,
+            currentUserCredits,
+            bonusToAdd: 5,
+            newUserNewCredits,
+            existingRow: !!newUserCredits
+        })
+
         const { error: updateNewUserError } = await supabase
             .from('zetsuguide_credits')
             .upsert({
@@ -104,6 +112,8 @@ export default async function handler(req, res) {
             console.error('[ClaimReferral] Failed to update new user credits:', updateNewUserError)
             throw updateNewUserError
         }
+
+        console.log('[ClaimReferral] Successfully updated new user credits to:', newUserNewCredits)
 
         // B. Bonus for Referrer (+5)
         const referrerNewCredits = (referrerData.credits || 0) + 5

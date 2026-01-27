@@ -43,7 +43,7 @@ export default function PricingPage() {
                     const { data: existingCredits } = await supabase
                         .from('zetsuguide_credits')
                         .select('referral_code, total_referrals, credits')
-                        .eq('user_id', user.id)
+                        .eq('user_email', user.email.toLowerCase())
                         .maybeSingle()
 
                     if (existingCredits?.referral_code) {
@@ -62,12 +62,12 @@ export default function PricingPage() {
                         const { data: newCreditsData } = await supabase
                             .from('zetsuguide_credits')
                             .upsert({
-                                user_id: user.id,
                                 user_email: user.email.toLowerCase(),
                                 referral_code: newCode,
                                 credits: existingCredits ? existingCredits.credits : 5,
+                                total_referrals: 0,
                                 updated_at: new Date().toISOString()
-                            }, { onConflict: 'user_id' })
+                            }, { onConflict: 'user_email' })
                             .select()
                             .single()
 
@@ -91,20 +91,24 @@ export default function PricingPage() {
 
         setupReferralCode()
 
-        // Realtime Subscription
+        // Realtime Subscription - Listen for changes on this user's credits
         let subscription
-        if (user?.id) {
+        if (user?.email) {
             subscription = supabase
-                .channel('public:zetsuguide_credits')
+                .channel(`public:zetsuguide_credits:user_email=eq.${user.email.toLowerCase()}`)
                 .on('postgres_changes', {
                     event: '*', // Listen to INSERT and UPDATE
                     schema: 'public',
                     table: 'zetsuguide_credits',
-                    filter: `user_id=eq.${user.id}`
+                    filter: `user_email=eq.${user.email.toLowerCase()}`
                 }, (payload) => {
-                    console.log('Realtime update received:', payload)
+                    console.log('[RealTime] Referral stats updated:', payload)
                     if (payload.new) {
                         setReferralStats({
+                            totalReferrals: payload.new.total_referrals || 0,
+                            creditsEarned: payload.new.credits || 0
+                        })
+                        console.log('[RealTime] Updated state to:', {
                             totalReferrals: payload.new.total_referrals || 0,
                             creditsEarned: payload.new.credits || 0
                         })
