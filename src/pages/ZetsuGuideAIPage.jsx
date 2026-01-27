@@ -83,25 +83,27 @@ async function getCreditsFromDB(user) {
                 return data.credits
             }
 
-            // User doesn't have credits record yet - create one with 5 credits
+            // User doesn't have credits record yet - UPSERT to avoid duplicates
             if (!data) {
                 console.log('Creating new credits record for user')
-                // Fix 409 error: Using explicit insert, handle conflict gracefully if race condition
-                const { data: newData, error: insertError } = await supabase
+                const { data: newData, error: upsertError } = await supabase
                     .from('zetsuguide_credits')
-                    .insert({
+                    .upsert({
                         user_email: user.email.toLowerCase(),
                         credits: 5,
-                        created_at: new Date().toISOString()
-                    })
+                        total_referrals: 0,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_email' })
                     .select('credits')
                     .single()
 
-                if (!insertError && newData) {
+                if (!upsertError && newData) {
+                    console.log('Credits created/verified:', newData.credits)
                     return newData.credits
-                } else if (insertError && insertError.code === '23505') {
-                    // Handle race condition: fetch again if insert failed due to duplicate
-                    console.log('Credits record already exists (race condition), fetching again...')
+                } else if (upsertError) {
+                    console.error('Upsert error:', upsertError)
+                    // Fallback: fetch the data
                     const { data: retryData } = await supabase
                         .from('zetsuguide_credits')
                         .select('credits')
@@ -660,6 +662,7 @@ export default function ZetsuGuideAIPage() {
     const [usageLogs, setUsageLogs] = useState([])
     const [showUsageHistory, setShowUsageHistory] = useState(false)
     const [isLoadingLogs, setIsLoadingLogs] = useState(false)
+    const [historyTab, setHistoryTab] = useState('usage') // 'usage' or 'credits'
 
     // Default prompts
     const defaultPrompts = [
@@ -1746,7 +1749,7 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                             </>
                                         ) : (
                                             <>
-                                                {/* Usage History View */}
+                                                {/* History View - with Tabs */}
                                                 <div className="zetsu-popover-header">
                                                     <div
                                                         className="zetsu-popover-back"
@@ -1755,27 +1758,94 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                                         <ArrowRight size={16} className="rotate-180" />
                                                         <span>Back to Profile</span>
                                                     </div>
+                                                    {/* Tabs */}
+                                                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '8px' }}>
+                                                        <button
+                                                            onClick={() => setHistoryTab('usage')}
+                                                            style={{
+                                                                flex: 1,
+                                                                padding: '8px',
+                                                                background: historyTab === 'usage' ? 'rgba(255,255,255,0.1)' : 'transparent',
+                                                                border: 'none',
+                                                                borderRadius: '6px',
+                                                                color: '#fff',
+                                                                fontSize: '0.85rem',
+                                                                fontWeight: historyTab === 'usage' ? '600' : '400',
+                                                                cursor: 'pointer',
+                                                                transition: 'all 0.2s'
+                                                            }}
+                                                        >
+                                                            💸 Spent
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setHistoryTab('credits')}
+                                                            style={{
+                                                                flex: 1,
+                                                                padding: '8px',
+                                                                background: historyTab === 'credits' ? 'rgba(255,255,255,0.1)' : 'transparent',
+                                                                border: 'none',
+                                                                borderRadius: '6px',
+                                                                color: '#fff',
+                                                                fontSize: '0.85rem',
+                                                                fontWeight: historyTab === 'credits' ? '600' : '400',
+                                                                cursor: 'pointer',
+                                                                transition: 'all 0.2s'
+                                                            }}
+                                                        >
+                                                            🎁 Earned
+                                                        </button>
+                                                    </div>
                                                 </div>
 
-                                                <div className="zetsu-usage-list">
-                                                    {isLoadingLogs ? (
-                                                        <div className="zetsu-usage-loading">Loading history...</div>
-                                                    ) : usageLogs.length === 0 ? (
-                                                        <div className="zetsu-usage-empty">No usage history yet</div>
-                                                    ) : (
-                                                        usageLogs.map((log, idx) => (
-                                                            <div key={idx} className="zetsu-usage-item">
-                                                                <div className="zetsu-usage-info">
-                                                                    <span className="zetsu-usage-action">{log.action || 'Credit Used'}</span>
-                                                                    <span className="zetsu-usage-date">
-                                                                        {new Date(log.created_at).toLocaleDateString()}
-                                                                    </span>
+                                                {/* Usage History (Spent Credits) */}
+                                                {historyTab === 'usage' && (
+                                                    <div className="zetsu-usage-list">
+                                                        {isLoadingLogs ? (
+                                                            <div className="zetsu-usage-loading">Loading...</div>
+                                                        ) : usageLogs.length === 0 ? (
+                                                            <div className="zetsu-usage-empty">No usage history</div>
+                                                        ) : (
+                                                            usageLogs.map((log, idx) => (
+                                                                <div key={idx} className="zetsu-usage-item">
+                                                                    <div className="zetsu-usage-info">
+                                                                        <span className="zetsu-usage-action">{log.action || 'AI Chat'}</span>
+                                                                        <span className="zetsu-usage-date">
+                                                                            {new Date(log.created_at).toLocaleDateString()}
+                                                                        </span>
+                                                                    </div>
+                                                                    <span className="zetsu-usage-cost">-{log.cost || 1}</span>
                                                                 </div>
-                                                                <span className="zetsu-usage-cost">-{log.cost || 1}</span>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {/* Credit History (Earned Credits) */}
+                                                {historyTab === 'credits' && (
+                                                    <div className="zetsu-usage-list">
+                                                        <div className="zetsu-usage-item">
+                                                            <div className="zetsu-usage-info">
+                                                                <span className="zetsu-usage-action">🎁 Welcome Bonus</span>
+                                                                <span className="zetsu-usage-date">On signup</span>
                                                             </div>
-                                                        ))
-                                                    )}
-                                                </div>
+                                                            <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#4ade80' }}>+5</span>
+                                                        </div>
+                                                        {user?.user_metadata?.referral_completed && (
+                                                            <div className="zetsu-usage-item">
+                                                                <div className="zetsu-usage-info">
+                                                                    <span className="zetsu-usage-action">🎉 Referral Bonus</span>
+                                                                    <span className="zetsu-usage-date">Accepted invite</span>
+                                                                </div>
+                                                                <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#4ade80' }}>+5</span>
+                                                            </div>
+                                                        )}
+                                                        {!user?.user_metadata?.referral_completed && (
+                                                            <div style={{ textAlign: 'center', padding: '20px 0', color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem' }}>
+                                                                No referral bonus yet. <br /> Get one by using a referral link!
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </>
                                         )}
 
