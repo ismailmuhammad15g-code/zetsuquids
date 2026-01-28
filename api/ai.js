@@ -32,7 +32,7 @@ export default async function handler(req, res) {
         if (skipCreditDeduction) {
             const apiKey = process.env.VITE_AI_API_KEY || process.env.ROUTEWAY_API_KEY
             const apiUrl = process.env.VITE_AI_API_URL || 'https://api.routeway.ai/v1/chat/completions'
-            
+
             if (!apiKey) {
                 return res.status(500).json({ error: 'Missing AI API Key' })
             }
@@ -100,30 +100,52 @@ export default async function handler(req, res) {
         console.log('Sending to AI API...')
         const apiKey = process.env.VITE_AI_API_KEY || process.env.ROUTEWAY_API_KEY
         const apiUrl = process.env.VITE_AI_API_URL || 'https://api.routeway.ai/v1/chat/completions'
-        
+
         if (!apiKey) {
             throw new Error('Missing AI API Key')
         }
 
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: model || 'kimi-k2-0905:free',
-                messages: messages,
-                max_tokens: 4000,
-                temperature: 0.7
+        let response
+        try {
+            response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: model || 'kimi-k2-0905:free',
+                    messages: messages,
+                    max_tokens: 4000,
+                    temperature: 0.7
+                }),
+                timeout: 30000
             })
-        })
+        } catch (fetchError) {
+            console.error('Fetch timeout or network error:', fetchError)
+            return res.status(504).json({
+                error: 'AI API Gateway Timeout or Unreachable',
+                details: 'routeway.ai may be temporarily unavailable. Please try again in a moment.'
+            })
+        }
 
-        const data = await response.json()
+        let data
+        try {
+            data = await response.json()
+        } catch (parseError) {
+            console.error('Failed to parse AI API response:', parseError)
+            console.error('Response status:', response.status)
+            const textResponse = await response.text()
+            console.error('Response body:', textResponse.substring(0, 200))
+            return res.status(response.status).json({
+                error: 'AI API returned invalid response',
+                details: `Status ${response.status} - Service may be down`
+            })
+        }
 
         if (!response.ok) {
             console.error('AI Service Error:', data)
-            return res.status(response.status).json({ error: data.error || 'AI Service Failed' })
+            return res.status(response.status).json({ error: data.error || 'AI Service Failed', details: data })
         }
 
         const { error: deductError } = await supabase
