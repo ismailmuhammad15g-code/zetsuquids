@@ -13,6 +13,7 @@ import { ShimmerButton } from '../components/ui/shimmer-button'
 import { SparklesText } from '../components/ui/sparkles-text'
 import { useAuth } from '../contexts/AuthContext'
 import { guidesApi, isSupabaseConfigured, supabase } from '../lib/api'
+import { reserveCredit, commitReservedCredit, releaseReservedCredit } from '../lib/creditReservation'
 
 // AI API Configuration - Using Vercel serverless function to avoid CORS
 const AI_MODEL = import.meta.env.VITE_AI_MODEL || 'kimi-k2-0905:free'
@@ -1250,13 +1251,18 @@ export default function ZetsuGuideAIPage() {
             return
         }
 
-        // Use credit from DB
-        const creditResult = await useCreditsFromDB(user, 'AI Chat', `Query: ${userQuery.substring(0, 50)}${userQuery.length > 50 ? '...' : ''}`)
-        if (!creditResult.success) {
+        // STEP 1: Reserve credit (put it in "black box")
+        console.log('Reserving 1 credit...')
+        const reserveResult = await reserveCredit(userEmail)
+        if (!reserveResult.success) {
+            console.error('Failed to reserve credit')
             navigate('/pricing')
             return
         }
-        setCredits(creditResult.remaining)
+        
+        // Update UI to show reserved credit (grayed out)
+        setCredits(reserveResult.remainingCredits - reserveResult.reserved)
+        console.log(`Credit reserved! Available: ${reserveResult.remainingCredits - reserveResult.reserved}`)
 
         const userMessage = {
             role: 'user',
@@ -1272,6 +1278,8 @@ export default function ZetsuGuideAIPage() {
         setUsedSources([])
 
         let longerTimer
+        let creditCommitted = false
+        
         try {
             // Set timer for "taking longer" message
             longerTimer = setTimeout(() => {
@@ -1405,15 +1413,38 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                 }]
             })
 
+            // STEP 2: AI succeeded! Commit the reserved credit (deduct it permanently)
+            console.log('AI response successful! Committing reserved credit...')
+            const commitResult = await commitReservedCredit(userEmail)
+            creditCommitted = true
+            if (commitResult.success) {
+                setCredits(commitResult.newBalance)
+                console.log(`Credit committed! New balance: ${commitResult.newBalance}`)
+                
+                // Log usage
+                await logCreditUsage(userEmail, 'AI Chat', `Query: ${userQuery.substring(0, 50)}${userQuery.length > 50 ? '...' : ''}`)
+            }
+
         } catch (error) {
             console.error('AI error:', error)
             clearTimeout(longerTimer)
             setIsTakingLonger(false)
             setIsThinking(false)
             setAgentPhase(null)
+            
+            // STEP 3: Error occurred! Release the reserved credit (return it)
+            if (!creditCommitted) {
+                console.log('AI error! Releasing reserved credit back to user...')
+                const releaseResult = await releaseReservedCredit(userEmail)
+                if (releaseResult.success) {
+                    setCredits(releaseResult.creditsRemaining)
+                    console.log(`Credit released! Balance restored: ${releaseResult.creditsRemaining}`)
+                }
+            }
+            
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: '❌ Sorry, there was an error processing your request. Please try again.',
+                content: '❌ Sorry, there was an error processing your request. Your credit has been returned.',
                 timestamp: new Date().toISOString(),
                 isStreaming: false
             }])
