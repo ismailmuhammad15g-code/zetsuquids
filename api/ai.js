@@ -61,20 +61,37 @@ export default async function handler(req, res) {
                 })
             }
 
+            // Check response status BEFORE trying to parse JSON
+            // This prevents errors when API returns HTML error pages
+            if (!response.ok) {
+                const textBody = await response.text()
+                console.error('AI Service Error - Status:', response.status)
+                console.error('Response body:', textBody.substring(0, 300))
+                
+                // Try to parse as JSON if possible, otherwise use generic error
+                let errorData
+                try {
+                    errorData = JSON.parse(textBody)
+                } catch (e) {
+                    errorData = { error: `AI API returned status ${response.status}` }
+                }
+                
+                return res.status(response.status).json({
+                    error: errorData.error || `AI Service Failed (${response.status})`,
+                    details: errorData.details || textBody.substring(0, 200)
+                })
+            }
+
+            // Now parse JSON from successful response
             let data
             try {
                 data = await response.json()
             } catch (parseError) {
                 console.error('Failed to parse AI response:', parseError)
                 return res.status(502).json({
-                    error: 'AI API returned invalid response',
+                    error: 'AI API returned invalid JSON',
                     details: 'The AI service returned malformed data.'
                 })
-            }
-
-            if (!response.ok) {
-                console.error('AI Service Error:', data)
-                return res.status(response.status).json({ error: data.error || 'AI Service Failed' })
             }
 
             // Transform the response to include both the raw OpenAI format and the expected format
@@ -154,23 +171,37 @@ export default async function handler(req, res) {
             })
         }
 
+        // Check response status BEFORE trying to parse JSON
+        // This prevents errors when API returns HTML error pages
+        if (!response.ok) {
+            const textBody = await response.text()
+            console.error('AI Service Error - Status:', response.status)
+            console.error('Response body:', textBody.substring(0, 300))
+            
+            // Try to parse as JSON if possible, otherwise use generic error
+            let errorData
+            try {
+                errorData = JSON.parse(textBody)
+            } catch (e) {
+                errorData = { error: `AI API returned status ${response.status}` }
+            }
+            
+            return res.status(response.status).json({
+                error: errorData.error || `AI Service Failed (${response.status})`,
+                details: errorData.details || textBody.substring(0, 200)
+            })
+        }
+
+        // Now parse JSON from successful response
         let data
         try {
             data = await response.json()
         } catch (parseError) {
-            console.error('Failed to parse AI API response:', parseError)
-            console.error('Response status:', response.status)
-            const textResponse = await response.text()
-            console.error('Response body:', textResponse.substring(0, 200))
-            return res.status(response.status).json({
-                error: 'AI API returned invalid response',
-                details: `Status ${response.status} - Service may be down`
+            console.error('Failed to parse AI response:', parseError)
+            return res.status(502).json({
+                error: 'AI API returned invalid JSON',
+                details: 'The AI service returned malformed data.'
             })
-        }
-
-        if (!response.ok) {
-            console.error('AI Service Error:', data)
-            return res.status(response.status).json({ error: data.error || 'AI Service Failed', details: data })
         }
 
         const { error: deductError } = await supabase
