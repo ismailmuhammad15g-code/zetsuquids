@@ -67,7 +67,7 @@ export default async function handler(req, res) {
                 const textBody = await response.text()
                 console.error('AI Service Error - Status:', response.status)
                 console.error('Response body:', textBody.substring(0, 300))
-                
+
                 // Try to parse as JSON if possible, otherwise use generic error
                 let errorData
                 try {
@@ -75,7 +75,7 @@ export default async function handler(req, res) {
                 } catch (e) {
                     errorData = { error: `AI API returned status ${response.status}` }
                 }
-                
+
                 return res.status(response.status).json({
                     error: errorData.error || `AI Service Failed (${response.status})`,
                     details: errorData.details || textBody.substring(0, 200)
@@ -177,7 +177,7 @@ export default async function handler(req, res) {
             const textBody = await response.text()
             console.error('AI Service Error - Status:', response.status)
             console.error('Response body:', textBody.substring(0, 300))
-            
+
             // Try to parse as JSON if possible, otherwise use generic error
             let errorData
             try {
@@ -185,7 +185,7 @@ export default async function handler(req, res) {
             } catch (e) {
                 errorData = { error: `AI API returned status ${response.status}` }
             }
-            
+
             return res.status(response.status).json({
                 error: errorData.error || `AI Service Failed (${response.status})`,
                 details: errorData.details || textBody.substring(0, 200)
