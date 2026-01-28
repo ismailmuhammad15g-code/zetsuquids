@@ -1,14 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Retry logic for API calls
-async function fetchWithRetry(url, options, maxRetries = 2) {
+// Exponential backoff retry logic for API calls with intelligent wait times
+async function fetchWithExponentialBackoff(url, options, maxRetries = 4) {
     let lastError
-
+    const waitTimes = [2000, 5000, 10000] // 2s, 5s, 10s
+    
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            console.log(`API call attempt ${attempt}/${maxRetries} to ${url}`)
+            console.log(`📤 API call attempt ${attempt}/${maxRetries} to ${url}`)
             const controller = new AbortController()
-            const timeoutId = setTimeout(() => controller.abort(), 15000) // 15s timeout
+            // Long timeout: 60 seconds - AI needs time especially with 15 guides
+            const timeoutId = setTimeout(() => controller.abort(), 60000)
 
             const response = await fetch(url, {
                 ...options,
@@ -16,22 +18,52 @@ async function fetchWithRetry(url, options, maxRetries = 2) {
             })
 
             clearTimeout(timeoutId)
+            
+            // If successful, return immediately
+            if (response.ok) {
+                console.log(`✅ API call succeeded on attempt ${attempt}`)
+                return response
+            }
+            
+            // For 504/503, we should retry
+            if (response.status === 504 || response.status === 503) {
+                console.warn(`⚠️ Server error ${response.status} on attempt ${attempt}, will retry`)
+                lastError = new Error(`HTTP ${response.status}`)
+                
+                // Don't retry on last attempt
+                if (attempt < maxRetries) {
+                    const waitTime = waitTimes[attempt - 1] || waitTimes[waitTimes.length - 1]
+                    console.log(`⏳ Waiting ${waitTime}ms before retry ${attempt + 1}...`)
+                    await new Promise(r => setTimeout(r, waitTime))
+                    continue
+                }
+            }
+            
+            // For other errors, return response as is
             return response
+            
         } catch (error) {
             lastError = error
-            console.error(`Attempt ${attempt} failed:`, error.message)
+            console.error(`❌ Attempt ${attempt} failed:`, error.message)
 
-            // If it's the last attempt or not a timeout, don't retry
-            if (attempt === maxRetries || !error.message.includes('abort')) {
+            // If it's the last attempt, don't retry
+            if (attempt >= maxRetries) {
                 break
             }
 
-            // Wait before retrying
-            await new Promise(r => setTimeout(r, 1000 * attempt))
+            // Only retry on timeout/network errors
+            if (error.name === 'AbortError' || error.message.includes('timeout')) {
+                const waitTime = waitTimes[attempt - 1] || waitTimes[waitTimes.length - 1]
+                console.log(`⏳ Timeout detected. Waiting ${waitTime}ms before retry ${attempt + 1}...`)
+                await new Promise(r => setTimeout(r, waitTime))
+            } else {
+                // Non-timeout error, don't retry
+                break
+            }
         }
     }
 
-    throw lastError
+    throw lastError || new Error('API call failed after retries')
 }
 
 export default async function handler(req, res) {
@@ -83,19 +115,19 @@ export default async function handler(req, res) {
             let lastError = null
 
             try {
-                response = await fetchWithRetry(apiUrl, {
+                response = await fetchWithExponentialBackoff(apiUrl, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${apiKey}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(requestPayload)
-                }, 2)
+                }, 4) // 4 attempts with exponential backoff
             } catch (fetchError) {
-                console.error('Fetch failed after retries:', fetchError)
+                console.error('❌ API failed after all retries:', fetchError)
                 return res.status(504).json({
-                    error: 'AI API is unreachable',
-                    details: 'The AI service is temporarily unavailable. Please try again in a moment.'
+                    error: 'AI service unavailable',
+                    details: 'The AI service is temporarily overwhelmed. Please wait a moment and try again.'
                 })
             }
 
@@ -173,25 +205,25 @@ export default async function handler(req, res) {
             return res.status(403).json({ error: 'Insufficient credits. Please refer friends to earn more!' })
         }
 
-        console.log('Sending to AI API with retries...')
-
+console.log('📤 Sending to AI API with smart retry logic...')
+        
         let response
         let lastError = null
 
         try {
-            response = await fetchWithRetry(apiUrl, {
+            response = await fetchWithExponentialBackoff(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(requestPayload)
-            }, 2)
+            }, 4) // 4 attempts: 2s, 5s, 10s, 10s
         } catch (fetchError) {
-            console.error('Fetch failed after retries:', fetchError)
+            console.error('❌ API failed after all retries:', fetchError)
             return res.status(504).json({
-                error: 'AI API is unreachable',
-                details: 'The AI service is temporarily unavailable. Please try again.'
+                error: 'AI service unavailable',
+                details: 'The AI service is temporarily overwhelmed. We tried multiple times. Please wait a moment and try again.'
             })
         }
 

@@ -1442,9 +1442,30 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                 }
             }
             
+            // Provide intelligent error messages based on the error
+            let errorMessage = '❌ Sorry, there was an error processing your request. Your credit has been returned.'
+            
+            if (error.message.includes('504')) {
+                errorMessage = '🔄 The AI service is temporarily overwhelmed. We tried multiple times to reach it. Please wait a moment and try again.'
+            } else if (error.message.includes('502')) {
+                errorMessage = '⚠️ The AI service returned an invalid response. Please try again in a moment.'
+            } else if (error.message.includes('503')) {
+                errorMessage = '🔄 The AI service is temporarily unavailable. Please wait a moment and try again.'
+            } else if (error.message.includes('API error')) {
+                const match = error.message.match(/API error: (\d+)/)
+                if (match) {
+                    const status = match[1]
+                    if (status === '403') {
+                        errorMessage = '💳 Insufficient credits. Please refer friends to earn more credits.'
+                    } else if (status === '400') {
+                        errorMessage = '❌ Invalid request format. Please try again.'
+                    }
+                }
+            }
+            
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: '❌ Sorry, there was an error processing your request. Your credit has been returned.',
+                content: errorMessage,
                 timestamp: new Date().toISOString(),
                 isStreaming: false
             }])
