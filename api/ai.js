@@ -37,28 +37,53 @@ export default async function handler(req, res) {
                 return res.status(500).json({ error: 'Missing AI API Key' })
             }
 
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: model || 'kimi-k2-0905:free',
-                    messages: messages,
-                    max_tokens: 4000,
-                    temperature: 0.7
+            let response
+            try {
+                response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: model || 'kimi-k2-0905:free',
+                        messages: messages,
+                        max_tokens: 4000,
+                        temperature: 0.7
+                    }),
+                    timeout: 30000
                 })
-            })
+            } catch (fetchError) {
+                console.error('Fetch timeout or network error:', fetchError)
+                return res.status(504).json({
+                    error: 'AI API Gateway Timeout',
+                    details: 'The AI service is temporarily unavailable. Please try again.'
+                })
+            }
 
-            const data = await response.json()
+            let data
+            try {
+                data = await response.json()
+            } catch (parseError) {
+                console.error('Failed to parse AI response:', parseError)
+                return res.status(502).json({
+                    error: 'AI API returned invalid response',
+                    details: 'The AI service returned malformed data.'
+                })
+            }
 
             if (!response.ok) {
                 console.error('AI Service Error:', data)
                 return res.status(response.status).json({ error: data.error || 'AI Service Failed' })
             }
 
-            return res.status(200).json(data)
+            // Transform the response to include both the raw OpenAI format and the expected format
+            return res.status(200).json({
+                ...data, // Pass through the full OpenAI response (with choices array)
+                // Also include the parsed content for direct access if needed
+                content: data.choices?.[0]?.message?.content || '',
+                publishable: true
+            })
         }
 
         // Normal flow with credit deduction
@@ -159,7 +184,14 @@ export default async function handler(req, res) {
             console.log(`Deducted 1 credit for user ${lookupEmail}. New balance: ${currentCredits - 1}`)
         }
 
-        res.status(200).json(data)
+        // Transform the response to include both the raw OpenAI format and the expected format
+        // This ensures compatibility with the frontend expectations
+        res.status(200).json({
+            ...data, // Pass through the full OpenAI response (with choices array)
+            // Also include the parsed content for direct access if needed
+            content: data.choices?.[0]?.message?.content || '',
+            publishable: true
+        })
 
     } catch (error) {
         console.error('Internal Handler Error:', error)
