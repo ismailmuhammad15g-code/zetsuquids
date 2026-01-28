@@ -1,15 +1,16 @@
-import { ChevronDown, MessageCircle, Send, Sparkles, X, FileText, Loader2, Lock, Zap } from 'lucide-react'
-import { useState, useRef, useEffect } from 'react'
+import { ChevronDown, FileText, Loader2, Lock, Send, Sparkles, X, Zap } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { aiAgentSearch, isAIConfigured } from '../lib/ai'
 import { guidesApi } from '../lib/api'
-import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import BotIcon from './BotIcon'
 
 export default function Chatbot() {
     const [isOpen, setIsOpen] = useState(false)
     const [isMinimized, setIsMinimized] = useState(false)
+    const [showPopup, setShowPopup] = useState(true)
     const [messages, setMessages] = useState([
         { id: 'welcome', role: 'bot', content: 'Hello! I am the ZetsuGuide AI Assistant. How can I help you today?', type: 'text' }
     ])
@@ -166,7 +167,7 @@ export default function Chatbot() {
             }
 
             // Call AI Agent
-            const response = await aiAgentSearch(text, guides)
+            const response = await aiAgentSearch(text, guides, user?.email || 'chatbot-user')
 
             // Format response
             const botMsg = {
@@ -212,24 +213,47 @@ export default function Chatbot() {
         <>
             {/* Toggle Button */}
             {!isOpen && (
-                <button
-                    onClick={() => {
-                        setIsOpen(true)
-                        setHasUnread(false)
-                    }}
-                    className="fixed bottom-6 right-6 z-50 p-0 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 group border-2 border-white/20 bg-black overflow-hidden"
-                >
-                    <div className="relative p-3">
-                        <BotIcon size={32} className="text-white relative z-10" />
-                        <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/50 to-purple-500/50 blur opacity-50 group-hover:opacity-100 transition-opacity"></div>
-                        {hasUnread && (
-                            <span className="absolute top-2 right-2 flex h-3 w-3 z-20">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                            </span>
-                        )}
-                    </div>
-                </button>
+                <div className="fixed bottom-6 right-6 z-50 group">
+                    {/* Popup Message - Shows once per page load */}
+                    {showPopup && (
+                        <div className="absolute bottom-full right-0 mb-3 w-64 p-4 bg-white text-black rounded-xl shadow-2xl opacity-100 transition-all duration-300 transform translate-y-0 pointer-events-none">
+                            <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0">
+                                    <Sparkles size={16} />
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-sm mb-1">Hello! Need a specific question?</h4>
+                                    <p className="text-xs text-gray-600">I'm here to help with any questions you have about ZetsuGuide. Ask me anything!</p>
+                                </div>
+                            </div>
+                            {/* Arrow */}
+                            <div className="absolute bottom-0 right-6 transform translate-y-1/2">
+                                <div className="w-3 h-3 bg-white transform rotate-45"></div>
+                            </div>
+                        </div>
+                    )}
+                    {/* Chatbot Icon Button */}
+                    <button
+                        onClick={() => {
+                            setIsOpen(true)
+                            setHasUnread(false)
+                            setShowPopup(false) // Hide popup when user clicks the chatbot
+                        }}
+                        onMouseEnter={() => setShowPopup(false)} // Hide popup when user hovers over the chatbot
+                        className="p-0 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 group border-2 border-white/20 bg-black overflow-hidden"
+                    >
+                        <div className="relative p-3">
+                            <BotIcon size={32} className="text-white relative z-10" />
+                            <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/50 to-purple-500/50 blur opacity-50 group-hover:opacity-100 transition-opacity"></div>
+                            {hasUnread && (
+                                <span className="absolute top-2 right-2 flex h-3 w-3 z-20">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                </span>
+                            )}
+                        </div>
+                    </button>
+                </div>
             )}
 
             {/* Chat Window */}

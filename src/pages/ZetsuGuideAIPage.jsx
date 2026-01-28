@@ -14,13 +14,8 @@ import { SparklesText } from '../components/ui/sparkles-text'
 import { useAuth } from '../contexts/AuthContext'
 import { guidesApi, isSupabaseConfigured, supabase } from '../lib/api'
 
-// AI API Configuration - Using Grok API via backend proxy
-// IMPORTANT: Backend and Frontend are on DIFFERENT SERVERS
-// Must set VITE_API_URL to your backend server URL in production
-const isDev = import.meta.env.DEV
-const API_BASE = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:5000' : 'https://your-backend-url.com')
-const AI_API_URL = `${API_BASE}/api/ai/chat`  // Always use absolute URL
-const AI_MODEL = import.meta.env.VITE_AI_MODEL || 'grok-2'
+// AI API Configuration - Using Vercel serverless function to avoid CORS
+const AI_MODEL = import.meta.env.VITE_AI_MODEL || 'kimi-k2-0905:free'
 
 // Agent Thinking Phases
 const AGENT_PHASES = {
@@ -772,7 +767,7 @@ export default function ZetsuGuideAIPage() {
             // If no title found from content, try AI generation
             if (!generatedTitle || generatedTitle.length < 5) {
                 try {
-                    const titleResponse = await fetch(AI_API_URL, {
+                    const titleResponse = await fetch('/api/ai', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -786,8 +781,7 @@ export default function ZetsuGuideAIPage() {
                                 role: 'user',
                                 content: `Generate a title for this guide:\n\n${messageContent.substring(0, 2000)}`
                             }],
-                            temperature: 0.7,
-                            max_tokens: 100
+                            skipCreditDeduction: true
                         })
                     })
 
@@ -830,7 +824,7 @@ export default function ZetsuGuideAIPage() {
             await delay(800)
 
             // Step 2: Generate keywords using AI
-            const keywordsResponse = await fetch(AI_API_URL, {
+            const keywordsResponse = await fetch('/api/ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -842,8 +836,7 @@ export default function ZetsuGuideAIPage() {
                         role: 'user',
                         content: `Extract keywords from:\n\n${messageContent.substring(0, 1500)}`
                     }],
-                    temperature: 0.3,
-                    max_tokens: 100
+                    skipCreditDeduction: true
                 })
             })
 
@@ -1234,6 +1227,9 @@ export default function ZetsuGuideAIPage() {
         return { relevantGuides }
     }
 
+    // State for longer thinking message
+    const [isTakingLonger, setIsTakingLonger] = useState(false)
+
     async function handleSubmit(e) {
         e.preventDefault()
 
@@ -1275,7 +1271,13 @@ export default function ZetsuGuideAIPage() {
         setFoundGuides([])
         setUsedSources([])
 
+        let longerTimer
         try {
+            // Set timer for "taking longer" message
+            longerTimer = setTimeout(() => {
+                setIsTakingLonger(true)
+            }, 2000)
+
             // Run agent thinking process
             const { relevantGuides } = await agentThinkingProcess(userQuery)
 
@@ -1329,7 +1331,7 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
             // Phase: Responding
             setAgentPhase(AGENT_PHASES.RESPONDING)
 
-            const response = await fetch(AI_API_URL, {
+            const response = await fetch('/api/ai', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1341,8 +1343,7 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                         ...messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
                         { role: 'user', content: userQuery }
                     ],
-                    temperature: 0.7,
-                    max_tokens: 4096
+                    skipCreditDeduction: true
                 })
             })
 
@@ -1406,6 +1407,8 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
 
         } catch (error) {
             console.error('AI error:', error)
+            clearTimeout(longerTimer)
+            setIsTakingLonger(false)
             setIsThinking(false)
             setAgentPhase(null)
             setMessages(prev => [...prev, {
@@ -1414,6 +1417,9 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                 timestamp: new Date().toISOString(),
                 isStreaming: false
             }])
+        } finally {
+            clearTimeout(longerTimer)
+            setIsTakingLonger(false)
         }
     }
 
@@ -2587,6 +2593,12 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                                 )}
                                                 {agentPhase === AGENT_PHASES.THINKING_MORE && (
                                                     <span className="zetsu-agent-status">Thinking more...</span>
+                                                )}
+                                                {/* Taking longer message */}
+                                                {isTakingLonger && (
+                                                    <span className="zetsu-agent-status zetsu-agent-taking-longer">
+                                                        AI is taking longer... Cookiecing some fresh answers 🍪
+                                                    </span>
                                                 )}
                                                 {agentPhase === AGENT_PHASES.RESPONDING && (
                                                     <span className="zetsu-agent-status">Generating response...</span>

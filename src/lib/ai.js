@@ -1,12 +1,11 @@
 // Kimi K2 AI Agent - Intelligent Search Engine
 // Advanced AI-powered search with deep understanding
+// Uses Vercel serverless function /api/ai to avoid CORS issues
 
-const AI_API_URL = import.meta.env.VITE_AI_API_URL || 'https://api.routeway.ai/v1/chat/completions'
-const AI_API_KEY = import.meta.env.VITE_AI_API_KEY || ''
 const AI_MODEL = import.meta.env.VITE_AI_MODEL || 'kimi-k2-0905:free'
 
 export function isAIConfigured() {
-    return AI_API_KEY && AI_API_KEY.length > 10
+    return true
 }
 
 // Smart keyword extraction from query
@@ -120,7 +119,8 @@ export function basicSearch(query, guides) {
 }
 
 // AI Agent deep search - understands intent and context
-export async function aiAgentSearch(query, guides) {
+// Uses /api/ai serverless function to avoid CORS issues
+export async function aiAgentSearch(query, guides, userEmail = 'chatbot-user') {
     if (!isAIConfigured()) {
         console.log('AI not configured')
         return { results: [], aiInsight: null, found: false }
@@ -167,17 +167,16 @@ Examples:
 - User: "Explain API" (No guide) -> {"indices": [], "insight": "An API (Application Programming Interface) allows ...", "found": false}
 `
 
-        const response = await fetch(AI_API_URL, {
+        const response = await fetch('/api/ai', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${AI_API_KEY}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 model: AI_MODEL,
                 messages: [{ role: 'user', content: prompt }],
-                temperature: 0.4,
-                max_tokens: 1000
+                userEmail: userEmail,
+                skipCreditDeduction: true
             })
         })
 
@@ -190,7 +189,7 @@ Examples:
         const data = await response.json()
         const aiResponse = data.choices?.[0]?.message?.content?.trim() || '{}'
 
-        console.log('🤖 AI Agent Response:', aiResponse)
+        console.log('AI Agent Response:', aiResponse)
 
         let parsed = { indices: [], insight: null, found: false }
         try {
