@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 async function fetchWithExponentialBackoff(url, options, maxRetries = 4) {
     let lastError
     const waitTimes = [2000, 5000, 10000] // 2s, 5s, 10s
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             console.log(`📤 API call attempt ${attempt}/${maxRetries} to ${url}`)
@@ -18,18 +18,18 @@ async function fetchWithExponentialBackoff(url, options, maxRetries = 4) {
             })
 
             clearTimeout(timeoutId)
-            
+
             // If successful, return immediately
             if (response.ok) {
                 console.log(`✅ API call succeeded on attempt ${attempt}`)
                 return response
             }
-            
+
             // For 504/503, we should retry
             if (response.status === 504 || response.status === 503) {
                 console.warn(`⚠️ Server error ${response.status} on attempt ${attempt}, will retry`)
                 lastError = new Error(`HTTP ${response.status}`)
-                
+
                 // Don't retry on last attempt
                 if (attempt < maxRetries) {
                     const waitTime = waitTimes[attempt - 1] || waitTimes[waitTimes.length - 1]
@@ -38,10 +38,10 @@ async function fetchWithExponentialBackoff(url, options, maxRetries = 4) {
                     continue
                 }
             }
-            
+
             // For other errors, return response as is
             return response
-            
+
         } catch (error) {
             lastError = error
             console.error(`❌ Attempt ${attempt} failed:`, error.message)
@@ -205,8 +205,8 @@ export default async function handler(req, res) {
             return res.status(403).json({ error: 'Insufficient credits. Please refer friends to earn more!' })
         }
 
-console.log('📤 Sending to AI API with smart retry logic...')
-        
+        console.log('📤 Sending to AI API with smart retry logic...')
+
         let response
         let lastError = null
 

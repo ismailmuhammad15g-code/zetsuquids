@@ -13,7 +13,7 @@ import { ShimmerButton } from '../components/ui/shimmer-button'
 import { SparklesText } from '../components/ui/sparkles-text'
 import { useAuth } from '../contexts/AuthContext'
 import { guidesApi, isSupabaseConfigured, supabase } from '../lib/api'
-import { reserveCredit, commitReservedCredit, releaseReservedCredit } from '../lib/creditReservation'
+import { commitReservedCredit, releaseReservedCredit, reserveCredit } from '../lib/creditReservation'
 
 // AI API Configuration - Using Vercel serverless function to avoid CORS
 const AI_MODEL = import.meta.env.VITE_AI_MODEL || 'kimi-k2-0905:free'
@@ -1259,7 +1259,7 @@ export default function ZetsuGuideAIPage() {
             navigate('/pricing')
             return
         }
-        
+
         // Update UI to show reserved credit (grayed out)
         setCredits(reserveResult.remainingCredits - reserveResult.reserved)
         console.log(`Credit reserved! Available: ${reserveResult.remainingCredits - reserveResult.reserved}`)
@@ -1279,7 +1279,7 @@ export default function ZetsuGuideAIPage() {
 
         let longerTimer
         let creditCommitted = false
-        
+
         try {
             // Set timer for "taking longer" message
             longerTimer = setTimeout(() => {
@@ -1420,7 +1420,7 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
             if (commitResult.success) {
                 setCredits(commitResult.newBalance)
                 console.log(`Credit committed! New balance: ${commitResult.newBalance}`)
-                
+
                 // Log usage
                 await logCreditUsage(userEmail, 'AI Chat', `Query: ${userQuery.substring(0, 50)}${userQuery.length > 50 ? '...' : ''}`)
             }
@@ -1431,7 +1431,7 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
             setIsTakingLonger(false)
             setIsThinking(false)
             setAgentPhase(null)
-            
+
             // STEP 3: Error occurred! Release the reserved credit (return it)
             if (!creditCommitted) {
                 console.log('AI error! Releasing reserved credit back to user...')
@@ -1441,10 +1441,10 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                     console.log(`Credit released! Balance restored: ${releaseResult.creditsRemaining}`)
                 }
             }
-            
+
             // Provide intelligent error messages based on the error
             let errorMessage = '❌ Sorry, there was an error processing your request. Your credit has been returned.'
-            
+
             if (error.message.includes('504')) {
                 errorMessage = '🔄 The AI service is temporarily overwhelmed. We tried multiple times to reach it. Please wait a moment and try again.'
             } else if (error.message.includes('502')) {
@@ -1462,7 +1462,7 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                     }
                 }
             }
-            
+
             setMessages(prev => [...prev, {
                 role: 'assistant',
                 content: errorMessage,
