@@ -1,5 +1,39 @@
 import { createClient } from '@supabase/supabase-js'
 
+// Retry logic for API calls
+async function fetchWithRetry(url, options, maxRetries = 2) {
+    let lastError
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`API call attempt ${attempt}/${maxRetries} to ${url}`)
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 15000) // 15s timeout
+
+            const response = await fetch(url, {
+                ...options,
+                signal: controller.signal
+            })
+
+            clearTimeout(timeoutId)
+            return response
+        } catch (error) {
+            lastError = error
+            console.error(`Attempt ${attempt} failed:`, error.message)
+
+            // If it's the last attempt or not a timeout, don't retry
+            if (attempt === maxRetries || !error.message.includes('abort')) {
+                break
+            }
+
+            // Wait before retrying
+            await new Promise(r => setTimeout(r, 1000 * attempt))
+        }
+    }
+
+    throw lastError
+}
+
 export default async function handler(req, res) {
     // CORS Configuration
     res.setHeader('Access-Control-Allow-Credentials', true)
@@ -28,76 +62,76 @@ export default async function handler(req, res) {
 
         const { messages, model, userId, userEmail, skipCreditDeduction } = body || {}
 
+        // Get API credentials
+        const apiKey = process.env.VITE_AI_API_KEY || process.env.ROUTEWAY_API_KEY
+        const apiUrl = process.env.VITE_AI_API_URL || 'https://api.routeway.ai/v1/chat/completions'
+
+        if (!apiKey) {
+            return res.status(500).json({ error: 'Missing AI API Key' })
+        }
+
+        const requestPayload = {
+            model: model || 'kimi-k2-0905:free',
+            messages: messages,
+            max_tokens: 4000,
+            temperature: 0.7
+        }
+
         // If skipCreditDeduction is true, just proxy to AI API without credit checks
         if (skipCreditDeduction) {
-            const apiKey = process.env.VITE_AI_API_KEY || process.env.ROUTEWAY_API_KEY
-            const apiUrl = process.env.VITE_AI_API_URL || 'https://api.routeway.ai/v1/chat/completions'
-
-            if (!apiKey) {
-                return res.status(500).json({ error: 'Missing AI API Key' })
-            }
-
             let response
+            let lastError = null
+
             try {
-                response = await fetch(apiUrl, {
+                response = await fetchWithRetry(apiUrl, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${apiKey}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        model: model || 'kimi-k2-0905:free',
-                        messages: messages,
-                        max_tokens: 4000,
-                        temperature: 0.7
-                    }),
-                    timeout: 30000
-                })
+                    body: JSON.stringify(requestPayload)
+                }, 2)
             } catch (fetchError) {
-                console.error('Fetch timeout or network error:', fetchError)
+                console.error('Fetch failed after retries:', fetchError)
                 return res.status(504).json({
-                    error: 'AI API Gateway Timeout',
-                    details: 'The AI service is temporarily unavailable. Please try again.'
+                    error: 'AI API is unreachable',
+                    details: 'The AI service is temporarily unavailable. Please try again in a moment.'
                 })
             }
 
             // Check response status BEFORE trying to parse JSON
-            // This prevents errors when API returns HTML error pages
             if (!response.ok) {
                 const textBody = await response.text()
                 console.error('AI Service Error - Status:', response.status)
-                console.error('Response body:', textBody.substring(0, 300))
 
-                // Try to parse as JSON if possible, otherwise use generic error
-                let errorData
-                try {
-                    errorData = JSON.parse(textBody)
-                } catch (e) {
-                    errorData = { error: `AI API returned status ${response.status}` }
+                // If it's a 504/503, it's a temporary service issue
+                if (response.status === 504 || response.status === 503) {
+                    return res.status(response.status).json({
+                        error: 'AI service temporarily unavailable',
+                        details: 'The AI service returned a gateway error. Please wait a moment and try again.'
+                    })
                 }
 
                 return res.status(response.status).json({
-                    error: errorData.error || `AI Service Failed (${response.status})`,
-                    details: errorData.details || textBody.substring(0, 200)
+                    error: `AI Service Error (${response.status})`,
+                    details: 'Please try again in a moment.'
                 })
             }
 
-            // Now parse JSON from successful response
+            // Parse JSON from successful response
             let data
             try {
                 data = await response.json()
             } catch (parseError) {
                 console.error('Failed to parse AI response:', parseError)
                 return res.status(502).json({
-                    error: 'AI API returned invalid JSON',
-                    details: 'The AI service returned malformed data.'
+                    error: 'AI API returned invalid response',
+                    details: 'Please try again.'
                 })
             }
 
-            // Transform the response to include both the raw OpenAI format and the expected format
             return res.status(200).json({
-                ...data, // Pass through the full OpenAI response (with choices array)
-                // Also include the parsed content for direct access if needed
+                ...data,
                 content: data.choices?.[0]?.message?.content || '',
                 publishable: true
             })
@@ -139,71 +173,60 @@ export default async function handler(req, res) {
             return res.status(403).json({ error: 'Insufficient credits. Please refer friends to earn more!' })
         }
 
-        console.log('Sending to AI API...')
-        const apiKey = process.env.VITE_AI_API_KEY || process.env.ROUTEWAY_API_KEY
-        const apiUrl = process.env.VITE_AI_API_URL || 'https://api.routeway.ai/v1/chat/completions'
-
-        if (!apiKey) {
-            throw new Error('Missing AI API Key')
-        }
+        console.log('Sending to AI API with retries...')
 
         let response
+        let lastError = null
+
         try {
-            response = await fetch(apiUrl, {
+            response = await fetchWithRetry(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    model: model || 'kimi-k2-0905:free',
-                    messages: messages,
-                    max_tokens: 4000,
-                    temperature: 0.7
-                }),
-                timeout: 30000
-            })
+                body: JSON.stringify(requestPayload)
+            }, 2)
         } catch (fetchError) {
-            console.error('Fetch timeout or network error:', fetchError)
+            console.error('Fetch failed after retries:', fetchError)
             return res.status(504).json({
-                error: 'AI API Gateway Timeout or Unreachable',
-                details: 'routeway.ai may be temporarily unavailable. Please try again in a moment.'
+                error: 'AI API is unreachable',
+                details: 'The AI service is temporarily unavailable. Please try again.'
             })
         }
 
         // Check response status BEFORE trying to parse JSON
-        // This prevents errors when API returns HTML error pages
         if (!response.ok) {
             const textBody = await response.text()
             console.error('AI Service Error - Status:', response.status)
-            console.error('Response body:', textBody.substring(0, 300))
 
-            // Try to parse as JSON if possible, otherwise use generic error
-            let errorData
-            try {
-                errorData = JSON.parse(textBody)
-            } catch (e) {
-                errorData = { error: `AI API returned status ${response.status}` }
+            // If it's a 504/503, it's a temporary service issue
+            if (response.status === 504 || response.status === 503) {
+                return res.status(response.status).json({
+                    error: 'AI service temporarily unavailable',
+                    details: 'The AI service returned a gateway error. Please wait a moment and try again.'
+                })
             }
 
             return res.status(response.status).json({
-                error: errorData.error || `AI Service Failed (${response.status})`,
-                details: errorData.details || textBody.substring(0, 200)
+                error: `AI Service Error (${response.status})`,
+                details: 'Please try again in a moment.'
             })
         }
 
-        // Now parse JSON from successful response
+        // Parse JSON from successful response
         let data
         try {
             data = await response.json()
         } catch (parseError) {
             console.error('Failed to parse AI response:', parseError)
             return res.status(502).json({
-                error: 'AI API returned invalid JSON',
-                details: 'The AI service returned malformed data.'
+                error: 'AI API returned invalid response',
+                details: 'Please try again.'
             })
         }
 
+        // Deduct credit
         const { error: deductError } = await supabase
             .from('zetsuguide_credits')
             .update({ credits: currentCredits - 1, updated_at: new Date().toISOString() })
@@ -215,11 +238,8 @@ export default async function handler(req, res) {
             console.log(`Deducted 1 credit for user ${lookupEmail}. New balance: ${currentCredits - 1}`)
         }
 
-        // Transform the response to include both the raw OpenAI format and the expected format
-        // This ensures compatibility with the frontend expectations
         res.status(200).json({
-            ...data, // Pass through the full OpenAI response (with choices array)
-            // Also include the parsed content for direct access if needed
+            ...data,
             content: data.choices?.[0]?.message?.content || '',
             publishable: true
         })
