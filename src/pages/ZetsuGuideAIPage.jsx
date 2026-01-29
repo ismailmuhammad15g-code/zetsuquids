@@ -1391,7 +1391,9 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                         { role: 'system', content: systemPrompt },
                         ...messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
                         { role: 'user', content: userQuery }
-                    ]
+                    ],
+                    userEmail: user?.email || '',
+                    userId: user?.id || ''
                 })
             })
 
