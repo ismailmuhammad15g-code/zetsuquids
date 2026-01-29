@@ -271,6 +271,33 @@ function apiMiddleware() {
                     return
                 }
 
+                // Handle payment_status API (GET request from Paymob redirect)
+                if (req.url?.startsWith('/api/payment_status')) {
+                    const { default: paymentStatus } = await import('./api/payment_status.js')
+                    const mockRes = {
+                        statusCode: 200,
+                        headers: {},
+                        setHeader(key, value) {
+                            this.headers[key] = value
+                            res.setHeader(key, value)
+                        },
+                        status(code) {
+                            this.statusCode = code
+                            res.statusCode = code
+                            return this
+                        },
+                        json(data) {
+                            res.setHeader('Content-Type', 'application/json')
+                            res.end(JSON.stringify(data))
+                        },
+                        end(data) {
+                            res.end(data)
+                        }
+                    }
+                    await paymentStatus(req, mockRes)
+                    return
+                }
+
                 if (req.url === '/api/ai' && req.method === 'POST') {
                     let body = ''
                     req.on('data', chunk => { body += chunk })

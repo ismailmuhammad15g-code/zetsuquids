@@ -20,6 +20,7 @@ export default function PricingPage() {
     const [referralCode, setReferralCode] = useState('')
     const [showEarnModal, setShowEarnModal] = useState(false)
     const [showPaymentModal, setShowPaymentModal] = useState(false)
+    const [paymentStatus, setPaymentStatus] = useState(null) // 'success', 'declined', 'pending', null
     const [selectedPackage, setSelectedPackage] = useState(null)
     const [paymentLoading, setPaymentLoading] = useState(false)
     const [credits, setCredits] = useState(0)
@@ -28,6 +29,42 @@ export default function PricingPage() {
         totalBalance: 0,
         creditsEarned: 0,
         bonusReceived: 0
+    })
+
+    // Listen for payment status messages from popup window
+    useEffect(() => {
+        const handleMessage = async (event) => {
+            if (event.data?.type === 'PAYMENT_STATUS') {
+                const { status, orderId } = event.data
+                console.log('[PricingPage] Payment status received:', status, orderId)
+
+                setPaymentStatus(status)
+                setShowPaymentModal(false)
+
+                // If payment successful, refresh credits
+                if (status === 'success' && user?.email) {
+                    setTimeout(async () => {
+                        try {
+                            const { data } = await supabase
+                                .from('zetsuguide_credits')
+                                .select('credits')
+                                .eq('user_email', user.email.toLowerCase())
+                                .single()
+
+                            if (data) {
+                                setCredits(data.credits)
+                                console.log('[PricingPage] Credits refreshed:', data.credits)
+                            }
+                        } catch (error) {
+                            console.error('[PricingPage] Error refreshing credits:', error)
+                        }
+                    }, 2000) // Wait 2 seconds for webhook to process
+                }
+            }
+        }
+
+        window.addEventListener('message', handleMessage)
+        return () => window.removeEventListener('message', handleMessage)
     })
 
     // Get or generate referral code
@@ -360,6 +397,106 @@ export default function PricingPage() {
                             <p>Complete your payment in the new window. Credits will be added automatically after successful payment.</p>
                         </div>
                         <button className="primary-btn" onClick={() => setShowPaymentModal(false)}>
+                            Got it!
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Payment Success Modal */}
+            {paymentStatus === 'success' && (
+                <div className="modal-overlay" onClick={() => setPaymentStatus(null)}>
+                    <div className="modal small payment-success" onClick={(e) => e.stopPropagation()}>
+                        <button className="modal-close" onClick={() => setPaymentStatus(null)}>
+                            <X size={24} />
+                        </button>
+                        <div className="modal-header">
+                            <div className="modal-icon success pulse">
+                                <Check size={80} />
+                            </div>
+                            <h2>Payment Successful! 🎉</h2>
+                            <p>Your credits have been added to your account. Thank you for your purchase!</p>
+                        </div>
+                        <div className="success-details">
+                            <div className="detail-item">
+                                <Zap size={20} />
+                                <span>Credits added: <strong>{selectedPackage?.credits || 0}</strong></span>
+                            </div>
+                            <div className="detail-item">
+                                <CreditCard size={20} />
+                                <span>New balance: <strong>{credits}</strong> credits</span>
+                            </div>
+                        </div>
+                        <button className="primary-btn" onClick={() => {
+                            setPaymentStatus(null)
+                            navigate('/zetsuguide-ai')
+                        }}>
+                            Start Using Credits
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Payment Declined Modal */}
+            {paymentStatus === 'declined' && (
+                <div className="modal-overlay" onClick={() => setPaymentStatus(null)}>
+                    <div className="modal small payment-declined" onClick={(e) => e.stopPropagation()}>
+                        <button className="modal-close" onClick={() => setPaymentStatus(null)}>
+                            <X size={24} />
+                        </button>
+                        <div className="modal-header">
+                            <div className="modal-icon declined shake">
+                                <X size={80} />
+                            </div>
+                            <h2>Payment Declined</h2>
+                            <p>Unfortunately, your payment could not be processed. Please try again or use a different payment method.</p>
+                        </div>
+                        <div className="declined-reasons">
+                            <p className="reason-title">Common reasons:</p>
+                            <ul>
+                                <li>Insufficient funds</li>
+                                <li>Card expired or blocked</li>
+                                <li>Incorrect card details</li>
+                                <li>Bank security restrictions</li>
+                            </ul>
+                        </div>
+                        <div className="modal-actions">
+                            <button className="secondary-btn" onClick={() => setPaymentStatus(null)}>
+                                Close
+                            </button>
+                            <button className="primary-btn" onClick={() => {
+                                setPaymentStatus(null)
+                                if (selectedPackage) {
+                                    handleBuyCredits(selectedPackage)
+                                }
+                            }}>
+                                Try Again
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Payment Pending Modal */}
+            {paymentStatus === 'pending' && (
+                <div className="modal-overlay" onClick={() => setPaymentStatus(null)}>
+                    <div className="modal small payment-pending" onClick={(e) => e.stopPropagation()}>
+                        <button className="modal-close" onClick={() => setPaymentStatus(null)}>
+                            <X size={24} />
+                        </button>
+                        <div className="modal-header">
+                            <div className="modal-icon pending spin">
+                                <div className="pending-spinner">⏳</div>
+                            </div>
+                            <h2>Payment Pending</h2>
+                            <p>Your payment is being processed. This may take a few minutes. We'll notify you once it's complete.</p>
+                        </div>
+                        <div className="pending-info">
+                            <p>✓ Your order has been received</p>
+                            <p>✓ Payment is being verified</p>
+                            <p>⏳ Credits will be added automatically</p>
+                        </div>
+                        <button className="primary-btn" onClick={() => setPaymentStatus(null)}>
                             Got it!
                         </button>
                     </div>
@@ -955,6 +1092,172 @@ export default function PricingPage() {
                 .primary-btn:hover {
                     transform: scale(1.02);
                     box-shadow: 0 8px 25px rgba(255,215,0,0.4);
+                }
+
+                .secondary-btn {
+                    padding: 16px;
+                    background: rgba(255,255,255,0.1);
+                    color: #fff;
+                    border: 1px solid rgba(255,255,255,0.2);
+                    border-radius: 12px;
+                    font-weight: 700;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+
+                .secondary-btn:hover {
+                    background: rgba(255,255,255,0.15);
+                }
+
+                /* Payment Status Modals */
+                .payment-success .modal-icon.success {
+                    background: rgba(0,255,0,0.15);
+                    color: #00ff00;
+                }
+
+                .payment-declined .modal-icon.declined {
+                    background: rgba(255,0,0,0.15);
+                    color: #ff4444;
+                }
+
+                .payment-pending .modal-icon.pending {
+                    background: rgba(255,165,0,0.15);
+                    color: #FFA500;
+                }
+
+                .success-details {
+                    background: rgba(0,255,0,0.05);
+                    border: 1px solid rgba(0,255,0,0.2);
+                    border-radius: 16px;
+                    padding: 24px;
+                    margin: 24px 0;
+                }
+
+                .detail-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 12px 0;
+                    color: rgba(255,255,255,0.9);
+                    font-size: 1rem;
+                }
+
+                .detail-item:first-child {
+                    padding-top: 0;
+                }
+
+                .detail-item:last-child {
+                    padding-bottom: 0;
+                    border-bottom: none;
+                }
+
+                .detail-item:not(:last-child) {
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                }
+
+                .detail-item svg {
+                    color: #FFD700;
+                    flex-shrink: 0;
+                }
+
+                .detail-item strong {
+                    color: #FFD700;
+                }
+
+                .declined-reasons {
+                    background: rgba(255,0,0,0.05);
+                    border: 1px solid rgba(255,0,0,0.2);
+                    border-radius: 16px;
+                    padding: 24px;
+                    margin: 24px 0;
+                    text-align: left;
+                }
+
+                .reason-title {
+                    font-weight: 700;
+                    margin-bottom: 12px;
+                    color: rgba(255,255,255,0.9);
+                }
+
+                .declined-reasons ul {
+                    list-style: none;
+                    padding: 0;
+                    margin: 0;
+                }
+
+                .declined-reasons li {
+                    padding: 8px 0;
+                    padding-left: 24px;
+                    position: relative;
+                    color: rgba(255,255,255,0.7);
+                }
+
+                .declined-reasons li:before {
+                    content: '•';
+                    position: absolute;
+                    left: 8px;
+                    color: #ff4444;
+                    font-weight: bold;
+                }
+
+                .pending-info {
+                    background: rgba(255,165,0,0.05);
+                    border: 1px solid rgba(255,165,0,0.2);
+                    border-radius: 16px;
+                    padding: 24px;
+                    margin: 24px 0;
+                    text-align: left;
+                }
+
+                .pending-info p {
+                    padding: 8px 0;
+                    color: rgba(255,255,255,0.8);
+                    font-size: 1rem;
+                }
+
+                .modal-actions {
+                    display: flex;
+                    gap: 12px;
+                    margin-top: 24px;
+                }
+
+                .modal-actions button {
+                    flex: 1;
+                    margin: 0;
+                }
+
+                /* Animations */
+                @keyframes pulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.1); }
+                }
+
+                @keyframes shake {
+                    0%, 100% { transform: translateX(0); }
+                    25% { transform: translateX(-10px); }
+                    75% { transform: translateX(10px); }
+                }
+
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+
+                .pulse {
+                    animation: pulse 2s ease-in-out infinite;
+                }
+
+                .shake {
+                    animation: shake 0.5s ease-in-out;
+                }
+
+                .spin {
+                    animation: spin 2s linear infinite;
+                }
+
+                .pending-spinner {
+                    font-size: 48px;
                 }
 
                 @media (max-width: 768px) {
