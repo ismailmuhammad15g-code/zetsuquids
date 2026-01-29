@@ -1469,18 +1469,6 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                 console.log('Using raw text response from AI')
                 aiContent = aiRaw
                 isPublishable = aiRaw && aiRaw.length > 200
-
-                            isPublishable = aiRaw.includes('"publishable":true')
-                        } else {
-                            aiContent = aiRaw
-                        }
-                    } catch (regexError) {
-                        aiContent = aiRaw
-                    }
-                } else {
-                    aiContent = aiRaw // Fallback to raw text
-                }
-                isPublishable = aiContent.length > 200 // Fallback heuristic
             }
 
             // Combine guide sources and intelligent fetch sources
