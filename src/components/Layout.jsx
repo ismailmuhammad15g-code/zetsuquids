@@ -10,6 +10,7 @@ import GlobalLoader from './GlobalLoader'
 import ReferralBonusNotification from './ReferralBonusNotification'
 import ReferralSuccessModal from './ReferralSuccessModal'
 import SearchModal from './SearchModal'
+import ApprovedBugModal from './ApprovedBugModal'
 
 export default function Layout() {
     const location = useLocation()
@@ -24,6 +25,8 @@ export default function Layout() {
     const [showReferralSuccess, setShowReferralSuccess] = useState(false)
     const [userProfile, setUserProfile] = useState(null)
     const [checkingReferral, setCheckingReferral] = useState(true)
+    const [showBugReward, setShowBugReward] = useState(false)
+    const [rewardReportId, setRewardReportId] = useState(null)
 
     // Close mobile menu on route change
     useEffect(() => {
@@ -120,6 +123,27 @@ export default function Layout() {
         }
         checkProfile()
     }, [user, checkingReferral])
+
+    // Third: Check for approved bug reports with pending notifications
+    useEffect(() => {
+        if (!user?.id) return
+
+        async function checkBugRewards() {
+            const { data: reports } = await supabase
+                .from('bug_reports')
+                .select('id, issue_type')
+                .eq('user_id', user.id)
+                .eq('status', 'approved')
+                .eq('notification_shown', false)
+                .limit(1)
+
+            if (reports && reports.length > 0) {
+                setRewardReportId(reports[0].id)
+                setShowBugReward(true)
+            }
+        }
+        checkBugRewards()
+    }, [user])
 
     return (
         <div className="min-h-screen bg-white">
@@ -416,6 +440,21 @@ export default function Layout() {
                         </button>
                     </div>
                 </div>
+            )}
+
+            {showBugReward && (
+                <ApprovedBugModal
+                    onClose={async () => {
+                        setShowBugReward(false)
+                        // Mark as seen in DB
+                        if (rewardReportId) {
+                            await supabase
+                                .from('bug_reports')
+                                .update({ notification_shown: true })
+                                .eq('id', rewardReportId)
+                        }
+                    }}
+                />
             )}
 
             {/* Global Loader Helper */}

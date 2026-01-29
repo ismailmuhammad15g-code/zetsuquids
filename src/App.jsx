@@ -7,7 +7,9 @@ import GuidePage from './pages/GuidePage'
 import HomePage from './pages/HomePage'
 import PricingPage from './pages/PricingPage'
 import PrivacyPolicy from './pages/PrivacyPolicy'
+import ReportBugPage from './pages/ReportBugPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import SupportPage from './pages/SupportPage'
 import TermsOfService from './pages/TermsOfService'
 import UserWorkspacePage from './pages/UserWorkspacePage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
@@ -33,6 +35,8 @@ function App() {
                     <Route path="/pricing" element={<PricingPage />} />
                     <Route path="/privacy" element={<PrivacyPolicy />} />
                     <Route path="/terms" element={<TermsOfService />} />
+                    <Route path="/support" element={<SupportPage />} />
+                    <Route path="/reportbug" element={<ReportBugPage />} />
                 </Routes>
             </AuthProvider>
         </LoadingProvider>

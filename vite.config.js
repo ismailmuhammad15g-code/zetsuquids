@@ -298,8 +298,88 @@ function apiMiddleware() {
                     return
                 }
 
+                // Handle submit_bug API
+                if (req.url === '/api/submit_bug' && req.method === 'POST') {
+                    let body = ''
+                    req.on('data', chunk => { body += chunk })
+                    req.on('end', async () => {
+                        try {
+                            const data = body ? JSON.parse(body) : {}
+
+                            // Inject env vars safely
+                            process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL
+                            process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY
+                            process.env.MAIL_USERNAME = env.MAIL_USERNAME || process.env.MAIL_USERNAME
+                            process.env.MAIL_PASSWORD = env.MAIL_PASSWORD || process.env.MAIL_PASSWORD
+
+                            // Only set if defined to avoid "undefined" string
+                            if (env.ADMIN_APPROVAL_TOKEN) process.env.ADMIN_APPROVAL_TOKEN = env.ADMIN_APPROVAL_TOKEN
+
+                            process.env.VITE_APP_URL = 'http://localhost:3001'
+
+                            const mockReq = {
+                                method: 'POST',
+                                body: data,
+                                headers: req.headers
+                            }
+                            const mockRes = {
+                                statusCode: 200,
+                                setHeader: (key, value) => res.setHeader(key, value),
+                                status: (code) => { res.statusCode = code; return mockRes },
+                                json: (data) => {
+                                    res.setHeader('Content-Type', 'application/json')
+                                    res.end(JSON.stringify(data))
+                                }
+                            }
+
+                            const { default: submitBug } = await import('./api/submit_bug.js')
+                            await submitBug(mockReq, mockRes)
+                        } catch (error) {
+                            console.error('Bug API Error:', error)
+                            res.statusCode = 500
+                            res.end(JSON.stringify({ error: error.message }))
+                        }
+                    })
+                    return
+                }
+
+                // Handle approve_bug_reward API
+                if (req.url?.startsWith('/api/approve_bug_reward')) {
+                    try {
+                        const url = new URL(req.url, `http://${req.headers.host}`)
+                        const query = Object.fromEntries(url.searchParams)
+
+                        process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL
+                        process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY
+                        if (env.ADMIN_APPROVAL_TOKEN) process.env.ADMIN_APPROVAL_TOKEN = env.ADMIN_APPROVAL_TOKEN
+
+                        const mockReq = {
+                            method: 'GET',
+                            query
+                        }
+                        const mockRes = {
+                            statusCode: 200,
+                            setHeader: (key, value) => res.setHeader(key, value),
+                            status: (code) => { res.statusCode = code; return mockRes },
+                            send: (data) => res.end(data),
+                            json: (data) => {
+                                res.setHeader('Content-Type', 'application/json')
+                                res.end(JSON.stringify(data))
+                            }
+                        }
+
+                        const { default: approveBug } = await import('./api/approve_bug_reward.js')
+                        await approveBug(mockReq, mockRes)
+                    } catch (error) {
+                        console.error('Approve API Error:', error)
+                        res.statusCode = 500
+                        res.end(error.message)
+                    }
+                    return
+                }
+
                 // Handle support_ticket API
-                if (req.url === '/api/support_ticket' && req.method === 'POST') {
+                if ((req.url === '/api/support_ticket' || req.url === '/api/submit_support') && req.method === 'POST') {
                     let body = ''
                     req.on('data', chunk => { body += chunk })
                     req.on('end', async () => {
