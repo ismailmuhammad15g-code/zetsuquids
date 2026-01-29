@@ -452,7 +452,7 @@ export default function Chatbot() {
                 <div className={`fixed z-50 transition-all duration-300 ease-in-out bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 shadow-2xl flex flex-col overflow-hidden font-sans
                     ${isMinimized
                         ? 'bottom-6 right-6 w-72 h-16 rounded-2xl cursor-pointer'
-                        : 'bottom-6 right-6 w-[90vw] sm:w-[400px] h-[600px] max-h-[85vh] rounded-3xl'
+                        : 'bottom-6 right-6 w-[90vw] sm:w-[500px] h-[700px] max-h-[90vh] rounded-3xl'
                     }
                 `}>
                     {/* Header */}
@@ -528,34 +528,35 @@ export default function Chatbot() {
                                     </div>
                                 )}
 
+
                                 {/* Token Limit / Upgrade Overlay */}
                                 {showUpgrade && isAuthenticated() && (
-                                    <div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in zoom-in-95 duration-300">
+                                    <div className="absolute inset-0 z-40 bg-[#0a0a0a] flex flex-col items-center justify-center p-6 text-center">
                                         <div className="w-16 h-16 bg-gradient-to-tr from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mb-4 shadow-lg shadow-orange-500/20">
                                             <Zap size={32} className="text-white" fill="currentColor" />
                                         </div>
                                         <h3 className="text-xl font-black text-white mb-2 tracking-tight">
                                             {tokensLeft > 0 ? "Unlock Unlimited AI" : "Out of Energy!"}
                                         </h3>
-                                        <p className="text-sm text-gray-300 mb-6">
+                                        <p className="text-sm text-gray-300 mb-6 max-w-xs">
                                             {tokensLeft > 0
                                                 ? `You have ${tokensLeft} free queries left today.\nUpgrade to Pro for unlimited access.`
                                                 : "You've used your 30 free daily queries.\nUpgrade to Pro for unlimited AI access."
                                             }
                                         </p>
-                                        <div className="flex flex-col gap-3 w-full max-w-[200px]">
+                                        <div className="flex flex-col gap-3 w-full max-w-[240px]">
                                             <button
                                                 onClick={() => {
                                                     setIsOpen(false)
                                                     navigate('/pricing')
                                                 }}
-                                                className="w-full px-6 py-2.5 bg-white text-black font-bold text-sm rounded-xl hover:scale-105 transition-transform"
+                                                className="w-full px-6 py-3 bg-white text-black font-bold text-sm rounded-xl hover:scale-105 transition-transform"
                                             >
                                                 Upgrade Now
                                             </button>
                                             <button
                                                 onClick={() => setShowUpgrade(false)}
-                                                className="w-full px-6 py-2.5 bg-transparent border border-white/20 text-white/70 font-medium text-sm rounded-xl hover:bg-white/5 transition-colors"
+                                                className="w-full px-6 py-3 bg-transparent border border-white/20 text-white/70 font-medium text-sm rounded-xl hover:bg-white/5 transition-colors"
                                             >
                                                 {tokensLeft > 0 ? "Continue Free" : "Maybe Later"}
                                             </button>
@@ -565,123 +566,129 @@ export default function Chatbot() {
 
                                 {/* Support Form Overlay */}
                                 {showSupportForm && isAuthenticated() && (
-                                    <div className="absolute inset-0 z-30 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in zoom-in-95 duration-300 overflow-y-auto">
-                                        <div className="w-full max-w-md">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
-                                                        <Sparkles size={20} className="text-white" />
-                                                    </div>
-                                                    <h3 className="text-xl font-black text-white tracking-tight">Customer Support</h3>
+                                    <div className="absolute inset-0 z-40 bg-[#0a0a0a] flex flex-col overflow-hidden">
+                                        {/* Header */}
+                                        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5 flex-shrink-0">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
+                                                    <Sparkles size={20} className="text-white" />
                                                 </div>
-                                                <button
-                                                    onClick={() => setShowSupportForm(false)}
-                                                    className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                                                >
-                                                    <X size={18} />
-                                                </button>
+                                                <h3 className="text-xl font-black text-white tracking-tight">Customer Support</h3>
                                             </div>
+                                            <button
+                                                onClick={() => setShowSupportForm(false)}
+                                                className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                                            >
+                                                <X size={18} />
+                                            </button>
+                                        </div>
 
-                                            <p className="text-sm text-gray-400 mb-6">
-                                                Fill out the form below and our support team will get back to you within 24 hours.
-                                            </p>
+                                        {/* Form Content - Scrollable */}
+                                        <div className="flex-1 overflow-y-auto p-6">
+                                            <div className="max-w-md mx-auto">
+                                                <p className="text-sm text-gray-400 mb-6">
+                                                    Fill out the form below and our support team will get back to you within 24 hours.
+                                                </p>
 
-                                            <form onSubmit={handleSupportSubmit} className="space-y-4">
-                                                {/* Email */}
-                                                <div>
-                                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
-                                                        Email Address *
-                                                    </label>
-                                                    <input
-                                                        type="email"
-                                                        required
-                                                        value={supportFormData.email}
-                                                        onChange={(e) => setSupportFormData(prev => ({ ...prev, email: e.target.value }))}
-                                                        className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                                        placeholder="your@email.com"
-                                                    />
-                                                </div>
+                                                <form onSubmit={handleSupportSubmit} className="space-y-4">
+                                                    {/* Email */}
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
+                                                            Email Address *
+                                                        </label>
+                                                        <input
+                                                            type="email"
+                                                            required
+                                                            value={supportFormData.email}
+                                                            onChange={(e) => setSupportFormData(prev => ({ ...prev, email: e.target.value }))}
+                                                            className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                                            placeholder="your@email.com"
+                                                        />
+                                                    </div>
 
-                                                {/* Phone (Optional) */}
-                                                <div>
-                                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
-                                                        Phone Number (Optional)
-                                                    </label>
-                                                    <input
-                                                        type="tel"
-                                                        value={supportFormData.phone}
-                                                        onChange={(e) => setSupportFormData(prev => ({ ...prev, phone: e.target.value }))}
-                                                        className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                                        placeholder="+20 123 456 7890"
-                                                    />
-                                                </div>
+                                                    {/* Phone (Optional) */}
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
+                                                            Phone Number (Optional)
+                                                        </label>
+                                                        <input
+                                                            type="tel"
+                                                            value={supportFormData.phone}
+                                                            onChange={(e) => setSupportFormData(prev => ({ ...prev, phone: e.target.value }))}
+                                                            className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                                            placeholder="+20 123 456 7890"
+                                                        />
+                                                    </div>
 
-                                                {/* Category */}
-                                                <div>
-                                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
-                                                        Issue Category *
-                                                    </label>
-                                                    <select
-                                                        required
-                                                        value={supportFormData.category}
-                                                        onChange={(e) => setSupportFormData(prev => ({ ...prev, category: e.target.value }))}
-                                                        className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                                    >
-                                                        <option value="account">👤 Account Issues</option>
-                                                        <option value="payment">💳 Payment & Billing</option>
-                                                        <option value="technical">🔧 Technical Problems</option>
-                                                        <option value="other">📝 Other</option>
-                                                    </select>
-                                                </div>
+                                                    {/* Category */}
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
+                                                            Issue Category *
+                                                        </label>
+                                                        <select
+                                                            required
+                                                            value={supportFormData.category}
+                                                            onChange={(e) => setSupportFormData(prev => ({ ...prev, category: e.target.value }))}
+                                                            className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                                        >
+                                                            <option value="account">👤 Account Issues</option>
+                                                            <option value="payment">💳 Payment & Billing</option>
+                                                            <option value="technical">🔧 Technical Problems</option>
+                                                            <option value="other">📝 Other</option>
+                                                        </select>
+                                                    </div>
 
-                                                {/* Message */}
-                                                <div>
-                                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
-                                                        Describe Your Issue *
-                                                    </label>
-                                                    <textarea
-                                                        required
-                                                        value={supportFormData.message}
-                                                        onChange={(e) => setSupportFormData(prev => ({ ...prev, message: e.target.value }))}
-                                                        rows={5}
-                                                        className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none"
-                                                        placeholder="Please provide as much detail as possible about your issue..."
-                                                    />
-                                                </div>
+                                                    {/* Message */}
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
+                                                            Describe Your Issue *
+                                                        </label>
+                                                        <textarea
+                                                            required
+                                                            value={supportFormData.message}
+                                                            onChange={(e) => setSupportFormData(prev => ({ ...prev, message: e.target.value }))}
+                                                            rows={6}
+                                                            className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none"
+                                                            placeholder="Please provide as much detail as possible about your issue..."
+                                                        />
+                                                    </div>
 
-                                                {/* Submit Button */}
-                                                <div className="flex gap-3 pt-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setShowSupportForm(false)}
-                                                        className="flex-1 px-6 py-3 bg-transparent border border-white/20 text-white/70 font-medium text-sm rounded-xl hover:bg-white/5 transition-colors"
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                    <button
-                                                        type="submit"
-                                                        disabled={supportSubmitting}
-                                                        className="flex-1 px-6 py-3 bg-white text-black font-bold text-sm rounded-xl hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                                    >
-                                                        {supportSubmitting ? (
-                                                            <>
-                                                                <Loader2 size={16} className="animate-spin" />
-                                                                Sending...
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Send size={16} />
-                                                                Submit Ticket
-                                                            </>
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            </form>
+                                                    {/* Submit Buttons */}
+                                                    <div className="flex gap-3 pt-4 pb-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowSupportForm(false)}
+                                                            className="flex-1 px-6 py-3 bg-transparent border border-white/20 text-white/70 font-medium text-sm rounded-xl hover:bg-white/5 transition-colors"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                        <button
+                                                            type="submit"
+                                                            disabled={supportSubmitting}
+                                                            className="flex-1 px-6 py-3 bg-white text-black font-bold text-sm rounded-xl hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                                        >
+                                                            {supportSubmitting ? (
+                                                                <>
+                                                                    <Loader2 size={16} className="animate-spin" />
+                                                                    Sending...
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Send size={16} />
+                                                                    Submit Ticket
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
 
-                                {messages.map((msg) => (
+
+                                {/* Messages - Hidden when support form is open */}
+                                {!showSupportForm && messages.map((msg) => (
                                     <div
                                         key={msg.id}
                                         className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
@@ -740,7 +747,10 @@ export default function Chatbot() {
 
 
 
-                                {isTyping && (
+
+
+                                {/* Typing Indicator - Hidden when support form is open */}
+                                {!showSupportForm && isTyping && (
                                     <div className="flex flex-col gap-1 animate-in fade-in duration-300">
                                         <div className="flex items-start gap-3 animate-pulse">
                                             <div className="w-8 h-8 rounded-full bg-transparent border border-white/10 flex items-center justify-center flex-shrink-0 mt-1">
