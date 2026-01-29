@@ -27,6 +27,7 @@ const AGENT_PHASES = {
     INITIAL_THINKING: 'initial_thinking',
     ANALYZING: 'analyzing',
     DIVING_INTO_GUIDES: 'diving_into_guides',
+    RESEARCHING: 'researching',
     FOUND_GUIDES: 'found_guides',
     THINKING_MORE: 'thinking_more',
     RESPONDING: 'responding'
@@ -1241,7 +1242,11 @@ export default function ZetsuGuideAIPage() {
         setAgentPhase(AGENT_PHASES.INITIAL_THINKING)
         await delay(800)
 
-        // Phase 2: Diving into guides
+        // Phase 2: Researching (searching web and guides)
+        setAgentPhase(AGENT_PHASES.RESEARCHING)
+        await delay(1000) // Time for search API to work
+
+        // Phase 3: Diving into guides
         setAgentPhase(AGENT_PHASES.DIVING_INTO_GUIDES)
 
         // Actually search the guides with smart relevance
@@ -1255,14 +1260,14 @@ export default function ZetsuGuideAIPage() {
 
         await delay(600) // Reduced from 1200ms
 
-        // Phase 3: Found guides (only if found relevant ones)
+        // Phase 4: Found guides (only if found relevant ones)
         if (relevantGuides.length > 0) {
             setAgentPhase(AGENT_PHASES.FOUND_GUIDES)
             setFoundGuides(relevantGuides)
             await delay(500) // Reduced from 1000ms
         }
 
-        // Phase 4: Thinking more (skip this phase to save time)
+        // Phase 5: Thinking more (skip this phase to save time)
         // setAgentPhase(AGENT_PHASES.THINKING_MORE)
         // await delay(1000)
 
@@ -1407,10 +1412,12 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
 
             const data = await response.json()
             console.log('AI Response data received:', !!data.choices)
+            console.log('Search sources from API:', data.sources?.length || 0)
 
             let aiRaw = data.choices?.[0]?.message?.content || '{}'
             let aiContent = ''
             let isPublishable = false
+            let webSources = data.sources || []
 
             try {
                 // Remove any markdown code blocks if present
@@ -1460,12 +1467,28 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                 isPublishable = aiContent.length > 200 // Fallback heuristic
             }
 
-            // Add sources section with clickable links if any relevant guides were found
-            if (sources.length > 0) {
+            // Combine guide sources and web search sources
+            const allSources = [
+                ...sources, // Guide sources
+                ...webSources.map(s => ({
+                    title: s.title,
+                    url: s.url,
+                    isWebSource: true
+                }))
+            ]
+
+            // Add sources section with clickable links
+            if (allSources.length > 0) {
                 aiContent += '\n\n---\n\n**📚 Sources Used:**\n'
-                sources.forEach((source, idx) => {
-                    const guideUrl = `/guide/${source.slug}`
-                    aiContent += `${idx + 1}. [${source.title}](${guideUrl})\n`
+                allSources.forEach((source, idx) => {
+                    if (source.isWebSource) {
+                        // Web search results with external link
+                        aiContent += `${idx + 1}. [${source.title}](${source.url})\n`
+                    } else {
+                        // Guide sources with internal link
+                        const guideUrl = `/guide/${source.slug}`
+                        aiContent += `${idx + 1}. [${source.title}](${guideUrl})\n`
+                    }
                 })
             }
 
@@ -1486,7 +1509,7 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                     content: aiContent,
                     timestamp: new Date().toISOString(),
                     isStreaming: true,
-                    sources: sources,
+                    sources: allSources,
                     publishable: isPublishable
                 }]
             })
@@ -2808,6 +2831,9 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                             <div className="zetsu-agent-phase-text">
                                                 {agentPhase === AGENT_PHASES.INITIAL_THINKING && (
                                                     <span className="zetsu-agent-status">Thinking...</span>
+                                                )}
+                                                {agentPhase === AGENT_PHASES.RESEARCHING && (
+                                                    <span className="zetsu-agent-status">Researching...</span>
                                                 )}
                                                 {agentPhase === AGENT_PHASES.DIVING_INTO_GUIDES && (
                                                     <span className="zetsu-agent-status">Diving into guides...</span>

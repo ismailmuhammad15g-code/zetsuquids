@@ -1,5 +1,41 @@
 import { createClient } from '@supabase/supabase-js'
 
+// Search function using Tavily API (free tier)
+async function searchWithTavily(query) {
+    try {
+        const tavilyApiKey = process.env.TAVILY_API_KEY
+        if (!tavilyApiKey) {
+            console.warn('⚠️ Tavily API key not configured, skipping search')
+            return null
+        }
+
+        console.log('🔍 Searching with Tavily for:', query)
+        const response = await fetch('https://api.tavily.com/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                api_key: tavilyApiKey,
+                query: query,
+                max_results: 5,
+                include_answer: true,
+                include_raw_content: false
+            })
+        })
+
+        if (!response.ok) {
+            console.warn(`⚠️ Tavily search failed with status ${response.status}`)
+            return null
+        }
+
+        const data = await response.json()
+        console.log(`✅ Found ${data.results?.length || 0} search results`)
+        return data
+    } catch (error) {
+        console.error('❌ Tavily search error:', error)
+        return null
+    }
+}
+
 // Exponential backoff retry logic for API calls with intelligent wait times
 async function fetchWithExponentialBackoff(url, options, maxRetries = 4) {
     let lastError
@@ -94,6 +130,26 @@ export default async function handler(req, res) {
 
         const { messages, model, userId, userEmail, skipCreditDeduction } = body || {}
 
+        // Get the last user message for search
+        const userMessage = messages?.find(m => m.role === 'user')?.content || ''
+
+        // Perform search in parallel with AI processing
+        let searchResults = null
+        if (userMessage && !skipCreditDeduction) {
+            searchResults = await searchWithTavily(userMessage)
+        }
+
+        // Build enhanced system prompt with search results
+        let systemPrompt = `You are ZetsuGuideAI, a helpful and intelligent assistant. You provide accurate, detailed, and well-sourced information.`
+        
+        if (searchResults?.results && searchResults.results.length > 0) {
+            systemPrompt += `\n\nYou have access to the following real-time search results:\n`
+            searchResults.results.forEach((result, idx) => {
+                systemPrompt += `\n[Source ${idx + 1}] ${result.title}\nURL: ${result.url}\nContent: ${result.content?.substring(0, 300) || 'N/A'}\n`
+            })
+            systemPrompt += `\n\nPlease use these sources to provide accurate answers and cite them when relevant. Always mention the sources at the end of your response.`
+        }
+
         // Get API credentials
         const apiKey = process.env.VITE_AI_API_KEY || process.env.ROUTEWAY_API_KEY
         const apiUrl = process.env.VITE_AI_API_URL || 'https://api.routeway.ai/v1/chat/completions'
@@ -102,9 +158,15 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Missing AI API Key' })
         }
 
+        // Build messages with enhanced system prompt
+        const messagesWithSearch = [
+            { role: 'system', content: systemPrompt },
+            ...messages.filter(m => m.role !== 'system')
+        ]
+
         const requestPayload = {
             model: model || 'kimi-k2-0905:free',
-            messages: messages,
+            messages: messagesWithSearch,
             max_tokens: 4000,
             temperature: 0.7
         }
@@ -165,7 +227,8 @@ export default async function handler(req, res) {
             return res.status(200).json({
                 ...data,
                 content: data.choices?.[0]?.message?.content || '',
-                publishable: true
+                publishable: true,
+                sources: searchResults?.results || []
             })
         }
 
@@ -273,7 +336,8 @@ export default async function handler(req, res) {
         res.status(200).json({
             ...data,
             content: data.choices?.[0]?.message?.content || '',
-            publishable: true
+            publishable: true,
+            sources: searchResults?.results || []
         })
 
     } catch (error) {
