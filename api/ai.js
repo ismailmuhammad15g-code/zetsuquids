@@ -1,38 +1,179 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Search function using Tavily API (free tier)
-async function searchWithTavily(query) {
-    try {
-        const tavilyApiKey = process.env.TAVILY_API_KEY
-        if (!tavilyApiKey) {
-            console.warn('⚠️ Tavily API key not configured, skipping search')
-            return null
-        }
+// ============ FREE AGENT - NO API REQUIRED ============
 
-        console.log('🔍 Searching with Tavily for:', query)
-        const response = await fetch('https://api.tavily.com/search', {
+// 1. AI chooses the best source (no search needed!)
+async function selectBestSource(query, aiApiKey, aiUrl) {
+    try {
+        console.log('🧠 AI selecting best source for:', query)
+        
+        const response = await fetch(aiUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Authorization': `Bearer ${aiApiKey}`,
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({
-                api_key: tavilyApiKey,
-                query: query,
-                max_results: 5,
-                include_answer: true,
-                include_raw_content: false
+                model: 'kimi-k2-0905:free',
+                messages: [{
+                    role: 'user',
+                    content: `Choose the SINGLE best public source URL to answer this question. Return ONLY the URL, nothing else.
+
+Question: "${query}"
+
+Pick from these sources based on the question:
+- Wikipedia (https://en.wikipedia.org/...) for general knowledge
+- GitHub (https://github.com/...) for code/projects
+- Reddit (https://reddit.com/r/...) for opinions/discussions  
+- Medium (https://medium.com/...) for articles
+- Stack Overflow (https://stackoverflow.com/...) for code problems
+- Official documentation for technical details
+
+Return ONLY the URL to fetch.`
+                }],
+                max_tokens: 200,
+                temperature: 0.3
             })
         })
 
         if (!response.ok) {
-            console.warn(`⚠️ Tavily search failed with status ${response.status}`)
+            console.warn(`⚠️ Source selection failed`)
             return null
         }
 
         const data = await response.json()
-        console.log(`✅ Found ${data.results?.length || 0} search results`)
-        return data
-    } catch (error) {
-        console.error('❌ Tavily search error:', error)
+        const sourceUrl = data.choices?.[0]?.message?.content?.trim() || null
+        
+        if (sourceUrl && (sourceUrl.startsWith('http://') || sourceUrl.startsWith('https://'))) {
+            console.log(`✅ AI selected source: ${sourceUrl}`)
+            return sourceUrl
+        }
         return null
+    } catch (error) {
+        console.error('❌ Source selection error:', error)
+        return null
+    }
+}
+
+// 2. Fetch and parse HTML content (direct, no API)
+async function fetchAndParseContent(url) {
+    try {
+        console.log(`📄 Fetching content from: ${url}`)
+        
+        // Respect User-Agent and rate limiting
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            timeout: 10000
+        })
+
+        if (!response.ok) {
+            console.warn(`⚠️ Failed to fetch ${url} - status ${response.status}`)
+            return null
+        }
+
+        const html = await response.text()
+        
+        // Simple HTML parsing (extract text content)
+        const text = html
+            .replace(/<script[^>]*>.*?<\/script>/gs, '')  // Remove scripts
+            .replace(/<style[^>]*>.*?<\/style>/gs, '')    // Remove styles
+            .replace(/<[^>]+>/g, ' ')                     // Remove HTML tags
+            .replace(/\s+/g, ' ')                          // Normalize whitespace
+            .slice(0, 8000)                                // Limit to 8000 chars
+        
+        console.log(`✅ Fetched ${text.length} characters from ${url}`)
+        return text
+    } catch (error) {
+        console.error(`❌ Fetch error from ${url}:`, error.message)
+        return null
+    }
+}
+
+// 3. Smart fallback: DuckDuckGo HTML parsing (no API needed!)
+async function fallbackDuckDuckGo(query) {
+    try {
+        console.log(`🔍 Fallback: Scraping DuckDuckGo for: ${query}`)
+        
+        const encodedQuery = encodeURIComponent(query)
+        const ddgUrl = `https://duckduckgo.com/html/?q=${encodedQuery}`
+        
+        const response = await fetch(ddgUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            timeout: 8000
+        })
+
+        if (!response.ok) return null
+
+        const html = await response.text()
+        
+        // Extract links from DuckDuckGo HTML
+        const linkRegex = /<a rel="noopener" class="result__a" href="([^"]+)"/g
+        const matches = [...html.matchAll(linkRegex)].slice(0, 3)
+        
+        const urls = matches.map(m => {
+            try {
+                return new URL(m[1]).href
+            } catch (e) {
+                return null
+            }
+        }).filter(Boolean)
+        
+        console.log(`✅ Found ${urls.length} URLs from DuckDuckGo`)
+        
+        // Fetch and parse top 3 results
+        const contents = []
+        for (const url of urls) {
+            if (contents.length >= 2) break
+            const content = await fetchAndParseContent(url)
+            if (content) {
+                contents.push({ url, content })
+            }
+        }
+        
+        return contents.length > 0 ? contents : null
+    } catch (error) {
+        console.error('❌ DuckDuckGo fallback error:', error.message)
+        return null
+    }
+}
+
+// 4. Main agent: Smart source selection + fetching
+async function intelligentFetch(query, aiApiKey, aiUrl) {
+    try {
+        // First attempt: Let AI choose the best source
+        const selectedUrl = await selectBestSource(query, aiApiKey, aiUrl)
+        
+        if (selectedUrl) {
+            const content = await fetchAndParseContent(selectedUrl)
+            if (content) {
+                return {
+                    sources: [{ url: selectedUrl, content, method: 'ai-selected' }],
+                    success: true
+                }
+            }
+        }
+        
+        // Fallback: DuckDuckGo scraping
+        console.log('⚠️ Primary source failed, using DuckDuckGo fallback...')
+        const fallbackResults = await fallbackDuckDuckGo(query)
+        
+        if (fallbackResults) {
+            return {
+                sources: fallbackResults.map(r => ({ ...r, method: 'ddg-fallback' })),
+                success: true
+            }
+        }
+        
+        console.warn('❌ All source methods failed')
+        return { sources: [], success: false }
+    } catch (error) {
+        console.error('❌ Intelligent fetch error:', error)
+        return { sources: [], success: false }
     }
 }
 
@@ -130,29 +271,32 @@ export default async function handler(req, res) {
 
         const { messages, model, userId, userEmail, skipCreditDeduction } = body || {}
 
-        // Get the last user message for search
+        // Get the last user message for intelligent fetch
         const userMessage = messages?.find(m => m.role === 'user')?.content || ''
 
-        // Perform search in parallel with AI processing
-        let searchResults = null
-        if (userMessage && !skipCreditDeduction) {
-            searchResults = await searchWithTavily(userMessage)
-        }
-
-        // Build enhanced system prompt with search results
-        let systemPrompt = `You are ZetsuGuideAI, a helpful and intelligent assistant. You provide accurate, detailed, and well-sourced information.`
-        
-        if (searchResults?.results && searchResults.results.length > 0) {
-            systemPrompt += `\n\nYou have access to the following real-time search results:\n`
-            searchResults.results.forEach((result, idx) => {
-                systemPrompt += `\n[Source ${idx + 1}] ${result.title}\nURL: ${result.url}\nContent: ${result.content?.substring(0, 300) || 'N/A'}\n`
-            })
-            systemPrompt += `\n\nPlease use these sources to provide accurate answers and cite them when relevant. Always mention the sources at the end of your response.`
-        }
-
-        // Get API credentials
+        // Get API credentials for source selection
         const apiKey = process.env.VITE_AI_API_KEY || process.env.ROUTEWAY_API_KEY
         const apiUrl = process.env.VITE_AI_API_URL || 'https://api.routeway.ai/v1/chat/completions'
+
+        // Intelligent fetch: AI selects source, we fetch directly (FREE!)
+        let fetchedSources = []
+        let systemPromptAddition = ''
+        
+        if (userMessage && !skipCreditDeduction && apiKey) {
+            const fetchResult = await intelligentFetch(userMessage, apiKey, apiUrl)
+            if (fetchResult.success && fetchResult.sources.length > 0) {
+                fetchedSources = fetchResult.sources
+                systemPromptAddition = `\n\nYou have access to the following real-time source content:\n`
+                fetchResult.sources.forEach((source, idx) => {
+                    systemPromptAddition += `\n[Source ${idx + 1}] ${source.method === 'ai-selected' ? '🎯 AI Selected' : '🔍 Found'}\nURL: ${source.url}\nContent: ${source.content?.substring(0, 400) || 'N/A'}\n`
+                })
+                systemPromptAddition += `\n\nAnswer ONLY using the content provided above. Do NOT invent information. Cite sources.`
+            }
+        }
+
+        // Build enhanced system prompt
+        let systemPrompt = `You are ZetsuGuideAI, a helpful and intelligent assistant. You provide accurate, detailed, and well-sourced information.`
+        systemPrompt += systemPromptAddition || `\n\nBe honest about what you don't know.`
 
         if (!apiKey) {
             return res.status(500).json({ error: 'Missing AI API Key' })
@@ -228,7 +372,7 @@ export default async function handler(req, res) {
                 ...data,
                 content: data.choices?.[0]?.message?.content || '',
                 publishable: true,
-                sources: searchResults?.results || []
+                sources: fetchedSources.map(s => ({ url: s.url, method: s.method }))
             })
         }
 
@@ -337,7 +481,7 @@ export default async function handler(req, res) {
             ...data,
             content: data.choices?.[0]?.message?.content || '',
             publishable: true,
-            sources: searchResults?.results || []
+            sources: fetchedSources.map(s => ({ url: s.url, method: s.method }))
         })
 
     } catch (error) {

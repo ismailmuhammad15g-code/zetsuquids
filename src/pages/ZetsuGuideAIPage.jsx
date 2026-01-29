@@ -26,8 +26,9 @@ const AI_MODEL = import.meta.env.VITE_AI_MODEL || 'kimi-k2-0905:free'
 const AGENT_PHASES = {
     INITIAL_THINKING: 'initial_thinking',
     ANALYZING: 'analyzing',
+    SELECTING_SOURCE: 'selecting_source',
+    READING_SOURCE: 'reading_source',
     DIVING_INTO_GUIDES: 'diving_into_guides',
-    RESEARCHING: 'researching',
     FOUND_GUIDES: 'found_guides',
     THINKING_MORE: 'thinking_more',
     RESPONDING: 'responding'
@@ -1238,15 +1239,19 @@ export default function ZetsuGuideAIPage() {
 
     // Memoized agent thinking - much faster now
     const agentThinkingProcess = useCallback(async (userQuery) => {
-        // Phase 1: Thinking (reduced from 1500ms to 800ms)
+        // Phase 1: Thinking (analyzing query)
         setAgentPhase(AGENT_PHASES.INITIAL_THINKING)
-        await delay(800)
+        await delay(600)
 
-        // Phase 2: Researching (searching web and guides)
-        setAgentPhase(AGENT_PHASES.RESEARCHING)
-        await delay(1000) // Time for search API to work
+        // Phase 2: Selecting best source (AI decides where to look)
+        setAgentPhase(AGENT_PHASES.SELECTING_SOURCE)
+        await delay(800) // Time for AI to pick source
 
-        // Phase 3: Diving into guides
+        // Phase 3: Reading selected source
+        setAgentPhase(AGENT_PHASES.READING_SOURCE)
+        await delay(600) // Time for fetch + parse
+
+        // Phase 4: Diving into guides
         setAgentPhase(AGENT_PHASES.DIVING_INTO_GUIDES)
 
         // Actually search the guides with smart relevance
@@ -1260,14 +1265,14 @@ export default function ZetsuGuideAIPage() {
 
         await delay(600) // Reduced from 1200ms
 
-        // Phase 4: Found guides (only if found relevant ones)
+        // Phase 5: Found guides (only if found relevant ones)
         if (relevantGuides.length > 0) {
             setAgentPhase(AGENT_PHASES.FOUND_GUIDES)
             setFoundGuides(relevantGuides)
             await delay(500) // Reduced from 1000ms
         }
 
-        // Phase 5: Thinking more (skip this phase to save time)
+        // Phase 6: Thinking more (skip this phase to save time)
         // setAgentPhase(AGENT_PHASES.THINKING_MORE)
         // await delay(1000)
 
@@ -1467,13 +1472,14 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                 isPublishable = aiContent.length > 200 // Fallback heuristic
             }
 
-            // Combine guide sources and web search sources
+            // Combine guide sources and intelligent fetch sources
             const allSources = [
                 ...sources, // Guide sources
                 ...webSources.map(s => ({
-                    title: s.title,
+                    title: s.url.split('/').filter(Boolean).pop()?.substring(0, 50) || 'Source',
                     url: s.url,
-                    isWebSource: true
+                    method: s.method,
+                    isIntelligentSource: true
                 }))
             ]
 
@@ -1481,9 +1487,10 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
             if (allSources.length > 0) {
                 aiContent += '\n\n---\n\n**📚 Sources Used:**\n'
                 allSources.forEach((source, idx) => {
-                    if (source.isWebSource) {
-                        // Web search results with external link
-                        aiContent += `${idx + 1}. [${source.title}](${source.url})\n`
+                    if (source.isIntelligentSource) {
+                        // Intelligent sources with external link
+                        const methodLabel = source.method === 'ai-selected' ? '🎯 AI Selected' : '🔍 Found'
+                        aiContent += `${idx + 1}. [${source.title}](${source.url}) ${methodLabel}\n`
                     } else {
                         // Guide sources with internal link
                         const guideUrl = `/guide/${source.slug}`
@@ -2832,8 +2839,11 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                                 {agentPhase === AGENT_PHASES.INITIAL_THINKING && (
                                                     <span className="zetsu-agent-status">Thinking...</span>
                                                 )}
-                                                {agentPhase === AGENT_PHASES.RESEARCHING && (
-                                                    <span className="zetsu-agent-status">Researching...</span>
+                                                {agentPhase === AGENT_PHASES.SELECTING_SOURCE && (
+                                                    <span className="zetsu-agent-status">Selecting best source... 🎯</span>
+                                                )}
+                                                {agentPhase === AGENT_PHASES.READING_SOURCE && (
+                                                    <span className="zetsu-agent-status">Reading source... 📖</span>
                                                 )}
                                                 {agentPhase === AGENT_PHASES.DIVING_INTO_GUIDES && (
                                                     <span className="zetsu-agent-status">Diving into guides...</span>
