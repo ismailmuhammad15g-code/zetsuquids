@@ -1,6 +1,6 @@
 import Lottie from 'lottie-react'
 import { ArrowRight, Bot, History, Menu, MessageSquare, Plus, Trash2, X, Zap } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import guidePublishAnimation from '../assets/Guidepublish.json'
 import aiLogoAnimation from '../assets/ailogo.json'
@@ -14,6 +14,9 @@ import { SparklesText } from '../components/ui/sparkles-text'
 import { useAuth } from '../contexts/AuthContext'
 import { guidesApi, isSupabaseConfigured, supabase } from '../lib/api'
 import { commitReservedCredit, releaseReservedCredit, reserveCredit } from '../lib/creditReservation'
+
+// Lazy load heavy components
+const ReferralBonusNotification = lazy(() => import('../components/ReferralBonusNotification').then(m => ({ default: m.default })).catch(() => ({ default: () => null })))
 
 // AI API Configuration - Using Vercel serverless function to avoid CORS
 const AI_MODEL = import.meta.env.VITE_AI_MODEL || 'kimi-k2-0905:free'
@@ -648,6 +651,7 @@ export default function ZetsuGuideAIPage() {
     const [guides, setGuides] = useState([])
     const [streamingMessageIndex, setStreamingMessageIndex] = useState(-1)
     const [showReferralBonus, setShowReferralBonus] = useState(false)
+    const [confettiFireCount, setConfettiFireCount] = useState(0) // Track confetti fires
 
     // Agent state
     const [agentPhase, setAgentPhase] = useState(null)
@@ -694,16 +698,17 @@ export default function ZetsuGuideAIPage() {
     const inputRef = useRef(null)
     const confettiRef = useRef(null)
 
-    // Fire confetti on welcome screen
+    // Fire confetti only twice - on welcome screen and on first message
     useEffect(() => {
-        if (messages.length === 0 && !isThinking && confettiRef.current) {
-            // Fire confetti after a small delay for effect
+        if (messages.length === 0 && !isThinking && confettiRef.current && confettiFireCount < 1) {
+            // Fire confetti on page load (first time)
             const timer = setTimeout(() => {
-                confettiRef.current?.fire({ particleCount: 80, origin: { x: 0.5, y: 0.3 } })
-            }, 500)
+                confettiRef.current?.fire({ particleCount: 30, origin: { x: 0.5, y: 0.3 } })
+                setConfettiFireCount(prev => prev + 1)
+            }, 800)
             return () => clearTimeout(timer)
         }
-    }, [messages.length, isThinking])
+    }, [messages.length, isThinking, confettiFireCount])
 
     // Reset loading state on mount
     useEffect(() => {
@@ -1138,16 +1143,14 @@ export default function ZetsuGuideAIPage() {
     function buildGuidesContext() {
         if (guides.length === 0) return ''
 
-        const context = guides.slice(0, 10).map(guide => {
+        // Limit to 3 guides for performance (was 10)
+        const context = guides.slice(0, 3).map(guide => {
             const content = guide.markdown || guide.content || guide.html_content || ''
-            return `### ${guide.title}\n${content.substring(0, 500)}...`
+            return `### ${guide.title}\n${content.substring(0, 300)}...` // Reduced from 500 to 300
         }).join('\n\n')
 
         return `Here are some relevant guides from the knowledge base:\n\n${context}`
     }
-
-    // Delay helper for agent phases
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
     // Smart search for relevant guides only
     function searchRelevantGuides(query, allGuides) {
@@ -1194,11 +1197,14 @@ export default function ZetsuGuideAIPage() {
             .slice(0, 5)
     }
 
-    // Agent thinking process - simplified and clean
-    async function agentThinkingProcess(userQuery) {
-        // Phase 1: Thinking
+    // Optimized delay with shorter times for better UX
+    const delay = useCallback((ms) => new Promise(resolve => setTimeout(resolve, ms)), [])
+
+    // Memoized agent thinking - much faster now
+    const agentThinkingProcess = useCallback(async (userQuery) => {
+        // Phase 1: Thinking (reduced from 1500ms to 800ms)
         setAgentPhase(AGENT_PHASES.INITIAL_THINKING)
-        await delay(1500)
+        await delay(800)
 
         // Phase 2: Diving into guides
         setAgentPhase(AGENT_PHASES.DIVING_INTO_GUIDES)
@@ -1212,26 +1218,26 @@ export default function ZetsuGuideAIPage() {
             console.error('Error searching guides:', error)
         }
 
-        await delay(1200)
+        await delay(600) // Reduced from 1200ms
 
         // Phase 3: Found guides (only if found relevant ones)
         if (relevantGuides.length > 0) {
             setAgentPhase(AGENT_PHASES.FOUND_GUIDES)
             setFoundGuides(relevantGuides)
-            await delay(1000)
+            await delay(500) // Reduced from 1000ms
         }
 
-        // Phase 4: Thinking more
-        setAgentPhase(AGENT_PHASES.THINKING_MORE)
-        await delay(1000)
+        // Phase 4: Thinking more (skip this phase to save time)
+        // setAgentPhase(AGENT_PHASES.THINKING_MORE)
+        // await delay(1000)
 
         return { relevantGuides }
-    }
+    }, [delay])
 
     // State for longer thinking message
     const [isTakingLonger, setIsTakingLonger] = useState(false)
 
-    async function handleSubmit(e) {
+    const handleSubmit = useCallback(async (e) => {
         e.preventDefault()
 
         if (!input.trim()) return
@@ -1289,12 +1295,12 @@ export default function ZetsuGuideAIPage() {
             // Run agent thinking process
             const { relevantGuides } = await agentThinkingProcess(userQuery)
 
-            // Build context from found guides
+            // Build context from found guides (limited to 3 for performance)
             const guidesContext = relevantGuides.length > 0
-                ? relevantGuides.slice(0, 5).map(g => `**${g.title}** (ID: ${g.id || g.slug}):\n${(g.markdown || g.content || '').substring(0, 500)}`).join('\n\n---\n\n')
+                ? relevantGuides.slice(0, 3).map(g => `**${g.title}** (ID: ${g.id || g.slug}):\n${(g.markdown || g.content || '').substring(0, 300)}`).join('\n\n---\n\n')
                 : buildGuidesContext()
 
-            // Save used sources for the response
+            // Save used sources for the response (show up to 5 but only use top 3)
             const sources = relevantGuides.slice(0, 5).map(g => ({
                 title: g.title,
                 slug: g.slug || g.id
@@ -1313,7 +1319,7 @@ CRITICAL INSTRUCTIONS:
 2. Use clear structure with headers (##), numbered steps, and bullet points
 3. Include practical code examples when relevant
 4. Explain concepts step-by-step like teaching a student
-5. ${isArabicQuery ? 'RESPOND IN ARABIC - the user asked in Arabic, so reply entirely in Arabic' : 'Respond in the same language as the user\'s question'}
+5. LANGUAGE INSTRUCTION: ${isArabicQuery ? 'The user asked in ARABIC. You MUST respond ENTIRELY in ARABIC. Do not mix languages. Do not respond in English if the question is in Arabic.' : 'The user asked in ENGLISH. You MUST respond ENTIRELY in ENGLISH. Do not respond in Arabic if the question is in English. Only respond in the exact language of the question.'}
 6. Break down complex topics into digestible parts
 7. Add tips, best practices, and common mistakes to avoid
 8. If showing code, explain each important line
@@ -1350,8 +1356,7 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                         { role: 'system', content: systemPrompt },
                         ...messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
                         { role: 'user', content: userQuery }
-                    ],
-                    skipCreditDeduction: true
+                    ]
                 })
             })
 
@@ -1423,6 +1428,14 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
 
                 // Log usage
                 await logCreditUsage(userEmail, 'AI Chat', `Query: ${userQuery.substring(0, 50)}${userQuery.length > 50 ? '...' : ''}`)
+
+                // Fire confetti second time - only if this is the first message
+                if (messages.length === 1 && confettiFireCount < 2 && confettiRef.current) {
+                    setTimeout(() => {
+                        confettiRef.current?.fire({ particleCount: 25, origin: { x: 0.5, y: 0.4 } })
+                        setConfettiFireCount(prev => prev + 1)
+                    }, 1000)
+                }
             }
 
         } catch (error) {
@@ -1473,7 +1486,7 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
             clearTimeout(longerTimer)
             setIsTakingLonger(false)
         }
-    }
+    }, [input, isAuthenticated, user?.email, credits, navigate, confettiFireCount, confettiRef])
 
     // Mark streaming as complete and save conversation
     function handleStreamingComplete(index) {
@@ -1524,22 +1537,24 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                 </div>
             )}
 
-            {/* Referral Bonus Notification */}
+            {/* Referral Bonus Notification - Lazy loaded for performance */}
             {showReferralBonus && (
-                <div className="referral-bonus-overlay" onClick={() => setShowReferralBonus(false)}>
-                    <div className="referral-bonus-modal" onClick={e => e.stopPropagation()}>
-                        <div className="referral-bonus-icon">🎉</div>
-                        <h2>Welcome Bonus!</h2>
-                        <p>You've been invited by a friend and received <strong>5 free credits</strong> to use ZetsuGuide AI!</p>
-                        <p className="referral-bonus-note">Your friend has also received 5 bonus credits. Thank you for joining!</p>
-                        <button
-                            className="referral-bonus-btn"
-                            onClick={() => setShowReferralBonus(false)}
-                        >
-                            Start Using ZetsuGuide AI
-                        </button>
+                <Suspense fallback={null}>
+                    <div className="referral-bonus-overlay" onClick={() => setShowReferralBonus(false)}>
+                        <div className="referral-bonus-modal" onClick={e => e.stopPropagation()}>
+                            <div className="referral-bonus-icon">🎉</div>
+                            <h2>Welcome Bonus!</h2>
+                            <p>You've been invited by a friend and received <strong>5 free credits</strong> to use ZetsuGuide AI!</p>
+                            <p className="referral-bonus-note">Your friend has also received 5 bonus credits. Thank you for joining!</p>
+                            <button
+                                className="referral-bonus-btn"
+                                onClick={() => setShowReferralBonus(false)}
+                            >
+                                Start Using ZetsuGuide AI
+                            </button>
+                        </div>
                     </div>
-                </div>
+                </Suspense>
             )}
 
             {/* Publish to Guide Modal */}
@@ -1719,6 +1734,7 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                 loop={true}
                                 autoplay={true}
                                 style={{ width: '100%', height: '100%' }}
+                                rendererSettings={{ preserveAspectRatio: 'xMidYMid slice' }}
                             />
                         </div>
                         <div className="zetsu-ai-title">
@@ -2461,7 +2477,10 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                 pointerEvents: 'auto'
                             }}
                             onMouseEnter={() => {
-                                confettiRef.current?.fire({ particleCount: 50, origin: { x: 0.5, y: 0.5 } })
+                                if (confettiFireCount < 2 && confettiRef.current) {
+                                    confettiRef.current?.fire({ particleCount: 25, origin: { x: 0.5, y: 0.5 } })
+                                    setConfettiFireCount(prev => prev + 1)
+                                }
                             }}
                         />
 
@@ -2472,6 +2491,60 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                 style={{ width: '100%', height: '100%' }}
                             />
                         </div>
+
+                        {/* Beautiful greeting message with time-based personalization */}
+                        {user?.email && (
+                            <div style={{
+                                textAlign: 'center',
+                                marginBottom: '2rem',
+                                fontSize: '1.3rem',
+                                fontWeight: '500',
+                                background: 'linear-gradient(135deg, #A07CFE 0%, #FE8FB5 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                backgroundClip: 'text',
+                                color: 'transparent',
+                                position: 'relative',
+                                zIndex: 1,
+                                animation: 'fadeInUp 0.8s ease-out 0.3s both'
+                            }}>
+                                {(() => {
+                                    const userName = user.email.split('@')[0].charAt(0).toUpperCase() + user.email.split('@')[0].slice(1)
+                                    const hour = new Date().getHours()
+
+                                    // Time-based greeting messages
+                                    let timeGreetings = []
+                                    if (hour >= 5 && hour < 12) {
+                                        timeGreetings = [
+                                            `Good morning ${userName}! Ready to learn something new?`,
+                                            `Morning ${userName}! Let's start the day with some coding!`,
+                                            `Hey ${userName}! Time to solve some problems today!`
+                                        ]
+                                    } else if (hour >= 12 && hour < 17) {
+                                        timeGreetings = [
+                                            `Good afternoon ${userName}! What can I help you with?`,
+                                            `Afternoon ${userName}! Let's keep the momentum going!`,
+                                            `Hey ${userName}! Ready for some afternoon learning?`
+                                        ]
+                                    } else if (hour >= 17 && hour < 21) {
+                                        timeGreetings = [
+                                            `Good evening ${userName}! What's on your mind?`,
+                                            `Evening ${userName}! Let's tackle something cool!`,
+                                            `Hey ${userName}! How can I help this evening?`
+                                        ]
+                                    } else {
+                                        timeGreetings = [
+                                            `Good night ${userName}! Still coding? I love the dedication!`,
+                                            `Night owl ${userName}! Let's build something amazing!`,
+                                            `Hey ${userName}! Working late? I'm here to help!`
+                                        ]
+                                    }
+
+                                    return timeGreetings[Math.floor(Math.random() * timeGreetings.length)]
+                                })()}
+                            </div>
+                        )}
+
                         <h2 style={{ position: 'relative', zIndex: 1 }}>
                             <SparklesText
                                 colors={{ first: "#A07CFE", second: "#FE8FB5" }}
@@ -2760,6 +2833,17 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                 @keyframes glowFloat {
                     0%, 100% { transform: translate(0, 0) scale(1); }
                     50% { transform: translate(50px, 50px) scale(1.1); }
+                }
+
+                @keyframes fadeInUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
                 }
 
                 /* Header */
