@@ -15,6 +15,7 @@ import { SparklesText } from '../components/ui/sparkles-text'
 import { useAuth } from '../contexts/AuthContext'
 import { guidesApi, isSupabaseConfigured, supabase } from '../lib/api'
 import { commitReservedCredit, releaseReservedCredit, reserveCredit } from '../lib/creditReservation'
+import { DailyGiftModal, useDailyCreditsCheck } from '../components/DailyGiftModal'
 
 // Lazy load heavy components
 const ReferralBonusNotification = lazy(() => import('../components/ReferralBonusNotification').then(m => ({ default: m.default })).catch(() => ({ default: () => null })))
@@ -91,42 +92,11 @@ async function getCreditsFromDB(user) {
                 }
             }
 
-            // User doesn't have credits record yet - UPSERT to avoid duplicates
-            if (!data) {
-                console.log('Creating new credits record for user')
-                const { data: newData, error: upsertError } = await supabase
-                    .from('zetsuguide_credits')
-                    .upsert({
-                        user_email: user.email.toLowerCase(),
-                        credits: 5,
-                        total_referrals: 0,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
-                    }, { onConflict: 'user_email' })
-                    .select('credits, total_referrals')
-                    .single()
-
-                if (!upsertError && newData) {
-                    console.log('Credits created/verified:', newData.credits)
-                    return {
-                        credits: newData.credits,
-                        total_referrals: newData.total_referrals || 0,
-                        referred_by: null
-                    }
-                } else if (upsertError) {
-                    console.error('Upsert error:', upsertError)
-                    // Fallback: fetch the data
-                    const { data: retryData } = await supabase
-                        .from('zetsuguide_credits')
-                        .select('credits, total_referrals')
-                        .eq('user_email', user.email.toLowerCase())
-                        .maybeSingle()
-                    return {
-                        credits: retryData?.credits || 5,
-                        total_referrals: retryData?.total_referrals || 0,
-                        referred_by: null
-                    }
-                }
+            console.warn('No credits record found for user:', user.email)
+            return {
+                credits: 0,
+                total_referrals: 0,
+                referred_by: null
             }
         } catch (err) {
             console.error('Supabase credits error:', err)
@@ -643,6 +613,10 @@ export default function ZetsuGuideAIPage() {
     const { user, isAuthenticated } = useAuth()
     const navigate = useNavigate()
 
+    // Daily Gift state
+    const { canClaim, hoursRemaining, isLoading: isCheckingDailyCredits } = useDailyCreditsCheck()
+    const [showDailyGiftModal, setShowDailyGiftModal] = useState(false)
+
     const [messages, setMessages] = useState([])
     const [input, setInput] = useState('')
     const [isThinking, setIsThinking] = useState(false)
@@ -703,6 +677,22 @@ export default function ZetsuGuideAIPage() {
     const messagesEndRef = useRef(null)
     const inputRef = useRef(null)
     const confettiRef = useRef(null)
+
+    // Show daily gift modal when user can claim
+    useEffect(() => {
+        if (canClaim && !isCheckingDailyCredits) {
+            setShowDailyGiftModal(true)
+        }
+    }, [canClaim, isCheckingDailyCredits])
+
+    // Handle daily gift claim
+    const handleDailyGiftClaim = (creditsAwarded, newBalance) => {
+        setCredits(newBalance)
+        // Fire confetti to celebrate
+        if (confettiRef.current?.fire) {
+            confettiRef.current.fire({ particleCount: 100, spread: 70, origin: { y: 0.6 } })
+        }
+    }
 
     // Fire confetti only twice - on welcome screen and on first message
     useEffect(() => {
@@ -1432,41 +1422,52 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
             console.log('AI Response data received:', !!data.choices)
             console.log('Search sources from API:', data.sources?.length || 0)
 
-            let aiRaw = data.choices?.[0]?.message?.content || '{}'
             let aiContent = ''
             let isPublishable = false
             let webSources = data.sources || []
 
             try {
-                // Remove any markdown code blocks if present
-                const cleanJson = aiRaw.replace(/```json\n?|\n?```/g, '').trim()
+                // Check if API already provided parsed content (which it does)
+                if (data.content) {
+                    // Use the already parsed content from API
+                    aiContent = data.content
+                    isPublishable = !!data.publishable
+                } else {
+                    // Fallback to parsing from choices if content field is missing
+                    let aiRaw = data.choices?.[0]?.message?.content || ''
+                    if (aiRaw) {
+                        // Remove any markdown code blocks if present
+                        const cleanJson = aiRaw.replace(/```json\n?|\n?```/g, '').trim()
 
-                // Try to parse as JSON
-                let parsed = null
-                try {
-                    parsed = JSON.parse(cleanJson)
-                } catch (parseError) {
-                    // If direct parsing fails, try again with cleaned string
-                    try {
-                        parsed = JSON.parse(aiRaw)
-                    } catch (secondError) {
-                        // If all parsing fails, treat as raw text
-                        console.warn('Could not parse as JSON, using raw text')
-                        throw new Error('Not valid JSON')
+                        // Try to parse as JSON
+                        let parsed = null
+                        try {
+                            parsed = JSON.parse(cleanJson)
+                        } catch (parseError) {
+                            // If direct parsing fails, try again with cleaned string
+                            try {
+                                parsed = JSON.parse(aiRaw)
+                            } catch (secondError) {
+                                // If all parsing fails, treat as raw text
+                                console.warn('Could not parse as JSON, using raw text')
+                                aiContent = aiRaw
+                                isPublishable = aiRaw && aiRaw.length > 200
+                            }
+                        }
+
+                        if (parsed && parsed.content) {
+                            aiContent = parsed.content
+                            isPublishable = !!parsed.publishable
+                        } else {
+                            aiContent = aiRaw
+                            isPublishable = aiRaw && aiRaw.length > 200
+                        }
                     }
                 }
-
-                // Extract content from parsed JSON
-                if (parsed && parsed.content) {
-                    aiContent = parsed.content
-                    isPublishable = !!parsed.publishable
-                } else {
-                    throw new Error('No content field in JSON')
-                }
             } catch (e) {
-                console.error('Failed to parse AI JSON:', e)
-                // If JSON parsing fails completely, use raw text as is
-                console.log('Using raw text response from AI')
+                console.error('Failed to parse AI response:', e)
+                // Fallback to raw text
+                const aiRaw = data.choices?.[0]?.message?.content || ''
                 aiContent = aiRaw
                 isPublishable = aiRaw && aiRaw.length > 200
             }
@@ -1658,6 +1659,13 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                     </div>
                 </Suspense>
             )}
+
+            {/* Daily Gift Modal */}
+            <DailyGiftModal
+                isOpen={showDailyGiftModal}
+                onClose={() => setShowDailyGiftModal(false)}
+                onClaim={handleDailyGiftClaim}
+            />
 
             {/* Publish to Guide Modal */}
             {showPublishModal && (

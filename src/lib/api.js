@@ -481,6 +481,65 @@ Flexbox makes it easy to design flexible responsive layouts.
 ];
 
 // Initialize sample data if database is empty
+// Daily Credits API
+export const dailyCreditsApi = {
+    async claimDailyCredits(userEmail) {
+        if (!isSupabaseConfigured()) {
+            console.log('Supabase not configured, cannot claim daily credits');
+            return { success: false, message: 'Supabase not configured' };
+        }
+
+        try {
+            const { data, error } = await supabase.rpc('claim_daily_credits', {
+                p_user_email: userEmail.toLowerCase()
+            });
+
+            if (error) {
+                console.error('Error claiming daily credits:', error);
+                return { success: false, message: 'Failed to claim daily credits' };
+            }
+
+            const result = data[0];
+            return {
+                success: result.success,
+                message: result.message,
+                creditsAwarded: result.credits_awarded,
+                newBalance: result.new_balance
+            };
+        } catch (error) {
+            console.error('Error claiming daily credits:', error);
+            return { success: false, message: 'Internal server error' };
+        }
+    },
+
+    async checkDailyCredits(userEmail) {
+        if (!isSupabaseConfigured()) {
+            console.log('Supabase not configured, cannot check daily credits');
+            return { canClaim: false, hoursRemaining: 0 };
+        }
+
+        try {
+            const { data, error } = await supabase.rpc('can_claim_daily_credits', {
+                p_user_email: userEmail.toLowerCase()
+            });
+
+            if (error) {
+                console.error('Error checking daily credits:', error);
+                return { canClaim: false, hoursRemaining: 0 };
+            }
+
+            const result = data[0];
+            return {
+                canClaim: result.can_claim,
+                hoursRemaining: result.hours_remaining
+            };
+        } catch (error) {
+            console.error('Error checking daily credits:', error);
+            return { canClaim: false, hoursRemaining: 0 };
+        }
+    }
+};
+
 export async function initializeSampleData() {
     try {
         const existing = await guidesApi.getAll();

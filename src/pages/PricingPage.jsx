@@ -1,10 +1,6 @@
-import Lottie from 'lottie-react'
-import { ArrowLeft, Check, ChevronRight, Copy, Crown, Gift, Sparkles, Star, Users, X, Zap } from 'lucide-react'
+import { ArrowLeft, Check, ChevronRight, Copy, CreditCard, Gift, Shield, Sparkles, Star, Users, X, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useOutletContext } from 'react-router-dom'
-import giftAnimation from '../assets/gift.json'
-import pricingAnimation from '../assets/pricing.json'
-import PricingDecoration from '../components/PricingDecoration'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 
@@ -19,29 +15,26 @@ function generateGuestReferralCode() {
 
 export default function PricingPage() {
     const { user, isAuthenticated } = useAuth()
-    const outletContext = useOutletContext() || {}
     const navigate = useNavigate()
     const [copied, setCopied] = useState(false)
     const [referralCode, setReferralCode] = useState('')
     const [showEarnModal, setShowEarnModal] = useState(false)
+    const [showPaymentModal, setShowPaymentModal] = useState(false)
+    const [selectedPackage, setSelectedPackage] = useState(null)
+    const [paymentLoading, setPaymentLoading] = useState(false)
+    const [credits, setCredits] = useState(0)
     const [referralStats, setReferralStats] = useState({
         totalReferrals: 0,
         totalBalance: 0,
-        creditsEarned: 0,  // Only from referrals they created
-        bonusReceived: 0   // 5 if they were referred, 0 if not
+        creditsEarned: 0,
+        bonusReceived: 0
     })
 
-    // Close earn modal when component unmounts or showEarnModal changes
-    useEffect(() => {
-        // Any cleanup if needed
-    }, [showEarnModal])
-
-    // Get or generate referral code and save to database
+    // Get or generate referral code
     useEffect(() => {
         async function setupReferralCode() {
             if (isAuthenticated() && user?.email) {
                 try {
-                    // First check if user already has a referral code in database
                     const { data: existingCredits } = await supabase
                         .from('zetsuguide_credits')
                         .select('referral_code, total_referrals, credits, referred_by')
@@ -49,93 +42,39 @@ export default function PricingPage() {
                         .maybeSingle()
 
                     if (existingCredits?.referral_code) {
-                        // Use existing code from database
                         setReferralCode(existingCredits.referral_code)
+                        setCredits(existingCredits.credits || 0)
                         const referralEarnings = (existingCredits.total_referrals || 0) * 5
-                        const bonusReceived = referralEarnings  // Total earned from referrals
                         setReferralStats({
                             totalReferrals: existingCredits.total_referrals || 0,
-                            totalBalance: existingCredits.credits || 0,  // Total = 5 initial + (referrals * 5)
-                            creditsEarned: referralEarnings,  // Earnings from referrals
-                            bonusReceived: bonusReceived  // Total referral bonus earned
+                            totalBalance: existingCredits.credits || 0,
+                            creditsEarned: referralEarnings,
+                            bonusReceived: referralEarnings
                         })
                     } else {
-                        // Generate new code
                         const emailHash = user.email.split('@')[0].toUpperCase().substring(0, 4)
                         const newCode = emailHash + Math.random().toString(36).substring(2, 6).toUpperCase()
-
-                        // Save to database (upsert to create or update)
-                        const { data: newCreditsData } = await supabase
+                        await supabase
                             .from('zetsuguide_credits')
                             .upsert({
                                 user_email: user.email.toLowerCase(),
                                 referral_code: newCode,
-                                credits: existingCredits ? existingCredits.credits : 5,
+                                credits: 5,
                                 total_referrals: 0,
                                 updated_at: new Date().toISOString()
                             }, { onConflict: 'user_email' })
-                            .select()
-                            .single()
-
                         setReferralCode(newCode)
-                        // Force update state immediately for new users
-                        const referralEarnings = (newCreditsData?.total_referrals || 0) * 5
-                        const bonusReceived = referralEarnings  // Total earned from referrals
-                        setReferralStats({
-                            totalReferrals: (newCreditsData?.total_referrals || 0),
-                            totalBalance: (newCreditsData?.credits || 5),  // Total = 5 initial + (referrals * 5)
-                            creditsEarned: referralEarnings,  // Earnings from referrals
-                            bonusReceived: bonusReceived  // Total referral bonus earned
-                        })
-                        console.log('Referral code saved to database:', newCode)
+                        setCredits(5)
                     }
                 } catch (error) {
                     console.error('Error setting up referral code:', error)
-                    // Fallback to guest code
                     setReferralCode(generateGuestReferralCode())
                 }
             } else {
                 setReferralCode(generateGuestReferralCode())
             }
         }
-
         setupReferralCode()
-
-        // Realtime Subscription - Listen for changes on this user's credits
-        let subscription
-        if (user?.email) {
-            subscription = supabase
-                .channel(`public:zetsuguide_credits:user_email=eq.${user.email.toLowerCase()}`)
-                .on('postgres_changes', {
-                    event: '*', // Listen to INSERT and UPDATE
-                    schema: 'public',
-                    table: 'zetsuguide_credits',
-                    filter: `user_email=eq.${user.email.toLowerCase()}`
-                }, (payload) => {
-                    console.log('[RealTime] Referral stats updated:', payload)
-                    if (payload.new) {
-                        const referralEarnings = (payload.new.total_referrals || 0) * 5
-                        const bonusReceived = payload.new.referred_by ? 5 : 0
-                        setReferralStats({
-                            totalReferrals: payload.new.total_referrals || 0,
-                            totalBalance: payload.new.credits || 0,  // Total balance
-                            creditsEarned: referralEarnings,  // Only referral earnings
-                            bonusReceived: bonusReceived  // 5 if referred, 0 if not
-                        })
-                        console.log('[RealTime] Updated state to:', {
-                            totalReferrals: payload.new.total_referrals || 0,
-                            totalBalance: payload.new.credits || 0,
-                            creditsEarned: referralEarnings,
-                            bonusReceived: bonusReceived
-                        })
-                    }
-                })
-                .subscribe()
-        }
-
-        return () => {
-            if (subscription) supabase.removeChannel(subscription)
-        }
     }, [user, isAuthenticated])
 
     const referralLink = `${window.location.origin}/auth?ref=${referralCode}`
@@ -150,460 +89,880 @@ export default function PricingPage() {
         }
     }
 
-    const plans = [
+    const creditPackages = [
         {
-            name: 'Free',
-            price: '0',
-            period: 'forever',
-            description: 'Perfect for exploring',
-            features: ['3 Daily AI Queries', 'Access to all guides', 'Basic search functionality', 'Community support'],
-            cta: 'Current Plan',
+            credits: 50,
+            price: 50,
             popular: false,
-            disabled: true
+            description: 'Perfect for casual use'
         },
         {
-            name: 'Pro',
-            price: '9.99',
-            period: 'month',
-            description: 'For power users & devs',
-            features: ['Unlimited AI Queries', 'Priority AI responses', 'Advanced search filters', 'Email support', 'Early access to new features'],
-            cta: 'Coming Soon',
+            credits: 100,
+            price: 90,
             popular: true,
-            disabled: true
+            description: 'Best value for power users',
+            savings: '10% OFF'
         },
         {
-            name: 'Enterprise',
-            price: '49.99',
-            period: 'month',
-            description: 'For teams & organizations',
-            features: ['Unlimited AI & Members', 'Custom AI training', 'API access', 'Dedicated Slack support', 'Custom integrations', 'Analytics dashboard'],
-            cta: 'Contact Us',
+            credits: 200,
+            price: 160,
             popular: false,
-            disabled: true
+            description: 'Maximum credits',
+            savings: '20% OFF'
         }
     ]
 
+    const handleBuyCredits = async (pkg) => {
+        console.log('[PricingPage] Buy button clicked!', pkg)
+        console.log('[PricingPage] Auth status:', { isAuth: isAuthenticated(), hasUser: !!user, email: user?.email })
+
+        if (!isAuthenticated || typeof isAuthenticated !== 'function') {
+            console.error('[PricingPage] isAuthenticated is not a function!')
+            alert('Authentication error. Please refresh the page.')
+            return
+        }
+
+        if (!isAuthenticated() || !user?.email) {
+            console.log('[PricingPage] User not authenticated, redirecting to /auth')
+            navigate('/auth')
+            return
+        }
+
+        console.log('[PricingPage] Starting payment process...')
+        setSelectedPackage(pkg)
+        setPaymentLoading(true)
+
+        try {
+            console.log('[PricingPage] Sending request to /api/create_payment')
+            const response = await fetch('/api/create_payment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userEmail: user.email,
+                    amount: pkg.price,
+                    credits: pkg.credits
+                })
+            })
+
+            console.log('[PricingPage] Response status:', response.status)
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error('[PricingPage] API error:', response.status, errorText)
+                throw new Error('Failed to create payment')
+            }
+
+            const data = await response.json()
+            console.log('[PricingPage] Response data:', data)
+
+            if (data.success && data.iframeUrl) {
+                console.log('[PricingPage] Opening payment window:', data.iframeUrl)
+                window.open(data.iframeUrl, 'PaymobPayment', 'width=600,height=700')
+                setShowPaymentModal(true)
+            } else {
+                console.error('[PricingPage] Invalid response data:', data)
+                alert('فشل في إنشاء عملية الدفع. حاول مرة أخرى.')
+            }
+        } catch (error) {
+            console.error('[PricingPage] Payment error:', error)
+            alert('فشل في إنشاء عملية الدفع. حاول مرة أخرى.')
+        } finally {
+            setPaymentLoading(false)
+            console.log('[PricingPage] Payment process completed')
+        }
+    }
+
     return (
         <div className="pricing-page">
-            <div className="pricing-bg">
-                <div className="pricing-grid"></div>
-                <div className="pricing-glow pricing-glow-1"></div>
-                <div className="pricing-glow pricing-glow-2"></div>
-            </div>
-
             <header className="pricing-header">
-                <Link to="/zetsuguide-ai" className="pricing-back">
+                <Link to="/zetsuguide-ai" className="back-btn">
                     <ArrowLeft size={20} />
                     <span>Back to ZetsuGuide AI</span>
                 </Link>
+                <div className="credits-display">
+                    <Zap size={18} />
+                    <span>{credits} Credits</span>
+                </div>
             </header>
 
-
-
-            <PricingDecoration />
-
-            <section className="pricing-hero">
-                <div className="pricing-badge">
+            <section className="hero">
+                <div className="badge">
                     <Sparkles size={16} />
-                    <span>Pricing Plans</span>
+                    <span>Pricing & Credits</span>
                 </div>
-                <h1>Choose Your Plan</h1>
-                <p>Unlock the full power of ZetsuGuide AI with our flexible pricing options</p>
+                <h1>Power Your AI Journey</h1>
+                <p>Choose the perfect credit package for your needs</p>
             </section>
 
-            {/* Earn More Credits Section */}
-            <section className="earn-credits-section">
-                <div className="earn-credits-card">
-                    <div className="earn-credits-icon">
-                        <Lottie
-                            animationData={giftAnimation}
-                            loop={true}
-                            autoPlay={true}
-                            style={{ width: '100%', height: '100%' }}
-                        />
+            {/* Test Mode Warning */}
+            {import.meta.env.VITE_PAYMOB_TEST_MODE === 'true' && (
+                <div className="test-mode-banner">
+                    <Shield size={18} />
+                    <span>Test Mode Active - Use test cards for payment</span>
+                </div>
+            )}
+
+            {/* Credit Packages */}
+            <section className="packages-section">
+                <div className="packages-grid">
+                    {creditPackages.map((pkg, index) => (
+                        <div key={index} className={`package-card ${pkg.popular ? 'popular' : ''}`}>
+                            {pkg.popular && (
+                                <div className="popular-badge">
+                                    <Star size={14} />
+                                    <span>Best Value</span>
+                                </div>
+                            )}
+                            {pkg.savings && (
+                                <div className="savings-badge">{pkg.savings}</div>
+                            )}
+                            <div className="package-header">
+                                <div className="credits-amount">
+                                    <Zap size={32} className="zap-icon" />
+                                    <span className="credits-number">{pkg.credits}</span>
+                                    <span className="credits-label">Credits</span>
+                                </div>
+                                <div className="price">
+                                    <span className="currency">EGP</span>
+                                    <span className="amount">{pkg.price}</span>
+                                </div>
+                                <p className="description">{pkg.description}</p>
+                            </div>
+                            <button
+                                className="buy-btn"
+                                onClick={() => handleBuyCredits(pkg)}
+                                disabled={paymentLoading}
+                            >
+                                <CreditCard size={18} />
+                                <span>{paymentLoading && selectedPackage === pkg ? 'Processing...' : 'Buy Now'}</span>
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* Earn Free Credits */}
+            <section className="earn-section">
+                <div className="earn-card">
+                    <div className="earn-icon">
+                        <Gift size={48} />
                     </div>
-                    <div className="earn-credits-content">
-                        <h3>Earn More Credits!</h3>
+                    <div className="earn-content">
+                        <h3>Earn Free Credits!</h3>
                         <p>Invite friends and earn 5 credits for each new user who signs up with your referral link.</p>
                     </div>
-                    <button className="earn-credits-btn" onClick={() => setShowEarnModal(true)}>
+                    <button className="earn-btn" onClick={() => setShowEarnModal(true)}>
                         <span>Get Referral Link</span>
                         <ChevronRight size={18} />
                     </button>
                 </div>
             </section>
 
-            <section className="pricing-plans">
-                {plans.map((plan, index) => (
-                    <div key={index} className={`pricing-card ${plan.popular ? 'pricing-card-popular' : ''}`}>
-                        {plan.popular && (
-                            <div className="pricing-popular-badge">
-                                <Star size={14} />
-                                <span>Most Popular</span>
-                            </div>
-                        )}
-                        <div className="pricing-card-header">
-                            <h3>{plan.name}</h3>
-                            <div className="pricing-price">
-                                <span className="pricing-currency">$</span>
-                                <span className="pricing-amount">{plan.price}</span>
-                                <span className="pricing-period">/{plan.period}</span>
-                            </div>
-                            {/* Animation under price */}
-                            <div className="pricing-animation">
-                                <Lottie
-                                    animationData={pricingAnimation}
-                                    loop={true}
-                                    autoPlay={true}
-                                    style={{ width: '100%', height: 60 }}
-                                />
-                            </div>
-                            <p>{plan.description}</p>
+            {/* Features */}
+            <section className="features-section">
+                <h2>Why Buy Credits?</h2>
+                <div className="features-grid">
+                    <div className="feature">
+                        <div className="feature-icon">
+                            <Zap size={24} />
                         </div>
-                        <ul className="pricing-features">
-                            {plan.features.map((feature, i) => (
-                                <li key={i}>
-                                    <Check size={18} />
-                                    <span>{feature}</span>
-                                </li>
-                            ))}
-                        </ul>
-                        <button className={`pricing-cta ${plan.popular ? 'pricing-cta-primary' : ''}`} disabled={plan.disabled}>
-                            {plan.cta}
-                        </button>
+                        <h4>Unlimited AI Queries</h4>
+                        <p>Ask as many questions as you want without daily limits</p>
                     </div>
-                ))}
-            </section>
-
-            <section className="pricing-notice">
-                <div className="pricing-notice-content">
-                    <Crown size={32} />
-                    <h3>Premium Features Coming Soon</h3>
-                    <p>We're currently in development mode. Premium plans will be available soon. Stay tuned for updates!</p>
-                    <Link to="/zetsuguide-ai" className="pricing-notice-btn">Return to ZetsuGuide AI</Link>
-                </div>
-            </section>
-
-            <section className="pricing-faq">
-                <h2>Frequently Asked Questions</h2>
-                <div className="pricing-faq-grid">
-                    <div className="pricing-faq-item">
-                        <h4>What are AI credits?</h4>
-                        <p>Each question you ask ZetsuGuide AI uses one credit. Credits help us manage server costs and ensure quality responses.</p>
+                    <div className="feature">
+                        <div className="feature-icon">
+                            <Star size={24} />
+                        </div>
+                        <h4>Priority Responses</h4>
+                        <p>Get faster AI responses during peak hours</p>
                     </div>
-                    <div className="pricing-faq-item">
-                        <h4>How does the referral program work?</h4>
-                        <p>Share your unique referral link with friends. When they sign up and create an account, you automatically receive 5 free credits!</p>
-                    </div>
-                    <div className="pricing-faq-item">
-                        <h4>Can I get more free credits?</h4>
-                        <p>Yes! Use our referral program to earn unlimited free credits. Each friend who signs up gives you 5 credits.</p>
-                    </div>
-                    <div className="pricing-faq-item">
-                        <h4>Is there a limit to referrals?</h4>
-                        <p>No limit! You can refer as many friends as you want and earn 5 credits for each successful signup.</p>
+                    <div className="feature">
+                        <div className="feature-icon">
+                            <Shield size={24} />
+                        </div>
+                        <h4>Secure Payments</h4>
+                        <p>Powered by Paymob - Egypt's trusted payment gateway</p>
                     </div>
                 </div>
             </section>
 
             {/* Earn Credits Modal */}
             {showEarnModal && (
-                <div className="earn-modal-overlay" onClick={() => setShowEarnModal(false)}>
-                    <div className="earn-modal" onClick={(e) => e.stopPropagation()}>
-                        <button className="earn-modal-close" onClick={() => setShowEarnModal(false)}>
+                <div className="modal-overlay" onClick={() => setShowEarnModal(false)}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <button className="modal-close" onClick={() => setShowEarnModal(false)}>
                             <X size={24} />
                         </button>
 
-                        <div className="earn-modal-header">
-                            <div className="earn-modal-icon">
-                                <Lottie
-                                    animationData={giftAnimation}
-                                    loop={true}
-                                    autoPlay={true}
-                                    style={{ width: '100%', height: '100%' }}
-                                />
+                        <div className="modal-header">
+                            <div className="modal-icon">
+                                <Gift size={64} />
                             </div>
                             <h2>Earn More Credits!</h2>
                             <p>Share your referral link and earn 5 credits for every friend who signs up</p>
                         </div>
 
-                        <div className="earn-modal-stats">
-                            <div className="earn-stat">
+                        <div className="modal-stats">
+                            <div className="stat">
                                 <Users size={20} />
-                                <span className="earn-stat-value">{referralStats.totalReferrals}</span>
-                                <span className="earn-stat-label">Friends Referred</span>
+                                <span className="stat-value">{referralStats.totalReferrals}</span>
+                                <span className="stat-label">Friends Referred</span>
                             </div>
-                            <div className="earn-stat">
+                            <div className="stat">
                                 <Zap size={20} />
-                                <span className="earn-stat-value">{referralStats.creditsEarned}</span>
-                                <span className="earn-stat-label">Credits Earned</span>
+                                <span className="stat-value">{referralStats.creditsEarned}</span>
+                                <span className="stat-label">Credits Earned</span>
                             </div>
-                            <div className="earn-stat">
+                            <div className="stat">
                                 <Gift size={20} />
-                                <span className="earn-stat-value">+{referralStats.bonusReceived}</span>
-                                <span className="earn-stat-label">Bonus Received</span>
+                                <span className="stat-value">+{referralStats.bonusReceived}</span>
+                                <span className="stat-label">Bonus Received</span>
                             </div>
                         </div>
 
-                        <div className="earn-modal-section">
+                        <div className="modal-section">
                             <label>Your Referral Code</label>
-                            <div className="earn-code-box">
-                                <span className="earn-code">{referralCode}</span>
-                                <button className="earn-copy-btn" onClick={() => copyToClipboard(referralCode)}>
+                            <div className="code-box">
+                                <span className="code">{referralCode}</span>
+                                <button className="copy-btn" onClick={() => copyToClipboard(referralCode)}>
                                     <Copy size={16} />
                                     {copied ? 'Copied!' : 'Copy'}
                                 </button>
                             </div>
                         </div>
 
-                        <div className="earn-modal-section">
+                        <div className="modal-section">
                             <label>Your Referral Link</label>
-                            <div className="earn-link-box">
-                                <input type="text" value={referralLink} readOnly className="earn-link-input" />
-                                <button className="earn-copy-btn earn-copy-btn-primary" onClick={() => copyToClipboard(referralLink)}>
+                            <div className="link-box">
+                                <input type="text" value={referralLink} readOnly className="link-input" />
+                                <button className="copy-btn primary" onClick={() => copyToClipboard(referralLink)}>
                                     <Copy size={16} />
                                     {copied ? 'Copied!' : 'Copy Link'}
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
 
-                        <div className="earn-modal-howto">
-                            <h3>How It Works</h3>
-                            <div className="earn-steps">
-                                <div className="earn-step">
-                                    <div className="earn-step-number">1</div>
-                                    <div className="earn-step-content">
-                                        <h4>Share Your Link</h4>
-                                        <p>Copy your unique referral link and share it with friends, on social media, or anywhere else.</p>
-                                    </div>
-                                </div>
-                                <div className="earn-step">
-                                    <div className="earn-step-number">2</div>
-                                    <div className="earn-step-content">
-                                        <h4>Friend Signs Up</h4>
-                                        <p>When someone clicks your link and creates an account, they become your referral.</p>
-                                    </div>
-                                </div>
-                                <div className="earn-step">
-                                    <div className="earn-step-number">3</div>
-                                    <div className="earn-step-content">
-                                        <h4>Earn 5 Credits</h4>
-                                        <p>You automatically receive 5 free credits added to your account. No limits!</p>
-                                    </div>
-                                </div>
+            {/* Payment Success Modal */}
+            {showPaymentModal && (
+                <div className="modal-overlay" onClick={() => setShowPaymentModal(false)}>
+                    <div className="modal small" onClick={(e) => e.stopPropagation()}>
+                        <button className="modal-close" onClick={() => setShowPaymentModal(false)}>
+                            <X size={24} />
+                        </button>
+                        <div className="modal-header">
+                            <div className="modal-icon success">
+                                <Check size={64} />
                             </div>
+                            <h2>Payment Window Opened</h2>
+                            <p>Complete your payment in the new window. Credits will be added automatically after successful payment.</p>
                         </div>
-
-                        <div className="earn-modal-note">
-                            <strong>Important:</strong> Credits are awarded automatically when your referral completes registration. Each person can only be referred once.
-                        </div>
+                        <button className="primary-btn" onClick={() => setShowPaymentModal(false)}>
+                            Got it!
+                        </button>
                     </div>
                 </div>
             )}
 
             <style>{`
-                .pricing-page { min-height: 100vh; background: #000; color: #fff; position: relative; overflow-x: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding-bottom: 80px; }
-                .pricing-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-                .pricing-grid { position: absolute; inset: 0; background-image: linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px); background-size: 60px 60px; mask-image: radial-gradient(circle at center, black, transparent 80%); }
-                .pricing-glow { position: absolute; width: 800px; height: 800px; border-radius: 50%; filter: blur(200px); opacity: 0.15; animation: glowPulse 10s infinite alternate; }
-                .pricing-glow-1 { background: #fff; top: -200px; right: -200px; }
-                .pricing-glow-2 { background: #888; bottom: -200px; left: -200px; animation-delay: 5s; }
-                @keyframes glowPulse { 0% { opacity: 0.1; transform: scale(1); } 100% { opacity: 0.2; transform: scale(1.1); } }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                
+                .pricing-page {
+                    min-height: 100vh;
+                    background: #000;
+                    color: #fff;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    padding-bottom: 80px;
+                }
 
-                .pricing-header { position: relative; z-index: 10; padding: 24px 32px; }
-                .pricing-back { display: inline-flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; padding: 8px 16px; border-radius: 50px; background: rgba(255,255,255,0.05); }
-                .pricing-back:hover { color: #fff; background: rgba(255,255,255,0.1); transform: translateX(-4px); }
+                /* Header */
+                .pricing-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 24px 32px;
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                }
 
-                .pricing-hero { position: relative; z-index: 10; text-align: center; padding: 60px 24px; animation: slideDown 0.8s ease-out; }
-                @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+                .back-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    color: rgba(255,255,255,0.7);
+                    text-decoration: none;
+                    font-size: 0.95rem;
+                    padding: 10px 20px;
+                    border-radius: 50px;
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    transition: all 0.2s;
+                }
 
-                .pricing-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 50px; font-size: 0.85rem; margin-bottom: 24px; backdrop-filter: blur(10px); }
-                .pricing-hero h1 { font-size: 4rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 16px; background: linear-gradient(135deg, #fff 0%, #888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-shadow: 0 0 30px rgba(255,255,255,0.2); }
-                .pricing-hero p { font-size: 1.25rem; color: rgba(255,255,255,0.6); max-width: 600px; margin: 0 auto; line-height: 1.6; }
+                .back-btn:hover {
+                    color: #fff;
+                    background: rgba(255,255,255,0.1);
+                    border-color: rgba(255,255,255,0.2);
+                    transform: translateX(-4px);
+                }
 
-                /* Earn Credits Section */
-                .earn-credits-section { position: relative; z-index: 10; max-width: 900px; margin: 0 auto 60px; padding: 0 24px; animation: fadeIn 1s ease-out 0.2s backwards; }
-                .earn-credits-card { display: flex; align-items: center; gap: 24px; padding: 32px; background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.2); border-radius: 24px; transition: all 0.3s; backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
-                .earn-credits-card:hover { border-color: rgba(255,255,255,0.4); transform: translateY(-4px); box-shadow: 0 12px 40px rgba(255,255,255,0.1); }
-                .earn-credits-icon { width: 100px; height: 100px; background: transparent; border-radius: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: none; }
-                .earn-credits-content { flex: 1; }
-                .earn-credits-content h3 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
-                .earn-credits-content p { color: rgba(255,255,255,0.7); font-size: 1rem; line-height: 1.5; }
-                .earn-credits-btn { display: flex; align-items: center; gap: 8px; padding: 16px 28px; background: #fff; color: #000; border: none; border-radius: 14px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-                .earn-credits-btn:hover { transform: scale(1.05); box-shadow: 0 10px 30px rgba(255,255,255,0.3); }
+                .credits-display {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 10px 20px;
+                    background: linear-gradient(135deg, #FFD700, #FFA500);
+                    border-radius: 50px;
+                    font-weight: 700;
+                    color: #000;
+                    box-shadow: 0 4px 15px rgba(255,215,0,0.3);
+                }
 
-                /* Plans */
-                .pricing-plans { position: relative; z-index: 10; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 32px; max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+                /* Hero */
+                .hero {
+                    text-align: center;
+                    padding: 80px 24px 60px;
+                }
 
-                .pricing-card {
-                    background: rgba(10, 10, 10, 0.6);
-                    border: 1px solid rgba(255,255,255,0.08);
+                .badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 8px 16px;
+                    background: rgba(255,255,255,0.1);
+                    border: 1px solid rgba(255,255,255,0.2);
+                    border-radius: 50px;
+                    font-size: 0.85rem;
+                    margin-bottom: 24px;
+                }
+
+                .hero h1 {
+                    font-size: 4rem;
+                    font-weight: 900;
+                    letter-spacing: -0.03em;
+                    margin-bottom: 16px;
+                    background: linear-gradient(135deg, #fff 0%, #FFD700 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                }
+
+                .hero p {
+                    font-size: 1.25rem;
+                    color: rgba(255,255,255,0.6);
+                    max-width: 600px;
+                    margin: 0 auto;
+                }
+
+                /* Test Mode Banner */
+                .test-mode-banner {
+                    max-width: 800px;
+                    margin: 0 auto 40px;
+                    padding: 16px 24px;
+                    background: rgba(255,215,0,0.1);
+                    border: 1px solid rgba(255,215,0,0.3);
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 12px;
+                    color: #FFD700;
+                    font-weight: 600;
+                }
+
+                /* Packages */
+                .packages-section {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    padding: 0 24px 80px;
+                }
+
+                .packages-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    gap: 32px;
+                }
+
+                .package-card {
+                    background: #0a0a0a;
+                    border: 2px solid rgba(255,255,255,0.1);
                     border-radius: 24px;
                     padding: 40px;
                     position: relative;
-                    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                    backdrop-filter: blur(20px);
-                    animation: slideUp 0.8s ease-out backwards;
-                    display: flex;
-                    flex-direction: column;
+                    transition: all 0.3s;
                 }
-                .pricing-card:nth-child(1) { animation-delay: 0.1s; }
-                .pricing-card:nth-child(2) { animation-delay: 0.2s; }
-                .pricing-card:nth-child(3) { animation-delay: 0.3s; }
 
-                @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
-
-                .pricing-card:hover {
-                    border-color: rgba(255,255,255,0.2);
+                .package-card:hover {
+                    border-color: rgba(255,215,0,0.5);
                     transform: translateY(-8px);
-                    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+                    box-shadow: 0 20px 40px rgba(255,215,0,0.2);
                 }
-                .pricing-card-popular {
-                    background: linear-gradient(145deg, rgba(20,20,20,0.9), rgba(10,10,10,0.95));
-                    border: 1px solid rgba(99, 102, 241, 0.3);
-                    box-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
-                    transform: scale(1.02);
-                    z-index: 2;
-                }
-                .pricing-card-popular:hover {
-                    border-color: rgba(99, 102, 241, 0.6);
-                    box-shadow: 0 0 50px rgba(99, 102, 241, 0.2);
-                    transform: scale(1.02) translateY(-8px);
-                }
-                .pricing-card-popular .pricing-card-header h3 { color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.4); }
 
-                .pricing-popular-badge {
+                .package-card.popular {
+                    border-color: #FFD700;
+                    background: linear-gradient(145deg, rgba(255,215,0,0.05), rgba(0,0,0,0.9));
+                    transform: scale(1.05);
+                }
+
+                .package-card.popular:hover {
+                    transform: scale(1.05) translateY(-8px);
+                }
+
+                .popular-badge {
                     position: absolute;
                     top: -12px;
                     left: 50%;
                     transform: translateX(-50%);
-                    background: linear-gradient(90deg, #6366f1, #a855f7);
+                    background: linear-gradient(90deg, #FFD700, #FFA500);
                     padding: 6px 16px;
                     border-radius: 20px;
                     font-size: 0.75rem;
                     font-weight: 700;
                     text-transform: uppercase;
                     letter-spacing: 0.05em;
-                    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
                     display: flex;
                     align-items: center;
                     gap: 6px;
-                    color: #fff;
+                    color: #000;
                 }
 
-                .pricing-card-header { text-align: center; margin-bottom: 32px; flex: 1; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 24px; }
-                .pricing-card h3 { font-size: 1.5rem; font-weight: 700; margin-bottom: 16px; color: #fff; }
-                .pricing-price { display: flex; align-items: baseline; justify-content: center; margin-bottom: 16px; }
-                .pricing-currency { font-size: 1.5rem; color: rgba(255,255,255,0.6); margin-right: 4px; }
-                .pricing-amount { font-size: 3.5rem; font-weight: 800; letter-spacing: -0.02em; color: #fff; }
-                .pricing-period { color: rgba(255,255,255,0.4); margin-left: 8px; font-size: 1rem; }
-                .pricing-card p { color: rgba(255,255,255,0.5); font-size: 0.95rem; line-height: 1.5; }
+                .savings-badge {
+                    position: absolute;
+                    top: 20px;
+                    right: 20px;
+                    background: #FFD700;
+                    color: #000;
+                    padding: 6px 12px;
+                    border-radius: 8px;
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                }
 
-                /* Animation Container */
-                .pricing-animation { display: flex; justify-content: center; margin: 0 auto 16px; opacity: 0.8; }
-                .pricing-card:hover .pricing-animation { opacity: 1; transform: scale(1.1); transition: all 0.3s; }
+                .package-header {
+                    text-align: center;
+                    margin-bottom: 32px;
+                }
 
-                .pricing-features { list-style: none; margin-bottom: 32px; text-align: left; padding: 0; }
-                .pricing-features li { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; color: rgba(255,255,255,0.8); font-size: 0.95rem; line-height: 1.5; }
-                .pricing-features li svg { color: #6366f1; flex-shrink: 0; margin-top: 2px; }
-                .pricing-cta { width: 100%; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 1rem; transition: all 0.2s; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: #fff; margin-top: auto; }
-                .pricing-cta:hover:not(:disabled) { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); }
-                .pricing-cta-primary { background: #fff; color: #000; border: none; }
-                .pricing-cta-primary:hover:not(:disabled) { background: #f0f0f0; transform: scale(1.02); }
+                .credits-amount {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    margin-bottom: 24px;
+                }
 
-                /* Notice */
-                .pricing-notice { position: relative; z-index: 10; max-width: 700px; margin: 80px auto 0; padding: 0 24px; animation: fadeIn 1s ease-out 0.5s backwards; }
-                .pricing-notice-content { background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 40px; text-align: center; backdrop-filter: blur(10px); }
-                .pricing-notice-content svg { color: #fff; margin-bottom: 16px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.5)); }
-                .pricing-notice-content h3 { font-size: 1.5rem; font-weight: 700; margin-bottom: 12px; }
-                .pricing-notice-content p { color: rgba(255,255,255,0.6); margin-bottom: 24px; font-size: 1.1rem; }
-                .pricing-notice-btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; background: #fff; color: #000; text-decoration: none; border-radius: 10px; font-weight: 600; transition: all 0.2s; }
-                .pricing-notice-btn:hover { transform: scale(1.05); box-shadow: 0 10px 30px rgba(255,255,255,0.2); }
+                .zap-icon {
+                    color: #FFD700;
+                    margin-bottom: 12px;
+                }
 
-                /* FAQ */
-                .pricing-faq { position: relative; z-index: 10; max-width: 900px; margin: 100px auto 0; padding: 0 24px; }
-                .pricing-faq h2 { text-align: center; font-size: 2.2rem; font-weight: 800; margin-bottom: 48px; }
-                .pricing-faq-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
-                .pricing-faq-item { padding: 28px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; transition: all 0.2s; }
-                .pricing-faq-item:hover { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.15); }
-                .pricing-faq-item h4 { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; }
-                .pricing-faq-item p { font-size: 0.95rem; color: rgba(255,255,255,0.6); line-height: 1.6; }
+                .credits-number {
+                    font-size: 3.5rem;
+                    font-weight: 900;
+                    color: #fff;
+                    line-height: 1;
+                }
+
+                .credits-label {
+                    font-size: 1rem;
+                    color: rgba(255,255,255,0.5);
+                    margin-top: 8px;
+                }
+
+                .price {
+                    display: flex;
+                    align-items: baseline;
+                    justify-content: center;
+                    margin-bottom: 16px;
+                }
+
+                .currency {
+                    font-size: 1.25rem;
+                    color: rgba(255,255,255,0.6);
+                    margin-right: 4px;
+                }
+
+                .amount {
+                    font-size: 3rem;
+                    font-weight: 800;
+                    color: #FFD700;
+                }
+
+                .description {
+                    color: rgba(255,255,255,0.6);
+                    font-size: 0.95rem;
+                }
+
+                .buy-btn {
+                    width: 100%;
+                    padding: 16px;
+                    background: linear-gradient(135deg, #FFD700, #FFA500);
+                    color: #000;
+                    border: none;
+                    border-radius: 12px;
+                    font-weight: 700;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                }
+
+                .buy-btn:hover:not(:disabled) {
+                    transform: scale(1.02);
+                    box-shadow: 0 8px 25px rgba(255,215,0,0.4);
+                }
+
+                .buy-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+
+                /* Earn Section */
+                .earn-section {
+                    max-width: 900px;
+                    margin: 0 auto 80px;
+                    padding: 0 24px;
+                }
+
+                .earn-card {
+                    display: flex;
+                    align-items: center;
+                    gap: 24px;
+                    padding: 32px;
+                    background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(0,0,0,0.5));
+                    border: 1px solid rgba(255,255,255,0.2);
+                    border-radius: 24px;
+                    transition: all 0.3s;
+                }
+
+                .earn-card:hover {
+                    border-color: rgba(255,215,0,0.5);
+                    transform: translateY(-4px);
+                }
+
+                .earn-icon {
+                    color: #FFD700;
+                    flex-shrink: 0;
+                }
+
+                .earn-content {
+                    flex: 1;
+                }
+
+                .earn-content h3 {
+                    font-size: 1.5rem;
+                    font-weight: 700;
+                    margin-bottom: 8px;
+                }
+
+                .earn-content p {
+                    color: rgba(255,255,255,0.7);
+                    font-size: 1rem;
+                }
+
+                .earn-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 16px 28px;
+                    background: #fff;
+                    color: #000;
+                    border: none;
+                    border-radius: 14px;
+                    font-size: 1rem;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    flex-shrink: 0;
+                }
+
+                .earn-btn:hover {
+                    transform: scale(1.05);
+                    box-shadow: 0 8px 25px rgba(255,255,255,0.3);
+                }
+
+                /* Features */
+                .features-section {
+                    max-width: 1000px;
+                    margin: 0 auto;
+                    padding: 0 24px;
+                    text-align: center;
+                }
+
+                .features-section h2 {
+                    font-size: 2.5rem;
+                    font-weight: 800;
+                    margin-bottom: 48px;
+                }
+
+                .features-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                    gap: 32px;
+                }
+
+                .feature {
+                    padding: 32px;
+                    background: rgba(255,255,255,0.02);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 20px;
+                    transition: all 0.2s;
+                }
+
+                .feature:hover {
+                    background: rgba(255,255,255,0.05);
+                    border-color: rgba(255,215,0,0.3);
+                }
+
+                .feature-icon {
+                    width: 60px;
+                    height: 60px;
+                    background: rgba(255,215,0,0.1);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 20px;
+                    color: #FFD700;
+                }
+
+                .feature h4 {
+                    font-size: 1.25rem;
+                    font-weight: 700;
+                    margin-bottom: 12px;
+                }
+
+                .feature p {
+                    color: rgba(255,255,255,0.6);
+                    font-size: 0.95rem;
+                    line-height: 1.6;
+                }
 
                 /* Modal */
-                .earn-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; animation: fadeIn 0.2s ease-out; }
-                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-                .earn-modal {
+                .modal-overlay {
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(0,0,0,0.9);
+                    backdrop-filter: blur(8px);
+                    z-index: 1000;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 24px;
+                }
+
+                .modal {
                     background: #0a0a0a;
-                    border: 1px solid rgba(255,255,255,0.15);
+                    border: 1px solid rgba(255,255,255,0.2);
                     border-radius: 28px;
                     max-width: 600px;
                     width: 100%;
                     max-height: 90vh;
                     overflow-y: auto;
                     position: relative;
-                    animation: slideUpModal 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                    box-shadow: 0 40px 80px rgba(0,0,0,0.5);
-                    scrollbar-width: thin;
-                    scrollbar-color: rgba(255,255,255,0.2) transparent;
+                    padding: 48px 32px 32px;
                 }
 
-                /* Custom Scrollbar for Webkit */
-                .earn-modal::-webkit-scrollbar { width: 6px; }
-                .earn-modal::-webkit-scrollbar-track { background: transparent; margin: 20px 0; }
-                .earn-modal::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,0.2); border-radius: 20px; }
-                .earn-modal::-webkit-scrollbar-thumb:hover { background-color: rgba(255,255,255,0.3); }
+                .modal.small {
+                    max-width: 400px;
+                }
 
-                @keyframes slideUpModal { from { opacity: 0; transform: translateY(40px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
-                .earn-modal-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.05); border: none; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; transition: all 0.2s; }
-                .earn-modal-close:hover { background: rgba(255,255,255,0.15); transform: rotate(90deg); }
-                .earn-modal-header { text-align: center; padding: 48px 32px 32px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-                .earn-modal-icon { width: 120px; height: 120px; background: transparent; border-radius: 0; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; box-shadow: none; }
-                .earn-modal-icon svg { color: #000; fill: #000; }
-                .earn-modal-header h2 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; }
-                .earn-modal-header p { color: rgba(255,255,255,0.6); font-size: 1.1rem; }
+                .modal-close {
+                    position: absolute;
+                    top: 20px;
+                    right: 20px;
+                    background: rgba(255,255,255,0.05);
+                    border: none;
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    color: #fff;
+                    transition: all 0.2s;
+                }
 
-                .earn-modal-stats { display: flex; gap: 16px; padding: 24px 32px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-                .earn-stat { flex: 1; background: rgba(255,255,255,0.03); border-radius: 16px; padding: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
-                .earn-stat svg { margin-bottom: 12px; opacity: 0.8; color: #fff; }
-                .earn-stat-value { display: block; font-size: 1.8rem; font-weight: 800; margin-bottom: 4px; color: #fff; }
-                .earn-stat-label { font-size: 0.85rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+                .modal-close:hover {
+                    background: rgba(255,255,255,0.15);
+                    transform: rotate(90deg);
+                }
 
-                .earn-modal-section { padding: 24px 32px 0; }
-                .earn-modal-section label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 12px; color: rgba(255,255,255,0.8); }
+                .modal-header {
+                    text-align: center;
+                    margin-bottom: 32px;
+                }
 
-                .earn-code-box { display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; transition: all 0.2s; }
-                .earn-code-box:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); }
-                .earn-code { flex: 1; font-size: 1.4rem; font-weight: 800; font-family: 'Courier New', monospace; letter-spacing: 0.15em; color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.3); }
+                .modal-icon {
+                    width: 80px;
+                    height: 80px;
+                    background: rgba(255,215,0,0.1);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 20px;
+                    color: #FFD700;
+                }
 
-                .earn-link-box { display: flex; gap: 12px; }
-                .earn-link-input { flex: 1; padding: 16px 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; color: rgba(255,255,255,0.8); font-size: 0.95rem; font-family: monospace; outline: none; transition: all 0.2s; }
-                .earn-link-input:focus { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); }
+                .modal-icon.success {
+                    background: rgba(0,255,0,0.1);
+                    color: #00ff00;
+                }
 
-                .earn-copy-btn { display: flex; align-items: center; gap: 8px; padding: 14px 24px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: #fff; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-                .earn-copy-btn:hover { background: rgba(255,255,255,0.15); transform: translateY(-1px); }
-                .earn-copy-btn-primary { background: #fff; color: #000; border-color: #fff; }
-                .earn-copy-btn-primary:hover { background: #f0f0f0; box-shadow: 0 4px 15px rgba(255,255,255,0.2); }
+                .modal-header h2 {
+                    font-size: 2rem;
+                    font-weight: 800;
+                    margin-bottom: 8px;
+                }
 
-                .earn-modal-howto { padding: 32px 32px 24px; }
-                .earn-modal-howto h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 24px; color: #fff; }
-                .earn-steps { display: flex; flex-direction: column; gap: 20px; }
-                .earn-step { display: flex; gap: 16px; align-items: flex-start; }
-                .earn-step-number { width: 36px; height: 36px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; flex-shrink: 0; color: #fff; border: 1px solid rgba(255,255,255,0.1); }
-                .earn-step-content { padding-top: 6px; }
-                .earn-step-content h4 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; color: #fff; }
-                .earn-step-content p { font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
+                .modal-header p {
+                    color: rgba(255,255,255,0.6);
+                    font-size: 1rem;
+                }
 
-                .earn-modal-note { margin: 8px 32px 32px; padding: 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.6; text-align: center; }
-                .earn-modal-note strong { color: #fff; font-weight: 600; }
+                .modal-stats {
+                    display: flex;
+                    gap: 16px;
+                    margin-bottom: 32px;
+                }
+
+                .stat {
+                    flex: 1;
+                    background: rgba(255,255,255,0.03);
+                    border-radius: 16px;
+                    padding: 20px;
+                    text-align: center;
+                    border: 1px solid rgba(255,255,255,0.05);
+                }
+
+                .stat svg {
+                    margin-bottom: 12px;
+                    color: #FFD700;
+                }
+
+                .stat-value {
+                    display: block;
+                    font-size: 1.8rem;
+                    font-weight: 800;
+                    margin-bottom: 4px;
+                }
+
+                .stat-label {
+                    font-size: 0.85rem;
+                    color: rgba(255,255,255,0.5);
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                    font-weight: 600;
+                }
+
+                .modal-section {
+                    margin-bottom: 24px;
+                }
+
+                .modal-section label {
+                    display: block;
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    margin-bottom: 12px;
+                    color: rgba(255,255,255,0.8);
+                }
+
+                .code-box {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 8px 8px 8px 20px;
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 16px;
+                }
+
+                .code {
+                    flex: 1;
+                    font-size: 1.4rem;
+                    font-weight: 800;
+                    font-family: 'Courier New', monospace;
+                    letter-spacing: 0.15em;
+                    color: #FFD700;
+                }
+
+                .link-box {
+                    display: flex;
+                    gap: 12px;
+                }
+
+                .link-input {
+                    flex: 1;
+                    padding: 16px 20px;
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 14px;
+                    color: rgba(255,255,255,0.8);
+                    font-size: 0.95rem;
+                    font-family: monospace;
+                    outline: none;
+                }
+
+                .copy-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 14px 24px;
+                    background: rgba(255,255,255,0.1);
+                    border: 1px solid rgba(255,255,255,0.2);
+                    border-radius: 12px;
+                    color: #fff;
+                    font-size: 0.95rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    white-space: nowrap;
+                }
+
+                .copy-btn:hover {
+                    background: rgba(255,255,255,0.15);
+                }
+
+                .copy-btn.primary {
+                    background: linear-gradient(135deg, #FFD700, #FFA500);
+                    color: #000;
+                    border-color: transparent;
+                }
+
+                .copy-btn.primary:hover {
+                    box-shadow: 0 4px 15px rgba(255,215,0,0.3);
+                }
+
+                .primary-btn {
+                    width: 100%;
+                    padding: 16px;
+                    background: linear-gradient(135deg, #FFD700, #FFA500);
+                    color: #000;
+                    border: none;
+                    border-radius: 12px;
+                    font-weight: 700;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    margin-top: 24px;
+                }
+
+                .primary-btn:hover {
+                    transform: scale(1.02);
+                    box-shadow: 0 8px 25px rgba(255,215,0,0.4);
+                }
 
                 @media (max-width: 768px) {
-                    .pricing-hero h1 { font-size: 2.5rem; }
-                    .pricing-hero p { font-size: 1rem; }
-                    .pricing-card { padding: 24px; }
-                    .pricing-amount { font-size: 3rem; }
-                    .earn-credits-card { flex-direction: column; text-align: center; }
-                    .earn-link-box { flex-direction: column; }
-                    .earn-modal-stats { flex-direction: column; }
+                    .hero h1 { font-size: 2.5rem; }
+                    .packages-grid { grid-template-columns: 1fr; }
+                    .earn-card { flex-direction: column; text-align: center; }
+                    .modal-stats { flex-direction: column; }
+                    .link-box { flex-direction: column; }
                 }
             `}</style>
         </div>

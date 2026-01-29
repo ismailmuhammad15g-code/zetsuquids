@@ -1,6 +1,8 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 
+import { createClient } from '@supabase/supabase-js'
+
 function apiMiddleware() {
     return {
         name: 'api-middleware',
@@ -10,13 +12,265 @@ function apiMiddleware() {
             const apiKey = env.VITE_AI_API_KEY || env.ROUTEWAY_API_KEY
             const apiUrl = env.VITE_AI_API_URL || 'https://api.routeway.ai/v1/chat/completions'
             const apiModel = env.VITE_AI_MODEL || 'kimi-k2-0905:free'
-            
+
+            // Supabase config for daily credits
+            const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL
+            const supabaseServiceKey = env.SUPABASE_SERVICE_KEY
+
             console.log('[API Middleware] Initialized')
             console.log('[API Middleware] API Key present:', !!apiKey)
             console.log('[API Middleware] API URL:', apiUrl)
             console.log('[API Middleware] Model:', apiModel)
-            
+            console.log('[API Middleware] Supabase URL present:', !!supabaseUrl)
+            console.log('[API Middleware] Supabase Service Key present:', !!supabaseServiceKey)
+
             server.middlewares.use(async (req, res, next) => {
+                // Handle CORS for all API routes
+                if (req.url?.startsWith('/api/')) {
+                    res.setHeader('Access-Control-Allow-Credentials', 'true')
+                    res.setHeader('Access-Control-Allow-Origin', '*')
+                    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
+                    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version')
+
+                    if (req.method === 'OPTIONS') {
+                        res.statusCode = 200
+                        res.end()
+                        return
+                    }
+                }
+
+                // Handle check_daily_credits API
+                if (req.url === '/api/check_daily_credits' && req.method === 'POST') {
+                    let body = ''
+                    req.on('data', chunk => { body += chunk })
+                    req.on('end', async () => {
+                        try {
+                            const data = JSON.parse(body)
+                            const userEmail = data.userEmail
+
+                            if (!userEmail) {
+                                res.statusCode = 400
+                                res.setHeader('Content-Type', 'application/json')
+                                res.end(JSON.stringify({ error: 'User email is required' }))
+                                return
+                            }
+
+                            if (!supabaseUrl || !supabaseServiceKey) {
+                                console.error('[API Middleware] Missing Supabase configuration')
+                                res.statusCode = 500
+                                res.setHeader('Content-Type', 'application/json')
+                                res.end(JSON.stringify({ error: 'Server configuration error' }))
+                                return
+                            }
+
+                            const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+                            // Call the can_claim_daily_credits function
+                            const { data: result, error } = await supabase.rpc('can_claim_daily_credits', {
+                                p_user_email: userEmail.toLowerCase()
+                            })
+
+                            if (error) {
+                                console.error('[API Middleware] Error calling can_claim_daily_credits:', error)
+                                res.statusCode = 500
+                                res.setHeader('Content-Type', 'application/json')
+                                res.end(JSON.stringify({ error: 'Failed to check daily credits', details: error.message }))
+                                return
+                            }
+
+                            const firstResult = result && result[0] ? result[0] : { can_claim: false, hours_remaining: 0 }
+                            res.statusCode = 200
+                            res.setHeader('Content-Type', 'application/json')
+                            res.end(JSON.stringify({
+                                canClaim: firstResult.can_claim,
+                                hoursRemaining: firstResult.hours_remaining
+                            }))
+                        } catch (error) {
+                            console.error('[API Middleware] Error checking daily credits:', error)
+                            res.statusCode = 500
+                            res.setHeader('Content-Type', 'application/json')
+                            res.end(JSON.stringify({ error: 'Internal server error' }))
+                        }
+                    })
+                    return
+                }
+
+                // Handle claim_daily_credits API
+                if (req.url === '/api/claim_daily_credits' && req.method === 'POST') {
+                    let body = ''
+                    req.on('data', chunk => { body += chunk })
+                    req.on('end', async () => {
+                        try {
+                            const data = JSON.parse(body)
+                            const userEmail = data.userEmail
+
+                            if (!userEmail) {
+                                res.statusCode = 400
+                                res.setHeader('Content-Type', 'application/json')
+                                res.end(JSON.stringify({ error: 'User email is required' }))
+                                return
+                            }
+
+                            if (!supabaseUrl || !supabaseServiceKey) {
+                                console.error('[API Middleware] Missing Supabase configuration')
+                                res.statusCode = 500
+                                res.setHeader('Content-Type', 'application/json')
+                                res.end(JSON.stringify({ error: 'Server configuration error' }))
+                                return
+                            }
+
+                            const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+                            // Call the claim_daily_credits function
+                            const { data: result, error } = await supabase.rpc('claim_daily_credits', {
+                                p_user_email: userEmail.toLowerCase()
+                            })
+
+                            if (error) {
+                                console.error('[API Middleware] Error calling claim_daily_credits:', error)
+                                res.statusCode = 500
+                                res.setHeader('Content-Type', 'application/json')
+                                res.end(JSON.stringify({ error: 'Failed to claim daily credits', details: error.message }))
+                                return
+                            }
+
+                            const firstResult = result && result[0] ? result[0] : { success: false, message: 'No result', credits_awarded: 0, new_balance: 0 }
+                            if (firstResult.success) {
+                                res.statusCode = 200
+                                res.setHeader('Content-Type', 'application/json')
+                                res.end(JSON.stringify({
+                                    success: true,
+                                    message: firstResult.message,
+                                    creditsAwarded: firstResult.credits_awarded,
+                                    newBalance: firstResult.new_balance
+                                }))
+                            } else {
+                                res.statusCode = 400
+                                res.setHeader('Content-Type', 'application/json')
+                                res.end(JSON.stringify({
+                                    success: false,
+                                    message: firstResult.message,
+                                    creditsAwarded: 0,
+                                    newBalance: firstResult.new_balance
+                                }))
+                            }
+                        } catch (error) {
+                            console.error('[API Middleware] Error in claim_daily_credits:', error)
+                            res.statusCode = 500
+                            res.setHeader('Content-Type', 'application/json')
+                            res.end(JSON.stringify({ error: 'Internal server error' }))
+                        }
+                    })
+                    return
+                }
+
+                // Handle create_payment API
+                if (req.url === '/api/create_payment' && req.method === 'POST') {
+                    let body = ''
+                    req.on('data', chunk => { body += chunk })
+                    req.on('end', async () => {
+                        try {
+                            const data = JSON.parse(body)
+
+                            // Set Paymob environment variables for the API handler
+                            process.env.VITE_PAYMOB_API_KEY = env.VITE_PAYMOB_API_KEY
+                            process.env.VITE_PAYMOB_INTEGRATION_ID = env.VITE_PAYMOB_INTEGRATION_ID
+                            process.env.VITE_PAYMOB_IFRAME_ID = env.VITE_PAYMOB_IFRAME_ID
+
+                            // Create a mock request object with parsed body
+                            const mockReq = {
+                                method: 'POST',
+                                body: data,
+                                headers: req.headers
+                            }
+
+                            // Create a mock response object
+                            const mockRes = {
+                                statusCode: 200,
+                                headers: {},
+                                setHeader(key, value) {
+                                    this.headers[key] = value
+                                    res.setHeader(key, value)
+                                },
+                                status(code) {
+                                    this.statusCode = code
+                                    res.statusCode = code
+                                    return this
+                                },
+                                json(data) {
+                                    res.setHeader('Content-Type', 'application/json')
+                                    res.end(JSON.stringify(data))
+                                },
+                                end(data) {
+                                    res.end(data)
+                                }
+                            }
+
+                            const { default: createPayment } = await import('./api/create_payment.js')
+                            await createPayment(mockReq, mockRes)
+                        } catch (error) {
+                            console.error('[API Middleware] Error in create_payment:', error)
+                            res.statusCode = 500
+                            res.setHeader('Content-Type', 'application/json')
+                            res.end(JSON.stringify({ error: 'Internal server error', details: error.message }))
+                        }
+                    })
+                    return
+                }
+
+                // Handle payment_callback API
+                if (req.url === '/api/payment_callback' && req.method === 'POST') {
+                    let body = ''
+                    req.on('data', chunk => { body += chunk })
+                    req.on('end', async () => {
+                        try {
+                            const data = JSON.parse(body)
+
+                            // Set Supabase environment variables for the callback handler
+                            process.env.SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL
+                            process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY
+
+                            // Create a mock request object with parsed body
+                            const mockReq = {
+                                method: 'POST',
+                                body: data,
+                                headers: req.headers
+                            }
+
+                            // Create a mock response object
+                            const mockRes = {
+                                statusCode: 200,
+                                headers: {},
+                                setHeader(key, value) {
+                                    this.headers[key] = value
+                                    res.setHeader(key, value)
+                                },
+                                status(code) {
+                                    this.statusCode = code
+                                    res.statusCode = code
+                                    return this
+                                },
+                                json(data) {
+                                    res.setHeader('Content-Type', 'application/json')
+                                    res.end(JSON.stringify(data))
+                                },
+                                end(data) {
+                                    res.end(data)
+                                }
+                            }
+
+                            const { default: paymentCallback } = await import('./api/payment_callback.js')
+                            await paymentCallback(mockReq, mockRes)
+                        } catch (error) {
+                            console.error('[API Middleware] Error in payment_callback:', error)
+                            res.statusCode = 500
+                            res.setHeader('Content-Type', 'application/json')
+                            res.end(JSON.stringify({ error: 'Internal server error', details: error.message }))
+                        }
+                    })
+                    return
+                }
+
                 if (req.url === '/api/ai' && req.method === 'POST') {
                     let body = ''
                     req.on('data', chunk => { body += chunk })
@@ -24,12 +278,12 @@ function apiMiddleware() {
                         try {
                             const data = JSON.parse(body)
                             console.log('[API Middleware] Received request for model:', data.model || apiModel)
-                            
+
                             if (!apiKey) {
                                 res.statusCode = 500
                                 res.setHeader('Content-Type', 'application/json')
-                                res.end(JSON.stringify({ 
-                                    error: 'Missing AI API Key in .env file. Make sure VITE_AI_API_KEY is set.' 
+                                res.end(JSON.stringify({
+                                    error: 'Missing AI API Key in .env file. Make sure VITE_AI_API_KEY is set.'
                                 }))
                                 return
                             }
@@ -41,7 +295,7 @@ function apiMiddleware() {
                                 max_tokens: 4000,
                                 temperature: 0.7
                             }
-                            
+
                             const response = await fetch(apiUrl, {
                                 method: 'POST',
                                 headers: {
@@ -56,7 +310,7 @@ function apiMiddleware() {
 
                             let result
                             const contentType = response.headers.get('content-type')
-                            
+
                             if (contentType && contentType.includes('application/json')) {
                                 result = await response.json()
                                 console.log('[API Middleware] Success! Got AI response')
@@ -64,12 +318,12 @@ function apiMiddleware() {
                                 // Response is not JSON (probably HTML error page)
                                 const text = await response.text()
                                 console.error('[API Middleware] Non-JSON response:', text.substring(0, 200))
-                                result = { 
+                                result = {
                                     error: 'AI API returned non-JSON response. Status: ' + response.status,
                                     details: text.substring(0, 500)
                                 }
                             }
-                            
+
                             res.statusCode = response.ok ? 200 : response.status
                             res.setHeader('Content-Type', 'application/json')
                             res.end(JSON.stringify(result))
@@ -78,7 +332,7 @@ function apiMiddleware() {
                             console.error('[API Middleware] Stack:', error.stack)
                             res.statusCode = 500
                             res.setHeader('Content-Type', 'application/json')
-                            res.end(JSON.stringify({ 
+                            res.end(JSON.stringify({
                                 error: error.message,
                                 type: error.name
                             }))

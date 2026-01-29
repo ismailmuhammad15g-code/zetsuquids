@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js'
 async function selectBestSource(query, aiApiKey, aiUrl) {
     try {
         console.log('🧠 AI selecting best source for:', query)
-        
+
         const response = await fetch(aiUrl, {
             method: 'POST',
             headers: {
@@ -33,7 +33,7 @@ Examples of VALID answers:
 Pick from these sources based on the question:
 - Wikipedia (https://en.wikipedia.org/) for general knowledge
 - GitHub (https://github.com/) for code/projects
-- Reddit (https://reddit.com/r/) for opinions/discussions  
+- Reddit (https://reddit.com/r/) for opinions/discussions
 - Medium (https://medium.com/) for articles
 - Stack Overflow (https://stackoverflow.com/) for code problems
 - Official documentation websites for technical details
@@ -52,10 +52,10 @@ Return ONLY the FULL HTTPS URL to fetch. Nothing else.`
 
         const data = await response.json()
         let sourceUrl = data.choices?.[0]?.message?.content?.trim() || null
-        
+
         // Clean up the URL (remove markdown, quotes, etc)
         sourceUrl = sourceUrl?.replace(/[`"']/g, '').trim()
-        
+
         if (sourceUrl && (sourceUrl.startsWith('http://') || sourceUrl.startsWith('https://'))) {
             console.log(`✅ AI selected source: ${sourceUrl}`)
             return sourceUrl
@@ -71,11 +71,11 @@ Return ONLY the FULL HTTPS URL to fetch. Nothing else.`
 async function fetchAndParseContent(url) {
     try {
         console.log(`📄 Fetching content from: ${url}`)
-        
+
         // Respect User-Agent and rate limiting
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
-        
+
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -94,7 +94,7 @@ async function fetchAndParseContent(url) {
         }
 
         const html = await response.text()
-        
+
         // Simple HTML parsing (extract text content)
         const text = html
             .replace(/<script[^>]*>.*?<\/script>/gs, '')  // Remove scripts
@@ -106,12 +106,12 @@ async function fetchAndParseContent(url) {
             .replace(/&quot;/g, '"')
             .replace(/&amp;/g, '&')
             .slice(0, 10000)                               // Limit to 10000 chars
-        
+
         if (text.trim().length < 100) {
             console.warn(`⚠️ Fetched content too short from ${url}`)
             return null
         }
-        
+
         console.log(`✅ Fetched ${text.length} characters from ${url}`)
         return text
     } catch (error) {
@@ -124,10 +124,10 @@ async function fetchAndParseContent(url) {
 async function fallbackDuckDuckGo(query) {
     try {
         console.log(`🔍 Fallback: Scraping DuckDuckGo for: ${query}`)
-        
+
         const encodedQuery = encodeURIComponent(query)
         const ddgUrl = `https://duckduckgo.com/html/?q=${encodedQuery}`
-        
+
         const response = await fetch(ddgUrl, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -138,11 +138,11 @@ async function fallbackDuckDuckGo(query) {
         if (!response.ok) return null
 
         const html = await response.text()
-        
+
         // Extract links from DuckDuckGo HTML
         const linkRegex = /<a rel="noopener" class="result__a" href="([^"]+)"/g
         const matches = [...html.matchAll(linkRegex)].slice(0, 3)
-        
+
         const urls = matches.map(m => {
             try {
                 return new URL(m[1]).href
@@ -150,9 +150,9 @@ async function fallbackDuckDuckGo(query) {
                 return null
             }
         }).filter(Boolean)
-        
+
         console.log(`✅ Found ${urls.length} URLs from DuckDuckGo`)
-        
+
         // Fetch and parse top 3 results
         const contents = []
         for (const url of urls) {
@@ -162,7 +162,7 @@ async function fallbackDuckDuckGo(query) {
                 contents.push({ url, content })
             }
         }
-        
+
         return contents.length > 0 ? contents : null
     } catch (error) {
         console.error('❌ DuckDuckGo fallback error:', error.message)
@@ -175,7 +175,7 @@ async function intelligentFetch(query, aiApiKey, aiUrl) {
     try {
         // First attempt: Let AI choose the best source
         const selectedUrl = await selectBestSource(query, aiApiKey, aiUrl)
-        
+
         if (selectedUrl) {
             const content = await fetchAndParseContent(selectedUrl)
             if (content) {
@@ -185,18 +185,18 @@ async function intelligentFetch(query, aiApiKey, aiUrl) {
                 }
             }
         }
-        
+
         // Fallback: DuckDuckGo scraping
         console.log('⚠️ Primary source failed, using DuckDuckGo fallback...')
         const fallbackResults = await fallbackDuckDuckGo(query)
-        
+
         if (fallbackResults) {
             return {
                 sources: fallbackResults.map(r => ({ ...r, method: 'ddg-fallback' })),
                 success: true
             }
         }
-        
+
         console.warn('❌ All source methods failed')
         return { sources: [], success: false }
     } catch (error) {
@@ -309,16 +309,16 @@ export default async function handler(req, res) {
         // Intelligent fetch: AI selects source, we fetch directly (FREE!)
         let fetchedSources = []
         let systemPromptAddition = ''
-        
+
         console.log('🚀 Starting intelligent fetch for query:', userMessage.substring(0, 100))
-        
+
         if (userMessage && !skipCreditDeduction && apiKey) {
             const fetchResult = await intelligentFetch(userMessage, apiKey, apiUrl)
             console.log('📊 Intelligent fetch result:', {
                 success: fetchResult.success,
                 sourceCount: fetchResult.sources?.length || 0
             })
-            
+
             if (fetchResult.success && fetchResult.sources.length > 0) {
                 fetchedSources = fetchResult.sources
                 systemPromptAddition = `\n\n=== REAL-TIME WEB CONTENT ===\n`
@@ -425,10 +425,35 @@ IMPORTANT - YOUR CAPABILITIES:
                 })
             }
 
+            // Extract and clean AI response content for skipCreditDeduction case
+            const aiResponseContent = data.choices?.[0]?.message?.content || ''
+
+            // Check if AI returned valid JSON (as requested)
+            let parsedContent = null
+            let finalContent = aiResponseContent
+            let isPublishable = true // Default to true
+
+            try {
+                // Remove any markdown code blocks if present
+                const cleanJson = aiResponseContent.replace(/```json\n?|\n?```/g, '').trim()
+                parsedContent = JSON.parse(cleanJson)
+
+                // If AI returned valid JSON with content field
+                if (parsedContent.content) {
+                    finalContent = parsedContent.content
+                    isPublishable = !!parsedContent.publishable
+                }
+            } catch (parseError) {
+                // If AI didn't return JSON, use raw text directly
+                console.warn('AI did not return JSON, using raw text:', parseError.message)
+                finalContent = aiResponseContent
+                isPublishable = aiResponseContent && aiResponseContent.length > 200
+            }
+
             return res.status(200).json({
                 ...data,
-                content: data.choices?.[0]?.message?.content || '',
-                publishable: true,
+                content: finalContent,
+                publishable: isPublishable,
                 sources: fetchedSources.map(s => ({ url: s.url, method: s.method }))
             })
         }
@@ -534,10 +559,35 @@ IMPORTANT - YOUR CAPABILITIES:
             console.log(`Deducted 1 credit for user ${lookupEmail}. New balance: ${currentCredits - 1}`)
         }
 
+        // Extract and clean AI response content
+        const aiResponseContent = data.choices?.[0]?.message?.content || ''
+
+        // Check if AI returned valid JSON (as requested)
+        let parsedContent = null
+        let finalContent = aiResponseContent
+        let isPublishable = true // Default to true
+
+        try {
+            // Remove any markdown code blocks if present
+            const cleanJson = aiResponseContent.replace(/```json\n?|\n?```/g, '').trim()
+            parsedContent = JSON.parse(cleanJson)
+
+            // If AI returned valid JSON with content field
+            if (parsedContent.content) {
+                finalContent = parsedContent.content
+                isPublishable = !!parsedContent.publishable
+            }
+        } catch (parseError) {
+            // If AI didn't return JSON, use raw text directly
+            console.warn('AI did not return JSON, using raw text:', parseError.message)
+            finalContent = aiResponseContent
+            isPublishable = aiResponseContent && aiResponseContent.length > 200
+        }
+
         res.status(200).json({
             ...data,
-            content: data.choices?.[0]?.message?.content || '',
-            publishable: true,
+            content: finalContent,
+            publishable: isPublishable,
             sources: fetchedSources.map(s => ({ url: s.url, method: s.method }))
         })
 
