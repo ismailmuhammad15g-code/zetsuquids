@@ -1413,12 +1413,48 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
             try {
                 // Remove any markdown code blocks if present
                 const cleanJson = aiRaw.replace(/```json\n?|\n?```/g, '').trim()
-                const parsed = JSON.parse(cleanJson)
-                aiContent = parsed.content || 'Error parsing content.'
-                isPublishable = !!parsed.publishable
+
+                // Try to parse as JSON
+                let parsed = null
+                try {
+                    parsed = JSON.parse(cleanJson)
+                } catch (parseError) {
+                    // If direct parsing fails, try again with cleaned string
+                    try {
+                        parsed = JSON.parse(aiRaw)
+                    } catch (secondError) {
+                        // If all parsing fails, treat as raw text
+                        console.warn('Could not parse as JSON, using raw text')
+                        throw new Error('Not valid JSON')
+                    }
+                }
+
+                // Extract content from parsed JSON
+                if (parsed && parsed.content) {
+                    aiContent = parsed.content
+                    isPublishable = !!parsed.publishable
+                } else {
+                    throw new Error('No content field in JSON')
+                }
             } catch (e) {
                 console.error('Failed to parse AI JSON:', e)
-                aiContent = aiRaw // Fallback to raw text
+                // If it looks like JSON string, try one more time
+                if (aiRaw.includes('"content"')) {
+                    try {
+                        const match = aiRaw.match(/"content"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/s)
+                        if (match) {
+                            // Unescape JSON string
+                            aiContent = match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+                            isPublishable = aiRaw.includes('"publishable":true')
+                        } else {
+                            aiContent = aiRaw
+                        }
+                    } catch (regexError) {
+                        aiContent = aiRaw
+                    }
+                } else {
+                    aiContent = aiRaw // Fallback to raw text
+                }
                 isPublishable = aiContent.length > 200 // Fallback heuristic
             }
 
@@ -2838,17 +2874,19 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                         inputRef={inputRef}
                     />
                     {/* Sailboat Animation */}
-                    <div className="sailboat-animation-container">
-                        <Lottie
-                            animationData={sailboatAnimation}
-                            loop={true}
-                            autoplay={true}
-                            style={{
-                                width: '120px',
-                                height: '80px',
-                            }}
-                        />
-                    </div>
+                    {messages.length === 0 && (
+                        <div className={`sailboat-animation-container ${isThinking || isStreamingResponse ? 'sailboat-fade-out' : ''}`}>
+                            <Lottie
+                                animationData={sailboatAnimation}
+                                loop={true}
+                                autoplay={true}
+                                style={{
+                                    width: '120px',
+                                    height: '80px',
+                                }}
+                            />
+                        </div>
+                    )}
                     <p className="zetsu-ai-disclaimer">
                         ZetsuGuide AI can make mistakes. Check important info.
                     </p>
@@ -4122,7 +4160,7 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                     bottom: 140px;
                     left: 0;
                     pointer-events: none;
-                    z-index: 50;
+                    z-index: 10;
                 }
 
                 .sailboat-animation-container > div {
@@ -4151,6 +4189,49 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                     }
                     75% {
                         transform: translateY(-2px);
+                    }
+                }
+
+                .sailboat-animation-container.sailboat-fade-out {
+                    animation: sailboatDisappear 1.5s ease-out forwards;
+                    z-index: 1;
+                }
+
+                .sailboat-animation-container.sailboat-fade-out > div {
+                    animation: sailboatVanish 1.5s ease-out forwards !important;
+                }
+
+                @keyframes sailboatDisappear {
+                    0% {
+                        opacity: 1;
+                        filter: blur(0px);
+                    }
+                    50% {
+                        opacity: 0.7;
+                        filter: blur(2px);
+                    }
+                    100% {
+                        opacity: 0;
+                        filter: blur(8px);
+                        transform: scale(1.2);
+                        pointer-events: none;
+                    }
+                }
+
+                @keyframes sailboatVanish {
+                    0% {
+                        opacity: 1;
+                        transform: translateY(0px) scale(1);
+                    }
+                    50% {
+                        opacity: 0.6;
+                        filter: blur(4px);
+                    }
+                    100% {
+                        opacity: 0;
+                        transform: translateY(-30px) scale(0.8);
+                        filter: blur(12px);
+                        pointer-events: none;
                     }
                 }
 
