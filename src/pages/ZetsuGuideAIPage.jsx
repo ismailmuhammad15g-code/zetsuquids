@@ -1465,13 +1465,11 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                 }
             } catch (e) {
                 console.error('Failed to parse AI JSON:', e)
-                // If it looks like JSON string, try one more time
-                if (aiRaw.includes('"content"')) {
-                    try {
-                        const match = aiRaw.match(/"content"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/s)
-                        if (match) {
-                            // Unescape JSON string
-                            aiContent = match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+                // If JSON parsing fails completely, use raw text as is
+                console.log('Using raw text response from AI')
+                aiContent = aiRaw
+                isPublishable = aiRaw && aiRaw.length > 200
+
                             isPublishable = aiRaw.includes('"publishable":true')
                         } else {
                             aiContent = aiRaw

@@ -17,19 +17,28 @@ async function selectBestSource(query, aiApiKey, aiUrl) {
                 model: 'kimi-k2-0905:free',
                 messages: [{
                     role: 'user',
-                    content: `Choose the SINGLE best public source URL to answer this question. Return ONLY the URL, nothing else.
+                    content: `Choose the SINGLE best public source URL to answer this question. Return ONLY a VALID FULL URL starting with https://, nothing else.
 
 Question: "${query}"
 
-Pick from these sources based on the question:
-- Wikipedia (https://en.wikipedia.org/...) for general knowledge
-- GitHub (https://github.com/...) for code/projects
-- Reddit (https://reddit.com/r/...) for opinions/discussions  
-- Medium (https://medium.com/...) for articles
-- Stack Overflow (https://stackoverflow.com/...) for code problems
-- Official documentation for technical details
+Examples of VALID answers:
+- https://en.wikipedia.org/wiki/Blockchain
+- https://github.com/ethereum/go-ethereum
+- https://reddit.com/r/cryptocurrency
+- https://medium.com/@vitalik
+- https://stackoverflow.com/questions/tagged/blockchain
+- https://ethereum.org/developers
+- https://developer.mozilla.org/
 
-Return ONLY the URL to fetch.`
+Pick from these sources based on the question:
+- Wikipedia (https://en.wikipedia.org/) for general knowledge
+- GitHub (https://github.com/) for code/projects
+- Reddit (https://reddit.com/r/) for opinions/discussions  
+- Medium (https://medium.com/) for articles
+- Stack Overflow (https://stackoverflow.com/) for code problems
+- Official documentation websites for technical details
+
+Return ONLY the FULL HTTPS URL to fetch. Nothing else.`
                 }],
                 max_tokens: 200,
                 temperature: 0.3
@@ -42,7 +51,10 @@ Return ONLY the URL to fetch.`
         }
 
         const data = await response.json()
-        const sourceUrl = data.choices?.[0]?.message?.content?.trim() || null
+        let sourceUrl = data.choices?.[0]?.message?.content?.trim() || null
+        
+        // Clean up the URL (remove markdown, quotes, etc)
+        sourceUrl = sourceUrl?.replace(/[`"']/g, '').trim()
         
         if (sourceUrl && (sourceUrl.startsWith('http://') || sourceUrl.startsWith('https://'))) {
             console.log(`✅ AI selected source: ${sourceUrl}`)
@@ -61,13 +73,20 @@ async function fetchAndParseContent(url) {
         console.log(`📄 Fetching content from: ${url}`)
         
         // Respect User-Agent and rate limiting
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+        
         const response = await fetch(url, {
             method: 'GET',
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5'
             },
-            timeout: 10000
+            signal: controller.signal
         })
+
+        clearTimeout(timeoutId)
 
         if (!response.ok) {
             console.warn(`⚠️ Failed to fetch ${url} - status ${response.status}`)
@@ -80,9 +99,18 @@ async function fetchAndParseContent(url) {
         const text = html
             .replace(/<script[^>]*>.*?<\/script>/gs, '')  // Remove scripts
             .replace(/<style[^>]*>.*?<\/style>/gs, '')    // Remove styles
+            .replace(/<noscript[^>]*>.*?<\/noscript>/gs, '') // Remove noscript
             .replace(/<[^>]+>/g, ' ')                     // Remove HTML tags
             .replace(/\s+/g, ' ')                          // Normalize whitespace
-            .slice(0, 8000)                                // Limit to 8000 chars
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&quot;/g, '"')
+            .replace(/&amp;/g, '&')
+            .slice(0, 10000)                               // Limit to 10000 chars
+        
+        if (text.trim().length < 100) {
+            console.warn(`⚠️ Fetched content too short from ${url}`)
+            return null
+        }
         
         console.log(`✅ Fetched ${text.length} characters from ${url}`)
         return text
@@ -282,16 +310,32 @@ export default async function handler(req, res) {
         let fetchedSources = []
         let systemPromptAddition = ''
         
+        console.log('🚀 Starting intelligent fetch for query:', userMessage.substring(0, 100))
+        
         if (userMessage && !skipCreditDeduction && apiKey) {
             const fetchResult = await intelligentFetch(userMessage, apiKey, apiUrl)
+            console.log('📊 Intelligent fetch result:', {
+                success: fetchResult.success,
+                sourceCount: fetchResult.sources?.length || 0
+            })
+            
             if (fetchResult.success && fetchResult.sources.length > 0) {
                 fetchedSources = fetchResult.sources
-                systemPromptAddition = `\n\nYou have access to the following real-time source content:\n`
+                systemPromptAddition = `\n\n=== REAL-TIME WEB CONTENT ===\n`
                 fetchResult.sources.forEach((source, idx) => {
-                    systemPromptAddition += `\n[Source ${idx + 1}] ${source.method === 'ai-selected' ? '🎯 AI Selected' : '🔍 Found'}\nURL: ${source.url}\nContent: ${source.content?.substring(0, 400) || 'N/A'}\n`
+                    console.log(`✅ Including source ${idx + 1}: ${source.url} (${source.content?.length || 0} chars)`)
+                    systemPromptAddition += `\n[Source ${idx + 1}] ${source.method === 'ai-selected' ? '🎯 AI Selected' : '🔍 Found'}\nURL: ${source.url}\n\nContent:\n${source.content || 'N/A'}\n`
                 })
-                systemPromptAddition += `\n\nAnswer ONLY using the content provided above. Do NOT invent information. Cite sources.`
+                systemPromptAddition += `\n=== END OF WEB CONTENT ===\n\nYOU MUST ANSWER ONLY USING THE CONTENT PROVIDED ABOVE. Do NOT make up information. Always cite the sources.`
+            } else {
+                console.log('⚠️ No web content fetched, will use guides and knowledge base only')
             }
+        } else {
+            console.log('⚠️ Skipping intelligent fetch:', {
+                hasMessage: !!userMessage,
+                skipCredit: skipCreditDeduction,
+                hasApiKey: !!apiKey
+            })
         }
 
         // Build enhanced system prompt
@@ -305,9 +349,12 @@ IMPORTANT - YOUR CAPABILITIES:
 ✅ You must cite sources and provide URLs
 ✅ You are different from other AI - you have live web superpowers!
 ✅ NEVER say "I don't have internet access" - YOU DO!
-
 `
-        systemPrompt += systemPromptAddition ? `You have fetched real-time content from actual web sources. Answer ONLY using this content. Do NOT invent information. Cite all sources.` : `Provide accurate, detailed, and well-sourced information based on your web access.`
+
+        // Add fetched content directly to the system prompt
+        if (systemPromptAddition) {
+            systemPrompt += systemPromptAddition
+        }
 
         if (!apiKey) {
             return res.status(500).json({ error: 'Missing AI API Key' })
@@ -325,7 +372,6 @@ IMPORTANT - YOUR CAPABILITIES:
             max_tokens: 4000,
             temperature: 0.7
         }
-
         // If skipCreditDeduction is true, just proxy to AI API without credit checks
         if (skipCreditDeduction) {
             let response
