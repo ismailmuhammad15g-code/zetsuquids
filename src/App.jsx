@@ -6,7 +6,9 @@ import AuthPage from './pages/AuthPage'
 import GuidePage from './pages/GuidePage'
 import HomePage from './pages/HomePage'
 import PricingPage from './pages/PricingPage'
+import PrivacyPolicy from './pages/PrivacyPolicy'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import TermsOfService from './pages/TermsOfService'
 import UserWorkspacePage from './pages/UserWorkspacePage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import ZetsuGuideAIPage from './pages/ZetsuGuideAIPage'
@@ -29,6 +31,8 @@ function App() {
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     <Route path="/zetsuguide-ai" element={<ZetsuGuideAIPage />} />
                     <Route path="/pricing" element={<PricingPage />} />
+                    <Route path="/privacy" element={<PrivacyPolicy />} />
+                    <Route path="/terms" element={<TermsOfService />} />
                 </Routes>
             </AuthProvider>
         </LoadingProvider>
