@@ -1,5 +1,5 @@
 import Lottie from 'lottie-react'
-import { ArrowRight, Bot, History, Menu, MessageSquare, Plus, Trash2, X, Zap } from 'lucide-react'
+import { ArrowRight, Bot, HelpCircle, History, Menu, MessageSquare, Plus, Trash2, X, Zap } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import guidePublishAnimation from '../assets/Guidepublish.json'
@@ -684,6 +684,9 @@ export default function ZetsuGuideAIPage() {
     const [isLoadingLogs, setIsLoadingLogs] = useState(false)
     const [historyTab, setHistoryTab] = useState('usage') // 'usage' or 'credits'
 
+    // Tutorial GIF state
+    const [showTutorialModal, setShowTutorialModal] = useState(false)
+
     // Default prompts
     const defaultPrompts = [
         { emoji: '📚', text: 'What guides are available?' },
@@ -723,6 +726,23 @@ export default function ZetsuGuideAIPage() {
         }
     }, [])
 
+    // Show tutorial for new users on first visit
+    useEffect(() => {
+        if (isAuthenticated() && user?.email) {
+            const tutorialSeenKey = `zetsuguide_tutorial_seen_${user.email}`
+            const hasSeen = localStorage.getItem(tutorialSeenKey)
+
+            // Show tutorial automatically for new users
+            if (!hasSeen) {
+                const timer = setTimeout(() => {
+                    setShowTutorialModal(true)
+                }, 1500) // Show after 1.5 seconds for better UX
+
+                return () => clearTimeout(timer)
+            }
+        }
+    }, [isAuthenticated, user?.email])
+
     // Save prompt
     function saveNewPrompt() {
         if (!newPromptText.trim()) return
@@ -740,6 +760,20 @@ export default function ZetsuGuideAIPage() {
         const updated = savedPrompts.filter((_, i) => i !== index)
         setSavedPrompts(updated)
         localStorage.setItem('zetsuguide_saved_prompts', JSON.stringify(updated))
+    }
+
+    // Close tutorial and mark as seen
+    function closeTutorialModal() {
+        if (user?.email) {
+            const tutorialSeenKey = `zetsuguide_tutorial_seen_${user.email}`
+            localStorage.setItem(tutorialSeenKey, 'true')
+        }
+        setShowTutorialModal(false)
+    }
+
+    // Open tutorial modal
+    function openTutorial() {
+        setShowTutorialModal(true)
     }
 
     // Publish conversation to guide
@@ -1661,6 +1695,34 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                 <div className="zetsu-ai-glow zetsu-ai-glow-2"></div>
             </div>
 
+            {/* Tutorial GIF Modal */}
+            {showTutorialModal && (
+                <div className="zetsu-tutorial-overlay" onClick={closeTutorialModal}>
+                    <div className="zetsu-tutorial-modal" onClick={e => e.stopPropagation()}>
+                        <button className="zetsu-tutorial-close" onClick={closeTutorialModal}>
+                            <X size={20} />
+                        </button>
+                        <div className="zetsu-tutorial-content">
+                            <h2>🎬 How to Use ZetsuGuide AI</h2>
+                            <p>Learn how to write prompts and get amazing answers!</p>
+                            <div className="zetsu-tutorial-gif-container">
+                                <img
+                                    src="/images/zetsuAIpresentation.gif"
+                                    alt="ZetsuGuide AI Tutorial"
+                                    className="zetsu-tutorial-gif"
+                                />
+                            </div>
+                            <button
+                                className="zetsu-tutorial-close-btn"
+                                onClick={closeTutorialModal}
+                            >
+                                Got it! Let's get started
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Chat History Sidebar */}
             {showHistory && isAuthenticated() && (
                 <div className="zetsu-history-overlay" onClick={() => setShowHistory(false)}>
@@ -1745,6 +1807,15 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                 </div>
 
                 <div className="zetsu-ai-user-section">
+                    {isAuthenticated() && (
+                        <button
+                            className="zetsu-ai-help-btn"
+                            onClick={openTutorial}
+                            title="How to use ZetsuGuide AI"
+                        >
+                            <HelpCircle size={18} />
+                        </button>
+                    )}
                     {isAuthenticated() && (
                         <button
                             className="zetsu-ai-new-chat-btn"
@@ -4597,6 +4668,174 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                 .zetsu-done-btn:hover {
                     color: #fff;
                     border-color: rgba(255, 255, 255, 0.4);
+                }
+
+                /* Tutorial Modal Styles */
+                .zetsu-tutorial-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 2000;
+                    animation: fadeIn 0.3s ease;
+                }
+
+                .zetsu-tutorial-modal {
+                    position: relative;
+                    background: linear-gradient(135deg, #1a1a1a 0%, #222 100%);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 20px;
+                    padding: 40px;
+                    max-width: 800px;
+                    width: 90%;
+                    max-height: 90vh;
+                    overflow-y: auto;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+                    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+
+                @keyframes slideUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(40px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                .zetsu-tutorial-close {
+                    position: absolute;
+                    top: 16px;
+                    right: 16px;
+                    width: 40px;
+                    height: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 10px;
+                    color: #fff;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    z-index: 10;
+                }
+
+                .zetsu-tutorial-close:hover {
+                    background: rgba(255, 255, 255, 0.15);
+                    border-color: rgba(255, 255, 255, 0.3);
+                }
+
+                .zetsu-tutorial-content {
+                    text-align: center;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 20px;
+                }
+
+                .zetsu-tutorial-content h2 {
+                    font-size: 2rem;
+                    font-weight: 700;
+                    margin: 0;
+                    color: #fff;
+                    background: linear-gradient(135deg, #fff 0%, #a0a0a0 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                }
+
+                .zetsu-tutorial-content p {
+                    font-size: 1.1rem;
+                    color: rgba(255, 255, 255, 0.8);
+                    margin: 0;
+                }
+
+                .zetsu-tutorial-gif-container {
+                    width: 100%;
+                    border-radius: 16px;
+                    overflow: hidden;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 16px;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                }
+
+                .zetsu-tutorial-gif {
+                    width: 100%;
+                    height: auto;
+                    display: block;
+                    border-radius: 12px;
+                    max-height: 400px;
+                    object-fit: cover;
+                }
+
+                .zetsu-tutorial-close-btn {
+                    align-self: center;
+                    padding: 14px 32px;
+                    background: linear-gradient(135deg, #fff 0%, #e5e5e5 100%);
+                    color: #000;
+                    border: none;
+                    border-radius: 12px;
+                    font-size: 1rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+
+                .zetsu-tutorial-close-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 8px 24px rgba(255, 255, 255, 0.2);
+                }
+
+                /* Help Button Style */
+                .zetsu-ai-help-btn {
+                    width: 40px;
+                    height: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 10px;
+                    color: #fff;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+
+                .zetsu-ai-help-btn:hover {
+                    background: rgba(255, 255, 255, 0.15);
+                    border-color: rgba(255, 255, 255, 0.3);
+                    transform: scale(1.05);
+                }
+
+                @media (max-width: 768px) {
+                    .zetsu-tutorial-modal {
+                        padding: 24px;
+                        max-width: 95vw;
+                    }
+
+                    .zetsu-tutorial-content h2 {
+                        font-size: 1.5rem;
+                    }
+
+                    .zetsu-tutorial-content p {
+                        font-size: 0.95rem;
+                    }
+
+                    .zetsu-tutorial-gif-container {
+                        padding: 12px;
+                    }
+
+                    .zetsu-tutorial-gif {
+                        max-height: 300px;
+                    }
                 }
             `}</style>
         </div>
