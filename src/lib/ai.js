@@ -149,22 +149,36 @@ ${JSON.stringify(guidesContext, null, 2)}
 
 🔍 User Query: "${query}"
 
+IMPORTANT - Customer Support Detection:
+Detect if the user needs HUMAN SUPPORT for issues you cannot resolve:
+- Account problems (login, password, profile, access issues)
+- Payment/billing issues (credits not added, refund requests, payment failures)
+- Technical bugs (site errors, features not working, crashes)
+- Complaints or urgent issues requiring admin attention
+
+If detected, set "needsSupport": true and offer to connect with support team.
+
 Your Goal:
 1. If the user asks for a specific guide or technical topic present in the context, identify it and return its index.
 2. If the user asks a general question (e.g., "Hello", "How are you", "What is coding?"), answer it helpfully and briefly from your general knowledge.
-3. If the user asks about something not in the guides but technical, provides a brief helpful answer.
+3. If the user asks about something not in the guides but technical, provide a brief helpful answer.
+4. If the user has an ACCOUNT/PAYMENT/BUG issue, offer to connect with support team.
 
 Response Format (JSON ONLY):
 {
     "indices": [0], // Array of indices of matching guides. Empty [] if no specific guide matches.
-    "insight": "Your helpful response here. If you found a guide, mention it. If not, answer the question directly.",
-    "found": true/false // true if you found relevant GUIDES, false if just answering generally.
+    "insight": "Your helpful response here. If you found a guide, mention it. If not, answer the question directly. If support needed, offer to connect them.",
+    "found": true/false, // true if you found relevant GUIDES, false if just answering generally.
+    "needsSupport": false, // true ONLY if user needs human support (account/payment/bug issues)
+    "supportCategory": "account" // ONLY if needsSupport is true. Options: "account", "payment", "technical", "other"
 }
 
 Examples:
-- User: "Hello" -> {"indices": [], "insight": "Hello! How can I help you with ZetsuGuide today?", "found": false}
-- User: "python" (Context has Python guide at index 0) -> {"indices": [0], "insight": "I found a guide about Python.", "found": true}
-- User: "Explain API" (No guide) -> {"indices": [], "insight": "An API (Application Programming Interface) allows ...", "found": false}
+- User: "Hello" -> {"indices": [], "insight": "Hello! How can I help you with ZetsuGuide today?", "found": false, "needsSupport": false}
+- User: "python" (Context has Python guide at index 0) -> {"indices": [0], "insight": "I found a guide about Python.", "found": true, "needsSupport": false}
+- User: "I can't login to my account" -> {"indices": [], "insight": "I understand you're having trouble logging in. I can connect you with our support team for personalized assistance. Would you like to submit a support ticket? Please type 'yes' to continue.", "found": false, "needsSupport": true, "supportCategory": "account"}
+- User: "My credits weren't added after payment" -> {"indices": [], "insight": "I see you're experiencing a payment issue. Our support team can help resolve this quickly. Would you like to submit a support ticket? Please type 'yes' to continue.", "found": false, "needsSupport": true, "supportCategory": "payment"}
+- User: "The site is showing errors" -> {"indices": [], "insight": "I'm sorry you're encountering technical issues. Let me connect you with our support team to investigate. Would you like to submit a support ticket? Please type 'yes' to continue.", "found": false, "needsSupport": true, "supportCategory": "technical"}
 `
 
         const response = await fetch('/api/ai', {
@@ -191,7 +205,7 @@ Examples:
 
         console.log('AI Agent Response:', aiResponse)
 
-        let parsed = { indices: [], insight: null, found: false }
+        let parsed = { indices: [], insight: null, found: false, needsSupport: false, supportCategory: null }
         try {
             const jsonMatch = aiResponse.match(/\{[\s\S]*\}/)
             if (jsonMatch) {
@@ -208,7 +222,9 @@ Examples:
         return {
             results: aiResults,
             aiInsight: parsed.insight || null,
-            found: parsed.found || aiResults.length > 0
+            found: parsed.found || aiResults.length > 0,
+            needsSupport: parsed.needsSupport || false,
+            supportCategory: parsed.supportCategory || null
         }
 
     } catch (error) {

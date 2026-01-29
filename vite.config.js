@@ -298,6 +298,58 @@ function apiMiddleware() {
                     return
                 }
 
+                // Handle support_ticket API
+                if (req.url === '/api/support_ticket' && req.method === 'POST') {
+                    let body = ''
+                    req.on('data', chunk => { body += chunk })
+                    req.on('end', async () => {
+                        try {
+                            const data = JSON.parse(body)
+
+                            // Set Gmail credentials for nodemailer
+                            process.env.MAIL_USERNAME = env.MAIL_USERNAME
+                            process.env.MAIL_PASSWORD = env.MAIL_PASSWORD
+                            process.env.SUPPORT_EMAIL = 'zetsuserv@gmail.com'
+
+                            const mockReq = {
+                                method: 'POST',
+                                body: data,
+                                headers: req.headers
+                            }
+
+                            const mockRes = {
+                                statusCode: 200,
+                                headers: {},
+                                setHeader(key, value) {
+                                    this.headers[key] = value
+                                    res.setHeader(key, value)
+                                },
+                                status(code) {
+                                    this.statusCode = code
+                                    res.statusCode = code
+                                    return this
+                                },
+                                json(data) {
+                                    res.setHeader('Content-Type', 'application/json')
+                                    res.end(JSON.stringify(data))
+                                },
+                                end(data) {
+                                    res.end(data)
+                                }
+                            }
+
+                            const { default: supportTicket } = await import('./api/support_ticket.js')
+                            await supportTicket(mockReq, mockRes)
+                        } catch (error) {
+                            console.error('[API Middleware] Error in support_ticket:', error)
+                            res.statusCode = 500
+                            res.setHeader('Content-Type', 'application/json')
+                            res.end(JSON.stringify({ success: false, error: 'Internal server error', details: error.message }))
+                        }
+                    })
+                    return
+                }
+
                 if (req.url === '/api/ai' && req.method === 'POST') {
                     let body = ''
                     req.on('data', chunk => { body += chunk })
