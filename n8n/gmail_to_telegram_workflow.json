@@ -1,0 +1,75 @@
+{
+    "name": "Gmail to Telegram - Support Tickets",
+    "nodes": [
+        {
+            "parameters": {
+                "pollTimes": {
+                    "item": [
+                        {
+                            "mode": "everyMinute"
+                        }
+                    ]
+                },
+                "simple": true,
+                "filters": {
+                    "from": "zetsuserv@gmail.com",
+                    "subject": "Support Ticket"
+                },
+                "format": "resolved"
+            },
+            "id": "gmail-trigger",
+            "name": "Gmail Trigger",
+            "type": "n8n-nodes-base.gmailTrigger",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ],
+            "credentials": {
+                "gmailOAuth2": {
+                    "id": "1",
+                    "name": "Gmail account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "YOUR_TELEGRAM_CHAT_ID",
+                "text": "=🎫 *New Support Ticket Received!*\n\n📧 *From:* {{ $json.from }}\n📅 *Date:* {{ $json.date }}\n📝 *Subject:* {{ $json.subject }}\n\n💬 *Message Preview:*\n{{ $json.snippet }}\n\n🔗 [Open in Gmail]({{ $json.webLink }})",
+                "additionalFields": {
+                    "parse_mode": "Markdown"
+                }
+            },
+            "id": "telegram-send",
+            "name": "Send to Telegram",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                450,
+                300
+            ],
+            "credentials": {
+                "telegramApi": {
+                    "id": "2",
+                    "name": "Telegram Bot"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Gmail Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Send to Telegram",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": true,
+    "settings": {},
+    "versionId": "1"
+}
