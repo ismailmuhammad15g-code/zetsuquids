@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import guidePublishAnimation from '../assets/Guidepublish.json'
 import aiLogoAnimation from '../assets/ailogo.json'
 import robotAnimation from '../assets/robotwelcomming.json'
+import sailboatAnimation from '../assets/sailboat.json'
 import { CodeBlock } from '../components/ui/code-block'
 import { Confetti } from '../components/ui/confetti'
 import { LinkPreview } from '../components/ui/link-preview'
@@ -2836,6 +2837,18 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                         disabled={isThinking}
                         inputRef={inputRef}
                     />
+                    {/* Sailboat Animation */}
+                    <div className="sailboat-animation-container">
+                        <Lottie
+                            animationData={sailboatAnimation}
+                            loop={true}
+                            autoplay={true}
+                            style={{
+                                width: '120px',
+                                height: '80px',
+                            }}
+                        />
+                    </div>
                     <p className="zetsu-ai-disclaimer">
                         ZetsuGuide AI can make mistakes. Check important info.
                     </p>
@@ -4093,6 +4106,52 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                     margin-top: 12px;
                     font-size: 0.75rem;
                     color: rgba(255,255,255,0.4);
+                }
+
+                /* Sailboat Animation */
+                .sailboat-animation-container {
+                    position: fixed;
+                    width: 100vw;
+                    height: 80px;
+                    margin-top: 8px;
+                    display: flex;
+                    align-items: center;
+                    overflow: visible;
+                    padding: 0;
+                    top: auto;
+                    bottom: 140px;
+                    left: 0;
+                    pointer-events: none;
+                    z-index: 50;
+                }
+
+                .sailboat-animation-container > div {
+                    animation: sailboatSail 25s linear infinite, sailboatWave 3s ease-in-out infinite;
+                    position: absolute;
+                }
+
+                @keyframes sailboatSail {
+                    0% {
+                        left: 100vw;
+                    }
+                    100% {
+                        left: -120px;
+                    }
+                }
+
+                @keyframes sailboatWave {
+                    0%, 100% {
+                        transform: translateY(0px);
+                    }
+                    25% {
+                        transform: translateY(-2px);
+                    }
+                    50% {
+                        transform: translateY(0px);
+                    }
+                    75% {
+                        transform: translateY(-2px);
+                    }
                 }
 
                 /* Responsive */
