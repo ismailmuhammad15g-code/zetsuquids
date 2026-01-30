@@ -89,7 +89,8 @@ export const guidesApi = {
                     .from('guides')
                     .select('*')
                     .eq('slug', slug)
-                    .single()
+                    .limit(1)  // Get only the first match if duplicates exist
+                    .maybeSingle()  // Use maybeSingle instead of single to avoid 406 error
 
                 if (error) {
                     console.log('Supabase getBySlug error:', error.message)
@@ -218,17 +219,46 @@ export const guidesApi = {
     },
 
     async delete(id) {
+        console.log('[guidesApi.delete] Attempting to delete guide:', id)
+
         if (!isSupabaseConfigured()) {
+            console.log('[guidesApi.delete] Using localStorage fallback')
             const guides = JSON.parse(localStorage.getItem('guides') || '[]')
             const filtered = guides.filter(g => g.id != id)
             localStorage.setItem('guides', JSON.stringify(filtered))
+            console.log('[guidesApi.delete] Successfully deleted from localStorage')
             return true
         }
+
+        console.log('[guidesApi.delete] Using Supabase')
         const { error } = await supabase
             .from('guides')
             .delete()
             .eq('id', id)
-        if (error) throw error
+
+        if (error) {
+            console.error('[guidesApi.delete] Supabase deletion failed:', {
+                message: error.message,
+                details: error.details,
+                hint: error.hint,
+                code: error.code
+            })
+            throw error
+        }
+
+        console.log('[guidesApi.delete] Successfully deleted from Supabase')
+
+        // CRITICAL: Also remove from localStorage to prevent it from reappearing
+        try {
+            const guides = JSON.parse(localStorage.getItem('guides') || '[]')
+            const filtered = guides.filter(g => g.id != id)
+            localStorage.setItem('guides', JSON.stringify(filtered))
+            console.log('[guidesApi.delete] Also removed from localStorage cache')
+        } catch (err) {
+            console.warn('[guidesApi.delete] Failed to update localStorage:', err)
+            // Don't throw - Supabase deletion succeeded, localStorage is just a cache
+        }
+
         return true
     },
 

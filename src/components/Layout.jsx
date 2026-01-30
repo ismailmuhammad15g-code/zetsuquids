@@ -138,7 +138,16 @@ export default function Layout() {
                 .limit(1)
 
             if (reports && reports.length > 0) {
-                setRewardReportId(reports[0].id)
+                const reportId = reports[0].id
+
+                // LocalStorage guard - if we've shown this report before, skip
+                const seenKey = `bug_reward_seen_${reportId}`
+                if (localStorage.getItem(seenKey) === 'true') {
+                    console.log('[BugReward] Already seen locally, skipping modal')
+                    return
+                }
+
+                setRewardReportId(reportId)
                 setShowBugReward(true)
             }
         }
@@ -445,13 +454,24 @@ export default function Layout() {
             {showBugReward && (
                 <ApprovedBugModal
                     onClose={async () => {
-                        setShowBugReward(false)
-                        // Mark as seen in DB
+                        setShowBugReward(false);
+
+                        // IMMEDIATELY mark as seen in localStorage (failsafe)
                         if (rewardReportId) {
-                            await supabase
-                                .from('bug_reports')
-                                .update({ notification_shown: true })
-                                .eq('id', rewardReportId)
+                            const seenKey = `bug_reward_seen_${rewardReportId}`;
+                            localStorage.setItem(seenKey, 'true');
+                            console.log('[BugReward] Marked as seen in localStorage:', seenKey);
+
+                            // Also try to update DB via API (but localStorage is the primary guard now)
+                            try {
+                                await fetch('/api/mark_notification_read', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ report_id: rewardReportId })
+                                });
+                            } catch (err) {
+                                console.error('Failed to mark notification as read in DB:', err);
+                            }
                         }
                     }}
                 />

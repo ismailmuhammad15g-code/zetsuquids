@@ -2,10 +2,12 @@ import { ArrowLeft, Calendar, Check, ExternalLink, Loader2, Mail, Share2, Tag, T
 import { marked } from 'marked'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { useAuth } from '../contexts/AuthContext'
 import { guidesApi } from '../lib/api'
 import { getAvatarForUser } from '../lib/avatar'
 import { supabase } from '../lib/supabase'
+import ConfirmModal from '../components/ConfirmModal'
 
 // Configure marked
 marked.setOptions({
@@ -24,6 +26,7 @@ export default function GuidePage() {
     const [copied, setCopied] = useState(false)
     const [deleting, setDeleting] = useState(false)
     const [authorAvatar, setAuthorAvatar] = useState(null)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
     useEffect(() => {
         loadGuide()
@@ -74,30 +77,88 @@ export default function GuidePage() {
         }
     }
 
-    async function handleDelete() {
+    function handleDeleteClick() {
+        console.log('[GuidePage] Delete button clicked', { guide: guide?.id, user: user?.email })
+
         if (!guide.user_email) {
+            console.error('[GuidePage] Cannot delete: Guide has no owner', { guideId: guide.id })
             alert('Cannot delete legacy guides or guides without owner.')
             return
         }
 
         if (guide.user_email !== user?.email) {
+            console.error('[GuidePage] Cannot delete: User is not owner', {
+                guideOwner: guide.user_email,
+                currentUser: user?.email
+            })
             alert('You can only delete your own guides.')
             return
         }
 
-        if (!confirm('Are you sure you want to delete this guide? This action cannot be undone.')) {
-            return
-        }
+        console.log('[GuidePage] Opening delete confirmation modal')
+        setShowDeleteConfirm(true)
+    }
+
+    async function handleDeleteConfirm() {
+        console.log('[GuidePage] User confirmed deletion, proceeding...')
 
         setDeleting(true)
+        console.log('[GuidePage] Starting deletion process...')
+
         try {
             await guidesApi.delete(guide.id)
-            navigate('/guides')
+            console.log('[GuidePage] Guide deleted successfully!')
+
+            // Show success toast
+            toast.success('Guide deleted successfully!', {
+                description: 'The guide has been permanently removed.',
+                duration: 3000
+            })
+
+            // Close modal and navigate
+            setShowDeleteConfirm(false)
+
+            // Small delay to let user see the success message
+            setTimeout(() => {
+                console.log('[GuidePage] Navigating to /guides')
+                navigate('/guides')
+            }, 500)
+
         } catch (err) {
-            console.error('Error deleting guide:', err)
-            alert('Failed to delete guide')
+            console.error('[GuidePage] Deletion failed:', {
+                error: err,
+                message: err.message,
+                code: err.code,
+                details: err.details,
+                hint: err.hint,
+                guideId: guide.id,
+                userEmail: user?.email
+            })
+
+            // Provide specific error messages
+            let errorTitle = 'Failed to delete guide'
+            let errorMessage = ''
+
+            if (err.code === '42501' || err.message?.includes('permission')) {
+                errorMessage = 'You do not have permission to delete this guide. Please check if you are the owner.'
+            } else if (err.message?.includes('network') || err.message?.includes('fetch')) {
+                errorMessage = 'Network error. Please check your connection and try again.'
+            } else {
+                errorMessage = err.message || 'Unknown error occurred.'
+            }
+
+            // Show error toast
+            toast.error(errorTitle, {
+                description: errorMessage,
+                duration: 5000
+            })
+
+            // Close modal on error too
+            setShowDeleteConfirm(false)
+
         } finally {
             setDeleting(false)
+            console.log('[GuidePage] Deletion process completed')
         }
     }
 
@@ -307,7 +368,7 @@ export default function GuidePage() {
                     {/* ONLY SHOW DELETE IF OWNER */}
                     {user?.email && guide.user_email === user.email && (
                         <button
-                            onClick={handleDelete}
+                            onClick={handleDeleteClick}
                             disabled={deleting}
                             className="flex items-center gap-2 px-4 py-2 border border-red-300 text-red-600 hover:bg-red-50 transition-colors text-sm disabled:opacity-50"
                         >
@@ -337,6 +398,20 @@ export default function GuidePage() {
                     Back to All Guides
                 </Link>
             </div>
+
+            {/* Delete Confirmation Modal */}
+            <ConfirmModal
+                isOpen={showDeleteConfirm}
+                onClose={() => {
+                    console.log('[GuidePage] Delete modal closed without confirmation')
+                    setShowDeleteConfirm(false)
+                }}
+                onConfirm={handleDeleteConfirm}
+                title="Delete Guide?"
+                message="Are you sure you want to delete this guide? This action cannot be undone and all content will be permanently removed."
+                confirmText="Yes, Delete"
+                cancelText="Cancel"
+            />
         </article>
     )
 }

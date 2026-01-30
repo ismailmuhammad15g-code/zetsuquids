@@ -16,11 +16,15 @@ import VerifyEmailPage from './pages/VerifyEmailPage'
 import ZetsuGuideAIPage from './pages/ZetsuGuideAIPage'
 
 import { LoadingProvider } from './contexts/LoadingContext'
+import GlobalErrorHandler from './components/GlobalErrorHandler'
+import { Toaster } from 'sonner'
 
 function App() {
     return (
         <LoadingProvider>
             <AuthProvider>
+                <GlobalErrorHandler />
+                <Toaster position="top-center" richColors closeButton />
                 <Routes>
                     <Route path="/" element={<Layout />}>
                         <Route index element={<HomePage />} />

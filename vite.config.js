@@ -378,6 +378,43 @@ function apiMiddleware() {
                     return
                 }
 
+                // Handle mark_notification_read API
+                if (req.url === '/api/mark_notification_read' && req.method === 'POST') {
+                    let body = ''
+                    req.on('data', chunk => { body += chunk })
+                    req.on('end', async () => {
+                        try {
+                            const data = body ? JSON.parse(body) : {}
+
+                            // Inject env vars safely
+                            process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL
+                            process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY
+
+                            const mockReq = {
+                                method: 'POST',
+                                body: data
+                            }
+                            const mockRes = {
+                                statusCode: 200,
+                                setHeader: (key, value) => res.setHeader(key, value),
+                                status: (code) => { res.statusCode = code; return mockRes },
+                                json: (data) => {
+                                    res.setHeader('Content-Type', 'application/json')
+                                    res.end(JSON.stringify(data))
+                                }
+                            }
+
+                            const { default: markRead } = await import('./api/mark_notification_read.js')
+                            await markRead(mockReq, mockRes)
+                        } catch (error) {
+                            console.error('Mark Read API Error:', error)
+                            res.statusCode = 500
+                            res.end(JSON.stringify({ error: error.message }))
+                        }
+                    })
+                    return
+                }
+
                 // Handle support_ticket API
                 if ((req.url === '/api/support_ticket' || req.url === '/api/submit_support') && req.method === 'POST') {
                     let body = ''

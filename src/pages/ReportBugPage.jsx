@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { ArrowLeft, Bug, Lightbulb, Monitor, Send, Loader2, Sparkles, CheckCircle, Gift, AlertCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function ReportBugPage() {
     const { user } = useAuth()
+    const location = useLocation()
     const [formData, setFormData] = useState({
         issueType: 'ui_glitch',
         description: '',
@@ -19,7 +20,16 @@ export default function ReportBugPage() {
         // Auto-detect browser info
         const info = `${navigator.userAgent} | Screen: ${window.screen.width}x${window.screen.height}`
         setBrowserInfo(info)
-    }, [])
+
+        // Handle auto-filled report from global error handler
+        if (location.state?.prefilledDescription) {
+            setFormData(prev => ({
+                ...prev,
+                description: location.state.prefilledDescription,
+                issueType: location.state.issueType || 'technical_issue'
+            }))
+        }
+    }, [location.state])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
