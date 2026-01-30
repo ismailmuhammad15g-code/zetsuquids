@@ -150,7 +150,19 @@ export default function AuthPage() {
                         })
                     })
 
-                    const result = await response.json()
+                    let result
+                    try {
+                        const text = await response.text()
+                        try {
+                            result = JSON.parse(text)
+                        } catch (e) {
+                            // If not JSON, use the text as error message if response failed, or generic error
+                            console.error('Failed to parse registration response:', text)
+                            throw new Error(response.ok ? 'Server returned invalid response' : (text || 'Server error'))
+                        }
+                    } catch (e) {
+                        throw new Error(e.message || 'Network error during registration')
+                    }
 
                     if (!response.ok) {
                         throw new Error(result.error || 'Registration failed')

@@ -1,47 +1,62 @@
-import { ArrowUpRight, Calendar, Filter, Grid, List, Loader2, Plus, Search, Tag } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ArrowUpRight, Calendar, Filter, Grid, List, Plus, Search, Tag } from 'lucide-react'
+import { useEffect, useState, useMemo } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
-import { guidesApi } from '../lib/api'
+import { useGuides } from '../hooks/useGuides'
+import { GuidesSkeletonGrid, GuidesSkeletonList } from '../components/GuideSkeleton'
 import { getAvatarForUser } from '../lib/avatar'
 import { supabase } from '../lib/supabase'
 
 export default function AllGuidesPage() {
     const { openAddModal } = useOutletContext()
-    const [guides, setGuides] = useState([])
-    const [filteredGuides, setFilteredGuides] = useState([])
-    const [loading, setLoading] = useState(true)
+
+    // Use React Query hook for caching and data fetching
+    const { data: guides = [], isLoading, isError } = useGuides()
+
     const [searchQuery, setSearchQuery] = useState('')
     const [viewMode, setViewMode] = useState('grid') // grid or list
     const [selectedTag, setSelectedTag] = useState(null)
-    const [allTags, setAllTags] = useState([])
     const [authorAvatars, setAuthorAvatars] = useState({}) // Cache for author avatars
 
-    useEffect(() => {
-        loadGuides()
-    }, [])
+    // Extract all unique tags
+    const allTags = useMemo(() => {
+        const tags = new Set()
+        guides.forEach(g => {
+            (g.keywords || []).forEach(k => tags.add(k))
+        })
+        return Array.from(tags)
+    }, [guides])
 
-    async function loadGuides() {
-        try {
-            setLoading(true)
-            const data = await guidesApi.getAll()
-            setGuides(data)
-            setFilteredGuides(data)
+    // Filter guides
+    const filteredGuides = useMemo(() => {
+        let filtered = [...guides]
 
-            // Extract all unique tags
-            const tags = new Set()
-            data.forEach(g => {
-                (g.keywords || []).forEach(k => tags.add(k))
-            })
-            setAllTags(Array.from(tags))
-
-            // Fetch avatars for all unique authors
-            await fetchAuthorAvatars(data)
-        } catch (err) {
-            console.error('Error loading guides:', err)
-        } finally {
-            setLoading(false)
+        // Search filter
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase()
+            filtered = filtered.filter(g =>
+                g.title.toLowerCase().includes(q) ||
+                (g.keywords || []).some(k => k.toLowerCase().includes(q)) ||
+                (g.markdown || g.content || '').toLowerCase().includes(q)
+            )
         }
-    }
+
+        // Tag filter
+        if (selectedTag) {
+            filtered = filtered.filter(g =>
+                (g.keywords || []).includes(selectedTag)
+            )
+        }
+
+        return filtered
+    }, [guides, searchQuery, selectedTag])
+
+    // Fetch author avatars when guides change
+    useEffect(() => {
+        if (guides.length > 0) {
+            fetchAuthorAvatars(guides)
+        }
+    }, [guides])
+
 
     async function fetchAuthorAvatars(guidesList) {
         const uniqueEmails = new Set(guidesList.map(g => g.user_email).filter(Boolean))
@@ -70,29 +85,6 @@ export default function AllGuidesPage() {
         setAuthorAvatars(newAvatars)
     }
 
-    // Filter guides
-    useEffect(() => {
-        let filtered = [...guides]
-
-        // Search filter
-        if (searchQuery) {
-            const q = searchQuery.toLowerCase()
-            filtered = filtered.filter(g =>
-                g.title.toLowerCase().includes(q) ||
-                (g.keywords || []).some(k => k.toLowerCase().includes(q)) ||
-                (g.markdown || g.content || '').toLowerCase().includes(q)
-            )
-        }
-
-        // Tag filter
-        if (selectedTag) {
-            filtered = filtered.filter(g =>
-                (g.keywords || []).includes(selectedTag)
-            )
-        }
-
-        setFilteredGuides(filtered)
-    }, [searchQuery, selectedTag, guides])
 
     // Highlight search match
     function highlight(text) {
@@ -190,15 +182,15 @@ export default function AllGuidesPage() {
                 </div>
             )}
 
-            {/* Loading */}
-            {loading && (
-                <div className="flex items-center justify-center py-20">
-                    <Loader2 size={40} className="animate-spin text-gray-400" />
-                </div>
+            {/* Loading Skeletons */}
+            {isLoading && (
+                viewMode === 'grid'
+                    ? <GuidesSkeletonGrid count={6} />
+                    : <GuidesSkeletonList count={6} />
             )}
 
             {/* Empty State */}
-            {!loading && guides.length === 0 && (
+            {!isLoading && guides.length === 0 && (
                 <div className="border-2 border-dashed border-gray-300 p-12 text-center">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Filter size={32} className="text-gray-400" />
@@ -218,7 +210,7 @@ export default function AllGuidesPage() {
             )}
 
             {/* No Results */}
-            {!loading && guides.length > 0 && filteredGuides.length === 0 && (
+            {!isLoading && guides.length > 0 && filteredGuides.length === 0 && (
                 <div className="border-2 border-gray-200 p-12 text-center">
                     <Search size={48} className="mx-auto text-gray-300 mb-4" />
                     <h3 className="text-xl font-bold mb-2">No results found</h3>
@@ -229,7 +221,7 @@ export default function AllGuidesPage() {
             )}
 
             {/* Grid View */}
-            {!loading && viewMode === 'grid' && filteredGuides.length > 0 && (
+            {!isLoading && viewMode === 'grid' && filteredGuides.length > 0 && (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredGuides.map(guide => (
                         <Link
@@ -293,7 +285,7 @@ export default function AllGuidesPage() {
             )}
 
             {/* List View */}
-            {!loading && viewMode === 'list' && filteredGuides.length > 0 && (
+            {!isLoading && viewMode === 'list' && filteredGuides.length > 0 && (
                 <div className="border-2 border-black divide-y-2 divide-black">
                     {filteredGuides.map(guide => (
                         <Link

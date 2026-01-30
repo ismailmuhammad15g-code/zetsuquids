@@ -95,6 +95,85 @@ function apiMiddleware() {
                     return
                 }
 
+                // Handle register API
+                if (req.url === '/api/register' && req.method === 'POST') {
+                    let body = ''
+                    req.on('data', chunk => { body += chunk })
+                    req.on('end', async () => {
+                        try {
+                            const data = JSON.parse(body)
+
+                            // Inject env vars
+                            process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL
+                            process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY
+                            process.env.MAIL_USERNAME = env.MAIL_USERNAME
+                            process.env.MAIL_PASSWORD = env.MAIL_PASSWORD
+                            process.env.VITE_APP_URL = 'http://localhost:3000'
+
+                            const mockReq = {
+                                method: 'POST',
+                                body: data
+                            }
+                            const mockRes = {
+                                statusCode: 200,
+                                setHeader: (key, value) => res.setHeader(key, value),
+                                status: (code) => { res.statusCode = code; return mockRes },
+                                json: (data) => {
+                                    res.setHeader('Content-Type', 'application/json')
+                                    res.end(JSON.stringify(data))
+                                }
+                            }
+
+                            const { default: registerUser } = await import('./api/register.js')
+                            await registerUser(mockReq, mockRes)
+                        } catch (error) {
+                            console.error('Register API Error:', error)
+                            res.statusCode = 500
+                            res.setHeader('Content-Type', 'application/json')
+                            res.end(JSON.stringify({ error: error.message }))
+                        }
+                    })
+                    return
+                }
+
+                // Handle claim_referral API
+                if (req.url === '/api/claim_referral' && req.method === 'POST') {
+                    let body = ''
+                    req.on('data', chunk => { body += chunk })
+                    req.on('end', async () => {
+                        try {
+                            const data = JSON.parse(body)
+
+                            // Inject env vars
+                            process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL
+                            process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY
+
+                            const mockReq = {
+                                method: 'POST',
+                                body: data
+                            }
+                            const mockRes = {
+                                statusCode: 200,
+                                setHeader: (key, value) => res.setHeader(key, value),
+                                status: (code) => { res.statusCode = code; return mockRes },
+                                json: (data) => {
+                                    res.setHeader('Content-Type', 'application/json')
+                                    res.end(JSON.stringify(data))
+                                }
+                            }
+
+                            const { default: claimReferral } = await import('./api/claim_referral.js')
+                            await claimReferral(mockReq, mockRes)
+                        } catch (error) {
+                            console.error('Claim Referral API Error:', error)
+                            res.statusCode = 500
+                            res.setHeader('Content-Type', 'application/json')
+                            res.end(JSON.stringify({ error: error.message }))
+                        }
+                    })
+                    return
+                }
+
                 // Handle claim_daily_credits API
                 if (req.url === '/api/claim_daily_credits' && req.method === 'POST') {
                     let body = ''

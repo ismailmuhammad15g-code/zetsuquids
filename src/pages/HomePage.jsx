@@ -11,41 +11,29 @@ import { StickyBanner } from '../components/ui/sticky-banner'
 import { useAuth } from '../contexts/AuthContext'
 import { guidesApi, initializeSampleData } from '../lib/api'
 import { cn } from '../lib/utils'
+import { useGuides } from '../hooks/useGuides'
 
 export default function HomePage() {
     const { openAddModal } = useOutletContext()
     const { user } = useAuth()
-    const [recentGuides, setRecentGuides] = useState([])
-    const [loading, setLoading] = useState(true)
+
+    // Use the cached hook
+    const { data: allGuides = [], isLoading: loading } = useGuides()
+
+    // Derived state for recent guides
+    const recentGuides = allGuides.slice(0, 6)
+
     const [syncing, setSyncing] = useState(false)
 
     useEffect(() => {
-        initializeAndLoad()
-    }, [user]) // Re-run when user loads to sync with email
-
-    async function initializeAndLoad() {
-        try {
-            // Try to sync local guides to Supabase first
-            if (user?.email) {
-                await guidesApi.syncToSupabase(user.email)
-            } else {
-                await guidesApi.syncToSupabase()
-            }
-
-            // Initialize sample data if empty
-            const initialized = await initializeSampleData();
-            if (initialized) {
-                console.log('Sample data was added');
-            }
-            // Load guides
-            const guides = await guidesApi.getAll()
-            setRecentGuides(guides.slice(0, 6))
-        } catch (err) {
-            console.error('Error loading guides:', err)
-        } finally {
-            setLoading(false)
+        // Sync in background without blocking UI
+        if (user?.email) {
+            guidesApi.syncToSupabase(user.email).catch(console.error)
         }
-    }
+
+        // Check for sample data in background
+        initializeSampleData().catch(console.error)
+    }, [user])
 
     async function handleSync() {
         setSyncing(true)
@@ -53,9 +41,9 @@ export default function HomePage() {
             const result = await guidesApi.syncToSupabase(user?.email)
             if (result.synced > 0) {
                 alert(`تم مزامنة ${result.synced} دليل بنجاح!`)
-                // Reload guides
-                const guides = await guidesApi.getAll()
-                setRecentGuides(guides.slice(0, 6))
+                // Invalidate cache to show new data
+                // Access queryClient via hook if needed, or rely on auto-refetch if we implemented invalidate
+                window.location.reload() // Simple reload for now to refresh cache
             } else if (result.failed > 0) {
                 alert(`فشل في مزامنة ${result.failed} دليل`)
             } else {
@@ -104,13 +92,13 @@ export default function HomePage() {
                 {/* Meteors Effect */}
                 <Meteors number={30} />
 
-                <div className="relative z-10 max-w-7xl mx-auto px-4 py-24 sm:py-32">
+                <div className="relative z-10 max-w-7xl mx-auto px-4 py-16 sm:py-24 md:py-32">
                     <div className="text-center">
                         <div className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium mb-6 rounded-full">
                             <Sparkles size={16} />
                             Your Personal Knowledge Base
                         </div>
-                        <h1 className="text-5xl sm:text-7xl font-black tracking-tight mb-6">
+                        <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight mb-6">
                             <span className="bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent">
                                 Save. Search.
                             </span>
@@ -154,10 +142,10 @@ export default function HomePage() {
             </section>
 
             {/* Features */}
-            <section className="py-20 border-b-2 border-black bg-black">
+            <section className="py-12 sm:py-20 border-b-2 border-black bg-black">
                 <div className="max-w-7xl mx-auto px-4">
                     <div className="text-center mb-12">
-                        <h2 className="text-4xl font-black text-white mb-4">Everything you need</h2>
+                        <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">Everything you need</h2>
                         <p className="text-neutral-400">Powerful tools for developers</p>
                     </div>
                     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -167,7 +155,7 @@ export default function HomePage() {
                         </div>
 
                         {/* Other Feature Cards */}
-                        <div className="p-8 border border-white/10 bg-black/70 rounded-xl hover:border-white/30 transition-all">
+                        <div className="p-6 sm:p-8 border border-white/10 bg-black/70 rounded-xl hover:border-white/30 transition-all">
                             <div className="w-12 h-12 bg-white flex items-center justify-center mb-4 rounded-lg">
                                 <FileText size={24} className="text-black" />
                             </div>
@@ -176,7 +164,7 @@ export default function HomePage() {
                                 Write guides in Markdown with full formatting support. Code blocks, lists, headers, and more.
                             </p>
                         </div>
-                        <div className="p-8 border border-white/10 bg-black/70 rounded-xl hover:border-white/30 transition-all">
+                        <div className="p-6 sm:p-8 border border-white/10 bg-black/70 rounded-xl hover:border-white/30 transition-all">
                             <div className="w-12 h-12 bg-white flex items-center justify-center mb-4 rounded-lg">
                                 <Search size={24} className="text-black" />
                             </div>
@@ -185,7 +173,7 @@ export default function HomePage() {
                                 AI-powered search that understands context. Find exactly what you need in seconds.
                             </p>
                         </div>
-                        <div className="p-8 border border-white/10 bg-black/70 rounded-xl hover:border-white/30 transition-all">
+                        <div className="p-6 sm:p-8 border border-white/10 bg-black/70 rounded-xl hover:border-white/30 transition-all">
                             <div className="w-12 h-12 bg-white flex items-center justify-center mb-4 rounded-lg">
                                 <Zap size={24} className="text-black" />
                             </div>
@@ -199,10 +187,10 @@ export default function HomePage() {
             </section>
 
             {/* Recent Guides */}
-            <section className="py-20">
+            <section className="py-12 sm:py-20">
                 <div className="max-w-7xl mx-auto px-4">
                     <div className="flex items-center justify-between mb-8">
-                        <ComicText fontSize={4}>
+                        <ComicText fontSize={4} className="text-2xl sm:text-4xl">
                             Recent Guides
                         </ComicText>
                         <Link
@@ -279,10 +267,10 @@ export default function HomePage() {
             </section>
 
             {/* CTA */}
-            <section className="bg-black text-white py-20">
+            <section className="bg-black text-white py-12 sm:py-20">
                 <div className="max-w-4xl mx-auto px-4 text-center">
                     <div className="mb-6">
-                        <ComicText fontSize={5}>
+                        <ComicText fontSize={5} className="text-3xl sm:text-5xl">
                             Ready to get started?
                         </ComicText>
                     </div>

@@ -1,5 +1,5 @@
 import Lottie from 'lottie-react'
-import { ArrowRight, Bot, HelpCircle, History, Menu, MessageSquare, Plus, Trash2, X, Zap } from 'lucide-react'
+import { ArrowRight, Bot, Bug, HelpCircle, History, Menu, MessageSquare, Plus, RefreshCw, Trash2, X, Zap } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import guidePublishAnimation from '../assets/Guidepublish.json'
@@ -1583,7 +1583,9 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                 role: 'assistant',
                 content: errorMessage,
                 timestamp: new Date().toISOString(),
-                isStreaming: false
+                isStreaming: false,
+                isError: true,
+                errorDetails: error.message || 'Unknown error'
             }])
         } finally {
             clearTimeout(longerTimer)
@@ -2817,6 +2819,88 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                                     </span>
                                                 </button>
                                             )}
+
+                                            {/* Error Message Actions - Report Bug & Retry */}
+                                            {msg.role === 'assistant' && msg.isError && !msg.isStreaming && (
+                                                <div style={{
+                                                    display: 'flex',
+                                                    gap: '10px',
+                                                    marginTop: '12px',
+                                                    padding: '12px',
+                                                    background: 'rgba(239, 68, 68, 0.1)',
+                                                    borderRadius: '12px',
+                                                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                                                    flexWrap: 'wrap'
+                                                }}>
+                                                    <span style={{
+                                                        fontSize: '0.75rem',
+                                                        color: 'rgba(255,255,255,0.5)',
+                                                        width: '100%',
+                                                        marginBottom: '8px'
+                                                    }}>
+                                                        💡 This might be a temporary issue. You can try again or report it if it persists.
+                                                    </span>
+
+                                                    {/* Retry Button */}
+                                                    <button
+                                                        onClick={() => {
+                                                            // Get the user's last message to retry
+                                                            const lastUserMsg = messages.filter(m => m.role === 'user').pop()
+                                                            if (lastUserMsg) {
+                                                                setInput(lastUserMsg.content)
+                                                                // Remove the error message
+                                                                setMessages(prev => prev.filter((_, i) => i !== idx))
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '6px',
+                                                            padding: '8px 14px',
+                                                            background: 'rgba(255,255,255,0.1)',
+                                                            border: '1px solid rgba(255,255,255,0.2)',
+                                                            borderRadius: '8px',
+                                                            color: 'white',
+                                                            fontSize: '0.85rem',
+                                                            fontWeight: '500',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s'
+                                                        }}
+                                                        onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+                                                        onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                                                    >
+                                                        <RefreshCw size={14} />
+                                                        Try Again
+                                                    </button>
+
+                                                    {/* Report Bug Button */}
+                                                    <Link
+                                                        to="/reportbug"
+                                                        state={{
+                                                            prefilledDescription: `AI Error Report (Auto-Generated)\n\nError Message: ${msg.content}\n\nError Details: ${msg.errorDetails || 'Unknown'}\n\nTimestamp: ${msg.timestamp}\n\n---\nPlease add any additional details below:`,
+                                                            issueType: 'Technical Issue'
+                                                        }}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '6px',
+                                                            padding: '8px 14px',
+                                                            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.3))',
+                                                            border: '1px solid rgba(239, 68, 68, 0.4)',
+                                                            borderRadius: '8px',
+                                                            color: '#fca5a5',
+                                                            fontSize: '0.85rem',
+                                                            fontWeight: '500',
+                                                            textDecoration: 'none',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s'
+                                                        }}
+                                                    >
+                                                        <Bug size={14} />
+                                                        Report This Issue
+                                                    </Link>
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                 </div>
@@ -2874,9 +2958,14 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                                                 )}
                                                 {/* Taking longer message */}
                                                 {isTakingLonger && (
-                                                    <span className="zetsu-agent-status zetsu-agent-taking-longer">
-                                                        AI is taking longer... Cookiecing some fresh answers 🍪
-                                                    </span>
+                                                    <div className="zetsu-agent-taking-longer-container">
+                                                        <span className="zetsu-agent-status zetsu-agent-taking-longer">
+                                                            ⏳ AI is crafting a detailed response...
+                                                        </span>
+                                                        <span className="zetsu-agent-tip">
+                                                            💡 Complex questions need more thinking time!
+                                                        </span>
+                                                    </div>
                                                 )}
                                                 {agentPhase === AGENT_PHASES.RESPONDING && (
                                                     <span className="zetsu-agent-status">Generating response...</span>
@@ -4190,6 +4279,30 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                         opacity: 1;
                         transform: translateY(0);
                     }
+                }
+
+                /* Taking Longer Container */
+                .zetsu-agent-taking-longer-container {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                    animation: pulse 2s ease-in-out infinite;
+                }
+
+                .zetsu-agent-taking-longer {
+                    color: #fbbf24 !important;
+                    font-weight: 600;
+                }
+
+                .zetsu-agent-tip {
+                    font-size: 0.75rem;
+                    color: rgba(255, 255, 255, 0.5);
+                    font-style: italic;
+                }
+
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.7; }
                 }
 
                 /* Input Area */

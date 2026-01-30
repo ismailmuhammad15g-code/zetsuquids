@@ -41,8 +41,8 @@ export default async function handler(req, res) {
         })
 
         if (error) {
-            console.error('Supabase Generate Link Error:', error)
-            return res.status(400).json({ error: error.message })
+            console.error('Supabase Generate Link Error:', JSON.stringify(error, null, 2))
+            return res.status(400).json({ error: error.message || 'Registration failed' })
         }
 
         const { action_link } = data.properties

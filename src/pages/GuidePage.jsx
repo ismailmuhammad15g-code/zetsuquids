@@ -220,7 +220,7 @@ export default function GuidePage() {
 
         return (
             <div
-                className="prose prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white"
+                className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white"
                 dangerouslySetInnerHTML={{ __html: html }}
             />
         )
@@ -300,7 +300,7 @@ export default function GuidePage() {
                 {/* Author Card */}
                 {guide.user_email && (
                     <div className="mb-8 p-4 border-2 border-black bg-gradient-to-r from-purple-50 to-pink-50">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <div className="flex items-center gap-3">
                                 {authorAvatar ? (
                                     <img

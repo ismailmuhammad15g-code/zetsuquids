@@ -10,6 +10,8 @@ import { aiAgentSearch, isAIConfigured } from '../lib/ai'
 import { guidesApi } from '../lib/api'
 import { supabase } from '../lib/supabase'
 import BotIcon from './BotIcon'
+import DirectSupportChat from './DirectSupportChat'
+import { supportApi } from '../lib/supportApi'
 
 // Markdown Message Component with Typing Animation
 function MarkdownMessage({ content, isTyping = false }) {
@@ -98,6 +100,8 @@ export default function Chatbot() {
     const [isOpen, setIsOpen] = useState(false)
     const [isMinimized, setIsMinimized] = useState(false)
     const [showPopup, setShowPopup] = useState(true)
+    const [activeTab, setActiveTab] = useState('chat') // 'chat', 'support-form', or 'direct-support'
+    const [unreadSupportCount, setUnreadSupportCount] = useState(0)
     const [showSupportForm, setShowSupportForm] = useState(false)
     const [awaitingSupportConfirmation, setAwaitingSupportConfirmation] = useState(false)
     const [pendingSupportCategory, setPendingSupportCategory] = useState(null)
@@ -202,6 +206,159 @@ export default function Chatbot() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages, isOpen, isTyping, isLongLoading])
 
+    // Notification sound function
+    const playNotificationSound = () => {
+        try {
+            // Create audio context for notification
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+
+            // Create oscillator for notification beep
+            const oscillator = audioContext.createOscillator()
+            const gainNode = audioContext.createGain()
+
+            oscillator.connect(gainNode)
+            gainNode.connect(audioContext.destination)
+
+            // Configure sound
+            oscillator.frequency.setValueAtTime(880, audioContext.currentTime) // A5 note
+            oscillator.type = 'sine'
+
+            // Volume envelope
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime)
+            gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.05)
+            gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.3)
+
+            // Play
+            oscillator.start(audioContext.currentTime)
+            oscillator.stop(audioContext.currentTime + 0.3)
+
+            // Second beep
+            setTimeout(() => {
+                const osc2 = audioContext.createOscillator()
+                const gain2 = audioContext.createGain()
+                osc2.connect(gain2)
+                gain2.connect(audioContext.destination)
+                osc2.frequency.setValueAtTime(1100, audioContext.currentTime) // Higher note
+                osc2.type = 'sine'
+                gain2.gain.setValueAtTime(0, audioContext.currentTime)
+                gain2.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.05)
+                gain2.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.3)
+                osc2.start(audioContext.currentTime)
+                osc2.stop(audioContext.currentTime + 0.3)
+            }, 150)
+
+        } catch (error) {
+            console.log('Could not play notification sound:', error)
+        }
+    }
+
+    // Refs to track current state in subscription callback
+    const isOpenRef = useRef(isOpen)
+    const activeTabRef = useRef(activeTab)
+
+    useEffect(() => { isOpenRef.current = isOpen }, [isOpen])
+    useEffect(() => { activeTabRef.current = activeTab }, [activeTab])
+
+    // Subscribe to new support messages from admin/staff
+    useEffect(() => {
+        if (!user?.email) return
+
+        let subscription = null
+
+        // Get user's conversation ID first
+        const subscribeToMessages = async () => {
+            try {
+                const { data: conv } = await supabase
+                    .from('support_conversations')
+                    .select('id')
+                    .eq('user_email', user.email)
+                    .single()
+
+                if (!conv) {
+                    return
+                }
+
+                subscription = supabase
+                    .channel(`chatbot_support_${conv.id}_${Date.now()}`)
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'INSERT',
+                            schema: 'public',
+                            table: 'support_messages',
+                            filter: `conversation_id=eq.${conv.id}`
+                        },
+                        (payload) => {
+                            const newMsg = payload.new
+                            // Notify for admin OR staff messages
+                            if (newMsg.sender_type === 'admin' || newMsg.sender_type === 'staff') {
+                                // Use refs to get current values (avoid stale closure)
+                                const chatIsOpen = isOpenRef.current
+                                const currentTab = activeTabRef.current
+
+                                // If chat is not open OR not on direct-support tab
+                                if (!chatIsOpen || currentTab !== 'direct-support') {
+                                    setUnreadSupportCount(prev => prev + 1)
+                                    playNotificationSound()
+
+                                    // Also show browser notification if permitted
+                                    if (Notification.permission === 'granted') {
+                                        const senderName = newMsg.sender_type === 'admin' ? 'Admin' : (newMsg.sender_name || 'Support')
+                                        new Notification(`New message from ${senderName}! 💬`, {
+                                            body: newMsg.message.substring(0, 100),
+                                            icon: '/favicon.ico'
+                                        })
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    .subscribe((status) => {
+                        // Status handling
+                    })
+            } catch (error) {
+                console.log('Could not subscribe to support messages:', error)
+            }
+        }
+
+        subscribeToMessages()
+
+        // Request notification permission
+        if (Notification.permission === 'default') {
+            Notification.requestPermission()
+        }
+
+        return () => {
+            if (subscription) {
+                subscription.unsubscribe()
+            }
+        }
+    }, [user?.email])
+
+
+    // Load unread count on mount
+    useEffect(() => {
+        if (!user?.email) return
+
+        const loadUnreadCount = async () => {
+            try {
+                const { data: conv } = await supabase
+                    .from('support_conversations')
+                    .select('unread_count')
+                    .eq('user_email', user.email)
+                    .single()
+
+                if (conv && conv.unread_count > 0) {
+                    setUnreadSupportCount(conv.unread_count)
+                }
+            } catch (error) {
+                // Ignore errors
+            }
+        }
+
+        loadUnreadCount()
+    }, [user?.email])
+
     // Prevent background scroll when open (mobile/desktop)
     useEffect(() => {
         if (isOpen) {
@@ -209,8 +366,27 @@ export default function Chatbot() {
         } else {
             document.body.style.overflow = ''
         }
-        return () => { document.body.style.overflow = '' }
+        return () => {
+            document.body.style.overflow = ''
+        }
     }, [isOpen])
+
+
+    // Check for unread support messages
+    useEffect(() => {
+        if (!user?.email) return
+
+        async function checkUnread() {
+            const count = await supportApi.getUnreadCount(user.email)
+            setUnreadSupportCount(count)
+        }
+
+        checkUnread()
+
+        // Check every 30 seconds
+        const interval = setInterval(checkUnread, 30000)
+        return () => clearInterval(interval)
+    }, [user])
 
     async function handleSend(e) {
         e?.preventDefault()
@@ -405,9 +581,9 @@ export default function Chatbot() {
             {/* Toggle Button */}
             {!isOpen && (
                 <div className="fixed bottom-6 right-6 z-50 group">
-                    {/* Popup Message - Shows once per page load */}
+                    {/* Popup Message - Shows once per page load - Hidden on mobile */}
                     {showPopup && (
-                        <div className="absolute bottom-full right-0 mb-3 w-64 p-4 bg-white text-black rounded-xl shadow-2xl opacity-100 transition-all duration-300 transform translate-y-0 pointer-events-none">
+                        <div className="hidden md:block absolute bottom-full right-0 mb-3 w-64 p-4 bg-white text-black rounded-xl shadow-2xl opacity-100 transition-all duration-300 transform translate-y-0 pointer-events-none">
                             <div className="flex items-start gap-3">
                                 <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0">
                                     <Sparkles size={16} />
@@ -426,408 +602,481 @@ export default function Chatbot() {
                     {/* Chatbot Icon Button */}
                     <button
                         onClick={() => {
-                            setIsOpen(true)
-                            setHasUnread(false)
-                            setShowPopup(false) // Hide popup when user clicks the chatbot
+                            setIsOpen(!isOpen)
+                            setShowPopup(false)
+                            if (unreadSupportCount > 0) {
+                                setUnreadSupportCount(0)
+                            }
                         }}
-                        onMouseEnter={() => setShowPopup(false)} // Hide popup when user hovers over the chatbot
-                        className="p-0 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 group border-2 border-white/20 bg-black overflow-hidden"
+                        onMouseEnter={() => setShowPopup(false)}
+                        className="p-0 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 group border-2 border-white/20 bg-black overflow-hidden relative"
                     >
                         <div className="relative p-3">
                             <BotIcon size={32} className="text-white relative z-10" />
                             <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/50 to-purple-500/50 blur opacity-50 group-hover:opacity-100 transition-opacity"></div>
-                            {hasUnread && (
-                                <span className="absolute top-2 right-2 flex h-3 w-3 z-20">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+
+                            {/* Unread Support Badge */}
+                            {unreadSupportCount > 0 && !isOpen && (
+                                <span className="absolute top-0 right-0 transform translate-x-1/4 -translate-y-1/4 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold border-2 border-black z-20 shadow-lg">
+                                    {unreadSupportCount}
                                 </span>
                             )}
                         </div>
-                    </button>
-                </div>
-            )}
+                    </button >
+                </div >
+            )
+            }
 
             {/* Chat Window */}
-            {isOpen && (
-                <div className={`fixed z-50 transition-all duration-300 ease-in-out bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 shadow-2xl flex flex-col overflow-hidden font-sans
+            {
+                isOpen && (
+                    <div className={`fixed z-50 transition-all duration-300 ease-in-out bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 shadow-2xl flex flex-col overflow-hidden font-sans
                     ${isMinimized
-                        ? 'bottom-6 right-6 w-72 h-16 rounded-2xl cursor-pointer'
-                        : 'bottom-6 right-6 w-[90vw] sm:w-[500px] h-[700px] max-h-[90vh] rounded-3xl'
-                    }
+                            ? 'bottom-6 right-6 w-72 h-16 rounded-2xl cursor-pointer'
+                            : 'bottom-0 right-0 w-full h-[85vh] rounded-t-3xl sm:bottom-6 sm:right-6 sm:w-[500px] sm:h-[700px] sm:max-h-[90vh] sm:rounded-3xl'
+                        }
                 `}>
-                    {/* Header */}
-                    <div
-                        className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5 cursor-pointer relative overflow-hidden"
-                        onClick={() => isMinimized && setIsMinimized(false)}
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 pointer-events-none"></div>
-                        <div className="flex items-center gap-3 relative z-10">
-                            <div className="w-10 h-10 rounded-full bg-black/50 border border-white/10 flex items-center justify-center shadow-lg overflow-hidden">
-                                <BotIcon size={28} className="text-white" />
-                            </div>
-                            <div>
-                                <h3 className="text-white font-bold text-sm tracking-wide">ZetsuGuide AI</h3>
-                                <div className="flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]"></span>
-                                    <span className="text-[10px] text-white/50 font-medium">Online</span>
+                        {/* Header */}
+                        <div
+                            className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5 cursor-pointer relative overflow-hidden"
+                            onClick={() => isMinimized && setIsMinimized(false)}
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 pointer-events-none"></div>
+                            <div className="flex items-center gap-3 relative z-10">
+                                <div className="w-10 h-10 rounded-full bg-black/50 border border-white/10 flex items-center justify-center shadow-lg overflow-hidden">
+                                    <BotIcon size={28} className="text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="text-white font-bold text-sm tracking-wide">ZetsuGuide AI</h3>
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]"></span>
+                                        <span className="text-[10px] text-white/50 font-medium">Online</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-1 relative z-10">
-                            {!isMinimized && (
-                                <div
-                                    onClick={() => setShowUpgrade(true)}
-                                    className="hidden sm:flex items-center gap-1 px-2 py-1 bg-black/40 rounded-full border border-white/10 mr-2 cursor-pointer hover:bg-white/10 transition-colors"
-                                >
-                                    <Zap size={12} className={tokensLeft > 0 ? "text-yellow-400" : "text-gray-600"} />
-                                    <span className={`text-[10px] font-bold ${tokensLeft > 0 ? "text-white" : "text-red-400"}`}>
-                                        {loadingUsage ? '...' : `${tokensLeft}/30`}
-                                    </span>
-                                </div>
-                            )}
-                            {!isMinimized && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setIsMinimized(true) }}
-                                    className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                                >
-                                    <ChevronDown size={18} />
-                                </button>
-                            )}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setIsOpen(false) }}
-                                className="p-2 text-white/50 hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors"
-                            >
-                                <X size={18} />
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Content */}
-                    {!isMinimized && (
-                        <>
-                            {/* Messages Area */}
-                            <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent relative">
-
-                                {/* Login Gate Overlay */}
-                                {!isAuthenticated() && (
-                                    <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
-                                        <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4 border border-white/10">
-                                            <Lock size={32} className="text-white/70" />
-                                        </div>
-                                        <h3 className="text-xl font-bold text-white mb-2">Login Required</h3>
-                                        <p className="text-sm text-gray-400 mb-6 max-w-[200px]">
-                                            You must be logged in to chat with our AI assistant.
-                                        </p>
-                                        <Link
-                                            to="/auth"
-                                            className="px-6 py-2.5 bg-white text-black font-bold text-sm rounded-full hover:bg-gray-200 transition-colors"
-                                            onClick={() => setIsOpen(false)}
-                                        >
-                                            Login / Register
-                                        </Link>
-                                    </div>
-                                )}
-
-
-                                {/* Token Limit / Upgrade Overlay */}
-                                {showUpgrade && isAuthenticated() && (
-                                    <div className="absolute inset-0 z-40 bg-[#0a0a0a] flex flex-col items-center justify-center p-6 text-center">
-                                        <div className="w-16 h-16 bg-gradient-to-tr from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mb-4 shadow-lg shadow-orange-500/20">
-                                            <Zap size={32} className="text-white" fill="currentColor" />
-                                        </div>
-                                        <h3 className="text-xl font-black text-white mb-2 tracking-tight">
-                                            {tokensLeft > 0 ? "Unlock Unlimited AI" : "Out of Energy!"}
-                                        </h3>
-                                        <p className="text-sm text-gray-300 mb-6 max-w-xs">
-                                            {tokensLeft > 0
-                                                ? `You have ${tokensLeft} free queries left today.\nUpgrade to Pro for unlimited access.`
-                                                : "You've used your 30 free daily queries.\nUpgrade to Pro for unlimited AI access."
-                                            }
-                                        </p>
-                                        <div className="flex flex-col gap-3 w-full max-w-[240px]">
-                                            <button
-                                                onClick={() => {
-                                                    setIsOpen(false)
-                                                    navigate('/pricing')
-                                                }}
-                                                className="w-full px-6 py-3 bg-white text-black font-bold text-sm rounded-xl hover:scale-105 transition-transform"
-                                            >
-                                                Upgrade Now
-                                            </button>
-                                            <button
-                                                onClick={() => setShowUpgrade(false)}
-                                                className="w-full px-6 py-3 bg-transparent border border-white/20 text-white/70 font-medium text-sm rounded-xl hover:bg-white/5 transition-colors"
-                                            >
-                                                {tokensLeft > 0 ? "Continue Free" : "Maybe Later"}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Support Form Overlay */}
-                                {showSupportForm && isAuthenticated() && (
-                                    <div className="absolute inset-0 z-40 bg-[#0a0a0a] flex flex-col overflow-hidden">
-                                        {/* Header */}
-                                        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5 flex-shrink-0">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
-                                                    <Sparkles size={20} className="text-white" />
-                                                </div>
-                                                <h3 className="text-xl font-black text-white tracking-tight">Customer Support</h3>
-                                            </div>
-                                            <button
-                                                onClick={() => setShowSupportForm(false)}
-                                                className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                                            >
-                                                <X size={18} />
-                                            </button>
-                                        </div>
-
-                                        {/* Form Content - Scrollable */}
-                                        <div className="flex-1 overflow-y-auto p-6">
-                                            <div className="max-w-md mx-auto">
-                                                <p className="text-sm text-gray-400 mb-6">
-                                                    Fill out the form below and our support team will get back to you within 24 hours.
-                                                </p>
-
-                                                <form onSubmit={handleSupportSubmit} className="space-y-4">
-                                                    {/* Email */}
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
-                                                            Email Address *
-                                                        </label>
-                                                        <input
-                                                            type="email"
-                                                            required
-                                                            value={supportFormData.email}
-                                                            onChange={(e) => setSupportFormData(prev => ({ ...prev, email: e.target.value }))}
-                                                            className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                                            placeholder="your@email.com"
-                                                        />
-                                                    </div>
-
-                                                    {/* Phone (Optional) */}
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
-                                                            Phone Number (Optional)
-                                                        </label>
-                                                        <input
-                                                            type="tel"
-                                                            value={supportFormData.phone}
-                                                            onChange={(e) => setSupportFormData(prev => ({ ...prev, phone: e.target.value }))}
-                                                            className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                                            placeholder="+20 123 456 7890"
-                                                        />
-                                                    </div>
-
-                                                    {/* Category */}
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
-                                                            Issue Category *
-                                                        </label>
-                                                        <select
-                                                            required
-                                                            value={supportFormData.category}
-                                                            onChange={(e) => setSupportFormData(prev => ({ ...prev, category: e.target.value }))}
-                                                            className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                                        >
-                                                            <option value="account">👤 Account Issues</option>
-                                                            <option value="payment">💳 Payment & Billing</option>
-                                                            <option value="technical">🔧 Technical Problems</option>
-                                                            <option value="other">📝 Other</option>
-                                                        </select>
-                                                    </div>
-
-                                                    {/* Message */}
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
-                                                            Describe Your Issue *
-                                                        </label>
-                                                        <textarea
-                                                            required
-                                                            value={supportFormData.message}
-                                                            onChange={(e) => setSupportFormData(prev => ({ ...prev, message: e.target.value }))}
-                                                            rows={6}
-                                                            className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none"
-                                                            placeholder="Please provide as much detail as possible about your issue..."
-                                                        />
-                                                    </div>
-
-                                                    {/* Submit Buttons */}
-                                                    <div className="flex gap-3 pt-4 pb-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setShowSupportForm(false)}
-                                                            className="flex-1 px-6 py-3 bg-transparent border border-white/20 text-white/70 font-medium text-sm rounded-xl hover:bg-white/5 transition-colors"
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                        <button
-                                                            type="submit"
-                                                            disabled={supportSubmitting}
-                                                            className="flex-1 px-6 py-3 bg-white text-black font-bold text-sm rounded-xl hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                                        >
-                                                            {supportSubmitting ? (
-                                                                <>
-                                                                    <Loader2 size={16} className="animate-spin" />
-                                                                    Sending...
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <Send size={16} />
-                                                                    Submit Ticket
-                                                                </>
-                                                            )}
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-
-                                {/* Messages - Hidden when support form is open */}
-                                {!showSupportForm && messages.map((msg) => (
+                            <div className="flex items-center gap-1 relative z-10">
+                                {!isMinimized && (
                                     <div
-                                        key={msg.id}
-                                        className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
-                                    >
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-1 overflow-hidden
-                                            ${msg.role === 'user' ? 'bg-white text-black' : 'bg-transparent border border-white/10'}
-                                        `}>
-                                            {msg.role === 'user' ?
-                                                <div className="text-xs font-bold">ME</div> :
-                                                <BotIcon size={20} className="text-white" />
-                                            }
-                                        </div>
-
-                                        <div className={`max-w-[80%] space-y-2`}>
-                                            <div className={`p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm
-                                                ${msg.role === 'user'
-                                                    ? 'bg-white text-black rounded-tr-none font-medium'
-                                                    : 'bg-[#1a1a1a] text-gray-200 border border-white/5 rounded-tl-none'
+                                        onClick={() => {
+                                            if (!isAuthenticated()) {
+                                                // Trigger login gate visual feedback or navigate
+                                                navigate('/auth')
+                                                setIsOpen(false)
+                                            } else {
+                                                // Only show upgrade popup if actually low on tokens, otherwise just show status/navigate
+                                                if (tokensLeft <= 0) {
+                                                    setShowUpgrade(true)
+                                                } else {
+                                                    // Maybe navigate to pricing or just toggle a "Your status" tooltip?
+                                                    // For now, let's show the popup but with "Your Balance" text
+                                                    setShowUpgrade(true)
                                                 }
-                                            `}>
-                                                {msg.role === 'user' ? (
-                                                    msg.content
-                                                ) : (
-                                                    <MarkdownMessage
-                                                        content={msg.content}
-                                                        isTyping={msg.id === messages[messages.length - 1]?.id && !isTyping}
-                                                    />
-                                                )}
-                                            </div>
+                                            }
+                                        }}
+                                        className="hidden sm:flex items-center gap-1 px-2 py-1 bg-black/40 rounded-full border border-white/10 mr-2 cursor-pointer hover:bg-white/10 transition-colors"
+                                    >
+                                        <Zap size={12} className={tokensLeft > 0 ? "text-yellow-400" : "text-gray-600"} />
+                                        <span className={`text-[10px] font-bold ${tokensLeft > 0 ? "text-white" : "text-red-400"}`}>
+                                            {loadingUsage ? '...' : `${tokensLeft}/30`}
+                                        </span>
+                                    </div>
+                                )}
+                                {!isMinimized && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setIsMinimized(true) }}
+                                        className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                                    >
+                                        <ChevronDown size={18} />
+                                    </button>
+                                )}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setIsOpen(false) }}
+                                    className="p-2 text-white/50 hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        </div>
 
-                                            {/* Related Guides for Bot Messages */}
-                                            {msg.relatedGuides && msg.relatedGuides.length > 0 && (
-                                                <div className="bg-black border border-white/10 rounded-xl p-3 space-y-2 shadow-lg">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <Sparkles size={12} className="text-indigo-400" />
-                                                        <p className="text-[10px] uppercase font-bold text-indigo-400/80 tracking-wider">Suggested Reading</p>
+                        {/* Tab Navigation */}
+                        {!isMinimized && (
+                            <div className="flex gap-2 border-b border-white/10 px-4 pb-2">
+                                <button
+                                    onClick={() => { setActiveTab('chat'); setShowSupportForm(false) }}
+                                    className={`px-4 py-2 rounded-t-lg font-semibold transition-all ${activeTab === 'chat'
+                                        ? 'bg-white/10 text-white'
+                                        : 'text-white/60 hover:text-white/80'
+                                        }`}
+                                >
+                                    AI Chat
+                                </button>
+                                <button
+                                    onClick={() => { setActiveTab('direct-support'); setShowSupportForm(false) }}
+                                    className={`px-4 py-2 rounded-t-lg font-semibold transition-all relative ${activeTab === 'direct-support'
+                                        ? 'bg-white/10 text-white'
+                                        : 'text-white/60 hover:text-white/80'
+                                        }`}
+                                >
+                                    Direct Support
+                                    {unreadSupportCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                                            {unreadSupportCount}
+                                        </span>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => { setActiveTab('support-form'); setShowSupportForm(true) }}
+                                    className={`px-4 py-2 rounded-t-lg font-semibold transition-all ${activeTab === 'support-form'
+                                        ? 'bg-white/10 text-white'
+                                        : 'text-white/60 hover:text-white/80'
+                                        }`}
+                                >
+                                    Support Form
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Content */}
+                        {!isMinimized && (
+                            <>
+                                {/* Content Area - Conditional based on activeTab */}
+                                {activeTab === 'chat' && (
+                                    <>
+                                        <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent relative">
+
+                                            {/* Login Gate Overlay */}
+                                            {!isAuthenticated() && (
+                                                <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+                                                    <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4 border border-white/10">
+                                                        <Lock size={32} className="text-white/70" />
                                                     </div>
-                                                    {msg.relatedGuides.slice(0, 3).map(guide => (
+                                                    <h3 className="text-xl font-bold text-white mb-2">Login Required</h3>
+                                                    <p className="text-sm text-gray-400 mb-6 max-w-[200px]">
+                                                        You must be logged in to chat with our AI assistant.
+                                                    </p>
+                                                    <div className="flex flex-col gap-3 w-full max-w-[200px]">
                                                         <Link
-                                                            key={guide.id}
-                                                            to={`/guide/${guide.slug}`}
-                                                            target="_blank"
-                                                            className="flex items-center gap-3 p-2 rounded-lg bg-white/5 hover:bg-white/10 hover:translate-x-1 transition-all group block border border-white/5 hover:border-white/20"
+                                                            to="/auth"
+                                                            className="w-full px-6 py-2.5 bg-white text-black font-bold text-sm rounded-full hover:bg-gray-200 transition-colors"
+                                                            onClick={() => setIsOpen(false)}
                                                         >
-                                                            <div className="w-8 h-8 bg-black/50 rounded flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
-                                                                <FileText size={14} className="text-gray-400 group-hover:text-indigo-400" />
-                                                            </div>
-                                                            <span className="text-xs text-gray-300 font-medium truncate group-hover:text-white transition-colors">{guide.title}</span>
+                                                            Login / Register
                                                         </Link>
-                                                    ))}
+                                                        <button
+                                                            onClick={() => setIsOpen(false)}
+                                                            className="text-white/50 text-xs hover:text-white transition-colors"
+                                                        >
+                                                            Close
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             )}
-                                        </div>
-                                    </div>
-                                ))}
 
-
-
-
-
-                                {/* Typing Indicator - Hidden when support form is open */}
-                                {!showSupportForm && isTyping && (
-                                    <div className="flex flex-col gap-1 animate-in fade-in duration-300">
-                                        <div className="flex items-start gap-3 animate-pulse">
-                                            <div className="w-8 h-8 rounded-full bg-transparent border border-white/10 flex items-center justify-center flex-shrink-0 mt-1">
-                                                <BotIcon size={18} className="text-white/50" />
-                                            </div>
-                                            <div className="bg-[#1a1a1a] border border-white/5 p-3 rounded-2xl rounded-tl-none">
-                                                <div className="flex gap-1">
-                                                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                            {/* Upgrade Overlay */}
+                                            {showUpgrade && isAuthenticated() && (
+                                                <div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+                                                    <div className="mb-6 relative">
+                                                        <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center animate-pulse">
+                                                            <Zap size={40} className="text-white" />
+                                                        </div>
+                                                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center animate-bounce">
+                                                            <Lock size={16} className="text-white" />
+                                                        </div>
+                                                    </div>
+                                                    <h3 className="text-2xl font-bold text-white mb-2">
+                                                        {tokensLeft === 0 ? "Out of Queries" : "Energy Status"}
+                                                    </h3>
+                                                    <p className="text-sm text-gray-400 mb-6 max-w-[280px]">
+                                                        {
+                                                            tokensLeft === 0
+                                                                ? "You've used all your free queries. Upgrade to Premium for unlimited AI access!"
+                                                                : `You have ${tokensLeft} free queries remaining. Upgrade to Premium for more!`
+                                                        }
+                                                    </p>
+                                                    <div className="flex flex-col gap-3 w-full max-w-[240px]">
+                                                        <button
+                                                            onClick={() => {
+                                                                setIsOpen(false)
+                                                                navigate('/pricing')
+                                                            }}
+                                                            className="w-full px-6 py-3 bg-white text-black font-bold text-sm rounded-xl hover:scale-105 transition-transform"
+                                                        >
+                                                            Upgrade Now
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setShowUpgrade(false)}
+                                                            className="w-full px-6 py-3 bg-transparent border border-white/20 text-white/70 font-medium text-sm rounded-xl hover:bg-white/5 transition-colors"
+                                                        >
+                                                            {tokensLeft > 0 ? "Continue Free" : "Maybe Later"}
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            )}
+
+                                            {/* Support Form Overlay */}
+                                            {showSupportForm && isAuthenticated() && (
+                                                <div className="absolute inset-0 z-40 bg-[#0a0a0a] flex flex-col overflow-hidden">
+                                                    {/* Header */}
+                                                    <div className="flex items-center justify-between p-4 border-b border-white/10">
+                                                        <h3 className="text-white font-bold text-lg">Contact Support</h3>
+                                                        <button
+                                                            onClick={() => setShowSupportForm(false)}
+                                                            className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                                                        >
+                                                            <X size={20} />
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Content */}
+                                                    <div className="flex-1 overflow-y-auto p-4">
+                                                        <p className="text-gray-400 text-sm mb-4">
+                                                            Need help? Our support team is here for you!
+                                                        </p>
+                                                        <div className="space-y-3">
+                                                            <div>
+                                                                <label className="text-white text-sm font-medium mb-1 block">Your Name</label>
+                                                                <input
+                                                                    type="text"
+                                                                    className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-indigo-500/50"
+                                                                    placeholder="John Doe"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-white text-sm font-medium mb-1 block">Email</label>
+                                                                <input
+                                                                    type="email"
+                                                                    className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-indigo-500/50"
+                                                                    placeholder="john@example.com"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-white text-sm font-medium mb-1 block">Message</label>
+                                                                <textarea
+                                                                    className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-indigo-500/50 resize-none"
+                                                                    rows={5}
+                                                                    placeholder="Describe your issue..."
+                                                                />
+                                                            </div>
+                                                            <button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-3 rounded-lg hover:from-indigo-500 hover:to-purple-500 transition-all">
+                                                                Send Message
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Messages */}
+                                            {messages.map((msg) => (
+                                                <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
+                                                    {msg.role === 'assistant' && (
+                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                                                            <Sparkles size={16} className="text-white" />
+                                                        </div>
+                                                    )}
+                                                    <div className={`max-w-[85%] ${msg.role === 'user' ? 'order-1' : ''}`}>
+                                                        <div className={`rounded-2xl px-4 py-3 shadow-md ${msg.role === 'user'
+                                                            ? 'bg-white text-black rounded-tr-none'
+                                                            : 'bg-[#2a2a2a] text-gray-100 border border-white/10 rounded-tl-none'
+                                                            }`}>
+                                                            {msg.role === 'assistant' ? (
+                                                                <MarkdownMessage content={msg.content} isTyping={msg.id === messages[messages.length - 1]?.id && isTyping} />
+                                                            ) : (
+                                                                <p className="text-sm leading-relaxed">{msg.content}</p>
+                                                            )}
+                                                        </div>
+                                                        {msg.guideId && (
+                                                            <Link
+                                                                to={`/guides/${msg.guideId}`}
+                                                                className="mt-2 flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors w-fit"
+                                                                onClick={() => setIsOpen(false)}
+                                                            >
+                                                                <FileText size={14} />
+                                                                <span>View Full Guide</span>
+                                                            </Link>
+                                                        )}
+                                                    </div>
+                                                    {msg.role === 'user' && (
+                                                        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 order-2">
+                                                            <span className="text-white text-xs font-bold">U</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+
+                                            {/* Typing indicator */}
+                                            {isTyping && messages[messages.length - 1]?.role === 'user' && (
+                                                <div className="flex gap-3 animate-in slide-in-from-bottom-2 duration-300">
+                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                                                        <Sparkles size={16} className="text-white" />
+                                                    </div>
+                                                    <div className="bg-[#1a1a1a] border border-white/5 p-3 rounded-2xl rounded-tl-none">
+                                                        <div className="flex gap-1">
+                                                            <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                                            <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                                            <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                                        </div>
+                                                    </div>
+                                                    {isLongLoading && (
+                                                        <div className="ml-11 flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 w-fit animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                                            <Loader2 size={10} className="text-indigo-400 animate-spin" />
+                                                            <p className="text-[10px] font-medium text-indigo-300">
+                                                                Thinking... (taking longer than usual)
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            <div ref={messagesEndRef} />
                                         </div>
-                                        {isLongLoading && (
-                                            <div className="ml-11 flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 w-fit animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                                <Loader2 size={10} className="text-indigo-400 animate-spin" />
-                                                <p className="text-[10px] font-medium text-indigo-300">
-                                                    Thinking... (taking longer than usual)
-                                                </p>
+
+                                        {/* Input Area */}
+                                        <form onSubmit={handleSend} className="p-4 bg-black border-t border-white/10 relative z-10">
+                                            <div className="relative flex items-center gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={userInput}
+                                                    onChange={(e) => setUserInput(e.target.value)}
+                                                    placeholder={isAuthenticated() ? (tokensLeft > 0 ? "Ask a question..." : "Upgrade to continue...") : "Login to chat..."}
+                                                    disabled={!isAuthenticated() || tokensLeft <= 0}
+                                                    className="flex-1 bg-[#1a1a1a] border border-white/10 text-white placeholder:text-gray-600 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                />
+                                                <button
+                                                    type="submit"
+                                                    disabled={!userInput.trim() || isTyping || !isAuthenticated() || tokensLeft <= 0}
+                                                    className="p-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-500 hover:to-purple-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-indigo-600 disabled:hover:to-purple-600"
+                                                >
+                                                    <Send size={18} />
+                                                </button>
                                             </div>
-                                        )}
+                                            <div className="mt-2 flex justify-between items-center px-1">
+                                                <p className="text-[10px] text-gray-700">
+                                                    Powered by ZetsuGuide AI.
+                                                    {tokensLeft > 0 && isAuthenticated() && (
+                                                        <span className="text-gray-500 ml-1"> {tokensLeft}/30 queries remaining.</span>
+                                                    )}
+                                                </p>
+                                                {!isAuthenticated() && (
+                                                    <Link to="/auth" className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300">
+                                                        Login Required
+                                                    </Link>
+                                                )}
+                                            </div>
+                                        </form>
+                                    </>
+                                )}
+
+                                {/* Direct Support Tab Content */}
+                                {activeTab === 'direct-support' && (
+                                    <div className="flex-1 flex flex-col overflow-hidden">
+                                        <DirectSupportChat />
                                     </div>
                                 )}
-                                <div ref={messagesEndRef} />
-                            </div>
 
-                            {/* Input Area */}
-                            <form onSubmit={handleSend} className="p-4 bg-black border-t border-white/10 relative z-10">
-                                <div className="relative flex items-center gap-2">
-                                    <input
-                                        type="text"
-                                        value={userInput}
-                                        onChange={(e) => setUserInput(e.target.value)}
-                                        placeholder={isAuthenticated() ? (tokensLeft > 0 ? "Ask a question..." : "Upgrade to continue...") : "Login to chat..."}
-                                        disabled={!isAuthenticated() || tokensLeft <= 0}
-                                        className="flex-1 bg-[#1a1a1a] border border-white/10 text-white placeholder:text-gray-600 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                    />
-                                    {/* Yes Quick Action Button */}
-                                    {awaitingSupportConfirmation && (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setUserInput('yes')
-                                                handleSend({ preventDefault: () => { } })
-                                            }}
-                                            className="px-4 py-3 bg-green-500 text-white font-bold text-sm rounded-xl hover:bg-green-600 transition-colors shadow-lg flex items-center gap-2"
-                                        >
-                                            ✓ Yes
-                                        </button>
-                                    )}
 
-                                    <button
-                                        type="submit"
-                                        disabled={!userInput.trim() || isTyping || !isAuthenticated() || tokensLeft <= 0}
-                                        className="p-3 bg-white text-black rounded-xl hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-lg hover:shadow-white/20 active:scale-95"
-                                    >
-                                        <Send size={18} />
-                                    </button>
-                                </div>
-                                <div className="mt-2 flex justify-between items-center px-1">
-                                    <p className="text-[10px] text-gray-700">
-                                        Powered by ZetsuGuide AI.
-                                        {tokensLeft > 0 && isAuthenticated() && (
-                                            <span className="text-gray-500 ml-1"> {tokensLeft}/30 queries remaining.</span>
-                                        )}
-                                    </p>
-                                    {!isAuthenticated() && (
-                                        <Link to="/auth" className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300">
-                                            Login Required
-                                        </Link>
-                                    )}
-                                </div>
-                            </form>
-                        </>
-                    )}
-                </div>
-            )}
+                                {/* Support Form Tab Content */}
+                                {activeTab === 'support-form' && (
+                                    <div className="flex-1 overflow-y-auto p-6">
+                                        <div className="max-w-md mx-auto">
+                                            <div className="flex items-center gap-3 mb-6">
+                                                <div className="w-12 h-12 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
+                                                    <Sparkles size={24} className="text-white" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-xl font-bold text-white">Customer Support</h3>
+                                                    <p className="text-sm text-gray-400">We'll get back to you within 24 hours</p>
+                                                </div>
+                                            </div>
+
+                                            <form onSubmit={handleSupportSubmit} className="space-y-4">
+                                                {/* Email */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
+                                                        Email Address *
+                                                    </label>
+                                                    <input
+                                                        type="email"
+                                                        required
+                                                        value={supportFormData.email}
+                                                        onChange={(e) => setSupportFormData(prev => ({ ...prev, email: e.target.value }))}
+                                                        className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                                        placeholder="your@email.com"
+                                                    />
+                                                </div>
+
+                                                {/* Phone */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
+                                                        Phone Number (Optional)
+                                                    </label>
+                                                    <input
+                                                        type="tel"
+                                                        value={supportFormData.phone}
+                                                        onChange={(e) => setSupportFormData(prev => ({ ...prev, phone: e.target.value }))}
+                                                        className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                                        placeholder="+20 123 456 7890"
+                                                    />
+                                                </div>
+
+                                                {/* Category */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
+                                                        Issue Category *
+                                                    </label>
+                                                    <select
+                                                        required
+                                                        value={supportFormData.category}
+                                                        onChange={(e) => setSupportFormData(prev => ({ ...prev, category: e.target.value }))}
+                                                        className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                                    >
+                                                        <option value="account">👤 Account Issues</option>
+                                                        <option value="payment">💳 Payment & Billing</option>
+                                                        <option value="technical">🔧 Technical Problems</option>
+                                                        <option value="other">📝 Other</option>
+                                                    </select>
+                                                </div>
+
+                                                {/* Message */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
+                                                        Describe Your Issue *
+                                                    </label>
+                                                    <textarea
+                                                        required
+                                                        value={supportFormData.message}
+                                                        onChange={(e) => setSupportFormData(prev => ({ ...prev, message: e.target.value }))}
+                                                        rows={5}
+                                                        className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none"
+                                                        placeholder="Please provide as much detail as possible..."
+                                                    />
+                                                </div>
+
+                                                {/* Submit Button */}
+                                                <button
+                                                    type="submit"
+                                                    disabled={supportSubmitting}
+                                                    className="w-full px-6 py-3 bg-white text-black font-bold text-sm rounded-xl hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                                >
+                                                    {supportSubmitting ? (
+                                                        <>
+                                                            <Loader2 size={16} className="animate-spin" />
+                                                            Sending...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Send size={16} />
+                                                            Submit Ticket
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+
+                        )}
+                    </div>
+                )}
         </>
     )
 }

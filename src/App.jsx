@@ -1,6 +1,13 @@
+import { useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { prefetchGuidesOnLoad } from './hooks/useGuides'
 import Layout from './components/Layout'
 import { AuthProvider } from './contexts/AuthContext'
+import AdminConsole from './pages/AdminConsole'
+import AdminLogin from './pages/AdminLogin'
+import StaffConsole from './pages/StaffConsole'
+import StaffLogin from './pages/StaffLogin'
 import AllGuidesPage from './pages/AllGuidesPage'
 import AuthPage from './pages/AuthPage'
 import GuidePage from './pages/GuidePage'
@@ -20,6 +27,13 @@ import GlobalErrorHandler from './components/GlobalErrorHandler'
 import { Toaster } from 'sonner'
 
 function App() {
+    const queryClient = useQueryClient()
+
+    // Prefetch guides on app load for instant navigation
+    useEffect(() => {
+        prefetchGuidesOnLoad(queryClient)
+    }, [queryClient])
+
     return (
         <LoadingProvider>
             <AuthProvider>
@@ -41,6 +55,12 @@ function App() {
                     <Route path="/terms" element={<TermsOfService />} />
                     <Route path="/support" element={<SupportPage />} />
                     <Route path="/reportbug" element={<ReportBugPage />} />
+                    {/* Admin Routes */}
+                    <Route path="/admin/login" element={<AdminLogin />} />
+                    <Route path="/admin/console" element={<AdminConsole />} />
+                    {/* Staff Routes */}
+                    <Route path="/staff/login" element={<StaffLogin />} />
+                    <Route path="/stuff/console" element={<StaffConsole />} />
                 </Routes>
             </AuthProvider>
         </LoadingProvider>

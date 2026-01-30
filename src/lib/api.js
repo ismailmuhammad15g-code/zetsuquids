@@ -3,16 +3,12 @@ import { isSupabaseConfigured as isSupabaseConfiguredLib, supabase } from './sup
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
-console.log('Supabase URL:', supabaseUrl)
-console.log('Supabase Key exists:', !!supabaseAnonKey)
-
 // Re-export or use the singleton
 export { supabase } from './supabase'
 
 export function isSupabaseConfigured() {
     // Determine configuration status
     const configured = isSupabaseConfiguredLib()
-    console.log('Supabase configured:', configured)
     return configured
 }
 
@@ -29,28 +25,34 @@ function generateSlug(title) {
 // Guides API
 export const guidesApi = {
     async getAll() {
-        console.log('getAll called, Supabase configured:', isSupabaseConfigured())
-
         let supabaseGuides = []
-        let localGuides = JSON.parse(localStorage.getItem('guides') || '[]')
+        let localGuides = []
+        try {
+            localGuides = JSON.parse(localStorage.getItem('guides') || '[]')
+        } catch (e) {
+            // Ignore parse error
+        }
 
         // Try Supabase FIRST if configured
         if (isSupabaseConfigured()) {
             try {
-                console.log('Fetching from Supabase...')
                 const { data, error } = await supabase
                     .from('guides')
                     .select('*')
                     .order('created_at', { ascending: false })
 
                 if (error) {
-                    console.error('Supabase getAll error:', error.message)
+                    // Ignore AbortError silently
+                    if (error.name !== 'AbortError' && !error.message?.includes('aborted')) {
+                        console.error('Supabase getAll error:', error.message)
+                    }
                 } else if (data) {
-                    console.log('Got', data.length, 'guides from Supabase')
                     supabaseGuides = data
                 }
             } catch (err) {
-                console.error('Supabase connection error:', err)
+                if (err.name !== 'AbortError' && !err.message?.includes('aborted')) {
+                    console.error('Supabase connection error:', err)
+                }
             }
         }
 
@@ -69,8 +71,6 @@ export const guidesApi = {
         const mergedGuides = Array.from(mergedMap.values())
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
-        console.log('Merged total guides:', mergedGuides.length)
-
         // Safe Update of LocalStorage
         if (mergedGuides.length > 0) {
             localStorage.setItem('guides', JSON.stringify(mergedGuides))
@@ -80,8 +80,6 @@ export const guidesApi = {
     },
 
     async getBySlug(slug) {
-        console.log('getBySlug called:', slug)
-
         // Try Supabase FIRST if configured
         if (isSupabaseConfigured()) {
             try {
@@ -95,7 +93,6 @@ export const guidesApi = {
                 if (error) {
                     console.log('Supabase getBySlug error:', error.message)
                 } else if (data) {
-                    console.log('Found guide in Supabase:', data.title)
                     return data
                 }
             } catch (err) {
@@ -341,22 +338,27 @@ export const guidesApi = {
 
         const localGuides = JSON.parse(localStorage.getItem('guides') || '[]')
         if (localGuides.length === 0) {
-            console.log('No local guides to sync')
             return { synced: 0, failed: 0 }
         }
 
-        console.log('Syncing', localGuides.length, 'guides to Supabase...')
         let synced = 0
         let failed = 0
 
         for (const guide of localGuides) {
             try {
                 // Check if already exists in Supabase
-                const { data: existing } = await supabase
+                const { data: existing, error: checkError } = await supabase
                     .from('guides')
                     .select('id')
                     .eq('slug', guide.slug)
-                    .single()
+                    .maybeSingle()  // Use maybeSingle to handle duplicates gracefully
+
+                // If there's an error checking, log and skip
+                if (checkError) {
+                    console.error('Error checking for existing guide:', guide.title, checkError.message)
+                    failed++
+                    continue
+                }
 
                 if (existing) {
                     // Update user_email if missing in DB but present in local or provided
@@ -368,7 +370,6 @@ export const guidesApi = {
                             .eq('id', existing.id)
                             .is('user_email', null) // Only update if currently null
                     }
-                    console.log('Guide already exists:', guide.title)
                     continue
                 }
 
@@ -391,10 +392,15 @@ export const guidesApi = {
                     .insert([guideData])
 
                 if (error) {
-                    console.error('Failed to sync:', guide.title, error.message)
-                    failed++
+                    // Check for duplicate key violation (409 or code 23505)
+                    if (error.code === '23505' || error.message?.includes('duplicate key') || error.code === '409') {
+                        console.log('Skipping sync for existing guide:', guide.title)
+                        synced++ // Treat as synced
+                    } else {
+                        console.error('Failed to sync:', guide.title, error.message)
+                        failed++
+                    }
                 } else {
-                    console.log('Synced:', guide.title)
                     synced++
                 }
             } catch (err) {
@@ -403,7 +409,6 @@ export const guidesApi = {
             }
         }
 
-        console.log('Sync complete:', synced, 'synced,', failed, 'failed')
         return { synced, failed }
     }
 }

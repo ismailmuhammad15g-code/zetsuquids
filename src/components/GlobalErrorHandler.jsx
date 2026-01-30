@@ -33,8 +33,27 @@ export default function GlobalErrorHandler() {
                 typeof arg === 'object' ? (arg.message || JSON.stringify(arg)) : String(arg)
             ).join(' ')
 
-            // Ignore some common harmless warnings if needed
-            if (message.includes('React Router Future Flag')) return
+            // Ignore common harmless warnings and expected errors
+            const ignoredPatterns = [
+                'React Router Future Flag',
+                'AI Enhancement error',      // Expected AI errors
+                'AI Generation error',        // Expected AI errors
+                'Failed to enhance content',  // User-facing errors
+                'Failed to generate content', // User-facing errors
+                'Error creating guide',       // User-facing errors
+                '504',                        // Timeout errors (expected)
+                'Gateway Timeout',            // Timeout errors (expected)
+                'Network error',              // Network issues (expected)
+                'Please enter',               // Validation errors
+                'Please write',               // Validation errors
+            ]
+
+            // Check if error should be ignored
+            const shouldIgnore = ignoredPatterns.some(pattern =>
+                message.includes(pattern)
+            )
+
+            if (shouldIgnore) return
 
             setLastError({
                 type: 'Console Error',

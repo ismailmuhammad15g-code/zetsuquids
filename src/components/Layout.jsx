@@ -1,4 +1,5 @@
-import { BookOpen, Bot, Home, LogIn, LogOut, Menu, Plus, Search, Sparkles, X } from 'lucide-react'
+import { BookOpen, Bot, Home, LogIn, LogOut, Menu, Plus, Search, Sparkles, X, User } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -108,8 +109,18 @@ export default function Layout() {
             // Priority 1: If Auth User is gone (Deleted by Admin), trigger deletion flow
             if (authError) {
                 console.error('Auth verification failed:', authError)
-                setAccountDeleted(true)
-                setUserProfile(null)
+
+                // Ignore network errors or fetch failures - DO NOT show Account Deleted
+                const isNetworkError = authError.message?.includes('Failed to fetch') ||
+                    authError.name === 'AuthRetryableFetchError' ||
+                    authError.message?.includes('Network request failed')
+
+                // Only show "Account Deleted" if it's strictly a user not found/deleted scenario
+                // Usually supabase returns status 400 or "User not found" for deleted users
+                if (!isNetworkError && (authError.status === 400 || authError.message?.includes('User not found'))) {
+                    setAccountDeleted(true)
+                    setUserProfile(null)
+                }
                 return
             }
 
@@ -332,38 +343,114 @@ export default function Layout() {
                     </div>
                 </div>
 
-                {/* Mobile Menu */}
-                {mobileMenuOpen && (
-                    <div className="md:hidden border-t border-gray-200 bg-white">
-                        <div className="px-4 py-4 space-y-2">
-                            <Link
-                                to="/"
-                                className={`flex items-center gap-3 px-4 py-3 font-medium ${location.pathname === '/' ? 'bg-black text-white' : 'hover:bg-gray-100'
-                                    }`}
-                            >
-                                <Home size={20} />
-                                <span>Home</span>
-                            </Link>
-                            <Link
-                                to="/guides"
-                                className={`flex items-center gap-3 px-4 py-3 font-medium ${location.pathname.startsWith('/guide') ? 'bg-black text-white' : 'hover:bg-gray-100'
-                                    }`}
-                            >
-                                <BookOpen size={20} />
-                                <span>All Guides</span>
-                            </Link>
-                            <Link
-                                to="/zetsuguide-ai"
-                                className={`flex items-center gap-3 px-4 py-3 font-medium relative ${location.pathname === '/zetsuguide-ai' ? 'bg-black text-white' : 'hover:bg-gray-100'
-                                    }`}
-                            >
-                                <Bot size={20} />
-                                <span>ZetsuGuide AI</span>
-                                <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-full animate-pulse shadow-sm">NEW</span>
-                            </Link>
-                        </div>
-                    </div>
-                )}
+                {/* Mobile Menu with Framer Motion */}
+                <AnimatePresence>
+                    {mobileMenuOpen && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                            className="md:hidden border-b-2 border-black bg-white/95 backdrop-blur-md overflow-hidden relative z-[90]"
+                        >
+                            <div className="px-4 py-6 space-y-4">
+                                <nav className="space-y-2">
+                                    <Link
+                                        to="/"
+                                        className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname === '/'
+                                            ? 'bg-black text-white shadow-lg shadow-black/20'
+                                            : 'text-gray-600 hover:bg-gray-100'
+                                            }`}
+                                    >
+                                        <Home size={22} />
+                                        <span>Home</span>
+                                    </Link>
+                                    <Link
+                                        to="/guides"
+                                        className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname.startsWith('/guide')
+                                            ? 'bg-black text-white shadow-lg shadow-black/20'
+                                            : 'text-gray-600 hover:bg-gray-100'
+                                            }`}
+                                    >
+                                        <BookOpen size={22} />
+                                        <span>All Guides</span>
+                                    </Link>
+                                    <Link
+                                        to="/zetsuguide-ai"
+                                        className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all border-2 border-transparent ${location.pathname === '/zetsuguide-ai'
+                                            ? 'bg-black text-white shadow-lg shadow-black/20'
+                                            : 'bg-gradient-to-r from-purple-50 to-pink-50 text-gray-900 border-purple-100'
+                                            }`}
+                                    >
+                                        <Bot size={22} className={location.pathname === '/zetsuguide-ai' ? 'text-white' : 'text-purple-600'} />
+                                        <span className="flex-1">ZetsuGuide AI</span>
+                                        <span className="px-2 py-0.5 text-xs font-bold bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-full animate-pulse">NEW</span>
+                                    </Link>
+                                </nav>
+
+                                {/* Mobile Divider */}
+                                <div className="h-px bg-gray-200 my-2" />
+
+                                {/* Mobile Profile / Auth */}
+                                <div>
+                                    {isAuthenticated() ? (
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 mb-2">
+                                                <div className="w-10 h-10 rounded-full overflow-hidden border border-black dark:border-white">
+                                                    <img
+                                                        src={getAvatarForUser(user?.email, userProfile?.avatar_url)}
+                                                        alt="Profile"
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-bold text-gray-900 truncate">{user?.name}</p>
+                                                    <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                                                </div>
+                                            </div>
+
+                                            <Link
+                                                to={`/@${(user?.user_metadata?.full_name || user?.email?.split('@')[0]).toLowerCase()}/workspace`}
+                                                className="flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                                            >
+                                                <BookOpen size={20} />
+                                                <span>My Workspace</span>
+                                            </Link>
+
+                                            <button
+                                                onClick={() => {
+                                                    logout()
+                                                    navigate('/')
+                                                }}
+                                                className="w-full flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-red-600 hover:bg-red-50 transition-colors"
+                                            >
+                                                <LogOut size={20} />
+                                                <span>Logout</span>
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <Link
+                                                to="/auth"
+                                                className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border-2 border-black font-bold hover:bg-gray-50 transition-colors"
+                                            >
+                                                <LogIn size={20} />
+                                                <span>Log In</span>
+                                            </Link>
+                                            <Link
+                                                to="/auth?mode=register"
+                                                className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-black text-white font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-black/20"
+                                            >
+                                                <Plus size={20} />
+                                                <span>Create Account</span>
+                                            </Link>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </header>
 
             {/* Main Content */}
