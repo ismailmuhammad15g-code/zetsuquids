@@ -100,49 +100,49 @@ export default function ReportBugPage() {
         <div className="min-h-screen bg-[#050505] text-white selection:bg-indigo-500/30">
             {/* Nav */}
             <nav className="border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-50">
-                <div className="max-w-5xl mx-auto px-6 h-20 flex items-center justify-between">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
                     <Link to="/" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-                        <ArrowLeft size={20} />
-                        <span className="font-medium">Back</span>
+                        <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
+                        <span className="font-medium text-sm sm:text-base">Back</span>
                     </Link>
                     <div className="flex items-center gap-2">
-                        <Bug className="text-indigo-500" />
-                        <span className="font-bold tracking-wide">BUG BOUNTY PROGRAM</span>
+                        <Bug className="text-indigo-500 w-5 h-5 sm:w-6 sm:h-6" />
+                        <span className="font-bold tracking-wide text-xs sm:text-base">BUG BOUNTY PROGRAM</span>
                     </div>
                 </div>
             </nav>
 
-            <div className="max-w-4xl mx-auto px-6 py-12">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
                 {/* Header Section */}
-                <div className="text-center mb-16 space-y-4">
-                    <h1 className="text-5xl md:text-6xl font-black tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-600">
+                <div className="text-center mb-8 sm:mb-16 space-y-3 sm:space-y-4">
+                    <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight mb-4 sm:mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-600">
                         Found a Glitch?
                     </h1>
-                    <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+                    <p className="text-base sm:text-xl text-gray-400 max-w-2xl mx-auto px-4">
                         Help us squash bugs and improve the experience.
-                        <br />We value your feedback.
+                        <br className="hidden sm:block" />We value your feedback.
                     </p>
                 </div>
 
                 {/* Reward Banner */}
-                <div className="relative overflow-hidden rounded-3xl border border-indigo-500/30 bg-indigo-500/5 p-8 mb-16 text-center group hover:border-indigo-500/50 transition-colors">
+                <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-indigo-500/30 bg-indigo-500/5 p-6 sm:p-8 mb-10 sm:mb-16 text-center group hover:border-indigo-500/50 transition-colors">
                     <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                    <div className="relative z-10 flex flex-col items-center gap-4">
-                        <div className="bg-indigo-500/20 p-4 rounded-full mb-2">
-                            <Gift size={32} className="text-indigo-400 animate-pulse" />
+                    <div className="relative z-10 flex flex-col items-center gap-3 sm:gap-4">
+                        <div className="bg-indigo-500/20 p-3 sm:p-4 rounded-full mb-1 sm:mb-2">
+                            <Gift size={24} className="text-indigo-400 animate-pulse sm:w-8 sm:h-8" />
                         </div>
-                        <h2 className="text-2xl font-bold text-white">
+                        <h2 className="text-xl sm:text-2xl font-bold text-white">
                             Get Rewarded for Your Help!
                         </h2>
-                        <p className="text-indigo-200 text-lg max-w-lg">
+                        <p className="text-indigo-200 text-sm sm:text-lg max-w-lg">
                             For every <span className="font-bold text-white border-b-2 border-indigo-500">approved bug report</span>,
-                            you will automatically receive <span className="font-bold text-green-400 text-xl">10 AI Credits</span> directly to your account.
+                            you will automatically receive <span className="font-bold text-green-400 text-base sm:text-xl">10 AI Credits</span> directly to your account.
                         </p>
                     </div>
                 </div>
 
                 {/* Form */}
-                <div className="bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 md:p-12 shadow-2xl">
+                <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-8 md:p-12 shadow-2xl">
                     {error && (
                         <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded-xl mb-8 flex items-center gap-3">
                             <AlertCircle size={20} />
@@ -163,7 +163,7 @@ export default function ReportBugPage() {
                             <label className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                                 <Bug size={16} /> Issue Classification
                             </label>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                                 {[
                                     { id: 'ui_glitch', label: 'UI/Visual Glitch' },
                                     { id: 'functional_error', label: 'Functionality Error' },
@@ -206,7 +206,7 @@ export default function ReportBugPage() {
                                 rows={6}
                                 value={formData.description}
                                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                                className="w-full bg-[#111] border border-white/10 text-white rounded-xl p-5 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none text-base leading-relaxed placeholder:text-gray-600"
+                                className="w-full bg-[#111] border border-white/10 text-white rounded-xl p-4 sm:p-5 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none text-base leading-relaxed placeholder:text-gray-600"
                                 placeholder="Describe the steps to reproduce the issue..."
                             />
                         </div>
@@ -229,7 +229,7 @@ export default function ReportBugPage() {
                         <button
                             type="submit"
                             disabled={submitting || !user}
-                            className="w-full py-5 bg-white text-black font-black text-lg tracking-wide rounded-xl hover:bg-gray-200 transition-all transform hover:scale-[1.01] active:scale-[0.99] shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                            className="w-full py-4 sm:py-5 bg-white text-black font-black text-base sm:text-lg tracking-wide rounded-xl hover:bg-gray-200 transition-all transform hover:scale-[1.01] active:scale-[0.99] shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                         >
                             {submitting ? (
                                 <>

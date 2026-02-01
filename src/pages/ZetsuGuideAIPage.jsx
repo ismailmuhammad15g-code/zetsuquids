@@ -5216,6 +5216,101 @@ Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`
                     .zetsu-tutorial-gif {
                         max-height: 300px;
                     }
+
+
+                    /* Mobile Optimization for ZetsuGuide AI */
+                    .zetsu-ai-header {
+                        padding: 10px 12px;
+                    }
+
+                    .zetsu-ai-brand {
+                        gap: 8px;
+                    }
+
+                    .zetsu-ai-logo {
+                        width: 32px;
+                        height: 32px;
+                    }
+
+                    .zetsu-ai-title h1 {
+                        font-size: 1.1rem;
+                    }
+
+                    .zetsu-ai-badge {
+                        display: none;
+                    }
+
+                    .zetsu-ai-user-section {
+                        gap: 8px;
+                    }
+
+                    /* Hide text labels on mobile to save space */
+                    .zetsu-ai-new-chat-btn span,
+                    .zetsu-ai-credits span {
+                        font-size: 0.75rem;
+                    }
+
+                    .zetsu-ai-new-chat-btn {
+                        padding: 8px;
+                    }
+                    
+                    .zetsu-ai-new-chat-btn span {
+                        display: none;
+                    }
+
+                    .zetsu-ai-credits {
+                        padding: 6px 10px;
+                    }
+
+                    .zetsu-ai-help-btn {
+                        display: none; /* Hide help button on mobile to save space */
+                    }
+                    
+                    .zetsu-ai-username {
+                        display: none; /* Hide username on mobile */
+                    }
+
+                    .zetsu-ai-welcome {
+                        margin: 20px 16px;
+                        max-width: calc(100% - 32px);
+                    }
+
+                    .zetsu-ai-welcome h2 {
+                        font-size: 1.5rem;
+                    }
+
+                    .zetsu-ai-welcome-icon {
+                        width: 150px;
+                        height: 150px;
+                        margin-bottom: 16px;
+                    }
+
+                    .zetsu-ai-suggestions {
+                        flex-direction: column;
+                        align-items: stretch;
+                        gap: 8px;
+                    }
+
+                    .zetsu-ai-suggestions > * {
+                        width: 100% !important;
+                    }
+
+                    .zetsu-saved-prompt {
+                        width: 100%;
+                    }
+
+                    .zetsu-ai-chat {
+                        padding: 12px;
+                        padding-bottom: 130px;
+                    }
+
+                    .zetsu-history-sidebar {
+                        width: 85vw;
+                    }
+
+                    .zetsu-ai-input-form {
+                        padding: 0 12px;
+                    }
                 }
             `}</style>
         </div>
