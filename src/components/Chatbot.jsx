@@ -1,17 +1,17 @@
-import { ChevronDown, FileText, Loader2, Lock, Send, Sparkles, X, Zap } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/github-dark.css'
+import { ChevronDown, FileText, Loader2, Lock, MessageSquare, Send, Sparkles, X, Zap } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import { Link, useNavigate } from 'react-router-dom'
+import rehypeHighlight from 'rehype-highlight'
+import remarkGfm from 'remark-gfm'
 import { useAuth } from '../contexts/AuthContext'
 import { aiAgentSearch, isAIConfigured } from '../lib/ai'
 import { guidesApi } from '../lib/api'
 import { supabase } from '../lib/supabase'
+import { supportApi } from '../lib/supportApi'
 import BotIcon from './BotIcon'
 import DirectSupportChat from './DirectSupportChat'
-import { supportApi } from '../lib/supportApi'
 
 // Markdown Message Component with Typing Animation
 function MarkdownMessage({ content, isTyping = false }) {
@@ -967,7 +967,35 @@ export default function Chatbot() {
 
                                 {/* Direct Support Tab Content */}
                                 {activeTab === 'direct-support' && (
-                                    <div className="flex-1 flex flex-col overflow-hidden">
+                                    <div className="flex-1 flex flex-col overflow-hidden relative">
+                                        {/* Login Gate Overlay for Direct Support */}
+                                        {!isAuthenticated() && (
+                                            <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+                                                <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4 border border-white/10">
+                                                    <MessageSquare size={24} className="text-white" />
+                                                </div>
+                                                <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10 shadow-2xl max-w-xs w-full">
+                                                    <h3 className="text-xl font-bold text-white mb-2">Login Required</h3>
+                                                    <p className="text-gray-300 text-sm mb-4">
+                                                        You must be logged in to use Direct Support.
+                                                    </p>
+                                                    <div className="flex flex-col gap-2">
+                                                        <Link
+                                                            to="/auth"
+                                                            className="block w-full bg-white text-black font-bold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors text-sm"
+                                                        >
+                                                            Login
+                                                        </Link>
+                                                        <button
+                                                            onClick={() => setActiveTab('chat')}
+                                                            className="w-full text-white/80 hover:text-white text-xs transition-colors"
+                                                        >
+                                                            ← Back to Chat
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                         <DirectSupportChat />
                                     </div>
                                 )}
@@ -975,7 +1003,35 @@ export default function Chatbot() {
 
                                 {/* Support Form Tab Content */}
                                 {activeTab === 'support-form' && (
-                                    <div className="flex-1 overflow-y-auto p-6">
+                                    <div className="flex-1 overflow-y-auto p-6 relative">
+                                        {/* Login Gate Overlay for Support Form */}
+                                        {!isAuthenticated() && (
+                                            <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+                                                <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4 border border-white/10">
+                                                    <Sparkles size={24} className="text-white" />
+                                                </div>
+                                                <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10 shadow-2xl max-w-xs w-full">
+                                                    <h3 className="text-xl font-bold text-white mb-2">Login Required</h3>
+                                                    <p className="text-gray-300 text-sm mb-4">
+                                                        You must be logged in to submit support requests.
+                                                    </p>
+                                                    <div className="flex flex-col gap-2">
+                                                        <Link
+                                                            to="/auth"
+                                                            className="block w-full bg-white text-black font-bold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors text-sm"
+                                                        >
+                                                            Login
+                                                        </Link>
+                                                        <button
+                                                            onClick={() => setActiveTab('chat')}
+                                                            className="w-full text-white/80 hover:text-white text-xs transition-colors"
+                                                        >
+                                                            ← Back to Chat
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                         <div className="max-w-md mx-auto">
                                             <div className="flex items-center gap-3 mb-6">
                                                 <div className="w-12 h-12 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg">

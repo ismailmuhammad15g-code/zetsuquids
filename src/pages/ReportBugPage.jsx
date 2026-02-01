@@ -1,11 +1,12 @@
 import { AlertCircle, ArrowLeft, Bug, CheckCircle, Gift, Lightbulb, Loader2, Monitor, Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function ReportBugPage() {
-    const { user } = useAuth()
+    const { user, isAuthenticated } = useAuth()
     const location = useLocation()
+    const navigate = useNavigate()
     const [formData, setFormData] = useState({
         issueType: 'ui_glitch',
         description: '',
@@ -31,13 +32,40 @@ export default function ReportBugPage() {
         }
     }, [location.state])
 
+    // التحقق من تسجيل الدخول
+    if (!isAuthenticated()) {
+        return (
+            <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+                <div className="max-w-md w-full text-center">
+                    <div className="mb-6">
+                        <Bug size={64} className="mx-auto mb-4 text-yellow-400" />
+                    </div>
+                    <h2 className="text-2xl font-bold mb-4">Login Required</h2>
+                    <p className="text-gray-300 mb-4">
+                        You need to sign in to report bugs and earn rewards.
+                    </p>
+                    <p className="text-yellow-400 text-sm mb-6">
+                        Get 10 credits for each approved bug report!
+                    </p>
+                    <button
+                        className="w-full bg-yellow-400 text-black font-bold py-3 px-6 rounded-lg hover:bg-yellow-500 transition-colors mb-4"
+                        onClick={() => navigate('/auth')}
+                    >
+                        Sign In / Create Account
+                    </button>
+                    <button
+                        className="text-gray-400 hover:text-white transition-colors"
+                        onClick={() => navigate('/')}
+                    >
+                        ← Back to Home
+                    </button>
+                </div>
+            </div>
+        )
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
-        if (!user) {
-            setError('You must be logged in to report bugs and earn rewards.')
-            return
-        }
-
         setSubmitting(true)
         setError(null)
 

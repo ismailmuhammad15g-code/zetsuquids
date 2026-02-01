@@ -1,10 +1,11 @@
 import { AlertCircle, ArrowLeft, Loader2, MessageSquare, Phone, Send, Sparkles, Tag, User } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function SupportPage() {
-    const { user } = useAuth()
+    const { user, isAuthenticated } = useAuth()
+    const navigate = useNavigate()
     const [formData, setFormData] = useState({
         email: '',
         phone: '',
@@ -20,6 +21,38 @@ export default function SupportPage() {
             setFormData(prev => ({ ...prev, email: user.email }))
         }
     }, [user])
+
+    // التحقق من تسجيل الدخول
+    if (!isAuthenticated()) {
+        return (
+            <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+                <div className="max-w-md w-full text-center">
+                    <div className="mb-6">
+                        <MessageSquare size={64} className="mx-auto mb-4 text-yellow-400" />
+                    </div>
+                    <h2 className="text-2xl font-bold mb-4">Login Required</h2>
+                    <p className="text-gray-300 mb-4">
+                        You need to sign in to access support services.
+                    </p>
+                    <p className="text-yellow-400 text-sm mb-6">
+                        Get 5 free credits when you create an account!
+                    </p>
+                    <button
+                        className="w-full bg-yellow-400 text-black font-bold py-3 px-6 rounded-lg hover:bg-yellow-500 transition-colors mb-4"
+                        onClick={() => navigate('/auth')}
+                    >
+                        Sign In / Create Account
+                    </button>
+                    <button
+                        className="text-gray-400 hover:text-white transition-colors"
+                        onClick={() => navigate('/')}
+                    >
+                        ← Back to Home
+                    </button>
+                </div>
+            </div>
+        )
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault()
