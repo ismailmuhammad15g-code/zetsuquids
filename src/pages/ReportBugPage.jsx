@@ -42,10 +42,11 @@ export default function ReportBugPage() {
         setError(null)
 
         try {
-            const response = await fetch('/api/submit_bug', {
+            const response = await fetch('/api/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    type: 'bug',
                     userId: user.id,
                     userEmail: user.email,
                     ...formData,

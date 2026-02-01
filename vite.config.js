@@ -39,62 +39,6 @@ function apiMiddleware() {
                     }
                 }
 
-                // Handle check_daily_credits API
-                if (req.url === '/api/check_daily_credits' && req.method === 'POST') {
-                    let body = ''
-                    req.on('data', chunk => { body += chunk })
-                    req.on('end', async () => {
-                        try {
-                            const data = JSON.parse(body)
-                            const userEmail = data.userEmail
-
-                            if (!userEmail) {
-                                res.statusCode = 400
-                                res.setHeader('Content-Type', 'application/json')
-                                res.end(JSON.stringify({ error: 'User email is required' }))
-                                return
-                            }
-
-                            if (!supabaseUrl || !supabaseServiceKey) {
-                                console.error('[API Middleware] Missing Supabase configuration')
-                                res.statusCode = 500
-                                res.setHeader('Content-Type', 'application/json')
-                                res.end(JSON.stringify({ error: 'Server configuration error' }))
-                                return
-                            }
-
-                            const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-                            // Call the can_claim_daily_credits function
-                            const { data: result, error } = await supabase.rpc('can_claim_daily_credits', {
-                                p_user_email: userEmail.toLowerCase()
-                            })
-
-                            if (error) {
-                                console.error('[API Middleware] Error calling can_claim_daily_credits:', error)
-                                res.statusCode = 500
-                                res.setHeader('Content-Type', 'application/json')
-                                res.end(JSON.stringify({ error: 'Failed to check daily credits', details: error.message }))
-                                return
-                            }
-
-                            const firstResult = result && result[0] ? result[0] : { can_claim: false, hours_remaining: 0 }
-                            res.statusCode = 200
-                            res.setHeader('Content-Type', 'application/json')
-                            res.end(JSON.stringify({
-                                canClaim: firstResult.can_claim,
-                                hoursRemaining: firstResult.hours_remaining
-                            }))
-                        } catch (error) {
-                            console.error('[API Middleware] Error checking daily credits:', error)
-                            res.statusCode = 500
-                            res.setHeader('Content-Type', 'application/json')
-                            res.end(JSON.stringify({ error: 'Internal server error' }))
-                        }
-                    })
-                    return
-                }
-
                 // Handle register API
                 if (req.url === '/api/register' && req.method === 'POST') {
                     let body = ''
@@ -169,75 +113,6 @@ function apiMiddleware() {
                             res.statusCode = 500
                             res.setHeader('Content-Type', 'application/json')
                             res.end(JSON.stringify({ error: error.message }))
-                        }
-                    })
-                    return
-                }
-
-                // Handle claim_daily_credits API
-                if (req.url === '/api/claim_daily_credits' && req.method === 'POST') {
-                    let body = ''
-                    req.on('data', chunk => { body += chunk })
-                    req.on('end', async () => {
-                        try {
-                            const data = JSON.parse(body)
-                            const userEmail = data.userEmail
-
-                            if (!userEmail) {
-                                res.statusCode = 400
-                                res.setHeader('Content-Type', 'application/json')
-                                res.end(JSON.stringify({ error: 'User email is required' }))
-                                return
-                            }
-
-                            if (!supabaseUrl || !supabaseServiceKey) {
-                                console.error('[API Middleware] Missing Supabase configuration')
-                                res.statusCode = 500
-                                res.setHeader('Content-Type', 'application/json')
-                                res.end(JSON.stringify({ error: 'Server configuration error' }))
-                                return
-                            }
-
-                            const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-                            // Call the claim_daily_credits function
-                            const { data: result, error } = await supabase.rpc('claim_daily_credits', {
-                                p_user_email: userEmail.toLowerCase()
-                            })
-
-                            if (error) {
-                                console.error('[API Middleware] Error calling claim_daily_credits:', error)
-                                res.statusCode = 500
-                                res.setHeader('Content-Type', 'application/json')
-                                res.end(JSON.stringify({ error: 'Failed to claim daily credits', details: error.message }))
-                                return
-                            }
-
-                            const firstResult = result && result[0] ? result[0] : { success: false, message: 'No result', credits_awarded: 0, new_balance: 0 }
-                            if (firstResult.success) {
-                                res.statusCode = 200
-                                res.setHeader('Content-Type', 'application/json')
-                                res.end(JSON.stringify({
-                                    success: true,
-                                    message: firstResult.message,
-                                    creditsAwarded: firstResult.credits_awarded,
-                                    newBalance: firstResult.new_balance
-                                }))
-                            } else {
-                                res.statusCode = 400
-                                res.setHeader('Content-Type', 'application/json')
-                                res.end(JSON.stringify({
-                                    success: false,
-                                    message: firstResult.message,
-                                    creditsAwarded: 0,
-                                    newBalance: firstResult.new_balance
-                                }))
-                            }
-                        } catch (error) {
-                            console.error('[API Middleware] Error in claim_daily_credits:', error)
-                            res.statusCode = 500
-                            res.setHeader('Content-Type', 'application/json')
-                            res.end(JSON.stringify({ error: 'Internal server error' }))
                         }
                     })
                     return

@@ -35,12 +35,13 @@ export function DailyGiftModal({ isOpen, onClose, onClaim }) {
 
         setIsClaiming(true)
         try {
-            const response = await fetch('/api/claim_daily_credits', {
+            const response = await fetch('/api/daily_credits', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
+                    action: 'claim',
                     userEmail: user.email
                 })
             })
@@ -226,12 +227,13 @@ export function useDailyCreditsCheck() {
             }
 
             try {
-                const response = await fetch('/api/check_daily_credits', {
+                const response = await fetch('/api/daily_credits', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
+                        action: 'check',
                         userEmail: user.email
                     })
                 })

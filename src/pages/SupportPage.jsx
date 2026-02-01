@@ -27,10 +27,11 @@ export default function SupportPage() {
         setError(null)
 
         try {
-            const response = await fetch('/api/submit_support', {
+            const response = await fetch('/api/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    type: 'support',
                     userId: user?.id,
                     ...formData
                 })
