@@ -1,19 +1,30 @@
-import { useState, useEffect, useRef } from 'react'
-import { Send, Loader2, Trash2 } from 'lucide-react'
 import Lottie from 'lottie-react'
+import { Loader2, Send, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase, isSupabaseConfigured } from '../lib/api'
-import supportApi from '../lib/supportApi' // Import the unified api
+import { isSupabaseConfigured, supabase } from '../lib/api'
+import supportApi from '../lib/supportApi'; // Import the unified api
 import BotIcon from './BotIcon'
 
 // Import staff profile animations
+import adminProfileImg from '../assets/customarserviceprofiles/admin_profile.png'
 import profile1Animation from '../assets/customarserviceprofiles/profile1.json'
 import profile2Animation from '../assets/customarserviceprofiles/profile2.json'
 import profile3Animation from '../assets/customarserviceprofiles/profile3.json'
 import profile4Animation from '../assets/customarserviceprofiles/profile4.json'
-import adminProfileImg from '../assets/customarserviceprofiles/admin_profile.png'
 import directSupportBgAnimation from '../assets/Directsupportbg.json'
 import staffTypingAnimation from '../assets/stufftyping....json'
+
+// Detect if text contains Arabic characters
+function isArabicText(text) {
+    if (!text) return false
+    const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/
+    // Count Arabic vs Latin characters
+    const arabicMatches = (text.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g) || []).length
+    const latinMatches = (text.match(/[a-zA-Z]/g) || []).length
+    // If more Arabic than Latin, consider it Arabic text
+    return arabicMatches > latinMatches * 0.3
+}
 
 // Staff profiles map
 const STAFF_PROFILES = {
@@ -551,21 +562,29 @@ export default function DirectSupportChat() {
                                     <div
                                         className={`max-w-[80%] sm:max-w-[70%] ${!showHeader && !isUser ? 'ml-[42px]' : ''} ${!showHeader && isUser ? 'mr-[42px]' : ''}`}
                                     >
-                                        <div className={`
-                                        px-4 py-2.5 text-[14px] leading-relaxed shadow-lg
-                                        ${isUser
-                                                ? `bg-gradient-to-br from-blue-500 to-blue-600 text-white
-                                               ${isFirstInGroup ? 'rounded-[20px] rounded-tr-[6px]' : isLastInGroup ? 'rounded-[20px] rounded-br-[6px]' : 'rounded-[20px] rounded-r-[6px]'}`
-                                                : msg.senderType === 'admin'
-                                                    ? `bg-gradient-to-br from-purple-900/60 to-purple-800/40 text-white/95 border border-purple-500/20
-                                                   ${isFirstInGroup ? 'rounded-[20px] rounded-tl-[6px]' : isLastInGroup ? 'rounded-[20px] rounded-bl-[6px]' : 'rounded-[20px] rounded-l-[6px]'}`
-                                                    : msg.senderType === 'staff'
-                                                        ? `bg-gradient-to-br from-emerald-900/60 to-emerald-800/40 text-white/95 border border-emerald-500/20
+                                        <div
+                                            className={`
+                                            px-4 py-2.5 text-[14px] leading-relaxed shadow-lg
+                                            ${isUser
+                                                    ? `bg-gradient-to-br from-blue-500 to-blue-600 text-white
+                                                   ${isFirstInGroup ? 'rounded-[20px] rounded-tr-[6px]' : isLastInGroup ? 'rounded-[20px] rounded-br-[6px]' : 'rounded-[20px] rounded-r-[6px]'}`
+                                                    : msg.senderType === 'admin'
+                                                        ? `bg-gradient-to-br from-purple-900/60 to-purple-800/40 text-white/95 border border-purple-500/20
                                                        ${isFirstInGroup ? 'rounded-[20px] rounded-tl-[6px]' : isLastInGroup ? 'rounded-[20px] rounded-bl-[6px]' : 'rounded-[20px] rounded-l-[6px]'}`
-                                                        : `bg-[#1e1e1e] text-gray-200 border border-white/5
-                                                       ${isFirstInGroup ? 'rounded-[20px] rounded-tl-[6px]' : isLastInGroup ? 'rounded-[20px] rounded-bl-[6px]' : 'rounded-[20px] rounded-l-[6px]'}`
-                                            }
-                                    `}>
+                                                        : msg.senderType === 'staff'
+                                                            ? `bg-gradient-to-br from-emerald-900/60 to-emerald-800/40 text-white/95 border border-emerald-500/20
+                                                           ${isFirstInGroup ? 'rounded-[20px] rounded-tl-[6px]' : isLastInGroup ? 'rounded-[20px] rounded-bl-[6px]' : 'rounded-[20px] rounded-l-[6px]'}`
+                                                            : `bg-[#1e1e1e] text-gray-200 border border-white/5
+                                                           ${isFirstInGroup ? 'rounded-[20px] rounded-tl-[6px]' : isLastInGroup ? 'rounded-[20px] rounded-bl-[6px]' : 'rounded-[20px] rounded-l-[6px]'}`
+                                                }
+                                            `}
+                                            dir={isArabicText(msg.content) ? 'rtl' : 'ltr'}
+                                            style={{
+                                                textAlign: isArabicText(msg.content) ? 'right' : 'left',
+                                                direction: isArabicText(msg.content) ? 'rtl' : 'ltr',
+                                                fontFamily: isArabicText(msg.content) ? "'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif" : "inherit"
+                                            }}
+                                        >
                                             {msg.content}
                                         </div>
                                         {/* Time stamp on last message of group */}
@@ -657,3 +676,32 @@ export default function DirectSupportChat() {
     )
 }
 
+// Add CSS styles for improved Arabic text support
+const styles = `
+    /* Arabic Text Support */
+    [dir="rtl"] {
+        unicode-bidi: plaintext;
+    }
+
+    /* Improve Arabic text rendering */
+    .arabic-text {
+        font-family: 'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif;
+        line-height: 1.6;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Better spacing for Arabic messages */
+    [dir="rtl"] .arabic-message {
+        letter-spacing: 0.02em;
+        word-spacing: 0.1em;
+    }
+`
+
+// Inject styles into document head
+if (typeof document !== 'undefined') {
+    const styleElement = document.createElement('style')
+    styleElement.textContent = styles
+    document.head.appendChild(styleElement)
+}

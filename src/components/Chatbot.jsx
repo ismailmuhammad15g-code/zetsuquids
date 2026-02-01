@@ -13,7 +13,7 @@ import { supportApi } from '../lib/supportApi'
 import BotIcon from './BotIcon'
 import DirectSupportChat from './DirectSupportChat'
 
-// Markdown Message Component with Typing Animation
+// Detect if text contains Arabic characters\nfunction isArabicText(text) {\n    if (!text) return false\n    const arabicRegex = /[\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF]/\n    // Count Arabic vs Latin characters\n    const arabicMatches = (text.match(/[\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF]/g) || []).length\n    const latinMatches = (text.match(/[a-zA-Z]/g) || []).length\n    // If more Arabic than Latin, consider it Arabic text\n    return arabicMatches > latinMatches * 0.3\n}\n\n// Markdown Message Component with Typing Animation
 function MarkdownMessage({ content, isTyping = false }) {
     const [displayedContent, setDisplayedContent] = useState('')
     const [currentIndex, setCurrentIndex] = useState(0)
@@ -881,7 +881,17 @@ export default function Chatbot() {
                                                             {msg.role === 'assistant' ? (
                                                                 <MarkdownMessage content={msg.content} isTyping={msg.id === messages[messages.length - 1]?.id && isTyping} />
                                                             ) : (
-                                                                <p className="text-sm leading-relaxed">{msg.content}</p>
+                                                                <p
+                                                                    className={`text-sm leading-relaxed ${isArabicText(msg.content) ? 'arabic-text' : ''}`}
+                                                                    dir={isArabicText(msg.content) ? 'rtl' : 'ltr'}
+                                                                    style={{
+                                                                        textAlign: isArabicText(msg.content) ? 'right' : 'left',
+                                                                        direction: isArabicText(msg.content) ? 'rtl' : 'ltr',
+                                                                        fontFamily: isArabicText(msg.content) ? "'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif" : "inherit"
+                                                                    }}
+                                                                >
+                                                                    {msg.content}
+                                                                </p>
                                                             )}
                                                         </div>
                                                         {msg.guideId && (
@@ -1135,4 +1145,32 @@ export default function Chatbot() {
                 )}
         </>
     )
+}
+
+// Add CSS styles for improved Arabic text support
+if (typeof document !== 'undefined') {
+    const styles = `
+        /* Arabic Text Support */
+        .arabic-text {
+            font-family: 'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            letter-spacing: 0.02em;
+            word-spacing: 0.1em;
+        }
+
+        [dir="rtl"] {
+            unicode-bidi: plaintext;
+        }
+    `
+
+    // Check if styles already added
+    if (!document.getElementById('arabic-support-styles-chatbot')) {
+        const styleElement = document.createElement('style')
+        styleElement.id = 'arabic-support-styles-chatbot'
+        styleElement.textContent = styles
+        document.head.appendChild(styleElement)
+    }
 }
