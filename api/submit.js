@@ -1,5 +1,5 @@
-import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
+import nodemailer from 'nodemailer';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -78,7 +78,7 @@ async function handleBugReport(body, transporter, res) {
         html: `
             <div style="font-family: 'Courier New', monospace; max-width: 600px; margin: 0 auto; padding: 20px; border: 2px solid #000; background-color: #fff; color: #000;">
                 <h2 style="border-bottom: 2px solid #000; padding-bottom: 10px;">BUG REPORT #${report.id.slice(0, 8)}</h2>
-                
+
                 <div style="margin: 20px 0;">
                     <p><strong>👤 Reporter:</strong> ${userEmail}</p>
                     <p><strong>🏷️ Type:</strong> ${issueType}</p>
@@ -128,7 +128,7 @@ async function handleSupportRequest(body, transporter, res) {
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
                 <h2 style="color: #333; border-bottom: 2px solid #f4b400; padding-bottom: 10px;">New Support Request</h2>
-                
+
                 <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
                     <p><strong>📂 Category:</strong> ${category}</p>
                     <p><strong>👤 User Email:</strong> ${email}</p>

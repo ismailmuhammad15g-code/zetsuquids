@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { AlertCircle, ArrowLeft, Bug, CheckCircle, Gift, Lightbulb, Loader2, Monitor, Send } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ArrowLeft, Bug, Lightbulb, Monitor, Send, Loader2, Sparkles, CheckCircle, Gift, AlertCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function ReportBugPage() {

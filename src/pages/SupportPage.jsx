@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { AlertCircle, ArrowLeft, Loader2, MessageSquare, Phone, Send, Sparkles, Tag, User } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, User, Phone, Tag, MessageSquare, Send, Loader2, Sparkles, AlertCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function SupportPage() {

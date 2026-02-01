@@ -1,9 +1,9 @@
 // اختبار الدوال الجديدة
 const testNewAPIEndpoints = async () => {
     const baseURL = 'http://localhost:3001/api';
-    
+
     console.log('🧪 اختبار الدوال الجديدة المدموجة...\n');
-    
+
     try {
         // اختبار دالة daily_credits - التحقق
         console.log('1. اختبار daily_credits (check)...');
@@ -21,7 +21,7 @@ const testNewAPIEndpoints = async () => {
         // اختبار دالة daily_credits - الطلب
         console.log('\n2. اختبار daily_credits (claim)...');
         const claimResponse = await fetch(`${baseURL}/daily_credits`, {
-            method: 'POST', 
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 action: 'claim',
