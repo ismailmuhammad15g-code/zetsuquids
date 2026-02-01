@@ -13,7 +13,18 @@ import { supportApi } from '../lib/supportApi'
 import BotIcon from './BotIcon'
 import DirectSupportChat from './DirectSupportChat'
 
-// Detect if text contains Arabic characters\nfunction isArabicText(text) {\n    if (!text) return false\n    const arabicRegex = /[\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF]/\n    // Count Arabic vs Latin characters\n    const arabicMatches = (text.match(/[\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF]/g) || []).length\n    const latinMatches = (text.match(/[a-zA-Z]/g) || []).length\n    // If more Arabic than Latin, consider it Arabic text\n    return arabicMatches > latinMatches * 0.3\n}\n\n// Markdown Message Component with Typing Animation
+// Detect if text contains Arabic characters
+function isArabicText(text) {
+    if (!text) return false
+    const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/
+    // Count Arabic vs Latin characters
+    const arabicMatches = (text.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g) || []).length
+    const latinMatches = (text.match(/[a-zA-Z]/g) || []).length
+    // If more Arabic than Latin, consider it Arabic text
+    return arabicMatches > latinMatches * 0.3
+}
+
+// Markdown Message Component with Typing Animation
 function MarkdownMessage({ content, isTyping = false }) {
     const [displayedContent, setDisplayedContent] = useState('')
     const [currentIndex, setCurrentIndex] = useState(0)
@@ -866,52 +877,55 @@ export default function Chatbot() {
                                             )}
 
                                             {/* Messages */}
-                                            {messages.map((msg) => (
-                                                <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
-                                                    {msg.role === 'assistant' && (
-                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                                                            <Sparkles size={16} className="text-white" />
-                                                        </div>
-                                                    )}
-                                                    <div className={`max-w-[85%] ${msg.role === 'user' ? 'order-1' : ''}`}>
-                                                        <div className={`rounded-2xl px-4 py-3 shadow-md ${msg.role === 'user'
-                                                            ? 'bg-white text-black rounded-tr-none'
-                                                            : 'bg-[#2a2a2a] text-gray-100 border border-white/10 rounded-tl-none'
-                                                            }`}>
-                                                            {msg.role === 'assistant' ? (
-                                                                <MarkdownMessage content={msg.content} isTyping={msg.id === messages[messages.length - 1]?.id && isTyping} />
-                                                            ) : (
-                                                                <p
-                                                                    className={`text-sm leading-relaxed ${isArabicText(msg.content) ? 'arabic-text' : ''}`}
-                                                                    dir={isArabicText(msg.content) ? 'rtl' : 'ltr'}
-                                                                    style={{
-                                                                        textAlign: isArabicText(msg.content) ? 'right' : 'left',
-                                                                        direction: isArabicText(msg.content) ? 'rtl' : 'ltr',
-                                                                        fontFamily: isArabicText(msg.content) ? "'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif" : "inherit"
-                                                                    }}
+                                            {messages.map((msg) => {
+                                                const isArabic = isArabicText(msg.content)
+                                                return (
+                                                    <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
+                                                        {msg.role === 'assistant' && (
+                                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                                                                <Sparkles size={16} className="text-white" />
+                                                            </div>
+                                                        )}
+                                                        <div className={`max-w-[85%] ${msg.role === 'user' ? 'order-1' : ''}`}>
+                                                            <div className={`rounded-2xl px-4 py-3 shadow-md ${msg.role === 'user'
+                                                                ? `bg-white text-black ${isArabic ? 'rounded-bl-none' : 'rounded-tr-none'}`
+                                                                : 'bg-[#2a2a2a] text-gray-100 border border-white/10 rounded-tl-none'
+                                                                }`}>
+                                                                {msg.role === 'assistant' ? (
+                                                                    <MarkdownMessage content={msg.content} isTyping={msg.id === messages[messages.length - 1]?.id && isTyping} />
+                                                                ) : (
+                                                                    <p
+                                                                        className={`text-sm leading-relaxed ${isArabic ? 'arabic-text' : ''}`}
+                                                                        dir={isArabic ? 'rtl' : 'ltr'}
+                                                                        style={{
+                                                                            textAlign: isArabic ? 'right' : 'left',
+                                                                            direction: isArabic ? 'rtl' : 'ltr',
+                                                                            fontFamily: isArabic ? "'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif" : "inherit"
+                                                                        }}
+                                                                    >
+                                                                        {msg.content}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            {msg.guideId && (
+                                                                <Link
+                                                                    to={`/guides/${msg.guideId}`}
+                                                                    className={`mt-2 flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors w-fit ${isArabic ? 'flex-row-reverse' : ''}`}
+                                                                    onClick={() => setIsOpen(false)}
                                                                 >
-                                                                    {msg.content}
-                                                                </p>
+                                                                    <FileText size={14} />
+                                                                    <span>View Full Guide</span>
+                                                                </Link>
                                                             )}
                                                         </div>
-                                                        {msg.guideId && (
-                                                            <Link
-                                                                to={`/guides/${msg.guideId}`}
-                                                                className="mt-2 flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors w-fit"
-                                                                onClick={() => setIsOpen(false)}
-                                                            >
-                                                                <FileText size={14} />
-                                                                <span>View Full Guide</span>
-                                                            </Link>
+                                                        {msg.role === 'user' && (
+                                                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 order-2">
+                                                                <span className="text-white text-xs font-bold">U</span>
+                                                            </div>
                                                         )}
                                                     </div>
-                                                    {msg.role === 'user' && (
-                                                        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 order-2">
-                                                            <span className="text-white text-xs font-bold">U</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
+                                                )
+                                            })}
 
                                             {/* Typing indicator */}
                                             {isTyping && messages[messages.length - 1]?.role === 'user' && (
@@ -1163,6 +1177,21 @@ if (typeof document !== 'undefined') {
 
         [dir="rtl"] {
             unicode-bidi: plaintext;
+        }
+
+        /* Better message alignment for Arabic text */
+        .arabic-message-container {
+            direction: rtl;
+        }
+
+        .arabic-message-container .flex {
+            flex-direction: row-reverse;
+        }
+
+        /* Enhanced bubble styles for Arabic */
+        .arabic-bubble {
+            text-align: right;
+            direction: rtl;
         }
     `
 

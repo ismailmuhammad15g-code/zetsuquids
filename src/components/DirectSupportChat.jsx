@@ -496,7 +496,8 @@ export default function DirectSupportChat() {
                 {messages.map((msg, index) => {
                     const showHeader = shouldShowHeader(msg, index)
                     const senderLabel = getSenderLabel(msg)
-                    const isUser = msg.role === 'user'
+                    // FIX: Use senderType instead of role for accurate user detection
+                    const isUser = msg.senderType === 'user'
                     const isFirstInGroup = showHeader
                     const isLastInGroup = index === messages.length - 1 || shouldShowHeader(messages[index + 1], index + 1)
 
@@ -543,54 +544,63 @@ export default function DirectSupportChat() {
                                 </div>
                             )}
 
-                            <div className={`${showHeader ? 'mt-4' : 'mt-1'}`}>
+                            <div className={`${showHeader ? 'mt-4' : 'mt-1'} message-container`}>
                                 {/* Show sender header only for first message in group */}
                                 {showHeader && (
-                                    <div className={`flex items-center gap-2.5 mb-1.5 ${isUser ? 'flex-row-reverse pr-1' : 'pl-1'}`}>
-                                        {getMessageAvatar(msg)}
+                                    <div className={`flex items-center gap-2.5 mb-1.5 ${isUser ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
+                                        {!isUser && getMessageAvatar(msg)}
                                         <span className={`text-[11px] font-semibold tracking-wide ${isUser ? 'text-blue-400' :
                                             msg.senderType === 'admin' ? 'text-purple-400' :
                                                 msg.senderType === 'staff' ? 'text-emerald-400' : 'text-gray-400'
                                             }`}>
                                             {senderLabel}
                                         </span>
+                                        {isUser && getMessageAvatar(msg)}
                                     </div>
                                 )}
 
-                                {/* Message bubble */}
-                                <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                                {/* Message bubble - WhatsApp Style */}
+                                <div className={`w-full flex ${isUser ? 'justify-end' : 'justify-start'}`}>
                                     <div
-                                        className={`max-w-[80%] sm:max-w-[70%] ${!showHeader && !isUser ? 'ml-[42px]' : ''} ${!showHeader && isUser ? 'mr-[42px]' : ''}`}
+                                        className={`max-w-[75%] sm:max-w-[65%] ${!showHeader && !isUser ? 'ml-[42px]' : ''
+                                            } ${!showHeader && isUser ? 'mr-[42px]' : ''
+                                            }`}
                                     >
                                         <div
                                             className={`
-                                            px-4 py-2.5 text-[14px] leading-relaxed shadow-lg
+                                            chat-bubble px-4 py-2.5 text-[14px] leading-relaxed shadow-lg transition-all duration-200 hover:shadow-xl
                                             ${isUser
-                                                    ? `bg-gradient-to-br from-blue-500 to-blue-600 text-white
-                                                   ${isFirstInGroup ? 'rounded-[20px] rounded-tr-[6px]' : isLastInGroup ? 'rounded-[20px] rounded-br-[6px]' : 'rounded-[20px] rounded-r-[6px]'}`
-                                                    : msg.senderType === 'admin'
-                                                        ? `bg-gradient-to-br from-purple-900/60 to-purple-800/40 text-white/95 border border-purple-500/20
-                                                       ${isFirstInGroup ? 'rounded-[20px] rounded-tl-[6px]' : isLastInGroup ? 'rounded-[20px] rounded-bl-[6px]' : 'rounded-[20px] rounded-l-[6px]'}`
+                                                    ? `user-message bg-gradient-to-br from-blue-500 to-blue-600 text-white border border-blue-400/20
+                                                       rounded-[18px] rounded-br-[4px]`
+                                                    : `support-message ${msg.senderType === 'admin'
+                                                        ? `bg-gradient-to-br from-purple-900/70 to-purple-800/50 text-white border border-purple-500/30`
                                                         : msg.senderType === 'staff'
-                                                            ? `bg-gradient-to-br from-emerald-900/60 to-emerald-800/40 text-white/95 border border-emerald-500/20
-                                                           ${isFirstInGroup ? 'rounded-[20px] rounded-tl-[6px]' : isLastInGroup ? 'rounded-[20px] rounded-bl-[6px]' : 'rounded-[20px] rounded-l-[6px]'}`
-                                                            : `bg-[#1e1e1e] text-gray-200 border border-white/5
-                                                           ${isFirstInGroup ? 'rounded-[20px] rounded-tl-[6px]' : isLastInGroup ? 'rounded-[20px] rounded-bl-[6px]' : 'rounded-[20px] rounded-l-[6px]'}`
+                                                            ? `bg-gradient-to-br from-emerald-900/70 to-emerald-800/50 text-white border border-emerald-500/30`
+                                                            : `bg-[#1e1e1e] text-gray-200 border border-white/10`
+                                                    } rounded-[18px] rounded-bl-[4px]`
                                                 }
                                             `}
-                                            dir={isArabicText(msg.content) ? 'rtl' : 'ltr'}
-                                            style={{
-                                                textAlign: isArabicText(msg.content) ? 'right' : 'left',
-                                                direction: isArabicText(msg.content) ? 'rtl' : 'ltr',
-                                                fontFamily: isArabicText(msg.content) ? "'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif" : "inherit"
-                                            }}
                                         >
-                                            {msg.content}
+                                            <span
+                                                className="relative z-10 block"
+                                                dir={isArabicText(msg.content) ? 'rtl' : 'ltr'}
+                                                style={{
+                                                    fontFamily: isArabicText(msg.content) ? "'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif" : "'Inter', system-ui, sans-serif",
+                                                    wordWrap: 'break-word',
+                                                    overflowWrap: 'break-word'
+                                                }}
+                                            >
+                                                {msg.content}
+                                            </span>
                                         </div>
-                                        {/* Time stamp on last message of group */}
+                                        {/* Time stamp with improved styling */}
                                         {isLastInGroup && (
-                                            <div className={`text-[10px] text-gray-500 mt-1 ${isUser ? 'text-right mr-2' : 'text-left ml-2'}`}>
-                                                {msg.timestamp?.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                            <div className={`text-[10px] text-gray-500 mt-1.5 px-1 ${isUser ? 'text-right' : 'text-left'}`}>
+                                                {msg.timestamp?.toLocaleTimeString('en-US', {
+                                                    hour: '2-digit',
+                                                    minute: '2-digit',
+                                                    hour12: true
+                                                })}
                                             </div>
                                         )}
                                     </div>
@@ -678,7 +688,7 @@ export default function DirectSupportChat() {
 
 // Add CSS styles for improved Arabic text support
 const styles = `
-    /* Arabic Text Support */
+    /* Arabic Text Support - Enhanced */
     [dir="rtl"] {
         unicode-bidi: plaintext;
     }
@@ -690,18 +700,47 @@ const styles = `
         text-rendering: optimizeLegibility;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-    }
-
-    /* Better spacing for Arabic messages */
-    [dir="rtl"] .arabic-message {
         letter-spacing: 0.02em;
         word-spacing: 0.1em;
+    }
+
+    /* Better message bubble alignment */
+    .message-container {
+        position: relative;
+        width: 100%;
+    }
+
+    /* Enhanced chat bubble animations */
+    .chat-bubble {
+        transform: scale(1);
+        transition: all 0.2s ease-in-out;
+        display: inline-block;
+    }
+
+    .chat-bubble:hover {
+        transform: scale(1.02);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    /* Ensure proper text rendering */
+    .user-message,
+    .support-message {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
     }
 `
 
 // Inject styles into document head
 if (typeof document !== 'undefined') {
+    // Remove existing styles to avoid duplicates
+    const existingStyle = document.getElementById('direct-support-styles')
+    if (existingStyle) {
+        existingStyle.remove()
+    }
+
     const styleElement = document.createElement('style')
+    styleElement.id = 'direct-support-styles'
     styleElement.textContent = styles
     document.head.appendChild(styleElement)
 }
