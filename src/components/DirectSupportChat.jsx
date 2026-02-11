@@ -48,8 +48,161 @@ export default function DirectSupportChat() {
     const typingTimeoutRef = useRef(null)
     const messagesEndRef = useRef(null)
 
+    // New features state
+    const [selectedImage, setSelectedImage] = useState(null)
+    const [imagePreview, setImagePreview] = useState(null)
+    const [uploadingImage, setUploadingImage] = useState(false)
+    const [uploadProgress, setUploadProgress] = useState(0)
+    const [showQuickReplies, setShowQuickReplies] = useState(true)
+    const fileInputRef = useRef(null)
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+
+    // Quick reply suggestions
+    const quickReplies = [
+        { text: 'I need help with credits', icon: '💳' },
+        { text: 'How do I use the AI chat?', icon: '🤖' },
+        { text: 'Report a bug', icon: '🐛' },
+        { text: 'Feature request', icon: '✨' }
+    ]
+
+    // Handle image selection with security checks
+    const handleImageSelect = (e) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        // Security: Check file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+        if (!allowedTypes.includes(file.type)) {
+            alert('⚠️ Only images (JPG, PNG, GIF, WebP) are allowed')
+            return
+        }
+
+        // Security: Check file size (max 5MB)
+        const maxSize = 5 * 1024 * 1024 // 5MB
+        if (file.size > maxSize) {
+            alert('⚠️ Image size must be less than 5MB')
+            return
+        }
+
+        setSelectedImage(file)
+
+        // Create preview
+        const reader = new FileReader()
+        reader.onloadend = () => {
+            setImagePreview(reader.result)
+        }
+        reader.readAsDataURL(file)
+    }
+
+    // Clear image selection
+    const clearImageSelection = () => {
+        setSelectedImage(null)
+        setImagePreview(null)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+
+    // Upload image to ImgBB (FREE unlimited storage!)
+    const uploadImageToStorage = async (file) => {
+        return new Promise((resolve) => {
+            const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY
+
+            if (!IMGBB_API_KEY) {
+                console.error('ImgBB API key not found in .env')
+                alert('⚠️ Image upload is not configured.')
+                setUploadProgress(0)
+                resolve(null)
+                return
+            }
+
+            setUploadProgress(10)
+
+            // Convert to base64 first (ImgBB accepts base64)
+            const reader = new FileReader()
+            reader.onload = async () => {
+                try {
+                    const base64String = reader.result.split(',')[1]
+                    setUploadProgress(20)
+
+                    // Retry logic with 3 attempts
+                    const attemptUpload = async (retryCount = 0) => {
+                        try {
+                            // Create FormData with base64
+                            const formData = new FormData()
+                            formData.append('image', base64String)
+                            formData.append('name', `support_${Date.now()}`)
+
+                            setUploadProgress(30 + (retryCount * 10))
+
+                            // Upload to ImgBB
+                            const response = await fetch(
+                                `https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`,
+                                {
+                                    method: 'POST',
+                                    body: formData,
+                                    // Important: Don't set Content-Type, let browser handle it
+                                }
+                            )
+
+                            setUploadProgress(80)
+
+                            if (!response.ok) {
+                                throw new Error(`HTTP ${response.status}`)
+                            }
+
+                            const data = await response.json()
+
+                            if (data.success && data.data?.url) {
+                                setUploadProgress(100)
+                                setTimeout(() => setUploadProgress(0), 500)
+                                resolve(data.data.url)
+                            } else {
+                                throw new Error('Invalid response from ImgBB')
+                            }
+                        } catch (error) {
+                            console.error(`Upload attempt ${retryCount + 1} failed:`, error)
+
+                            // Retry up to 3 times
+                            if (retryCount < 2) {
+                                console.log(`Retrying upload... (${retryCount + 2}/3)`)
+                                await new Promise(r => setTimeout(r, 1500))
+                                return attemptUpload(retryCount + 1)
+                            } else {
+                                alert('⚠️ Failed to upload image after 3 attempts. Please check your internet connection.')
+                                setUploadProgress(0)
+                                resolve(null)
+                            }
+                        }
+                    }
+
+                    // Start upload with retry
+                    await attemptUpload(0)
+
+                } catch (error) {
+                    console.error('Error processing image:', error)
+                    alert('⚠️ Failed to process image.')
+                    setUploadProgress(0)
+                    resolve(null)
+                }
+            }
+
+            reader.onerror = () => {
+                console.error('Failed to read file')
+                alert('⚠️ Failed to read file.')
+                setUploadProgress(0)
+                resolve(null)
+            }
+
+            reader.readAsDataURL(file)
+        })
+    }
+
+    // Handle quick reply click
+    const handleQuickReply = (text) => {
+        setInputValue(text)
+        setShowQuickReplies(false)
     }
 
     useEffect(() => {
@@ -137,7 +290,9 @@ export default function DirectSupportChat() {
                     timestamp: new Date(msg.created_at),
                     senderType: msg.sender_type,
                     senderName: msg.sender_name,
-                    staffProfileId: msg.staff_profile_id
+                    staffProfileId: msg.staff_profile_id,
+                    imageUrl: msg.image_url,
+                    readStatus: msg.read_status || (msg.sender_type === 'user' ? 'delivered' : null)
                 }))
                 setMessages(formattedMessages)
             } else {
@@ -172,20 +327,39 @@ export default function DirectSupportChat() {
 
     const handleSend = async (e) => {
         e.preventDefault()
-        if (!inputValue.trim() || isSending) return
+        if ((!inputValue.trim() && !selectedImage) || isSending) return
 
-        const messageContent = inputValue.trim()
+        setIsSending(true)
+        setUploadingImage(!!selectedImage)
+
+        let imageUrl = null
+
+        // Upload image if selected
+        if (selectedImage) {
+            imageUrl = await uploadImageToStorage(selectedImage)
+            if (!imageUrl) {
+                alert('Failed to upload image. Please try again.')
+                setIsSending(false)
+                setUploadingImage(false)
+                return
+            }
+        }
+
+        const messageContent = inputValue.trim() || (imageUrl ? '📷 Image' : '')
         const userMessage = {
             id: Date.now(),
             role: 'user',
             content: messageContent,
             timestamp: new Date(),
-            senderType: 'user'
+            senderType: 'user',
+            imageUrl: imageUrl,
+            readStatus: 'sent' // New: sent, delivered, read
         }
 
         setMessages(prev => [...prev, userMessage])
         setInputValue('')
-        setIsSending(true)
+        clearImageSelection()
+        setUploadingImage(false)
 
         // Save to Supabase if configured
         if (isSupabaseConfigured() && user?.email) {
@@ -222,16 +396,23 @@ export default function DirectSupportChat() {
                 }
 
                 if (convId) {
-                    // Save message to database
+                    // Save message to database with image URL
+                    const messageData = {
+                        conversation_id: convId,
+                        user_email: user.email,
+                        sender_type: 'user',
+                        sender_name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'User',
+                        message: messageContent || '📷 Image'
+                    }
+
+                    // Add image_url if exists (will be auto-deleted after 24h by DB trigger)
+                    if (imageUrl) {
+                        messageData.image_url = imageUrl
+                    }
+
                     const { error: msgError } = await supabase
                         .from('support_messages')
-                        .insert({
-                            conversation_id: convId,
-                            user_email: user.email,
-                            sender_type: 'user',
-                            sender_name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'User',
-                            message: messageContent
-                        })
+                        .insert(messageData)
 
                     if (msgError) {
                         console.error('Error saving message:', msgError)
@@ -243,6 +424,13 @@ export default function DirectSupportChat() {
                                 last_message_at: new Date().toISOString()
                             })
                             .eq('id', convId)
+
+                        // Simulate delivery after 1 second
+                        setTimeout(() => {
+                            setMessages(prev => prev.map(m =>
+                                m.id === userMessage.id ? { ...m, readStatus: 'delivered' } : m
+                            ))
+                        }, 1000)
                     }
                 }
             } catch (error) {
@@ -325,7 +513,8 @@ export default function DirectSupportChat() {
                             timestamp: new Date(newMsg.created_at),
                             senderType: newMsg.sender_type,
                             senderName: newMsg.sender_name,
-                            staffProfileId: newMsg.staff_profile_id
+                            staffProfileId: newMsg.staff_profile_id,
+                            imageUrl: newMsg.image_url
                         }])
                         // Stop typing indicator when message received
                         setIsStaffTyping(false)
@@ -333,6 +522,11 @@ export default function DirectSupportChat() {
 
                         // Play sound
                         playNotificationSound()
+
+                        // Mark user messages as read when staff replies
+                        setMessages(prev => prev.map(m =>
+                            m.senderType === 'user' ? { ...m, readStatus: 'read' } : m
+                        ))
                     }
                 }
             )
@@ -581,17 +775,44 @@ export default function DirectSupportChat() {
                                                 }
                                             `}
                                         >
-                                            <span
-                                                className="relative z-10 block"
-                                                dir={isArabicText(msg.content) ? 'rtl' : 'ltr'}
-                                                style={{
-                                                    fontFamily: isArabicText(msg.content) ? "'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif" : "'Inter', system-ui, sans-serif",
-                                                    wordWrap: 'break-word',
-                                                    overflowWrap: 'break-word'
-                                                }}
-                                            >
-                                                {msg.content}
-                                            </span>
+                                            {/* Image if exists */}
+                                            {msg.imageUrl && (
+                                                <div className="mb-2 rounded-lg overflow-hidden max-w-[250px]">
+                                                    <img
+                                                        src={msg.imageUrl}
+                                                        alt="Attachment"
+                                                        className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                                                        onClick={() => window.open(msg.imageUrl, '_blank')}
+                                                        loading="lazy"
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {/* Message text */}
+                                            {msg.content && (
+                                                <span
+                                                    className="relative z-10 block"
+                                                    dir={isArabicText(msg.content) ? 'rtl' : 'ltr'}
+                                                    style={{
+                                                        fontFamily: isArabicText(msg.content) ? "'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif" : "'Inter', system-ui, sans-serif",
+                                                        wordWrap: 'break-word',
+                                                        overflowWrap: 'break-word'
+                                                    }}
+                                                >
+                                                    {msg.content}
+                                                </span>
+                                            )}
+
+                                            {/* Read receipts for user messages - WhatsApp style */}
+                                            {isUser && (
+                                                <div className="flex items-center justify-end gap-1 mt-1">
+                                                    <span className="text-[10px] text-white/60">
+                                                        {msg.readStatus === 'sent' && '✓'}
+                                                        {msg.readStatus === 'delivered' && '✓✓'}
+                                                        {msg.readStatus === 'read' && <span className="text-blue-300">✓✓</span>}
+                                                    </span>
+                                                </div>
+                                            )}
                                         </div>
                                         {/* Time stamp with improved styling */}
                                         {isLastInGroup && (
@@ -659,19 +880,86 @@ export default function DirectSupportChat() {
                 <div ref={messagesEndRef} />
             </div>
 
+            {/* Quick Replies - Show when no messages */}
+            {showQuickReplies && messages.length === 0 && !loading && (
+                <div className="px-4 pb-2 space-y-2 animate-in slide-in-from-bottom-4 duration-300">
+                    <p className="text-xs text-gray-500 font-medium mb-2">Quick replies:</p>
+                    <div className="flex flex-wrap gap-2">
+                        {quickReplies.map((reply, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => handleQuickReply(reply.text)}
+                                className="px-3 py-1.5 bg-gradient-to-r from-purple-600/20 to-indigo-600/20 hover:from-purple-600/30 hover:to-indigo-600/30 border border-purple-500/30 rounded-full text-xs text-white/90 transition-all hover:scale-105 flex items-center gap-1.5"
+                            >
+                                <span>{reply.icon}</span>
+                                <span>{reply.text}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Image Preview */}
+            {imagePreview && (
+                <div className="px-4 pb-2 animate-in slide-in-from-bottom-2 duration-200">
+                    <div className="relative inline-block bg-[#1a1a1a] rounded-lg p-2 border border-white/10">
+                        <img src={imagePreview} alt="Preview" className="h-20 rounded" />
+                        <button
+                            onClick={clearImageSelection}
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold transition-colors"
+                        >
+                            ✕
+                        </button>
+                        {uploadingImage && (
+                            <div className="absolute inset-0 bg-black/70 rounded-lg flex flex-col items-center justify-center gap-2">
+                                <Loader2 size={20} className="animate-spin text-white" />
+                                {/* Progress Bar */}
+                                <div className="w-[80%] bg-gray-700 rounded-full h-2 overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-300 ease-out"
+                                        style={{ width: `${uploadProgress}%` }}
+                                    />
+                                </div>
+                                <span className="text-white text-xs font-bold">{uploadProgress}%</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* Input Area - Modern floating design */}
             <form onSubmit={handleSend} className="p-3 bg-[#0a0a0a]/80 backdrop-blur-xl border-t border-white/5">
                 <div className="flex items-center gap-2 bg-[#1a1a1a] rounded-full p-1.5 border border-white/10 focus-within:border-purple-500/40 transition-colors">
+                    {/* Hidden file input */}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                        onChange={handleImageSelect}
+                        className="hidden"
+                    />
+
+                    {/* Image attachment button */}
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isSending || uploadingImage}
+                        className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ml-1"
+                        title="Attach image"
+                    >
+                        <span className="text-lg">📎</span>
+                    </button>
+
                     <input
                         type="text"
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         placeholder="Type your message..."
-                        className="flex-1 bg-transparent px-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none"
+                        className="flex-1 bg-transparent px-2 py-2 text-sm text-white placeholder-gray-500 focus:outline-none"
                     />
                     <button
                         type="submit"
-                        disabled={!inputValue.trim() || isSending}
+                        disabled={(!inputValue.trim() && !selectedImage) || isSending}
                         className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-105 hover:shadow-lg hover:shadow-purple-500/25 active:scale-95"
                     >
                         {isSending ? (

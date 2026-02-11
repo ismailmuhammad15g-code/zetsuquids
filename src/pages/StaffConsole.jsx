@@ -1,20 +1,25 @@
-import { useEffect, useState, useRef } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import {
-    Shield, LogOut, MessageSquare, Send,
-    RefreshCw, ArrowLeft, ChevronDown, ChevronUp,
-    Mail, Clock, User, Check
-} from 'lucide-react'
 import Lottie from 'lottie-react'
-import { supabase, isSupabaseConfigured } from '../lib/api'
+import {
+    ArrowLeft, ChevronDown, ChevronUp,
+    Clock,
+    LogOut,
+    Mail,
+    MessageSquare,
+    RefreshCw,
+    Send,
+    User
+} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/api'
 import { supportApi } from '../lib/supportApi'
 
 // Import staff profile animations
+import adminProfileImg from '../assets/customarserviceprofiles/admin_profile.png'
 import profile1Animation from '../assets/customarserviceprofiles/profile1.json'
 import profile2Animation from '../assets/customarserviceprofiles/profile2.json'
 import profile3Animation from '../assets/customarserviceprofiles/profile3.json'
 import profile4Animation from '../assets/customarserviceprofiles/profile4.json'
-import adminProfileImg from '../assets/customarserviceprofiles/admin_profile.png'
 
 // Staff profiles configuration
 const STAFF_PROFILES = [
@@ -480,7 +485,35 @@ export default function StaffConsole() {
                                                                                         `${avatar?.name || 'Staff'}`}
                                                                             </div>
                                                                             <div className="message-content">
-                                                                                {msg.message}
+                                                                                {/* Show image if exists */}
+                                                                                {msg.image_url && (
+                                                                                    <div className="message-image-container" style={{ marginBottom: '8px' }}>
+                                                                                        <img
+                                                                                            src={msg.image_url}
+                                                                                            alt="Attachment"
+                                                                                            style={{
+                                                                                                maxWidth: '250px',
+                                                                                                maxHeight: '250px',
+                                                                                                borderRadius: '8px',
+                                                                                                cursor: 'pointer',
+                                                                                                display: 'block'
+                                                                                            }}
+                                                                                            onClick={() => window.open(msg.image_url, '_blank')}
+                                                                                            onError={(e) => {
+                                                                                                e.target.style.display = 'none'
+                                                                                                e.target.parentElement.innerHTML = '<span style="color: #ff6b6b; font-size: 12px;">📷 Image expired (24h)</span>'
+                                                                                            }}
+                                                                                        />
+                                                                                    </div>
+                                                                                )}
+                                                                                {/* Show text message */}
+                                                                                {msg.message && msg.message !== '📷 Image' && (
+                                                                                    <div>{msg.message}</div>
+                                                                                )}
+                                                                                {/* If only image, show indicator */}
+                                                                                {!msg.message && msg.image_url && (
+                                                                                    <span style={{ fontSize: '12px', color: '#888' }}>📷 Image attached</span>
+                                                                                )}
                                                                             </div>
                                                                             <div className="message-time">
                                                                                 {formatTime(msg.created_at)}

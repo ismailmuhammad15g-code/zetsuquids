@@ -9,9 +9,9 @@ import { Meteors } from '../components/ui/meteors'
 import { Spotlight } from '../components/ui/spotlight'
 import { StickyBanner } from '../components/ui/sticky-banner'
 import { useAuth } from '../contexts/AuthContext'
+import { useGuides } from '../hooks/useGuides'
 import { guidesApi, initializeSampleData } from '../lib/api'
 import { cn } from '../lib/utils'
-import { useGuides } from '../hooks/useGuides'
 
 export default function HomePage() {
     const { openAddModal } = useOutletContext()
@@ -20,8 +20,8 @@ export default function HomePage() {
     // Use the cached hook
     const { data: allGuides = [], isLoading: loading } = useGuides()
 
-    // Derived state for recent guides
-    const recentGuides = allGuides.slice(0, 6)
+    // Derived state for recent guides - ensure it's always an array
+    const recentGuides = Array.isArray(allGuides) ? allGuides.slice(0, 6) : []
 
     const [syncing, setSyncing] = useState(false)
 
