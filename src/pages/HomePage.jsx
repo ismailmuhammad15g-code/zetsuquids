@@ -10,6 +10,7 @@ import {
 import { useEffect, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import Chatbot from "../components/Chatbot";
+import ProgrammingMarquee from "../components/ProgrammingMarquee";
 import { AICard } from "../components/ui/ai-card";
 import { ComicText } from "../components/ui/comic-text";
 import { FlipWords } from "../components/ui/flip-words";
@@ -20,7 +21,6 @@ import { useAuth } from "../contexts/AuthContext";
 import { useGuides } from "../hooks/useGuides";
 import { guidesApi, initializeSampleData } from "../lib/api";
 import { cn } from "../lib/utils";
-import ProgrammingMarquee from "../components/ProgrammingMarquee";
 
 export default function HomePage() {
   const { openAddModal } = useOutletContext();

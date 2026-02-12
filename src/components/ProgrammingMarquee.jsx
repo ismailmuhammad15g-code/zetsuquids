@@ -1,5 +1,5 @@
-import React, { useRef } from "react"
-import SimpleMarquee from "@/components/fancy/blocks/simple-marquee"
+import SimpleMarquee from "@/components/fancy/blocks/simple-marquee";
+import { useRef } from "react";
 
 // Programming/Tech related images
 const programmingImages = [
@@ -18,28 +18,28 @@ const programmingImages = [
   "https://images.unsplash.com/photo-1550439062-609e1531270e?q=80&w=800&auto=format&fit=crop", // Code abstract
   "https://images.unsplash.com/photo-1509021436665-8f07dbf5bf1d?q=80&w=800&auto=format&fit=crop", // Server lights
   "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop", // Chip
-]
+];
 
 const MarqueeItem = ({ children }) => (
   <div className="mx-2 sm:mx-3 md:mx-4 hover:scale-105 cursor-pointer duration-300 ease-in-out">
     {children}
   </div>
-)
+);
 
 export default function ProgrammingMarquee() {
   const firstThird = programmingImages.slice(
     0,
-    Math.floor(programmingImages.length / 3)
-  )
+    Math.floor(programmingImages.length / 3),
+  );
   const secondThird = programmingImages.slice(
     Math.floor(programmingImages.length / 3),
-    Math.floor((2 * programmingImages.length) / 3)
-  )
+    Math.floor((2 * programmingImages.length) / 3),
+  );
   const lastThird = programmingImages.slice(
-    Math.floor((2 * programmingImages.length) / 3)
-  )
+    Math.floor((2 * programmingImages.length) / 3),
+  );
 
-  const container = useRef(null)
+  const container = useRef(null);
 
   return (
     <div
@@ -47,20 +47,16 @@ export default function ProgrammingMarquee() {
       ref={container}
     >
       <div className="w-full justify-center items-center flex flex-col space-y-4 md:space-y-6">
-        <SimpleMarquee
-          className="w-full"
-          baseVelocity={1}
-          slowdownOnHover
-        >
+        <SimpleMarquee className="w-full" baseVelocity={1} slowdownOnHover>
           {firstThird.map((src, i) => (
             <MarqueeItem key={i}>
               <div className="h-40 w-64 md:h-52 md:w-80 rounded-xl overflow-hidden border border-white/10 relative group">
-                 <div className="absolute inset-0 bg-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity z-10" />
-                 <img
-                    src={src}
-                    alt={`Tech Image ${i}`}
-                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
-                 />
+                <div className="absolute inset-0 bg-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity z-10" />
+                <img
+                  src={src}
+                  alt={`Tech Image ${i}`}
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                />
               </div>
             </MarqueeItem>
           ))}
@@ -75,31 +71,27 @@ export default function ProgrammingMarquee() {
           {secondThird.map((src, i) => (
             <MarqueeItem key={i}>
               <div className="h-40 w-64 md:h-52 md:w-80 rounded-xl overflow-hidden border border-white/10 relative group">
-                 <div className="absolute inset-0 bg-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity z-10" />
-                 <img
-                    src={src}
-                    alt={`Tech Image ${i}`}
-                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
-                 />
+                <div className="absolute inset-0 bg-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity z-10" />
+                <img
+                  src={src}
+                  alt={`Tech Image ${i}`}
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                />
               </div>
             </MarqueeItem>
           ))}
         </SimpleMarquee>
 
-        <SimpleMarquee
-          className="w-full"
-          baseVelocity={1}
-          slowdownOnHover
-        >
+        <SimpleMarquee className="w-full" baseVelocity={1} slowdownOnHover>
           {lastThird.map((src, i) => (
             <MarqueeItem key={i}>
               <div className="h-40 w-64 md:h-52 md:w-80 rounded-xl overflow-hidden border border-white/10 relative group">
-                 <div className="absolute inset-0 bg-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity z-10" />
-                 <img
-                    src={src}
-                    alt={`Tech Image ${i}`}
-                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
-                 />
+                <div className="absolute inset-0 bg-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity z-10" />
+                <img
+                  src={src}
+                  alt={`Tech Image ${i}`}
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                />
               </div>
             </MarqueeItem>
           ))}
