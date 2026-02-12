@@ -1843,9 +1843,38 @@ export default function ZetsuGuideAIPage() {
 
       // STEP 1: Reserve credit (put it in "black box")
       console.log("Reserving 1 credit...");
-      const reserveResult = await reserveCredit(userEmail);
+      let reserveResult = await reserveCredit(userEmail);
+
+      // Intelligent Retry Strategy for Stuck Reservations
       if (!reserveResult.success) {
-        console.error("Failed to reserve credit");
+        console.warn(
+          "Initial reservation failed. Checking for stale reservations...",
+        );
+
+        // If we think we have credits but server rejected, try clearing a "stuck" reservation
+        // This handles cases where a previous session crashed without releasing credit
+        if (credits > 0) {
+          console.log("Attempting to release potentially stuck credit...");
+          await releaseReservedCredit(userEmail);
+          // Retry reservation once
+          reserveResult = await reserveCredit(userEmail);
+        }
+      }
+
+      if (!reserveResult.success) {
+        // If it still fails, we are genuinely out of credits or system error
+        console.error("Failed to reserve credit.");
+
+        if (credits > 0) {
+          // If UI says we have credits but server rejects, force sync
+          console.error(
+            "Credit sync mismatch. Client thinks we have credits but server rejects.",
+          );
+          alert("Credit synchronization error. Please refresh the page.");
+          window.location.reload();
+          return;
+        }
+
         navigate("/pricing");
         return;
       }
