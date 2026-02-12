@@ -1,0 +1,79 @@
+# AI Video Generation Prompt: ZetsuGuide Deep Reasoning Showcase
+
+**Visual Style:** 
+High-contrast Black & White (Monochrome). Sleek, minimalist, futuristic tech aesthetic. 
+The interface should look like a premium, high-end dark mode application.
+Smooth, 60fps animations.
+Use a distinct, white mouse cursor for all interactions.
+
+**Aspect Ratio:** 16:9 (Landscape) or 9:16 (Vertical) - optimized for social media.
+
+---
+
+## SCENE 1: The Activation (0:00 - 0:05)
+**Visuals:**
+- A close-up shot of a sleek, dark search bar floating in a void of deep black.
+- A crisp white mouse cursor glides smoothly from the bottom right.
+- The cursor hovers over a "Settings/Gear" icon inside the search bar. The icon glows slightly white upon hover.
+- **ACTION:** The cursor clicks the icon.
+- A semi-transparent, frosted-glass menu pops up instantly.
+- Inside the menu, the cursor moves to a toggle switch labeled "Deep Reasoning Mode".
+- **ACTION:** The cursor clicks the toggle.
+- **EFFECT:** The switch flips ON. A pulse of energy (white light) ripples out from the switch, illuminating the edges of the search bar. The "Brain Circuit" icon lights up.
+
+## SCENE 2: The Query (0:05 - 0:10)
+**Visuals:**
+- The cursor clicks into the input field.
+- Text starts typing automatically (simulated typing): "Explain the architecture of Neural Networks."
+- **ACTION:** The cursor clicks the "Send" arrow.
+- The interface transitions smoothly to a "Thinking" state. The sailboat animation (or a loading pulse) begins.
+
+## SCENE 3: Stage 1 - Extraction (0:10 - 0:15)
+**Visuals:**
+- **Transition:** The camera zooms INTSO the "Brain Icon", entering a digital abstract space.
+- **Text Overlay (Elegant typography):** "STAGE 1: KNOWLEDGE EXTRACTION"
+- We see a central node (the query) glowing white.
+- Beams of light shoot out from the center, identifying 5 distinct "Key Concepts".
+- These concepts appear as floating white geometric blocks, organizing themselves into a neat stack.
+- **Vibe:** Fast, precise, analytical.
+
+## SCENE 4: Stage 2 - Deep Research (0:15 - 0:22)
+**Visuals:**
+- **Text Overlay:** "STAGE 2: GLOBAL RESEARCH"
+- The camera pans out to show a vast network of nodes (representing the internet).
+- Thousands of thin white lines extend from our central stack, connecting to distant points in the black void.
+- Data packets (small white dots) travel rapidly rapidly along these lines back to the center.
+- This represents real-time web scraping and data gathering.
+- The network pulses with activity.
+
+## SCENE 5: Stage 3 - Synthesis (0:22 - 0:28)
+**Visuals:**
+- **Text Overlay:** "STAGE 3: SYNTHESIS"
+- The "Internal Blocks" (Scene 3) and the "External Data" (Scene 4) collide in the center.
+- Instead of an explosion, they merge like liquid metal.
+- They reform into a perfectly structured, glowing document.
+- The chaos of data is refined into order.
+
+## SCENE 6: The Result (0:28 - 0:35)
+**Visuals:**
+- **Transition:** Zoom OUT back to the main user interface.
+- The AI response begins to stream in.
+- It is not just a block of text; it is beautifully formatted.
+- Sections appear with headers, bullet points, and code blocks.
+- The "Deep Reasoning" badge glows softly in the corner, signifying a verified, high-quality answer.
+- The mouse cursor moves to hover over the completed response, emphasizing the quality.
+
+## SCENE 7: Outro (0:35 - 0:40)
+**Visuals:**
+- Fade to black.
+- Logo appears in white: "ZetsuGuide AI"
+- Subtitle: "Think Deeper."
+- End.
+
+---
+
+**Audio / Music Suggestion:**
+- Deep, bass-heavy ambient track.
+- High-tech sound effects for clicks (crisp mechanical snaps).
+- Digital "hum" or "data flow" sounds during the reasoning stages.
+- No voiceover needed, or a deep, calm AI voice reading the stage titles.

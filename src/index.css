@@ -3,173 +3,391 @@
 @tailwind utilities;
 
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #f1f1f1;
+  background: #f1f1f1;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #000;
+  background: #000;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #333;
+  background: #333;
 }
 
 /* Animations */
 @keyframes fade-in {
-    from {
-        opacity: 0;
-    }
+  from {
+    opacity: 0;
+  }
 
-    to {
-        opacity: 1;
-    }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-in-from-top-4 {
-    from {
-        opacity: 0;
-        transform: translateY(-1rem);
-    }
+  from {
+    opacity: 0;
+    transform: translateY(-1rem);
+  }
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes zoom-in {
-    from {
-        opacity: 0;
-        transform: scale(0.95);
-    }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
 
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .animate-in {
-    animation-duration: 0.2s;
-    animation-timing-function: ease-out;
-    animation-fill-mode: both;
+  animation-duration: 0.2s;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
 }
 
 .fade-in {
-    animation-name: fade-in;
+  animation-name: fade-in;
 }
 
 .zoom-in {
-    animation-name: zoom-in;
+  animation-name: zoom-in;
 }
 
 .slide-in-from-top-4 {
-    animation-name: slide-in-from-top-4;
+  animation-name: slide-in-from-top-4;
 }
 
 /* Guide Content Styles */
 .guide-content {
-    @apply text-gray-800;
+  @apply text-gray-800;
 }
 
 .guide-content h1 {
-    @apply text-3xl font-black mt-8 mb-4;
+  @apply text-3xl font-black mt-8 mb-4;
 }
 
 .guide-content h2 {
-    @apply text-2xl font-bold mt-6 mb-3;
+  @apply text-2xl font-bold mt-6 mb-3;
 }
 
 .guide-content h3 {
-    @apply text-xl font-bold mt-4 mb-2;
+  @apply text-xl font-bold mt-4 mb-2;
 }
 
 .guide-content p {
-    @apply mb-4 leading-relaxed;
+  @apply mb-4 leading-relaxed;
 }
 
 .guide-content ul,
 .guide-content ol {
-    @apply mb-4 pl-6;
+  @apply mb-4 pl-6;
 }
 
 .guide-content li {
-    @apply mb-2;
+  @apply mb-2;
 }
 
 .guide-content ul li {
-    @apply list-disc;
+  @apply list-disc;
 }
 
 .guide-content ol li {
-    @apply list-decimal;
+  @apply list-decimal;
 }
 
 .guide-content code {
-    @apply bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono;
+  @apply bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono;
 }
 
 .guide-content pre {
-    @apply bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto mb-4;
+  @apply bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto mb-4;
 }
 
 .guide-content pre code {
-    @apply bg-transparent p-0 text-inherit;
+  @apply bg-transparent p-0 text-inherit;
 }
 
 .guide-content a {
-    @apply text-blue-600 underline hover:text-blue-800;
+  @apply text-blue-600 underline hover:text-blue-800;
 }
 
 .guide-content blockquote {
-    @apply border-l-4 border-black pl-4 italic my-4 text-gray-600;
+  @apply border-l-4 border-black pl-4 italic my-4 text-gray-600;
 }
 
 .guide-content img {
-    @apply max-w-full h-auto rounded my-4;
+  @apply max-w-full h-auto rounded my-4;
 }
 
 .guide-content table {
-    @apply w-full border-collapse mb-4;
+  @apply w-full border-collapse mb-4;
 }
 
 .guide-content th,
 .guide-content td {
-    @apply border border-gray-300 px-4 py-2 text-left;
+  @apply border border-gray-300 px-4 py-2 text-left;
 }
 
 .guide-content th {
-    @apply bg-gray-100 font-bold;
+  @apply bg-gray-100 font-bold;
 }
 
 /* Prose overrides for better styling */
 .prose {
-    @apply max-w-none;
+  @apply max-w-none;
 }
 
 .prose pre {
-    @apply bg-gray-900;
+  @apply bg-gray-900;
 }
 
 .prose code::before,
 .prose code::after {
-    content: none;
+  content: none;
+}
+
+/* ============================================
+   AI AGENT STATUS - CYBERPUNK HIGH-TECH DASHBOARD
+   ============================================ */
+
+/* Cyberpunk Agent Card */
+.cyber-agent-card {
+  position: relative;
+  width: 100%;
+}
+
+/* Grid Pattern Background */
+.bg-grid-pattern {
+  background-image:
+    linear-gradient(rgba(16, 185, 129, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 185, 129, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Custom Animations */
+@keyframes pulse-slow {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes progress-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes bounce-dot {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.8) translateY(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1.2) translateY(-6px);
+    opacity: 1;
+  }
+}
+
+/* Apply Animations */
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+}
+
+.animate-progress-flow {
+  background-size: 200% 200%;
+  animation: progress-flow 3s ease-in-out infinite;
+}
+
+.animate-bounce-dot {
+  animation: bounce-dot 1.4s ease-in-out infinite;
+}
+
+/* Standard Mode - Modern Card Design */
+.zetsu-agent-standard-container {
+  padding: 0;
+  margin: 16px 0;
+}
+
+.zetsu-agent-standard-card {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 10px 40px rgba(240, 147, 251, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  overflow: hidden;
+  animation: slideInUp 0.5s ease-out;
+}
+
+.zetsu-agent-standard-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    circle at 30% 50%,
+    rgba(255, 255, 255, 0.2),
+    transparent 50%
+  );
+  pointer-events: none;
+}
+
+.zetsu-agent-standard-icon {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  position: relative;
+  z-index: 1;
+}
+
+.zetsu-agent-gif {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.zetsu-agent-standard-content {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.zetsu-agent-standard-text {
+  margin-bottom: 8px;
+}
+
+.zetsu-agent-status {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.zetsu-agent-standard-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.zetsu-agent-standard-dots span {
+  width: 8px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.zetsu-agent-standard-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.zetsu-agent-standard-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+/* Responsive Design for Cyberpunk Cards */
+@media (max-width: 640px) {
+  .cyber-agent-card .bg-gradient-to-br {
+    padding: 1.5rem;
+  }
+
+  .zetsu-agent-standard-card {
+    padding: 20px;
+    gap: 16px;
+  }
+
+  .zetsu-agent-standard-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .zetsu-agent-gif {
+    width: 28px;
+    height: 28px;
+  }
+
+  .zetsu-agent-status {
+    font-size: 14px;
+  }
 }

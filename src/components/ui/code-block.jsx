@@ -59,35 +59,70 @@ export const CodeBlock = ({
     };
 
     // Enhanced syntax highlighting
+    // Enhanced safe syntax highlighting
     const highlightSyntax = (line) => {
-        // Escape HTML first
+        // Step 1: Escape HTML
         let escaped = line
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
 
-        return escaped
-            // Comments
-            .replace(/(\/\/.*$)/gm, '<span class="token-comment">$1</span>')
-            .replace(/(\/\*[\s\S]*?\*\/)/gm, '<span class="token-comment">$1</span>')
-            .replace(/(#.*$)/gm, '<span class="token-comment">$1</span>')
-            // Strings - handle different quote types
-            .replace(/(&quot;|"|')([^"']*?)(\1)/g, '<span class="token-string">$1$2$3</span>')
-            .replace(/`([^`]*)`/g, '<span class="token-string">`$1`</span>')
-            // Keywords
-            .replace(/\b(const|let|var|function|return|if|else|for|while|class|import|export|from|default|async|await|try|catch|throw|new|this|typeof|instanceof|null|undefined|true|false|extends|implements|interface|type|enum|public|private|protected|static|readonly|abstract|yield|break|continue|switch|case|void|delete|in|of)\b/g, '<span class="token-keyword">$1</span>')
-            // Built-in functions/methods
-            .replace(/\b(console|window|document|Array|Object|String|Number|Boolean|Promise|Map|Set|Date|Math|JSON|Error|RegExp|parseInt|parseFloat|setTimeout|setInterval|fetch|require)\b/g, '<span class="token-builtin">$1</span>')
-            // Function calls
-            .replace(/\b([a-zA-Z_]\w*)\s*\(/g, '<span class="token-function">$1</span>(')
-            // Numbers
-            .replace(/\b(\d+\.?\d*)\b/g, '<span class="token-number">$1</span>')
-            // JSX/HTML tags
-            .replace(/(&lt;\/?[a-zA-Z][a-zA-Z0-9]*)/g, '<span class="token-tag">$1</span>')
-            // Properties/attributes
-            .replace(/\b([a-zA-Z_]\w*)\s*:/g, '<span class="token-property">$1</span>:')
-            // Operators
-            .replace(/([=!<>+\-*/%&|^~?:]+)/g, '<span class="token-operator">$1</span>');
+        // Token placeholder system to prevent double-replacement in generated HTML
+        const placeholders = [];
+        const addPlaceholder = (html) => {
+            const id = `___PH_${placeholders.length}___`;
+            placeholders.push(html);
+            return id;
+        };
+
+        let processed = escaped;
+
+        // 1. Strings (Highest priority)
+        processed = processed.replace(/(["'`])(?:(?=(\\?))\2.)*?\1/g, (match) => {
+            return addPlaceholder(`<span class="token-string">${match}</span>`);
+        });
+
+        // 2. Comments (Handle // and #)
+        processed = processed.replace(/(\/\/.*$|#.*$)/m, (match) => {
+            return addPlaceholder(`<span class="token-comment">${match}</span>`);
+        });
+
+        // 3. Keywords
+        processed = processed.replace(/\b(const|let|var|function|return|if|else|for|while|class|import|export|from|default|async|await|try|catch|throw|new|this|typeof|instanceof|null|undefined|true|false|extends|implements|interface|type|enum|public|private|protected|static|readonly|abstract|yield|break|continue|switch|case|void|delete|in|of)\b/g, (match) => {
+            return addPlaceholder(`<span class="token-keyword">${match}</span>`);
+        });
+
+        // 4. Built-in functions/objects
+        processed = processed.replace(/\b(console|window|document|Array|Object|String|Number|Boolean|Promise|Map|Set|Date|Math|JSON|Error|RegExp|parseInt|parseFloat|setTimeout|setInterval|fetch|require)\b/g, (match) => {
+            return addPlaceholder(`<span class="token-builtin">${match}</span>`);
+        });
+
+        // 5. Function calls (matches 'name(' pattern)
+        processed = processed.replace(/\b([a-zA-Z_]\w*)\s*(?=\()/g, (match) => {
+            // Avoid matching if it's already a placeholder (unlikely due to \b but safe to check)
+            if (match.startsWith('___PH_')) return match;
+            return addPlaceholder(`<span class="token-function">${match}</span>`);
+        });
+
+        // 6. Numbers
+        processed = processed.replace(/\b(\d+\.?\d*)\b/g, (match) => {
+            return addPlaceholder(`<span class="token-number">${match}</span>`);
+        });
+
+        // 7. JSX/HTML tags (Basic matching)
+        processed = processed.replace(/(&lt;\/?[a-zA-Z][a-zA-Z0-9]*)/g, (match) => {
+            return addPlaceholder(`<span class="token-tag">${match}</span>`);
+        });
+
+        // 8. Restore placeholders
+        // Iterate slightly differently to insure we replace all occurrences of a placeholder ID
+        placeholders.forEach((html, index) => {
+            const id = `___PH_${index}___`;
+            // Using split-join for global replacement of the ID string
+            processed = processed.split(id).join(html);
+        });
+
+        return processed;
     };
 
     const lines = code.split('\n');
@@ -159,6 +194,7 @@ export const CodeBlock = ({
                     margin: 16px 0;
                     font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
                     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+                    max-width: 100%;
                 }
 
                 .code-block-header {

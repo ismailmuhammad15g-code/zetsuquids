@@ -8,6 +8,7 @@ export function PlaceholdersAndVanishInput({
     value,
     disabled,
     inputRef: externalRef,
+    tools, // New prop for tools/actions
 }) {
     const [currentPlaceholder, setCurrentPlaceholder] = useState(0);
     const [animating, setAnimating] = useState(false);
@@ -97,13 +98,17 @@ export function PlaceholdersAndVanishInput({
                 disabled={disabled}
                 type="text"
                 className={cn(
-                    "w-full relative text-base z-10 border-none bg-transparent text-white h-14 rounded-2xl focus:outline-none focus:ring-0 pl-5 pr-14",
+                    "w-full relative text-base z-10 border-none bg-transparent text-white h-14 rounded-2xl focus:outline-none focus:ring-0 pl-5 pr-24",
                     animating && "text-transparent"
                 )}
                 style={{
                     caretColor: "white"
                 }}
             />
+
+            <div className="absolute right-14 top-1/2 -translate-y-1/2 z-20">
+                {tools}
+            </div>
 
             <button
                 disabled={!inputValue.trim() || disabled}
