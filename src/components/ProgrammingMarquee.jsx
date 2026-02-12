@@ -2,22 +2,38 @@ import SimpleMarquee from "@/components/fancy/blocks/simple-marquee";
 import { useRef } from "react";
 
 // Programming/Tech related images
+import img1 from "@/assets/mainimagesslite/1.png";
+import img10 from "@/assets/mainimagesslite/10.png";
+import img11 from "@/assets/mainimagesslite/11.png";
+import img12 from "@/assets/mainimagesslite/12.png";
+import img13 from "@/assets/mainimagesslite/13.png";
+import img14 from "@/assets/mainimagesslite/14.png";
+import img15 from "@/assets/mainimagesslite/15.png";
+import img2 from "@/assets/mainimagesslite/2.png";
+import img3 from "@/assets/mainimagesslite/3.png";
+import img4 from "@/assets/mainimagesslite/4.png";
+import img5 from "@/assets/mainimagesslite/5.png";
+import img6 from "@/assets/mainimagesslite/6.png";
+import img7 from "@/assets/mainimagesslite/7.png";
+import img8 from "@/assets/mainimagesslite/8.png";
+import img9 from "@/assets/mainimagesslite/9.png";
+
 const programmingImages = [
-  "https://images.unsplash.com/photo-1587620962725-abab7fe55159?q=80&w=800&auto=format&fit=crop", // Coding code
-  "https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=800&auto=format&fit=crop", // Code screen
-  "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=800&auto=format&fit=crop", // Laptop code
-  "https://images.unsplash.com/photo-1542831371-29b0f74f9713?q=80&w=800&auto=format&fit=crop", // Code syntax
-  "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800&auto=format&fit=crop", // Server room
-  "https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?q=80&w=800&auto=format&fit=crop", // Meeting tech
-  "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=800&auto=format&fit=crop", // Matrix binary
-  "https://images.unsplash.com/photo-1531297461136-82088fd53dc3?q=80&w=800&auto=format&fit=crop", // Macbook
-  "https://images.unsplash.com/photo-1607799275518-d58665d099db?q=80&w=800&auto=format&fit=crop", // Keyboard
-  "https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=800&auto=format&fit=crop", // Code coffee
-  "https://images.unsplash.com/photo-1504639725590-34d0984388bd?q=80&w=800&auto=format&fit=crop", // Code conference
-  "https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=800&auto=format&fit=crop", // Team working
-  "https://images.unsplash.com/photo-1550439062-609e1531270e?q=80&w=800&auto=format&fit=crop", // Code abstract
-  "https://images.unsplash.com/photo-1509021436665-8f07dbf5bf1d?q=80&w=800&auto=format&fit=crop", // Server lights
-  "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop", // Chip
+  img1,
+  img2,
+  img3,
+  img4,
+  img5,
+  img6,
+  img7,
+  img8,
+  img9,
+  img10,
+  img11,
+  img12,
+  img13,
+  img14,
+  img15,
 ];
 
 const MarqueeItem = ({ children }) => (
@@ -55,7 +71,9 @@ export default function ProgrammingMarquee() {
                 <img
                   src={src}
                   alt={`Tech Image ${i}`}
-                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 select-none pointer-events-none"
+                  onContextMenu={(e) => e.preventDefault()}
+                  draggable="false"
                 />
               </div>
             </MarqueeItem>
@@ -75,7 +93,9 @@ export default function ProgrammingMarquee() {
                 <img
                   src={src}
                   alt={`Tech Image ${i}`}
-                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 select-none pointer-events-none"
+                  onContextMenu={(e) => e.preventDefault()}
+                  draggable="false"
                 />
               </div>
             </MarqueeItem>
@@ -90,7 +110,9 @@ export default function ProgrammingMarquee() {
                 <img
                   src={src}
                   alt={`Tech Image ${i}`}
-                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 select-none pointer-events-none"
+                  onContextMenu={(e) => e.preventDefault()}
+                  draggable="false"
                 />
               </div>
             </MarqueeItem>

@@ -1,7 +1,9 @@
 import {
     ArrowRight,
     BookOpen,
+    ChevronDown,
     FileText,
+    ImageIcon,
     Plus,
     Search,
     Sparkles,
@@ -11,6 +13,7 @@ import { useEffect, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import Chatbot from "../components/Chatbot";
 import ProgrammingMarquee from "../components/ProgrammingMarquee";
+import TestimonialsMarquee from "../components/TestimonialsMarquee";
 import { AICard } from "../components/ui/ai-card";
 import { ComicText } from "../components/ui/comic-text";
 import { FlipWords } from "../components/ui/flip-words";
@@ -25,6 +28,7 @@ import { cn } from "../lib/utils";
 export default function HomePage() {
   const { openAddModal } = useOutletContext();
   const { user } = useAuth();
+  const [showGallery, setShowGallery] = useState(false);
 
   // Use the cached hook
   const { data: allGuides = [], isLoading: loading } = useGuides();
@@ -171,8 +175,39 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Marquee Section */}
-      <ProgrammingMarquee />
+      {/* ZetsuGallery Toggle Section */}
+      <div className="border-t border-white/10 bg-black">
+        <button
+          onClick={() => setShowGallery(!showGallery)}
+          className="w-full py-6 flex items-center justify-center gap-4 text-white hover:bg-white/5 transition-all group relative overflow-hidden"
+        >
+          {/* Subtle background effect on hover */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+
+          <ImageIcon
+            size={20}
+            className="text-neutral-400 group-hover:text-white transition-colors"
+          />
+          <span className="font-mono text-xl tracking-[0.2em] uppercase font-bold text-neutral-300 group-hover:text-white transition-colors">
+            Zetsu Gallery
+          </span>
+          <ChevronDown
+            size={20}
+            className={`text-neutral-500 group-hover:text-white transition-all duration-300 ${showGallery ? "rotate-180" : ""}`}
+          />
+        </button>
+
+        {/* Expandable Gallery Content */}
+        <div
+          className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${
+            showGallery ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          }`}
+        >
+          <div className="overflow-hidden">
+            {showGallery && <ProgrammingMarquee />}
+          </div>
+        </div>
+      </div>
 
       {/* Features */}
       <section className="py-12 sm:py-20 border-b-2 border-black bg-black">
@@ -313,6 +348,9 @@ export default function HomePage() {
           )}
         </div>
       </section>
+
+      {/* Testimonials */}
+      <TestimonialsMarquee />
 
       {/* CTA */}
       <section className="bg-black text-white py-12 sm:py-20">
