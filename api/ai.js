@@ -1190,12 +1190,16 @@ Here is the explanation...
       ...messages.filter((m) => m.role !== "system"),
     ];
 
+    // Check if streaming is supported (Node.js environment)
+    const supportsStreaming =
+      typeof res.write === "function" && typeof res.end === "function";
+
     const requestPayload = {
       model: validatedModel,
       messages: messagesWithSearch,
       max_tokens: 4000,
       temperature: 0.7,
-      stream: true, // Enable real streaming
+      stream: supportsStreaming && !skipCreditDeduction, // Only stream if supported and not skipping credits (which expects JSON)
       // response_format: { type: "json_object" } // REMOVED: Causing empty responses for simple queries
     };
 
@@ -1363,11 +1367,8 @@ Here is the explanation...
       });
     }
 
-    // Check if streaming is supported (Node.js environment)
-    const supportsStreaming =
-      typeof res.write === "function" && typeof res.end === "function";
-
-    console.log("Stream Support Check:", {
+    // Streaming support already checked above
+    console.log("Stream Support Check (verified):", {
       supportsStreaming,
       resWriteType: typeof res.write,
       resEndType: typeof res.end,
@@ -1530,11 +1531,6 @@ Here is the explanation...
                     );
                     console.log("   Token:", content.substring(0, 50));
                   }
-
-                  // Send each token immediately to client
-                  res.write(
-                    `data: ${JSON.stringify({ type: "token", content })}\n\n`,
-                  );
                 } else if (chunkCount <= 3) {
                   // Log first few chunks that have no content
                   console.log(
@@ -1564,74 +1560,46 @@ Here is the explanation...
         res.end();
       }
     } else {
-      // Fallback: Collect full response and return as JSON (for Vercel/Netlify)
+      // Fallback: When streaming is not supported by the environment (e.g. strict Vercel/Netlify functions)
       console.log(
-        "⚠️ Streaming not supported, falling back to full response...",
+        "⚠️ Streaming not supported by environment, falling back to full JSON response...",
       );
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = "";
-      let buffer = "";
-
       try {
-        while (true) {
-          const { done, value } = await reader.read();
+        // Read the full response from upstream
+        const json = await response.json();
 
-          if (done) {
-            break;
-          }
+        // Extract content based on standard OpenAI format
+        let content = "";
+        let sources = fetchedSources || [];
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-
-          for (const line of lines) {
-            if (line.trim() === "" || line.trim() === "data: [DONE]") continue;
-
-            if (line.startsWith("data: ")) {
-              const jsonStr = line.slice(6);
-              try {
-                const parsed = JSON.parse(jsonStr);
-                const content = parsed.choices?.[0]?.delta?.content;
-
-                if (content) {
-                  fullContent += content;
-                }
-              } catch (e) {
-                // Skip parsing errors
-              }
-            }
-          }
+        if (json.choices?.[0]?.message?.content) {
+          content = json.choices[0].message.content;
+        } else if (json.content) {
+          content = json.content;
         }
 
-        // Process and return full response
-        const processed = {
-          content: fullContent,
-          publishable: fullContent.length > 200,
-          suggested_followups: [],
-        };
-
+        // Return a standard JSON response that the frontend can handle
         return res.status(200).json({
-          choices: [{ message: { content: fullContent } }],
-          content: processed.content,
-          publishable: processed.publishable,
-          suggested_followups: processed.suggested_followups,
-          sources: fetchedSources.map((s) => ({
-            url: s.url,
-            method: s.method,
-          })),
+          content,
+          sources,
+          publishable: false,
+          suggested_followups: [],
         });
-      } catch (readError) {
-        console.error("❌ Read error:", readError);
+      } catch (fallbackError) {
+        console.error("❌ Fallback error:", fallbackError);
         return res.status(500).json({
-          error: "Failed to read AI response",
-          details: readError.message,
+          error: "Failed to process AI response",
+          details: fallbackError.message,
         });
       }
     }
   } catch (error) {
-    console.error("Internal Handler Error:", error);
-    res.status(500).json({ error: "Internal server error: " + error.message });
+    console.error("❌ General handler error:", error);
+    if (!res.headersSent) {
+      res
+        .status(500)
+        .json({ error: "Internal Server Error", details: error.message });
+    }
   }
 }

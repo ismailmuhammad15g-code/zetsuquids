@@ -117,13 +117,13 @@ export default function HomePage() {
         {/* Meteors Effect */}
         <Meteors number={30} />
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 py-16 sm:py-24 md:py-32">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 py-12 sm:py-20 md:py-24">
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium mb-6 rounded-full">
-              <Sparkles size={16} />
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white text-black text-xs font-medium mb-5 rounded-full">
+              <Sparkles size={14} />
               Your Personal Knowledge Base
             </div>
-            <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight mb-6">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight mb-6">
               <span className="bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-transparent">
                 Save. Search.
               </span>
@@ -148,26 +148,26 @@ export default function HomePage() {
                 </svg>
               </span>
             </h1>
-            <p className="text-xl text-neutral-300 max-w-2xl mx-auto mb-10">
-              <ComicText fontSize={2} className="mr-2">
+            <p className="text-lg text-neutral-300 max-w-2xl mx-auto mb-8">
+              <ComicText fontSize={1.5} className="mr-2">
                 DevVault
               </ComicText>
               is your personal space to store guides, tutorials, and
               documentation. Search instantly with AI-powered intelligence.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
                 onClick={openAddModal}
-                className="flex items-center gap-2 px-8 py-4 bg-white text-black text-lg font-bold hover:bg-gray-200 transition-colors rounded-lg"
+                className="flex items-center gap-2 px-6 py-3 bg-white text-black text-base font-bold hover:bg-gray-200 transition-colors rounded-lg"
               >
-                <Plus size={24} />
+                <Plus size={20} />
                 Add Guide
               </button>
               <Link
                 to="/guides"
-                className="flex items-center gap-2 px-8 py-4 border-2 border-white text-white text-lg font-bold hover:bg-white/10 transition-colors rounded-lg"
+                className="flex items-center gap-2 px-6 py-3 border-2 border-white text-white text-base font-bold hover:bg-white/10 transition-colors rounded-lg"
               >
-                <BookOpen size={24} />
+                <BookOpen size={20} />
                 Browse Guides
               </Link>
             </div>
@@ -179,20 +179,20 @@ export default function HomePage() {
       <div className="border-t border-white/10 bg-black">
         <button
           onClick={() => setShowGallery(!showGallery)}
-          className="w-full py-6 flex items-center justify-center gap-4 text-white hover:bg-white/5 transition-all group relative overflow-hidden"
+          className="w-full py-4 flex items-center justify-center gap-3 text-white hover:bg-white/5 transition-all group relative overflow-hidden"
         >
           {/* Subtle background effect on hover */}
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
 
           <ImageIcon
-            size={20}
+            size={18}
             className="text-neutral-400 group-hover:text-white transition-colors"
           />
-          <span className="font-mono text-xl tracking-[0.2em] uppercase font-bold text-neutral-300 group-hover:text-white transition-colors">
+          <span className="font-mono text-lg tracking-[0.2em] uppercase font-bold text-neutral-300 group-hover:text-white transition-colors">
             Zetsu Gallery
           </span>
           <ChevronDown
-            size={20}
+            size={18}
             className={`text-neutral-500 group-hover:text-white transition-all duration-300 ${showGallery ? "rotate-180" : ""}`}
           />
         </button>

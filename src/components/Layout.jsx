@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
+    BarChart3,
     BookOpen,
     Bot,
     Home,
@@ -9,7 +10,7 @@ import {
     Plus,
     Search,
     Sparkles,
-    X
+    X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -325,6 +326,14 @@ export default function Layout() {
                             <span>My Workspace</span>
                           </Link>
                           <Link
+                            to="/stats"
+                            onClick={() => setShowUserMenu(false)}
+                            className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            <BarChart3 size={18} />
+                            <span>My Stats</span>
+                          </Link>
+                          <Link
                             to="/zetsuguide-ai"
                             onClick={() => setShowUserMenu(false)}
                             className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
@@ -475,6 +484,14 @@ export default function Layout() {
                         <span>My Workspace</span>
                       </Link>
 
+                      <Link
+                        to="/stats"
+                        className="flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                      >
+                        <BarChart3 size={20} />
+                        <span>My Stats</span>
+                      </Link>
+
                       <button
                         onClick={() => {
                           logout();
@@ -527,13 +544,30 @@ export default function Layout() {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-black flex items-center justify-center">
-                <span className="text-white font-bold text-sm">D</span>
+                <span className="text-white font-bold text-sm">Z</span>
               </div>
-              <span className="font-bold">DevVault</span>
+              <span className="font-bold">ZetsuGuide</span>
             </div>
-            <p className="text-sm text-gray-500">
-              Your personal knowledge base. Built with ❤️
-            </p>
+            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-6">
+              <Link to="/faq" className="text-sm font-medium hover:underline">
+                FAQ
+              </Link>
+              <Link
+                to="/pricing"
+                className="text-sm font-medium hover:underline"
+              >
+                Pricing
+              </Link>
+              <Link
+                to="/support"
+                className="text-sm font-medium hover:underline"
+              >
+                Support
+              </Link>
+              <p className="text-sm text-gray-500">
+                Your personal knowledge base. Built with ❤️
+              </p>
+            </div>
           </div>
         </div>
       </footer>

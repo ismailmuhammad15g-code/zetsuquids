@@ -1,56 +1,58 @@
 import Lottie from "lottie-react";
 import {
-    ArrowRight,
-    Bot,
-    BrainCircuit,
-    Bug,
-    HelpCircle,
-    History,
-    Info,
-    Menu,
-    MessageSquare,
-    Plus,
-    RefreshCw,
-    Settings2,
-    Trash2,
-    Wand2,
-    X,
-    Zap,
+  ArrowRight,
+  Bot,
+  BrainCircuit,
+  Bug,
+  CheckCircle,
+  HelpCircle,
+  History,
+  Info,
+  Menu,
+  MessageSquare,
+  Plus,
+  RefreshCw,
+  Settings2,
+  Trash2,
+  Wand2,
+  X,
+  Zap,
 } from "lucide-react";
 import {
-    lazy,
-    Suspense,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import guidePublishAnimation from "../assets/Guidepublish.json";
 import demoVideo from "../assets/aidemosVideo/zetsuGuidethinkermode.mp4"; // Import the demo video
 import aiLogoAnimation from "../assets/ailogo.json";
 import robotAnimation from "../assets/robotwelcomming.json";
 import sailboatAnimation from "../assets/sailboat.json";
 import {
-    DailyGiftModal,
-    useDailyCreditsCheck,
+  DailyGiftModal,
+  useDailyCreditsCheck,
 } from "../components/DailyGiftModal";
+import PromptInputWithActions from "../components/PromptInputWithActions";
 import { OnboardingModal } from "../components/onboarding/OnboardingModal";
 import PixelTrail from "../components/ui/PixelTrail";
 import { CodeBlock } from "../components/ui/code-block";
 import { Confetti } from "../components/ui/confetti";
 import { LinkPreview } from "../components/ui/link-preview";
-import { PlaceholdersAndVanishInput } from "../components/ui/placeholders-and-vanish-input";
 import { ShimmerButton } from "../components/ui/shimmer-button";
 import { SparklesText } from "../components/ui/sparkles-text";
 import { useAuth } from "../contexts/AuthContext";
 import useScreenSize from "../hooks/useScreenSize";
 import { guidesApi, isSupabaseConfigured, supabase } from "../lib/api";
 import {
-    commitReservedCredit,
-    releaseReservedCredit,
-    reserveCredit,
+  commitReservedCredit,
+  releaseReservedCredit,
+  reserveCredit,
 } from "../lib/creditReservation";
 
 // Lazy load heavy components
@@ -914,6 +916,12 @@ export default function ZetsuGuideAIPage() {
   const [streamingMessageIndex, setStreamingMessageIndex] = useState(-1);
   const [showReferralBonus, setShowReferralBonus] = useState(false);
   const [confettiFireCount, setConfettiFireCount] = useState(0); // Track confetti fires
+  const [isVerifyingTasks, setIsVerifyingTasks] = useState(false); // New state for verify button
+  const [tasksStatus, setTasksStatus] = useState({
+    focusReader: false,
+    bugHunter: false,
+    dailyLogin: false,
+  });
 
   // Agent state
   const [agentPhase, setAgentPhase] = useState(null);
@@ -947,7 +955,10 @@ export default function ZetsuGuideAIPage() {
   const [publishedGuideSlug, setPublishedGuideSlug] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [usageLogs, setUsageLogs] = useState([]);
-  const [showUsageHistory, setShowUsageHistory] = useState(false);
+  const [popoverView, setPopoverView] = useState("main"); // "main", "usage", "earn"
+  // Keep compatibility for now if needed, or just remove showUsageHistory usage
+  const showUsageHistory = popoverView === "usage";
+  const setShowUsageHistory = (val) => setPopoverView(val ? "usage" : "main");
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [historyTab, setHistoryTab] = useState("usage"); // 'usage' or 'credits'
 
@@ -976,6 +987,181 @@ export default function ZetsuGuideAIPage() {
       setShowDailyGiftModal(true);
     }
   }, [canClaim, isCheckingDailyCredits]);
+
+  // Check Tasks Status
+  useEffect(() => {
+    if (popoverView === "earn" && user) {
+      const checkStatus = async () => {
+        const now = new Date();
+        const monthKey = `${now.getFullYear()}-${now.getMonth()}`;
+        const dayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+
+        // 1. Focus Reader Check
+        let focusDone =
+          localStorage.getItem(`claimed_focus_${user.id}_${monthKey}`) ===
+          "true";
+        if (!focusDone) {
+          // Check DB if needed, but for UI speed we rely on local first or check strictly
+          // We can optimistically verify if they have logs > 5 mins
+          const { data: logs } = await supabase
+            .from("guide_time_logs")
+            .select("duration_seconds")
+            .eq("user_id", user.id)
+            .gte("duration_seconds", 300)
+            .limit(1);
+          if (logs && logs.length > 0) focusDone = false; // It is NOT done until claimed? Or is it "Ready to Claim"?
+          // Let's distinguish "Ready" vs "Claimed". For now, we just want to know if they claimed it.
+        }
+
+        // 2. Daily Login Check (Simple local storage check for today)
+        const dailyDone =
+          localStorage.getItem(`claimed_daily_${user.id}_${dayKey}`) === "true";
+
+        setTasksStatus({
+          focusReader:
+            localStorage.getItem(`claimed_focus_${user.id}_${monthKey}`) ===
+            "true", // Has claimed?
+          bugHunter: false, // Manual process usually
+          dailyLogin: dailyDone,
+          focusReaderReady: !focusDone, // If not claimed, check if eligible... actually let's keep it simple.
+        });
+      };
+      checkStatus();
+    }
+  }, [popoverView, user]);
+
+  const handleVerifyTasks = async () => {
+    if (isVerifyingTasks || !user) return;
+    setIsVerifyingTasks(true);
+    let claimedCount = 0;
+    let newClaims = [];
+    const originalCredits = credits;
+
+    // Helper to attempt claim via RPC or fallback
+    const attemptClaim = async (taskId, reward) => {
+      try {
+        const { data, error } = await supabase.rpc("claim_task_reward", {
+          task_id: taskId,
+          user_id: user.id,
+        });
+
+        if (!error && data) {
+          // Handle object return { success: true, new_balance: ... } or boolean
+          const success = data.success === true || data === true;
+          if (success) {
+            const bal =
+              data.new_balance !== undefined
+                ? data.new_balance
+                : credits + reward;
+            setCredits(bal);
+            return true;
+          }
+        }
+
+        // Fallback for missing RPC
+        if (
+          error &&
+          (error.code === "42883" || error.message.includes("does not exist"))
+        ) {
+          console.warn("Secure RPC missing, using client fallback");
+          const { data: userData } = await supabase
+            .from("zetsuguide_credits")
+            .select("credits")
+            .eq("user_email", user.email)
+            .single();
+          const currentCredits = userData?.credits || 0;
+          await supabase
+            .from("zetsuguide_credits")
+            .update({
+              credits: currentCredits + reward,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("user_email", user.email);
+          setCredits(currentCredits + reward);
+          return true;
+        }
+        return false;
+      } catch (e) {
+        console.error("Claim Error", e);
+        return false;
+      }
+    };
+
+    try {
+      // 1. Check Focus Reader
+      if (!tasksStatus.focusReader) {
+        // Focus reader usually requires some local validation or we just trust the RPC to check logs?
+        // The RPC 'claim_task_reward' checks 'focus_reader' logic on server if implemented,
+        // OR we should verify locally first if we want to save a call.
+        // But let's try to claim it.
+        const success = await attemptClaim("focus_reader", 10);
+        if (success) {
+          const monthKey = `${new Date().getFullYear()}-${new Date().getMonth()}`;
+          localStorage.setItem(`claimed_focus_${user.id}_${monthKey}`, "true");
+          newClaims.push("Focus Reader");
+          claimedCount++;
+        }
+      }
+
+      // 2. Check Bug Hunter (Manual mostly, but maybe they have a pending approval?)
+      if (!tasksStatus.bugHunter) {
+        // This is usually manual, so auto-verify might not do anything unless we have a specific 'check_pending_bugs' RPC
+        // skipping for now unless we want to try generic claim
+      }
+
+      // 3. Check Daily Login
+      if (!tasksStatus.dailyLogin) {
+        const success = await attemptClaim("daily_login", 5);
+        if (success) {
+          const dayKey = `${new Date().getFullYear()}-${new Date().getMonth()}-${new Date().getDate()}`;
+          localStorage.setItem(`claimed_daily_${user.id}_${dayKey}`, "true");
+          newClaims.push("Daily Login");
+          claimedCount++;
+        }
+      }
+
+      // Update UI status
+      setTasksStatus((prev) => ({
+        ...prev,
+        focusReader: prev.focusReader || newClaims.includes("Focus Reader"),
+        dailyLogin: prev.dailyLogin || newClaims.includes("Daily Login"),
+      }));
+
+      await new Promise((r) => setTimeout(r, 800)); // smooth wait
+
+      if (claimedCount > 0) {
+        if (confettiRef.current) confettiRef.current.fire();
+        toast.success(`Start earning!`, {
+          description: `You successfully claimed: ${newClaims.join(
+            ", ",
+          )} and earned credits!`,
+          duration: 5000,
+        });
+      } else {
+        // Check why failed to give specific feedback
+        let reasons = [];
+        if (!tasksStatus.focusReader && !newClaims.includes("Focus Reader"))
+          reasons.push("• Focus Reader: Read guides for 5+ mins");
+        if (!tasksStatus.dailyLogin && !newClaims.includes("Daily Login"))
+          reasons.push("• Daily Login: Already claimed today");
+
+        toast.info("No new rewards available", {
+          description:
+            reasons.length > 0 ? reasons.join("\n") : "You are up to date!",
+          duration: 4000,
+        });
+      }
+    } catch (err) {
+      console.error("Verification failed", err);
+      // Revert optimistic credits if needed (simple fallback)
+      if (credits !== originalCredits) setCredits(originalCredits);
+      toast.error("Verification failed", {
+        description: "Please try again later or check your connection.",
+      });
+    } finally {
+      setIsVerifyingTasks(false);
+    }
+  };
 
   // Handle daily gift claim
   const handleDailyGiftClaim = (creditsAwarded, newBalance) => {
@@ -1288,15 +1474,18 @@ export default function ZetsuGuideAIPage() {
 
     setIsLoadingHistory(true);
     try {
+      // Use case-insensitive search to catch both lower and mixed-case stored emails
       const { data, error } = await supabase
         .from("zetsuguide_conversations")
         .select("id, title, updated_at, messages")
-        .eq("user_email", user.email)
+        .ilike("user_email", user.email) // Use ILIKE for case-insensitive matching
         .order("updated_at", { ascending: false })
         .limit(50);
 
       if (!error && data) {
         setConversations(data);
+      } else if (error) {
+        console.error("Supabase error loading conversations:", error);
       }
     } catch (err) {
       console.error("Error loading conversations:", err);
@@ -1309,7 +1498,13 @@ export default function ZetsuGuideAIPage() {
     msgs = messages,
     convId = currentConversationId,
   ) {
-    if (!isAuthenticated() || !user?.email || msgs.length === 0) return;
+    // Basic check for auth
+    if (!isAuthenticated() || !user?.email) {
+      console.warn("Cannot save conversation: User not authenticated");
+      return;
+    }
+
+    if (msgs.length === 0) return;
 
     try {
       // Generate title from first user message
@@ -1319,39 +1514,58 @@ export default function ZetsuGuideAIPage() {
           (firstUserMsg.content.length > 50 ? "..." : "")
         : "New Chat";
 
+      const saveData = {
+        messages: msgs.map((m) => ({
+          role: m.role,
+          content: m.content,
+          // Include sources and timestamp if available to persist rich data
+          sources: m.sources || [],
+          timestamp: m.timestamp || new Date().toISOString(),
+        })),
+        title,
+        updated_at: new Date().toISOString(),
+      };
+
       if (convId) {
         // Update existing conversation
-        await supabase
+        const { error } = await supabase
           .from("zetsuguide_conversations")
-          .update({
-            messages: msgs.map((m) => ({ role: m.role, content: m.content })),
-            title,
-            updated_at: new Date().toISOString(),
-          })
+          .update(saveData)
           .eq("id", convId);
+
+        if (error) throw error;
+        return convId;
       } else {
         // Create new conversation
         const { data, error } = await supabase
           .from("zetsuguide_conversations")
           .insert({
-            user_email: user.email,
-            messages: msgs.map((m) => ({ role: m.role, content: m.content })),
-            title,
+            user_email: user.email.toLowerCase(), // Force lowercase for consistency
+            ...saveData,
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
           })
           .select("id")
           .single();
 
-        if (!error && data) {
+        if (error) throw error;
+
+        if (data) {
           setCurrentConversationId(data.id);
+          return data.id;
         }
       }
 
-      // Refresh conversation list
-      loadConversations();
+      // Refresh conversation list silently
+      // loadConversations(); // Don't block or re-trigger massive loads unnecessarily
+      // Instead, we might want to update local list optimistically?
+      // For now, let's just trigger load to be safe but catch errors
+      loadConversations().catch((err) =>
+        console.error("Error reloading conversations:", err),
+      );
     } catch (err) {
       console.error("Error saving conversation:", err);
+      // Optional: Toast notification for error
+      // toast.error("Failed to save chat history");
     }
   }
 
@@ -2152,6 +2366,18 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
 
               hasReceivedData = true;
               return; // Skip streaming loop
+            } else {
+              // JSON was received but content was empty or invalid structure
+              // Check if it's an error object
+              if (jsonData.error) {
+                throw new Error(jsonData.error);
+              }
+              // If barely valid but empty, treat as empty response to avoid crash
+              console.warn(
+                "Received valid JSON but no content found in response. Treating as empty.",
+              );
+              setIsThinking(false);
+              return;
             }
           }
 
@@ -2284,9 +2510,28 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                     ...updated[messageIndex],
                     isStreaming: false,
                     content: streamedContent,
+                    timestamp: new Date().toISOString(),
                   };
                 }
-                saveConversation(updated);
+
+                // Use the conversation ID from the active stream metadata if available
+                // This preserves the ID even if component re-rendered
+                const streamData = window._activeStreams?.get(streamId);
+                let targetId = streamData?.conversationId;
+
+                // If ID is "default" (new chat), pass null so saveConversation creates a new one
+                if (targetId === "default") targetId = null;
+
+                // Pass explicit ID to saveConversation to avoid closure staleness
+                saveConversation(updated, targetId).then((newId) => {
+                  // If we just created a new conversation, update the stream metadata so subsequent updates use it!
+                  if (newId && window._activeStreams?.has(streamId)) {
+                    const currentStream = window._activeStreams.get(streamId);
+                    currentStream.conversationId = newId;
+                    window._activeStreams.set(streamId, currentStream);
+                  }
+                });
+
                 return updated;
               });
 
@@ -3099,11 +3344,21 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                       e.preventDefault();
                       e.stopPropagation();
                       setShowProfileModal(false);
-                      setShowUsageHistory(false);
+                      setPopoverView("main");
                     }}
                   />
-                  <div className="zetsu-profile-popover">
-                    {!showUsageHistory ? (
+                  <div
+                    className="zetsu-profile-popover"
+                    style={{
+                      width: popoverView === "earn" ? "600px" : "320px",
+                      right: "0",
+                      maxHeight: popoverView === "earn" ? "80vh" : "auto",
+                      height: popoverView === "earn" ? "600px" : "auto",
+                      transition:
+                        "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                    }}
+                  >
+                    {popoverView === "main" && (
                       <>
                         {/* Normal Profile View */}
                         <div className="zetsu-popover-header">
@@ -3153,7 +3408,7 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                             className="zetsu-credits-usage"
                             onClick={async () => {
                               setIsLoadingLogs(true);
-                              setShowUsageHistory(true);
+                              setPopoverView("usage");
                               if (user?.email) {
                                 const logs = await fetchUsageLogs(user.email);
                                 setUsageLogs(logs);
@@ -3181,21 +3436,315 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                           </div>
                         </div>
 
+                        {/* Earn More Section */}
+                        <button
+                          className="zetsu-earn-btn"
+                          onClick={() => setPopoverView("earn")}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-yellow-400/20 flex items-center justify-center relative overflow-hidden shrink-0">
+                            {/* Animated Icon */}
+                            <span className="relative z-10 font-bold text-sm">
+                              ✨
+                            </span>
+                            <style>{`
+                              @keyframes sparkle {
+                                0% { opacity: 0; transform: scale(0) rotate(0deg); }
+                                50% { opacity: 1; transform: scale(1) rotate(90deg); }
+                                100% { opacity: 0; transform: scale(0) rotate(180deg); }
+                              }
+                              .animate-sparkle {
+                                animation: sparkle 1.5s ease-in-out infinite;
+                              }
+                            `}</style>
+                            <svg
+                              className="absolute animate-sparkle pointer-events-none"
+                              width="20"
+                              height="20"
+                              viewBox="0 0 160 160"
+                              fill="none"
+                              style={{
+                                top: "0%",
+                                left: "40%",
+                                animationDelay: "0s",
+                              }}
+                            >
+                              <path
+                                d="M80 0C80 0 84.2846 41.2925 101.496 58.504C118.707 75.7154 160 80 160 80C160 80 118.707 84.2846 101.496 101.496C84.2846 118.707 80 160 80 160C80 160 75.7154 118.707 58.504 101.496C41.2925 84.2846 0 80 0 80C0 80 41.2925 75.7154 58.504 58.504C75.7154 41.2925 80 0 80 0Z"
+                                fill="#A07CFE"
+                              />
+                            </svg>
+                            <svg
+                              className="absolute animate-sparkle pointer-events-none"
+                              width="12"
+                              height="12"
+                              viewBox="0 0 160 160"
+                              fill="none"
+                              style={{
+                                top: "50%",
+                                left: "10%",
+                                animationDelay: "0.5s",
+                              }}
+                            >
+                              <path
+                                d="M80 0C80 0 84.2846 41.2925 101.496 58.504C118.707 75.7154 160 80 160 80C160 80 118.707 84.2846 101.496 101.496C84.2846 118.707 80 160 80 160C80 160 75.7154 118.707 58.504 101.496C41.2925 84.2846 0 80 0 80C0 80 41.2925 75.7154 58.504 58.504C75.7154 41.2925 80 0 80 0Z"
+                                fill="#FE8FB5"
+                              />
+                            </svg>
+                          </div>
+                          <div className="flex-1 text-left">
+                            <span className="block font-bold text-white text-sm">
+                              Earn More!
+                            </span>
+                            <span className="block text-xs text-blue-200/60">
+                              Complete tasks, get credits
+                            </span>
+                          </div>
+                          <ArrowRight size={16} className="text-white/40" />
+                        </button>
+
                         <Link
                           to="/pricing"
-                          className="zetsu-upgrade-btn-popover"
+                          className="zetsu-upgrade-btn-popover mt-3"
                         >
                           <Zap size={16} fill="currentColor" />
                           <span>Upgrade Plan</span>
                         </Link>
                       </>
-                    ) : (
+                    )}
+
+                    {popoverView === "earn" && (
+                      <div className="flex flex-col h-full bg-black relative overflow-hidden">
+                        {/* Ambient Background */}
+                        <div className="absolute inset-0 pointer-events-none">
+                          <div className="absolute top-[-20%] right-[-20%] w-[300px] h-[300px] bg-purple-600/10 rounded-full blur-[100px]" />
+                          <div className="absolute bottom-[-20%] left-[-20%] w-[300px] h-[300px] bg-blue-600/10 rounded-full blur-[100px]" />
+                        </div>
+
+                        {/* Glass Header */}
+                        <div className="flex items-center gap-4 p-6 shrink-0 z-20 backdrop-blur-md bg-black/60 border-b border-white/5 sticky top-0">
+                          <button
+                            onClick={() => setPopoverView("main")}
+                            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all active:scale-95"
+                          >
+                            <ArrowRight size={18} className="rotate-180" />
+                          </button>
+                          <div>
+                            <h3 className="text-white font-bold text-lg leading-none tracking-tight">
+                              Earn Credits
+                            </h3>
+                            <p className="text-xs text-gray-500 mt-1 font-medium">
+                              Complete tasks to unlock rewards
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* content */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar relative z-10">
+                          {/* Task: Daily Login */}
+                          <div
+                            className={`group relative p-[1px] rounded-2xl transition-all duration-300 ${
+                              tasksStatus.dailyLogin
+                                ? "opacity-60 grayscale"
+                                : "hover:scale-[1.02] hover:shadow-lg hover:shadow-yellow-500/10"
+                            }`}
+                          >
+                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-yellow-500/20 to-orange-500/20 opacity-50 group-hover:opacity-100 transition-opacity" />
+                            <div className="relative bg-[#0c0c0c] rounded-2xl p-4 flex items-center gap-4 h-full border border-white/5 group-hover:border-yellow-500/30 transition-colors">
+                              <div
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner ${
+                                  tasksStatus.dailyLogin
+                                    ? "bg-green-500/10 text-green-500"
+                                    : "bg-gradient-to-br from-yellow-500/20 to-orange-500/20 text-yellow-400 group-hover:text-yellow-300"
+                                }`}
+                              >
+                                {tasksStatus.dailyLogin ? (
+                                  <CheckCircle size={22} />
+                                ) : (
+                                  <Zap size={22} className="" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-center mb-1">
+                                  <h4 className="text-white font-bold text-sm truncate">
+                                    Daily Check-in
+                                  </h4>
+                                  {!tasksStatus.dailyLogin && (
+                                    <span className="text-[10px] font-bold bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded border border-yellow-500/20">
+                                      +5 CR
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-400 line-clamp-1">
+                                  {tasksStatus.dailyLogin
+                                    ? "Completed for today"
+                                    : "Login daily to claim free credits."}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Task: Focus Reader */}
+                          <div
+                            className={`group relative p-[1px] rounded-2xl transition-all duration-300 ${
+                              tasksStatus.focusReader
+                                ? "opacity-60 grayscale"
+                                : "hover:scale-[1.02] hover:shadow-lg hover:shadow-purple-500/10"
+                            }`}
+                          >
+                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-50 group-hover:opacity-100 transition-opacity" />
+                            <Link
+                              to="/guides"
+                              onClick={(e) =>
+                                tasksStatus.focusReader
+                                  ? e.preventDefault()
+                                  : null
+                              }
+                              className="relative bg-[#0c0c0c] rounded-2xl p-4 flex items-center gap-4 h-full border border-white/5 group-hover:border-purple-500/30 transition-colors block"
+                            >
+                              <div
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner ${
+                                  tasksStatus.focusReader
+                                    ? "bg-green-500/10 text-green-500"
+                                    : "bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-purple-400 group-hover:text-purple-300"
+                                }`}
+                              >
+                                {tasksStatus.focusReader ? (
+                                  <CheckCircle size={22} />
+                                ) : (
+                                  <BrainCircuit size={22} />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-center mb-1">
+                                  <h4 className="text-white font-bold text-sm truncate">
+                                    Focus Reader
+                                  </h4>
+                                  {!tasksStatus.focusReader && (
+                                    <span className="text-[10px] font-bold bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded border border-purple-500/20">
+                                      +10 CR
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-400 line-clamp-2">
+                                  {tasksStatus.focusReader
+                                    ? "Badge Earned"
+                                    : "Read any guide for 5+ minutes."}
+                                </p>
+                              </div>
+                              {!tasksStatus.focusReader && (
+                                <ArrowRight
+                                  size={16}
+                                  className="text-gray-600 group-hover:text-white group-hover:translate-x-1 transition-all"
+                                />
+                              )}
+                            </Link>
+                          </div>
+
+                          {/* Task: Bug Hunter */}
+                          <div
+                            className={`group relative p-[1px] rounded-2xl transition-all duration-300 ${
+                              tasksStatus.bugHunter
+                                ? "opacity-60 grayscale"
+                                : "hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/10"
+                            }`}
+                          >
+                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/20 to-cyan-500/20 opacity-50 group-hover:opacity-100 transition-opacity" />
+                            <Link
+                              to="/reportbug"
+                              onClick={(e) =>
+                                tasksStatus.bugHunter
+                                  ? e.preventDefault()
+                                  : null
+                              }
+                              className="relative bg-[#0c0c0c] rounded-2xl p-4 flex items-center gap-4 h-full border border-white/5 group-hover:border-blue-500/30 transition-colors block"
+                            >
+                              <div
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner ${
+                                  tasksStatus.bugHunter
+                                    ? "bg-green-500/10 text-green-500"
+                                    : "bg-gradient-to-br from-blue-500/20 to-cyan-500/20 text-blue-400 group-hover:text-blue-300"
+                                }`}
+                              >
+                                {tasksStatus.bugHunter ? (
+                                  <CheckCircle size={22} />
+                                ) : (
+                                  <Bug size={22} />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-center mb-1">
+                                  <h4 className="text-white font-bold text-sm truncate">
+                                    Bug Hunter
+                                  </h4>
+                                  {!tasksStatus.bugHunter && (
+                                    <span className="text-[10px] font-bold bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20">
+                                      +10 CR
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-400 line-clamp-2">
+                                  {tasksStatus.bugHunter
+                                    ? "Report Submitted"
+                                    : "Report valid bugs to earn bounties."}
+                                </p>
+                              </div>
+                              {!tasksStatus.bugHunter && (
+                                <ArrowRight
+                                  size={16}
+                                  className="text-gray-600 group-hover:text-white group-hover:translate-x-1 transition-all"
+                                />
+                              )}
+                            </Link>
+                          </div>
+
+                          {/* Placeholder */}
+                          <div className="py-6 flex flex-col items-center justify-center text-center opacity-40">
+                            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-2">
+                              <span className="text-lg">✨</span>
+                            </div>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                              More tasks coming soon
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Footer - Verification Button */}
+                        <div className="p-6 shrink-0 z-20 backdrop-blur-md bg-black/80 border-t border-white/5">
+                          <button
+                            disabled={isVerifyingTasks || !user}
+                            onClick={handleVerifyTasks}
+                            className={`w-full py-4 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all relative overflow-hidden group ${
+                              isVerifyingTasks
+                                ? "bg-gray-800 text-gray-400 cursor-not-allowed"
+                                : "bg-white text-black hover:bg-gray-200 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-[0.98]"
+                            }`}
+                          >
+                            {isVerifyingTasks ? (
+                              <>
+                                <span className="animate-spin text-lg">⏳</span>
+                                <span>Verifying...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>Verify Completed Tasks</span>
+                                <RefreshCw
+                                  size={14}
+                                  className={`group-hover:rotate-180 transition-transform duration-500 ${isVerifyingTasks ? "animate-spin" : ""}`}
+                                />
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {popoverView === "usage" && (
                       <>
                         {/* History View - with Tabs */}
                         <div className="zetsu-popover-header">
                           <div
                             className="zetsu-popover-back"
-                            onClick={() => setShowUsageHistory(false)}
+                            onClick={() => setPopoverView("main")}
                           >
                             <ArrowRight size={16} className="rotate-180" />
                             <span>Back to Profile</span>
@@ -3377,23 +3926,30 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                                                 position: absolute;
                                                 top: 120%;
                                                 right: 0;
-                                                width: 300px;
+                                                width: 320px;
                                                 min-height: 200px;
-                                                background: #1a1a1a;
-                                                border: 1px solid rgba(255,255,255,0.1);
-                                                border-radius: 16px;
-                                                box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5);
-                                                padding: 16px;
+                                                background: rgba(26, 26, 26, 0.95);
+                                                backdrop-filter: blur(20px);
+                                                -webkit-backdrop-filter: blur(20px);
+                                                border: 1px solid rgba(255,255,255,0.08);
+                                                border-radius: 20px;
+                                                box-shadow: 0 20px 60px -10px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05);
+                                                padding: 0;
                                                 z-index: 50;
-                                                animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+                                                animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
                                                 display: flex;
                                                 flex-direction: column;
+                                                transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), height 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                                                overflow: hidden;
+                                            }
+
+                                            .zetsu-popover-header, .zetsu-popover-credits, .zetsu-usage-list {
+                                                padding: 16px;
                                             }
 
                                             .zetsu-popover-header {
-                                                padding-bottom: 16px;
-                                                border-bottom: 1px solid rgba(255,255,255,0.1);
-                                                margin-bottom: 16px;
+                                                padding-bottom: 0;
+                                                border-bottom: none;
                                             }
 
                                             .zetsu-popover-user {
@@ -4344,9 +4900,9 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                               {agentPhase === AGENT_PHASES.RESPONDING && (
                                 <span className="zetsu-agent-status">
                                   {isImageGenEnabled ? (
-                                    <>🎨 Generating Response & Visuals</>
+                                    <> Generating Response & Visuals</>
                                   ) : (
-                                    <>✨ Generating Response</>
+                                    <> Generating Response</>
                                   )}
                                 </span>
                               )}
@@ -4447,203 +5003,204 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
             </div>
           )}
 
-          <PlaceholdersAndVanishInput
-            placeholders={[
-              "Ask me anything about programming...",
-              "How do I use React Hooks?",
-              "Explain JavaScript async/await",
-              "What's the best way to learn Python?",
-              "Help me with CSS Flexbox",
-              "How to use Git branches?",
-            ]}
+          <PromptInputWithActions
+            placeholder="Ask me anything about programming..."
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onSubmit={handleSubmit}
-            disabled={isThinking}
-            inputRef={inputRef}
-            tools={
+            onChange={(val) => setInput(val)}
+            onSend={() => handleSubmit({ preventDefault: () => {} })}
+            isLoading={isThinking}
+            startActions={
               <div className="relative">
                 {/* Tools Toggle Button */}
                 <button
                   type="button"
                   onMouseEnter={handleToolsMouseEnter}
                   onMouseLeave={handleToolsMouseLeave}
-                  className={`p-2 rounded-full transition-all duration-300 ${isToolsOpen ? "bg-white/10 text-white rotate-90" : "text-zinc-500 hover:text-white hover:bg-white/5"}`}
+                  className={`p-2 rounded-xl transition-all duration-300 ${
+                    isToolsOpen
+                      ? "bg-white/10 text-white shadow-lg shadow-purple-500/10"
+                      : "text-gray-400 hover:text-white hover:bg-white/5"
+                  }`}
                   title="AI Tools & Configuration"
                 >
-                  <Settings2 size={20} />
+                  <Settings2
+                    size={20}
+                    className={isToolsOpen ? "animate-spin-slow" : ""}
+                  />
                 </button>
+
+                {/* Tools Popover Menu - Rendered INSIDE the input relative container to align correctly */}
+                {isToolsOpen && (
+                  <div
+                    className="absolute bottom-full left-0 mb-3 w-64 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 z-50 overflow-hidden origin-bottom-left"
+                    onMouseEnter={handleToolsMouseEnter}
+                    onMouseLeave={handleToolsMouseLeave}
+                  >
+                    <div className="px-4 py-3 border-b border-white/5 bg-white/5">
+                      <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                        AI Configuration
+                      </h4>
+                    </div>
+
+                    <div className="p-2 space-y-1">
+                      <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`p-1.5 rounded-md ${isDeepReasoning ? "bg-purple-500/20 text-purple-400" : "bg-zinc-800 text-zinc-400"}`}
+                          >
+                            <BrainCircuit size={16} />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm text-zinc-200 font-medium">
+                              Deep Reasoning
+                            </span>
+                            <span className="text-[10px] text-zinc-500">
+                              3-Stage detailed analysis
+                            </span>
+                          </div>
+                        </div>
+                        <label
+                          className="zetsu-switch"
+                          style={{ transform: "scale(0.8)" }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isDeepReasoning}
+                            onChange={(e) => {
+                              setIsDeepReasoning(e.target.checked);
+                              if (e.target.checked) setIsSubAgentMode(false); // Mutual exclusion
+                            }}
+                            disabled={isThinking || isSubAgentMode}
+                          />
+                          <span className="zetsu-slider round"></span>
+                        </label>
+                      </div>
+
+                      {/* SubAgent Mode (5-Stage) */}
+                      <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`p-1.5 rounded-md ${isSubAgentMode ? "bg-cyan-500/20 text-cyan-400" : "bg-zinc-800 text-zinc-400"}`}
+                          >
+                            <Bot size={16} />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm text-zinc-200 font-medium">
+                              SubAgent Mode
+                            </span>
+                            <span className="text-[10px] text-zinc-500">
+                              5-Agent Advanced Pipeline
+                            </span>
+                          </div>
+                        </div>
+                        <label
+                          className="zetsu-switch"
+                          style={{ transform: "scale(0.8)" }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSubAgentMode}
+                            onChange={(e) => {
+                              setIsSubAgentMode(e.target.checked);
+                              if (e.target.checked) setIsDeepReasoning(false); // Mutual exclusion
+                            }}
+                            disabled={isThinking || isDeepReasoning}
+                          />
+                          <span className="zetsu-slider round"></span>
+                        </label>
+                      </div>
+
+                      {/* Prompt Enhancer */}
+                      <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`p-1.5 rounded-md ${isEnhancing ? "bg-amber-500/20 text-amber-400 animate-pulse" : "bg-zinc-800 text-zinc-400"}`}
+                          >
+                            <Wand2
+                              size={16}
+                              className={isEnhancing ? "animate-spin-slow" : ""}
+                            />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm text-zinc-200 font-medium">
+                              Prompt Enhancer
+                            </span>
+                            <span className="text-[10px] text-zinc-500">
+                              Auto-optimize your question
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleEnhancePrompt}
+                          disabled={!input.trim() || isEnhancing || isThinking}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                            !input.trim()
+                              ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                              : "bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:scale-105 shadow-lg shadow-orange-500/20"
+                          }`}
+                        >
+                          {isEnhancing ? "Enhancing..." : "Enhance"}
+                        </button>
+                      </div>
+
+                      {/* Dynamic Image Generation */}
+                      <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`p-1.5 rounded-md ${isImageGenEnabled ? "bg-blue-500/20 text-blue-400" : "bg-zinc-800 text-zinc-400"}`}
+                          >
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <rect
+                                x="3"
+                                y="3"
+                                width="18"
+                                height="18"
+                                rx="2"
+                                ry="2"
+                              ></rect>
+                              <circle cx="9" cy="9" r="2"></circle>
+                              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+                            </svg>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm text-zinc-200 font-medium">
+                              Image Generation
+                            </span>
+                            <span className="text-[10px] text-zinc-500">
+                              Auto-generate visuals
+                            </span>
+                          </div>
+                        </div>
+                        <label
+                          className="zetsu-switch"
+                          style={{ transform: "scale(0.8)" }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isImageGenEnabled}
+                            onChange={(e) =>
+                              setIsImageGenEnabled(e.target.checked)
+                            }
+                            disabled={isThinking}
+                          />
+                          <span className="zetsu-slider round"></span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             }
           />
-
-          {/* Tools Popover Menu - Rendered OUTSIDE the input to avoid overflow:hidden clipping */}
-          {isToolsOpen && (
-            <div
-              className="absolute bottom-full right-0 mb-3 w-64 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 z-50 overflow-hidden"
-              onMouseEnter={handleToolsMouseEnter}
-              onMouseLeave={handleToolsMouseLeave}
-            >
-              <div className="px-4 py-3 border-b border-white/5 bg-white/5">
-                <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                  AI Configuration
-                </h4>
-              </div>
-
-              <div className="p-2 space-y-1">
-                <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`p-1.5 rounded-md ${isDeepReasoning ? "bg-purple-500/20 text-purple-400" : "bg-zinc-800 text-zinc-400"}`}
-                    >
-                      <BrainCircuit size={16} />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm text-zinc-200 font-medium">
-                        Deep Reasoning
-                      </span>
-                      <span className="text-[10px] text-zinc-500">
-                        3-Stage detailed analysis
-                      </span>
-                    </div>
-                  </div>
-                  <label
-                    className="zetsu-switch"
-                    style={{ transform: "scale(0.8)" }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isDeepReasoning}
-                      onChange={(e) => {
-                        setIsDeepReasoning(e.target.checked);
-                        if (e.target.checked) setIsSubAgentMode(false); // Mutual exclusion
-                      }}
-                      disabled={isThinking || isSubAgentMode}
-                    />
-                    <span className="zetsu-slider round"></span>
-                  </label>
-                </div>
-
-                {/* SubAgent Mode (5-Stage) */}
-                <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`p-1.5 rounded-md ${isSubAgentMode ? "bg-cyan-500/20 text-cyan-400" : "bg-zinc-800 text-zinc-400"}`}
-                    >
-                      <Bot size={16} />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm text-zinc-200 font-medium">
-                        SubAgent Mode
-                      </span>
-                      <span className="text-[10px] text-zinc-500">
-                        5-Agent Advanced Pipeline
-                      </span>
-                    </div>
-                  </div>
-                  <label
-                    className="zetsu-switch"
-                    style={{ transform: "scale(0.8)" }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSubAgentMode}
-                      onChange={(e) => {
-                        setIsSubAgentMode(e.target.checked);
-                        if (e.target.checked) setIsDeepReasoning(false); // Mutual exclusion
-                      }}
-                      disabled={isThinking || isDeepReasoning}
-                    />
-                    <span className="zetsu-slider round"></span>
-                  </label>
-                </div>
-
-                {/* Prompt Enhancer */}
-                <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`p-1.5 rounded-md ${isEnhancing ? "bg-amber-500/20 text-amber-400 animate-pulse" : "bg-zinc-800 text-zinc-400"}`}
-                    >
-                      <Wand2
-                        size={16}
-                        className={isEnhancing ? "animate-spin-slow" : ""}
-                      />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm text-zinc-200 font-medium">
-                        Prompt Enhancer
-                      </span>
-                      <span className="text-[10px] text-zinc-500">
-                        Auto-optimize your question
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleEnhancePrompt}
-                    disabled={!input.trim() || isEnhancing || isThinking}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      !input.trim()
-                        ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
-                        : "bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:scale-105 shadow-lg shadow-orange-500/20"
-                    }`}
-                  >
-                    {isEnhancing ? "Enhancing..." : "Enhance"}
-                  </button>
-                </div>
-
-                {/* Dynamic Image Generation */}
-                <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`p-1.5 rounded-md ${isImageGenEnabled ? "bg-blue-500/20 text-blue-400" : "bg-zinc-800 text-zinc-400"}`}
-                    >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <rect
-                          x="3"
-                          y="3"
-                          width="18"
-                          height="18"
-                          rx="2"
-                          ry="2"
-                        ></rect>
-                        <circle cx="9" cy="9" r="2"></circle>
-                        <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
-                      </svg>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm text-zinc-200 font-medium">
-                        Image Generation
-                      </span>
-                      <span className="text-[10px] text-zinc-500">
-                        Auto-generate visuals
-                      </span>
-                    </div>
-                  </div>
-                  <label
-                    className="zetsu-switch"
-                    style={{ transform: "scale(0.8)" }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isImageGenEnabled}
-                      onChange={(e) => setIsImageGenEnabled(e.target.checked)}
-                      disabled={isThinking}
-                    />
-                    <span className="zetsu-slider round"></span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
           {/* Sailboat Animation */}
           {messages.length === 0 && (
             <div
@@ -5288,8 +5845,8 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
 
                 /* Welcome Screen */
                 .zetsu-ai-welcome {
-                    max-width: 600px;
-                    margin: 80px auto;
+                    max-width: 580px;
+                    margin: 30px auto;
                     text-align: center;
                     animation: fadeInUp 0.5s ease-out;
                 }
@@ -5306,9 +5863,9 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                 }
 
                 .zetsu-ai-welcome-icon {
-                    width: 280px;
-                    height: 280px;
-                    margin: 0 auto 10px;
+                    width: 180px;
+                    height: 180px;
+                    margin: 0 auto 5px;
                     background: transparent;
                     display: flex;
                     align-items: center;
@@ -5335,9 +5892,9 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                 }
 
                 .zetsu-ai-welcome h2 {
-                    font-size: 2rem;
+                    font-size: 1.5rem;
                     font-weight: 700;
-                    margin-bottom: 12px;
+                    margin-bottom: 8px;
                     color: #ffffff;
                 }
 
@@ -5351,15 +5908,15 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
 
                 .zetsu-ai-welcome p {
                     color: rgba(255,255,255,0.6);
-                    font-size: 1.1rem;
-                    margin-bottom: 32px;
+                    font-size: 0.95rem;
+                    margin-bottom: 24px;
                 }
 
                 /* Prompts Section */
                 .zetsu-prompts-section {
                     margin-top: 20px;
                     width: 100%;
-                    max-width: 700px;
+                    max-width: 600px;
                 }
 
                 .zetsu-prompts-header {

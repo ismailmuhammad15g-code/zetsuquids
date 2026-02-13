@@ -1,336 +1,481 @@
-import { ArrowUpRight, Calendar, Filter, Grid, List, Plus, Search, Tag } from 'lucide-react'
-import { useEffect, useState, useMemo } from 'react'
-import { Link, useOutletContext } from 'react-router-dom'
-import { useGuides } from '../hooks/useGuides'
-import { GuidesSkeletonGrid, GuidesSkeletonList } from '../components/GuideSkeleton'
-import { getAvatarForUser } from '../lib/avatar'
-import { supabase } from '../lib/supabase'
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
+    ArrowUpRight,
+    Calendar,
+    Filter,
+    Grid,
+    List,
+    Plus,
+    Search,
+    Tag,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useOutletContext } from "react-router-dom";
+import {
+    GuidesSkeletonGrid,
+    GuidesSkeletonList,
+} from "../components/GuideSkeleton";
+import { useGuides } from "../hooks/useGuides";
+import { getAvatarForUser } from "../lib/avatar";
+import { supabase } from "../lib/supabase";
 
 export default function AllGuidesPage() {
-    const { openAddModal } = useOutletContext()
+  const { openAddModal } = useOutletContext();
 
-    // Use React Query hook for caching and data fetching
-    const { data: guides = [], isLoading, isError } = useGuides()
+  // Use React Query hook for caching and data fetching
+  const { data: guides = [], isLoading, isError } = useGuides();
 
-    const [searchQuery, setSearchQuery] = useState('')
-    const [viewMode, setViewMode] = useState('grid') // grid or list
-    const [selectedTag, setSelectedTag] = useState(null)
-    const [authorAvatars, setAuthorAvatars] = useState({}) // Cache for author avatars
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState("grid"); // grid or list
+  const [selectedTag, setSelectedTag] = useState(null);
+  const [authorAvatars, setAuthorAvatars] = useState({}); // Cache for author avatars
+  const [currentPage, setCurrentPage] = useState(1);
+  const GUIDES_PER_PAGE = 12;
 
-    // Extract all unique tags
-    const allTags = useMemo(() => {
-        const tags = new Set()
-        guides.forEach(g => {
-            (g.keywords || []).forEach(k => tags.add(k))
-        })
-        return Array.from(tags)
-    }, [guides])
+  // Extract all unique tags
+  const allTags = useMemo(() => {
+    const tags = new Set();
+    guides.forEach((g) => {
+      (g.keywords || []).forEach((k) => tags.add(k));
+    });
+    return Array.from(tags);
+  }, [guides]);
 
-    // Filter guides
-    const filteredGuides = useMemo(() => {
-        let filtered = [...guides]
+  // Filter guides
+  const filteredGuides = useMemo(() => {
+    let filtered = [...guides];
 
-        // Search filter
-        if (searchQuery) {
-            const q = searchQuery.toLowerCase()
-            filtered = filtered.filter(g =>
-                g.title.toLowerCase().includes(q) ||
-                (g.keywords || []).some(k => k.toLowerCase().includes(q)) ||
-                (g.markdown || g.content || '').toLowerCase().includes(q)
-            )
-        }
-
-        // Tag filter
-        if (selectedTag) {
-            filtered = filtered.filter(g =>
-                (g.keywords || []).includes(selectedTag)
-            )
-        }
-
-        return filtered
-    }, [guides, searchQuery, selectedTag])
-
-    // Fetch author avatars when guides change
-    useEffect(() => {
-        if (guides.length > 0) {
-            fetchAuthorAvatars(guides)
-        }
-    }, [guides])
-
-
-    async function fetchAuthorAvatars(guidesList) {
-        const uniqueEmails = new Set(guidesList.map(g => g.user_email).filter(Boolean))
-        const newAvatars = { ...authorAvatars }
-
-        for (const email of uniqueEmails) {
-            if (newAvatars[email]) continue // Already cached
-
-            try {
-                const { data: profileData } = await supabase
-                    .from('zetsuguide_user_profiles')
-                    .select('avatar_url')
-                    .eq('user_email', email)
-                    .maybeSingle()
-
-                // Get avatar: from profile or deterministic hash
-                const avatarUrl = getAvatarForUser(email, profileData?.avatar_url)
-                newAvatars[email] = avatarUrl
-            } catch (err) {
-                console.error(`Error fetching avatar for ${email}:`, err)
-                // Fallback to deterministic avatar
-                newAvatars[email] = getAvatarForUser(email, null)
-            }
-        }
-
-        setAuthorAvatars(newAvatars)
+    // Search filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (g) =>
+          g.title.toLowerCase().includes(q) ||
+          (g.keywords || []).some((k) => k.toLowerCase().includes(q)) ||
+          (g.markdown || g.content || "").toLowerCase().includes(q),
+      );
     }
 
-
-    // Highlight search match
-    function highlight(text) {
-        if (!searchQuery || !text) return text
-        const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
-        const parts = text.split(regex)
-        return parts.map((part, i) =>
-            part.toLowerCase() === searchQuery.toLowerCase()
-                ? <mark key={i} className="bg-yellow-200">{part}</mark>
-                : part
-        )
+    // Tag filter
+    if (selectedTag) {
+      filtered = filtered.filter((g) =>
+        (g.keywords || []).includes(selectedTag),
+      );
     }
 
-    return (
-        <div className="max-w-7xl mx-auto px-4 py-8">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                <div>
-                    <h1 className="text-4xl font-black">All Guides</h1>
-                    <p className="text-gray-600">
-                        {guides.length} guide{guides.length !== 1 ? 's' : ''} in your collection
-                    </p>
-                </div>
-                <button
-                    onClick={openAddModal}
-                    className="flex items-center gap-2 px-6 py-3 bg-black text-white font-medium hover:bg-gray-800 transition-colors"
-                >
-                    <Plus size={20} />
-                    Add Guide
-                </button>
-            </div>
+    return filtered;
+  }, [guides, searchQuery, selectedTag]);
 
-            {/* Filters */}
-            <div className="flex flex-col lg:flex-row gap-4 mb-8">
-                {/* Search */}
-                <div className="flex-1 relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        placeholder="Search guides..."
-                        className="w-full pl-12 pr-4 py-3 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black"
-                    />
-                </div>
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredGuides.length / GUIDES_PER_PAGE);
 
-                {/* View Toggle */}
-                <div className="flex border-2 border-black">
-                    <button
-                        onClick={() => setViewMode('grid')}
-                        className={`flex items-center gap-2 px-4 py-2 transition-colors ${viewMode === 'grid' ? 'bg-black text-white' : 'hover:bg-gray-100'
-                            }`}
-                    >
-                        <Grid size={18} />
-                        <span className="hidden sm:inline">Grid</span>
-                    </button>
-                    <button
-                        onClick={() => setViewMode('list')}
-                        className={`flex items-center gap-2 px-4 py-2 border-l-2 border-black transition-colors ${viewMode === 'list' ? 'bg-black text-white' : 'hover:bg-gray-100'
-                            }`}
-                    >
-                        <List size={18} />
-                        <span className="hidden sm:inline">List</span>
-                    </button>
-                </div>
-            </div>
+  // Reset to page 1 if filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedTag]);
 
-            {/* Tags Filter */}
-            {allTags.length > 0 && (
-                <div className="mb-8">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-bold text-gray-500">Filter by tag:</span>
-                        <button
-                            onClick={() => setSelectedTag(null)}
-                            className={`px-3 py-1 text-sm font-medium transition-colors ${!selectedTag
-                                ? 'bg-black text-white'
-                                : 'bg-gray-100 hover:bg-gray-200'
-                                }`}
-                        >
-                            All
-                        </button>
-                        {allTags.slice(0, 10).map(tag => (
-                            <button
-                                key={tag}
-                                onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
-                                className={`px-3 py-1 text-sm font-medium transition-colors ${selectedTag === tag
-                                    ? 'bg-black text-white'
-                                    : 'bg-gray-100 hover:bg-gray-200'
-                                    }`}
-                            >
-                                {tag}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
+  const currentGuides = useMemo(() => {
+    const start = (currentPage - 1) * GUIDES_PER_PAGE;
+    return filteredGuides.slice(start, start + GUIDES_PER_PAGE);
+  }, [filteredGuides, currentPage]);
 
-            {/* Loading Skeletons */}
-            {isLoading && (
-                viewMode === 'grid'
-                    ? <GuidesSkeletonGrid count={6} />
-                    : <GuidesSkeletonList count={6} />
-            )}
+  // Fetch author avatars when guides change
+  useEffect(() => {
+    if (currentGuides.length > 0) {
+      fetchAuthorAvatars(currentGuides);
+    }
+  }, [currentGuides]);
 
-            {/* Empty State */}
-            {!isLoading && guides.length === 0 && (
-                <div className="border-2 border-dashed border-gray-300 p-12 text-center">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Filter size={32} className="text-gray-400" />
-                    </div>
-                    <h3 className="text-xl font-bold mb-2">No guides yet</h3>
-                    <p className="text-gray-500 mb-6">
-                        Create your first guide to get started
-                    </p>
-                    <button
-                        onClick={openAddModal}
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white font-medium"
-                    >
-                        <Plus size={20} />
-                        Add Guide
-                    </button>
-                </div>
-            )}
+  async function fetchAuthorAvatars(guidesList) {
+    const uniqueEmails = new Set(
+      guidesList.map((g) => g.user_email).filter(Boolean),
+    );
+    const newAvatars = { ...authorAvatars };
 
-            {/* No Results */}
-            {!isLoading && guides.length > 0 && filteredGuides.length === 0 && (
-                <div className="border-2 border-gray-200 p-12 text-center">
-                    <Search size={48} className="mx-auto text-gray-300 mb-4" />
-                    <h3 className="text-xl font-bold mb-2">No results found</h3>
-                    <p className="text-gray-500">
-                        Try adjusting your search or filter criteria
-                    </p>
-                </div>
-            )}
+    for (const email of uniqueEmails) {
+      if (newAvatars[email]) continue; // Already cached
 
-            {/* Grid View */}
-            {!isLoading && viewMode === 'grid' && filteredGuides.length > 0 && (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredGuides.map(guide => (
-                        <Link
-                            key={guide.id}
-                            to={`/guide/${guide.slug}`}
-                            className="group border-2 border-black p-6 hover:shadow-lg transition-all hover:-translate-y-1 flex flex-col"
-                        >
-                            <div className="flex items-start justify-between mb-3">
-                                <h3 className="text-xl font-bold group-hover:underline flex-1">
-                                    {highlight(guide.title)}
-                                </h3>
-                                <ArrowUpRight size={20} className="text-gray-400 group-hover:text-black transition-colors" />
-                            </div>
+      try {
+        const { data: profileData } = await supabase
+          .from("zetsuguide_user_profiles")
+          .select("avatar_url")
+          .eq("user_email", email)
+          .maybeSingle();
 
-                            {/* Author info */}
-                            {guide.user_email && (
-                                <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
-                                    {authorAvatars[guide.user_email] ? (
-                                        <img
-                                            src={authorAvatars[guide.user_email]}
-                                            alt={guide.author_name}
-                                            className="w-6 h-6 rounded-full object-cover flex-shrink-0"
-                                        />
-                                    ) : (
-                                        <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                                            {(guide.author_name || guide.user_email)?.[0]?.toUpperCase()}
-                                        </div>
-                                    )}
-                                    <span className="text-gray-600 font-medium">
-                                        {guide.author_name || guide.user_email.split('@')[0]}
-                                    </span>
-                                </div>
-                            )}
+        // Get avatar: from profile or deterministic hash
+        const avatarUrl = getAvatarForUser(email, profileData?.avatar_url);
+        newAvatars[email] = avatarUrl;
+      } catch (err) {
+        console.error(`Error fetching avatar for ${email}:`, err);
+        // Fallback to deterministic avatar
+        newAvatars[email] = getAvatarForUser(email, null);
+      }
+    }
 
-                            <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-                                <Calendar size={14} />
-                                {new Date(guide.created_at).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric'
-                                })}
-                            </div>
-                            {guide.keywords && guide.keywords.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
-                                    {guide.keywords.slice(0, 3).map((kw, i) => (
-                                        <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-xs">
-                                            <Tag size={10} />
-                                            {highlight(kw)}
-                                        </span>
-                                    ))}
-                                    {guide.keywords.length > 3 && (
-                                        <span className="px-2 py-1 bg-gray-100 text-xs">
-                                            +{guide.keywords.length - 3}
-                                        </span>
-                                    )}
-                                </div>
-                            )}
-                        </Link>
-                    ))}
-                </div>
-            )}
+    setAuthorAvatars(newAvatars);
+  }
 
-            {/* List View */}
-            {!isLoading && viewMode === 'list' && filteredGuides.length > 0 && (
-                <div className="border-2 border-black divide-y-2 divide-black">
-                    {filteredGuides.map(guide => (
-                        <Link
-                            key={guide.id}
-                            to={`/guide/${guide.slug}`}
-                            className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors group"
-                        >
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-3 mb-2">
-                                    {/* Author avatar */}
-                                    {guide.user_email && (
-                                        authorAvatars[guide.user_email] ? (
-                                            <img
-                                                src={authorAvatars[guide.user_email]}
-                                                alt={guide.author_name}
-                                                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                                            />
-                                        ) : (
-                                            <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                                                {(guide.author_name || guide.user_email)?.[0]?.toUpperCase()}
-                                            </div>
-                                        )
-                                    )}
-                                    <h3 className="font-bold group-hover:underline truncate">
-                                        {highlight(guide.title)}
-                                    </h3>
-                                </div>
-                                <div className="flex items-center gap-4 text-xs text-gray-500 ml-11">
-                                    <span className="flex items-center gap-1">
-                                        <Calendar size={12} />
-                                        {new Date(guide.created_at).toLocaleDateString()}
-                                    </span>
-                                    {guide.keywords && guide.keywords.length > 0 && (
-                                        <span className="flex items-center gap-1">
-                                            <Tag size={12} />
-                                            {guide.keywords.slice(0, 2).join(', ')}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            <ArrowUpRight size={20} className="text-gray-400 group-hover:text-black transition-colors ml-4" />
-                        </Link>
-                    ))}
-                </div>
-            )}
+  // Highlight search match
+  function highlight(text) {
+    if (!searchQuery || !text) return text;
+    const regex = new RegExp(
+      `(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+      "gi",
+    );
+    const parts = text.split(regex);
+    return parts.map((part, i) =>
+      part.toLowerCase() === searchQuery.toLowerCase() ? (
+        <mark key={i} className="bg-yellow-200">
+          {part}
+        </mark>
+      ) : (
+        part
+      ),
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-4xl font-black">All Guides</h1>
+          <p className="text-gray-600">
+            {guides.length} guide{guides.length !== 1 ? "s" : ""} in your
+            collection
+          </p>
         </div>
-    )
+        <button
+          onClick={openAddModal}
+          className="flex items-center gap-2 px-6 py-3 bg-black text-white font-medium hover:bg-gray-800 transition-colors"
+        >
+          <Plus size={20} />
+          Add Guide
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col lg:flex-row gap-4 mb-8">
+        {/* Search */}
+        <div className="flex-1 relative">
+          <Search
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+            size={20}
+          />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search guides..."
+            className="w-full pl-12 pr-4 py-3 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black"
+          />
+        </div>
+
+        {/* View Toggle */}
+        <div className="flex border-2 border-black">
+          <button
+            onClick={() => setViewMode("grid")}
+            className={`flex items-center gap-2 px-4 py-2 transition-colors ${
+              viewMode === "grid" ? "bg-black text-white" : "hover:bg-gray-100"
+            }`}
+          >
+            <Grid size={18} />
+            <span className="hidden sm:inline">Grid</span>
+          </button>
+          <button
+            onClick={() => setViewMode("list")}
+            className={`flex items-center gap-2 px-4 py-2 border-l-2 border-black transition-colors ${
+              viewMode === "list" ? "bg-black text-white" : "hover:bg-gray-100"
+            }`}
+          >
+            <List size={18} />
+            <span className="hidden sm:inline">List</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Tags Filter */}
+      {allTags.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-bold text-gray-500">
+              Filter by tag:
+            </span>
+            <button
+              onClick={() => setSelectedTag(null)}
+              className={`px-3 py-1 text-sm font-medium transition-colors ${
+                !selectedTag
+                  ? "bg-black text-white"
+                  : "bg-gray-100 hover:bg-gray-200"
+              }`}
+            >
+              All
+            </button>
+            {allTags.slice(0, 10).map((tag) => (
+              <button
+                key={tag}
+                onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
+                className={`px-3 py-1 text-sm font-medium transition-colors ${
+                  selectedTag === tag
+                    ? "bg-black text-white"
+                    : "bg-gray-100 hover:bg-gray-200"
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Loading Skeletons */}
+      {isLoading &&
+        (viewMode === "grid" ? (
+          <GuidesSkeletonGrid count={6} />
+        ) : (
+          <GuidesSkeletonList count={6} />
+        ))}
+
+      {/* Empty State */}
+      {!isLoading && guides.length === 0 && (
+        <div className="border-2 border-dashed border-gray-300 p-12 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Filter size={32} className="text-gray-400" />
+          </div>
+          <h3 className="text-xl font-bold mb-2">No guides yet</h3>
+          <p className="text-gray-500 mb-6">
+            Create your first guide to get started
+          </p>
+          <button
+            onClick={openAddModal}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white font-medium"
+          >
+            <Plus size={20} />
+            Add Guide
+          </button>
+        </div>
+      )}
+
+      {/* No Results */}
+      {!isLoading && guides.length > 0 && filteredGuides.length === 0 && (
+        <div className="border-2 border-gray-200 p-12 text-center">
+          <Search size={48} className="mx-auto text-gray-300 mb-4" />
+          <h3 className="text-xl font-bold mb-2">No results found</h3>
+          <p className="text-gray-500">
+            Try adjusting your search or filter criteria
+          </p>
+        </div>
+      )}
+
+      {/* Grid View */}
+      {!isLoading && viewMode === "grid" && currentGuides.length > 0 && (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {currentGuides.map((guide) => (
+            <Link
+              key={guide.id}
+              to={`/guide/${guide.slug}`}
+              className="group border-2 border-black p-6 hover:shadow-lg transition-all hover:-translate-y-1 flex flex-col"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <h3 className="text-xl font-bold group-hover:underline flex-1">
+                  {highlight(guide.title)}
+                </h3>
+                <ArrowUpRight
+                  size={20}
+                  className="text-gray-400 group-hover:text-black transition-colors"
+                />
+              </div>
+
+              {/* Author info */}
+              {guide.user_email && (
+                <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
+                  {authorAvatars[guide.user_email] ? (
+                    <img
+                      src={authorAvatars[guide.user_email]}
+                      alt={guide.author_name}
+                      className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                      {(guide.author_name ||
+                        guide.user_email)?.[0]?.toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-gray-600 font-medium">
+                    {guide.author_name || guide.user_email.split("@")[0]}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+                <Calendar size={14} />
+                {new Date(guide.created_at).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })}
+              </div>
+              {guide.keywords && guide.keywords.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {guide.keywords.slice(0, 3).map((kw, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-xs"
+                    >
+                      <Tag size={10} />
+                      {highlight(kw)}
+                    </span>
+                  ))}
+                  {guide.keywords.length > 3 && (
+                    <span className="px-2 py-1 bg-gray-100 text-xs">
+                      +{guide.keywords.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* List View */}
+      {!isLoading && viewMode === "list" && currentGuides.length > 0 && (
+        <div className="border-2 border-black divide-y-2 divide-black">
+          {currentGuides.map((guide) => (
+            <Link
+              key={guide.id}
+              to={`/guide/${guide.slug}`}
+              className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors group"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-2">
+                  {/* Author avatar */}
+                  {guide.user_email &&
+                    (authorAvatars[guide.user_email] ? (
+                      <img
+                        src={authorAvatars[guide.user_email]}
+                        alt={guide.author_name}
+                        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                        {(guide.author_name ||
+                          guide.user_email)?.[0]?.toUpperCase()}
+                      </div>
+                    ))}
+                  <h3 className="font-bold group-hover:underline truncate">
+                    {highlight(guide.title)}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-gray-500 ml-11">
+                  <span className="flex items-center gap-1">
+                    <Calendar size={12} />
+                    {new Date(guide.created_at).toLocaleDateString()}
+                  </span>
+                  {guide.keywords && guide.keywords.length > 0 && (
+                    <span className="flex items-center gap-1">
+                      <Tag size={12} />
+                      {guide.keywords.slice(0, 2).join(", ")}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <ArrowUpRight
+                size={20}
+                className="text-gray-400 group-hover:text-black transition-colors ml-4"
+              />
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-12 mb-8">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 1) setCurrentPage((p) => p - 1);
+                  }}
+                  className={
+                    currentPage <= 1
+                      ? "pointer-events-none opacity-50"
+                      : "cursor-pointer"
+                  }
+                />
+              </PaginationItem>
+
+              {/* Page Numbers Logic */}
+              {Array.from({ length: totalPages }).map((_, idx) => {
+                const pageNum = idx + 1;
+
+                // Show first, last, current, and surrounding pages
+                if (
+                  pageNum === 1 ||
+                  pageNum === totalPages ||
+                  (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                ) {
+                  return (
+                    <PaginationItem key={pageNum}>
+                      <PaginationLink
+                        href="#"
+                        isActive={currentPage === pageNum}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(pageNum);
+                        }}
+                      >
+                        {pageNum}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                }
+
+                // Show ellipsis if gap exists
+                if (
+                  (pageNum === 2 && currentPage > 3) ||
+                  (pageNum === totalPages - 1 && currentPage < totalPages - 2)
+                ) {
+                  return (
+                    <PaginationItem key={`ellipsis-${pageNum}`}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  );
+                }
+
+                return null;
+              })}
+
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages) setCurrentPage((p) => p + 1);
+                  }}
+                  className={
+                    currentPage >= totalPages
+                      ? "pointer-events-none opacity-50"
+                      : "cursor-pointer"
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
+    </div>
+  );
 }

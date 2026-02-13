@@ -16,6 +16,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import ConfirmModal from "../components/ConfirmModal";
 import GuideComments from "../components/GuideComments";
+import GuideTimer from "../components/GuideTimer";
 import { useAuth } from "../contexts/AuthContext";
 import { guidesApi } from "../lib/api";
 import { getAvatarForUser } from "../lib/avatar";
@@ -355,14 +356,19 @@ export default function GuidePage() {
 
   return (
     <article className="max-w-4xl mx-auto px-4 py-8">
-      {/* Back Link */}
-      <Link
-        to="/guides"
-        className="inline-flex items-center gap-2 text-gray-500 hover:text-black mb-8 transition-colors"
-      >
-        <ArrowLeft size={18} />
-        Back to Guides
-      </Link>
+      {/* Top Bar: Back Link & Timer */}
+      <div className="flex items-center justify-between mb-8">
+        <Link
+          to="/guides"
+          className="inline-flex items-center gap-2 text-gray-500 hover:text-black transition-colors"
+        >
+          <ArrowLeft size={18} />
+          Back to Guides
+        </Link>
+
+        {/* Real-time Usage Timer */}
+        {user && guide && <GuideTimer guideId={guide.id} userId={user.id} />}
+      </div>
 
       {/* Header */}
       <header className="mb-8 pb-8 border-b-2 border-black">
