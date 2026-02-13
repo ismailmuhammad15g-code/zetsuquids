@@ -254,7 +254,11 @@ function apiMiddleware() {
         }
 
         // Handle unified payment_handler API (both GET and POST)
-        if (req.url === "/api/payment_callback" || req.url === "/api/payment_status" || req.url?.startsWith("/api/payment_status")) {
+        if (
+          req.url === "/api/payment_callback" ||
+          req.url === "/api/payment_status" ||
+          req.url?.startsWith("/api/payment_status")
+        ) {
           // For POST requests (callbacks), parse body
           if (req.method === "POST") {
             let body = "";
@@ -266,7 +270,8 @@ function apiMiddleware() {
                 const data = JSON.parse(body);
 
                 // Set Supabase environment variables
-                process.env.SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+                process.env.SUPABASE_URL =
+                  env.VITE_SUPABASE_URL || env.SUPABASE_URL;
                 process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
 
                 const mockReq = {
@@ -300,23 +305,30 @@ function apiMiddleware() {
                   },
                 };
 
-                const { default: paymentHandler } = await import("./api/payment_handler.js");
+                const { default: paymentHandler } =
+                  await import("./api/payment_handler.js");
                 await paymentHandler(mockReq, mockRes);
               } catch (error) {
-                console.error("[API Middleware] Error in payment_handler:", error);
+                console.error(
+                  "[API Middleware] Error in payment_handler:",
+                  error,
+                );
                 res.statusCode = 500;
                 res.setHeader("Content-Type", "application/json");
-                res.end(JSON.stringify({
-                  error: "Internal server error",
-                  details: error.message,
-                }));
+                res.end(
+                  JSON.stringify({
+                    error: "Internal server error",
+                    details: error.message,
+                  }),
+                );
               }
             });
             return;
           }
-          
+
           // For GET requests (status page)
-          const { default: paymentHandler } = await import("./api/payment_handler.js");
+          const { default: paymentHandler } =
+            await import("./api/payment_handler.js");
           const mockRes = {
             statusCode: 200,
             headers: {},

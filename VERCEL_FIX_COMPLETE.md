@@ -1,8 +1,9 @@
 # ✅ تم حل مشكلة Vercel بنجاح!
 
 ## 🔥 المشكلة الأساسية
+
 ```
-Error: No more than 12 Serverless Functions can be added to a Deployment 
+Error: No more than 12 Serverless Functions can be added to a Deployment
 on the Hobby plan.
 ```
 
@@ -13,21 +14,27 @@ on the Hobby plan.
 ## ✅ الحل المُطبّق:
 
 ### 1️⃣ دمج Payment APIs
+
 دمجت ملفين في واحد:
+
 - ❌ ~~`api/payment_callback.js`~~ (محذوف)
 - ❌ ~~`api/payment_status.js`~~ (محذوف)
 - ✅ **`api/payment_handler.js`** (جديد - يدعم GET و POST)
 
 ### 2️⃣ إصلاح package.json
+
 ```json
 "engines": {
   "node": "20.x"  // بدلاً من ">=18.0.0"
 }
 ```
+
 هذا يحدد نسخة ثابتة من Node.js ويزيل التحذير.
 
 ### 3️⃣ تحديث vite.config.js
+
 تم تحديث middleware للتعامل مع:
+
 - `/api/payment_callback` → يوجه إلى `payment_handler.js`
 - `/api/payment_status` → يوجه إلى `payment_handler.js`
 
@@ -57,6 +64,7 @@ on the Hobby plan.
 ## 🚀 الخطوات التالية:
 
 ### 1. ارفع التعديلات
+
 ```powershell
 git add .
 git commit -m "Fix: Reduce API functions to 12 by merging payment endpoints"
@@ -64,9 +72,11 @@ git push
 ```
 
 ### 2. انتظر النشر
+
 Vercel سينشر تلقائياً خلال 2-3 دقائق
 
 ### 3. تأكد من النجاح
+
 ```
 ✅ Build Completed
 ✅ Deploying outputs
@@ -81,15 +91,14 @@ Vercel سينشر تلقائياً خلال 2-3 دقائق
 
 ```javascript
 export default async function handler(req, res) {
-  
   // GET request → Payment Status Page
-  if (req.method === 'GET') {
-    return handlePaymentStatus(req, res)
+  if (req.method === "GET") {
+    return handlePaymentStatus(req, res);
   }
-  
+
   // POST request → Payment Callback (Webhook)
-  if (req.method === 'POST') {
-    return handlePaymentCallback(req, res)
+  if (req.method === "POST") {
+    return handlePaymentCallback(req, res);
   }
 }
 ```
@@ -123,11 +132,14 @@ export default async function handler(req, res) {
 ## 🛠️ إذا احتجت المزيد من APIs في المستقبل:
 
 ### الخيار 1: دمج APIs أخرى
+
 يمكنك دمج APIs مشابهة مثل:
+
 - `claim_referral.js` + `daily_credits.js` → `credits_handler.js`
 - `approve_bug_reward.js` + `submit.js` → `bug_system.js`
 
 ### الخيار 2: الترقية لـ Pro Plan
+
 - حد أعلى: **100 Serverless Functions**
 - مميزات إضافية
 - $20/شهر
@@ -136,13 +148,13 @@ export default async function handler(req, res) {
 
 ## 📝 ملخص الملفات المُعدّلة:
 
-| الملف | التغيير |
-|-------|---------|
-| `api/payment_handler.js` | ✅ جديد (دمج callback + status) |
-| `api/payment_callback.js` | ❌ محذوف |
-| `api/payment_status.js` | ❌ محذوف |
-| `package.json` | ✅ تحديث Node version إلى `20.x` |
-| `vite.config.js` | ✅ تحديث middleware |
+| الملف                     | التغيير                          |
+| ------------------------- | -------------------------------- |
+| `api/payment_handler.js`  | ✅ جديد (دمج callback + status)  |
+| `api/payment_callback.js` | ❌ محذوف                         |
+| `api/payment_status.js`   | ❌ محذوف                         |
+| `package.json`            | ✅ تحديث Node version إلى `20.x` |
+| `vite.config.js`          | ✅ تحديث middleware              |
 
 ---
 
@@ -161,6 +173,7 @@ export default async function handler(req, res) {
 **الآن المشروع جاهز للنشر بدون أخطاء!** 🎉
 
 ارفع التعديلات باستخدام:
+
 ```powershell
 git add .
 git commit -m "Fix: Merge payment APIs and set Node.js to 20.x"

@@ -3,22 +3,20 @@
 // =========================================
 
 // مثال 1: في صفحة HomePage
-import SEOHelmet from '../components/SEOHelmet'
+import SEOHelmet from "../components/SEOHelmet";
 
 function HomePage() {
   return (
     <>
-      <SEOHelmet 
+      <SEOHelmet
         title="Home"
         description="Create and share comprehensive programming guides with AI assistance. Join our community of developers and explore tutorials, code examples, and best practices."
         keywords="developer guides, programming tutorials, AI guide generator, developer community"
       />
-      
-      <div>
-        {/* محتوى الصفحة الرئيسية */}
-      </div>
+
+      <div>{/* محتوى الصفحة الرئيسية */}</div>
     </>
-  )
+  );
 }
 
 // =========================================
@@ -27,72 +25,68 @@ function HomePage() {
 function AllGuidesPage() {
   return (
     <>
-      <SEOHelmet 
+      <SEOHelmet
         title="All Developer Guides"
         description="Browse our comprehensive collection of developer guides, tutorials, and code examples. Learn programming, best practices, and modern development techniques."
         keywords="developer guides, programming tutorials, code examples, learning resources"
       />
-      
-      <div>
-        {/* قائمة الـ guides */}
-      </div>
+
+      <div>{/* قائمة الـ guides */}</div>
     </>
-  )
+  );
 }
 
 // =========================================
 
 // مثال 3: في صفحة GuidePage (مع بيانات ديناميكية)
 function GuidePage() {
-  const [guide, setGuide] = useState(null)
-  
+  const [guide, setGuide] = useState(null);
+
   return (
     <>
       {guide && (
-        <SEOHelmet 
+        <SEOHelmet
           title={guide.title}
-          description={guide.content ? 
-            guide.content.substring(0, 150).replace(/[#*`]/g, '') + '...' : 
-            'A comprehensive developer guide'
+          description={
+            guide.content
+              ? guide.content.substring(0, 150).replace(/[#*`]/g, "") + "..."
+              : "A comprehensive developer guide"
           }
-          author={guide.author_name || guide.user_email?.split('@')[0]}
-          keywords={guide.keywords ? guide.keywords.join(', ') : ''}
+          author={guide.author_name || guide.user_email?.split("@")[0]}
+          keywords={guide.keywords ? guide.keywords.join(", ") : ""}
           type="article"
         />
       )}
-      
-      <div>
-        {/* محتوى الـ guide */}
-      </div>
+
+      <div>{/* محتوى الـ guide */}</div>
     </>
-  )
+  );
 }
 
 // =========================================
 
 // مثال 4: في صفحة UserWorkspacePage
 function UserWorkspacePage() {
-  const { username } = useParams()
-  const [userProfile, setUserProfile] = useState(null)
-  
+  const { username } = useParams();
+  const [userProfile, setUserProfile] = useState(null);
+
   return (
     <>
       {userProfile && (
-        <SEOHelmet 
+        <SEOHelmet
           title={`@${userProfile.author_name}'s Workspace`}
-          description={userProfile.bio || 
+          description={
+            userProfile.bio ||
             `View all guides and content created by @${userProfile.author_name}. ${userProfile.guides_count} guides published.`
           }
           type="profile"
           keywords={`${userProfile.author_name}, developer, guides, workspace`}
         />
       )}
-      
-      <div>
-        {/* محتوى workspace */}
-      </div>
+
+      <div>{/* محتوى workspace */}</div>
     </>
-  )
+  );
 }
 
 // =========================================
@@ -101,17 +95,15 @@ function UserWorkspacePage() {
 function CommunityPage() {
   return (
     <>
-      <SEOHelmet 
+      <SEOHelmet
         title="Developer Community"
         description="Join our thriving community of developers. Share posts, connect with other developers, and participate in discussions about programming and technology."
         keywords="developer community, programming forum, tech community, developer networking"
       />
-      
-      <div>
-        {/* محتوى community */}
-      </div>
+
+      <div>{/* محتوى community */}</div>
     </>
-  )
+  );
 }
 
 // =========================================
@@ -120,17 +112,15 @@ function CommunityPage() {
 function PricingPage() {
   return (
     <>
-      <SEOHelmet 
+      <SEOHelmet
         title="Pricing Plans"
         description="Choose the perfect plan for your needs. Get access to premium features, unlimited guide creation, and priority support. Flexible pricing for individuals and teams."
         keywords="pricing, plans, subscription, premium features"
       />
-      
-      <div>
-        {/* جدول الأسعار */}
-      </div>
+
+      <div>{/* جدول الأسعار */}</div>
     </>
-  )
+  );
 }
 
 // =========================================
@@ -139,43 +129,39 @@ function PricingPage() {
 function AdminConsole() {
   return (
     <>
-      <SEOHelmet 
+      <SEOHelmet
         title="Admin Console"
         description="Administrative dashboard"
-        noindex={true}  // ⚠️ منع محركات البحث من أرشفة هذه الصفحة
+        noindex={true} // ⚠️ منع محركات البحث من أرشفة هذه الصفحة
       />
-      
-      <div>
-        {/* لوحة التحكم الإدارية */}
-      </div>
+
+      <div>{/* لوحة التحكم الإدارية */}</div>
     </>
-  )
+  );
 }
 
 // =========================================
 
 // مثال 8: في صفحة PostDetailsPage (Community Post)
 function PostDetailsPage() {
-  const { id } = useParams()
-  const [post, setPost] = useState(null)
-  
+  const { id } = useParams();
+  const [post, setPost] = useState(null);
+
   return (
     <>
       {post && (
-        <SEOHelmet 
-          title={post.content.substring(0, 60) + '...'}
-          description={post.content.substring(0, 150) + '...'}
+        <SEOHelmet
+          title={post.content.substring(0, 60) + "..."}
+          description={post.content.substring(0, 150) + "..."}
           author={post.author_name}
           type="article"
           keywords="community post, developer discussion, programming"
         />
       )}
-      
-      <div>
-        {/* محتوى المنشور */}
-      </div>
+
+      <div>{/* محتوى المنشور */}</div>
     </>
-  )
+  );
 }
 
 // =========================================
@@ -184,17 +170,15 @@ function PostDetailsPage() {
 function FAQPage() {
   return (
     <>
-      <SEOHelmet 
+      <SEOHelmet
         title="Frequently Asked Questions"
         description="Find answers to common questions about ZetsuGuide. Learn about features, pricing, account management, and more."
         keywords="FAQ, frequently asked questions, help, support, how to"
       />
-      
-      <div>
-        {/* قائمة الأسئلة والأجوبة */}
-      </div>
+
+      <div>{/* قائمة الأسئلة والأجوبة */}</div>
     </>
-  )
+  );
 }
 
 // =========================================
@@ -203,17 +187,15 @@ function FAQPage() {
 function SupportPage() {
   return (
     <>
-      <SEOHelmet 
+      <SEOHelmet
         title="Contact Support"
         description="Need help? Contact our support team. We're here to answer your questions and help you get the most out of ZetsuGuide."
         keywords="support, help, contact, customer service"
       />
-      
-      <div>
-        {/* نموذج الاتصال */}
-      </div>
+
+      <div>{/* نموذج الاتصال */}</div>
     </>
-  )
+  );
 }
 
 // =========================================
@@ -229,7 +211,7 @@ function SupportPage() {
 
 4. ✅ keywords: افصل بـ comma، 5-10 كلمات
 
-5. ✅ type: 
+5. ✅ type:
    - "website" للصفحات العامة (default)
    - "article" للمقالات والـ guides
    - "profile" لصفحات المستخدمين
