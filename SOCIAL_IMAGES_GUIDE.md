@@ -5,6 +5,7 @@
 لكي تظهر روابط موقعك بشكل جميل عند مشاركتها على Social Media، تحتاج لإنشاء الصور التالية:
 
 ### 1. صورة Open Graph الرئيسية
+
 - **المسار**: `public/social/og-image.jpg`
 - **المقاس**: 1200 × 630 بكسل
 - **الاستخدام**: Facebook, LinkedIn, WhatsApp
@@ -25,6 +26,7 @@
   ```
 
 ### 2. صورة Twitter Card
+
 - **المسار**: `public/social/twitter-image.jpg`
 - **المقاس**: 1200 × 675 بكسل (نسبة 16:9)
 - **الاستخدام**: Twitter/X
@@ -35,6 +37,7 @@
 ## 🛠️ أدوات لإنشاء الصور
 
 ### خيار 1: Canva (سهل وسريع)
+
 1. اذهب إلى: https://www.canva.com
 2. اختر "Custom Size": 1200 × 630
 3. استخدم قوالب "Social Media Post"
@@ -45,12 +48,14 @@
    - أيقونات جذابة
 
 ### خيار 2: Figma (احترافي)
+
 ```
 Template ready to use:
 https://www.figma.com/community/file/880843487868192717
 ```
 
 ### خيار 3: Online Tools
+
 - **OG Image Creator**: https://www.opengraph.xyz/
 - **Social Image Maker**: https://www.bannerbear.com/tools/social-image-maker/
 
@@ -71,6 +76,7 @@ public/
 ## ✅ بعد إنشاء الصور
 
 ### 1. ضع الصور في المجلد
+
 ```bash
 # أنشئ المجلد إذا لم يكن موجوداً
 mkdir public/social
@@ -81,6 +87,7 @@ mkdir public/social
 ```
 
 ### 2. ارفع التعديلات
+
 ```bash
 git add public/social
 git commit -m "Add social media images"
@@ -90,18 +97,23 @@ git push
 ### 3. اختبر الصور
 
 #### Facebook Debugger
+
 ```
 https://developers.facebook.com/tools/debug/
 ```
+
 أدخل رابط موقعك واضغط "Scrape Again"
 
 #### Twitter Card Validator
+
 ```
 https://cards-dev.twitter.com/validator
 ```
+
 أدخل رابط موقعك واختبر
 
 #### LinkedIn Post Inspector
+
 ```
 https://www.linkedin.com/post-inspector/
 ```
@@ -111,6 +123,7 @@ https://www.linkedin.com/post-inspector/
 ## 🎨 مواصفات التصميم المقترحة
 
 ### الألوان (من موقعك)
+
 ```css
 - Primary: #8B5CF6 (purple-400)
 - Secondary: #EC4899 (pink-600)
@@ -120,11 +133,13 @@ https://www.linkedin.com/post-inspector/
 ```
 
 ### الخطوط
+
 - **العنوان**: Bold, 72-96px
 - **الوصف**: Regular, 36-48px
 - **تفاصيل**: Medium, 24-32px
 
 ### العناصر المقترحة
+
 - ✅ Logo في الأعلى
 - ✅ عنوان واضح
 - ✅ وصف مختصر (1-2 سطر)
@@ -147,6 +162,7 @@ https://www.linkedin.com/post-inspector/
 ## 📊 اختبار سريع
 
 بعد رفع الصور، اختبر:
+
 ```
 https://zetsuquids.vercel.app/social/og-image.jpg
 https://zetsuquids.vercel.app/social/twitter-image.jpg
@@ -159,9 +175,10 @@ https://zetsuquids.vercel.app/social/twitter-image.jpg
 ## 🆘 إذا لم تكن لديك مهارات التصميم
 
 استخدم هذا النص في ChatGPT/DALL-E:
+
 ```
-Create a professional Open Graph image (1200x630px) for a developer 
-community website called "ZetsuGuide". 
+Create a professional Open Graph image (1200x630px) for a developer
+community website called "ZetsuGuide".
 
 Design elements:
 - Clean white background with purple to pink gradient accent
@@ -173,9 +190,10 @@ Design elements:
 ```
 
 أو استخدم DALL-E:
+
 ```
-Professional social media banner for developer platform, 
-1200x630 pixels, purple and pink gradient, clean design, 
+Professional social media banner for developer platform,
+1200x630 pixels, purple and pink gradient, clean design,
 tech icons, "ZetsuGuide" branding, modern UI style
 ```
 

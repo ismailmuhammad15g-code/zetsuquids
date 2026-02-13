@@ -1,12 +1,12 @@
 {
-    "rewrites": [
-        {
-            "source": "/sitemap.xml",
-            "destination": "/api/sitemap"
-        },
-        {
-            "source": "/((?!assets/|auth/|social/|avatars/|.*\\..*).*)",
-            "destination": "/index.html"
-        }
-    ]
+  "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
+    },
+    {
+      "source": "/((?!assets/|auth/|social/|avatars/|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ]
 }

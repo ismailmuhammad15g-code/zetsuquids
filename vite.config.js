@@ -253,75 +253,70 @@ function apiMiddleware() {
           return;
         }
 
-        // Handle payment_callback API
-        if (req.url === "/api/payment_callback" && req.method === "POST") {
-          let body = "";
-          req.on("data", (chunk) => {
-            body += chunk;
-          });
-          req.on("end", async () => {
-            try {
-              const data = JSON.parse(body);
+        // Handle unified payment_handler API (both GET and POST)
+        if (req.url === "/api/payment_callback" || req.url === "/api/payment_status" || req.url?.startsWith("/api/payment_status")) {
+          // For POST requests (callbacks), parse body
+          if (req.method === "POST") {
+            let body = "";
+            req.on("data", (chunk) => {
+              body += chunk;
+            });
+            req.on("end", async () => {
+              try {
+                const data = JSON.parse(body);
 
-              // Set Supabase environment variables for the callback handler
-              process.env.SUPABASE_URL =
-                env.VITE_SUPABASE_URL || env.SUPABASE_URL;
-              process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
+                // Set Supabase environment variables
+                process.env.SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+                process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
 
-              // Create a mock request object with parsed body
-              const mockReq = {
-                method: "POST",
-                body: data,
-                headers: req.headers,
-              };
+                const mockReq = {
+                  method: "POST",
+                  body: data,
+                  headers: req.headers,
+                  url: req.url,
+                };
 
-              // Create a mock response object
-              const mockRes = {
-                statusCode: 200,
-                headers: {},
-                setHeader(key, value) {
-                  this.headers[key] = value;
-                  res.setHeader(key, value);
-                },
-                status(code) {
-                  this.statusCode = code;
-                  res.statusCode = code;
-                  return this;
-                },
-                json(data) {
-                  res.setHeader("Content-Type", "application/json");
-                  res.end(JSON.stringify(data));
-                },
-                end(data) {
-                  res.end(data);
-                },
-              };
+                const mockRes = {
+                  statusCode: 200,
+                  headers: {},
+                  setHeader(key, value) {
+                    this.headers[key] = value;
+                    res.setHeader(key, value);
+                  },
+                  status(code) {
+                    this.statusCode = code;
+                    res.statusCode = code;
+                    return this;
+                  },
+                  json(data) {
+                    res.setHeader("Content-Type", "application/json");
+                    res.end(JSON.stringify(data));
+                  },
+                  end(data) {
+                    res.end(data);
+                  },
+                  send(data) {
+                    res.end(data);
+                  },
+                };
 
-              const { default: paymentCallback } =
-                await import("./api/payment_callback.js");
-              await paymentCallback(mockReq, mockRes);
-            } catch (error) {
-              console.error(
-                "[API Middleware] Error in payment_callback:",
-                error,
-              );
-              res.statusCode = 500;
-              res.setHeader("Content-Type", "application/json");
-              res.end(
-                JSON.stringify({
+                const { default: paymentHandler } = await import("./api/payment_handler.js");
+                await paymentHandler(mockReq, mockRes);
+              } catch (error) {
+                console.error("[API Middleware] Error in payment_handler:", error);
+                res.statusCode = 500;
+                res.setHeader("Content-Type", "application/json");
+                res.end(JSON.stringify({
                   error: "Internal server error",
                   details: error.message,
-                }),
-              );
-            }
-          });
-          return;
-        }
-
-        // Handle payment_status API (GET request from Paymob redirect)
-        if (req.url?.startsWith("/api/payment_status")) {
-          const { default: paymentStatus } =
-            await import("./api/payment_status.js");
+                }));
+              }
+            });
+            return;
+          }
+          
+          // For GET requests (status page)
+          const { default: paymentHandler } = await import("./api/payment_handler.js");
           const mockRes = {
             statusCode: 200,
             headers: {},
@@ -341,8 +336,11 @@ function apiMiddleware() {
             end(data) {
               res.end(data);
             },
+            send(data) {
+              res.end(data);
+            },
           };
-          await paymentStatus(req, mockRes);
+          await paymentHandler(req, mockRes);
           return;
         }
 

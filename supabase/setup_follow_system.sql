@@ -6,17 +6,17 @@
 -- 1. Ensure followers_count and following_count columns exist
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_name = 'zetsuguide_user_profiles' 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name = 'zetsuguide_user_profiles'
                    AND column_name = 'followers_count') THEN
-        ALTER TABLE public.zetsuguide_user_profiles 
+        ALTER TABLE public.zetsuguide_user_profiles
         ADD COLUMN followers_count INT DEFAULT 0;
     END IF;
 
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_name = 'zetsuguide_user_profiles' 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name = 'zetsuguide_user_profiles'
                    AND column_name = 'following_count') THEN
-        ALTER TABLE public.zetsuguide_user_profiles 
+        ALTER TABLE public.zetsuguide_user_profiles
         ADD COLUMN following_count INT DEFAULT 0;
     END IF;
 END $$;
@@ -125,7 +125,7 @@ BEGIN
   SELECT COALESCE(followers_count, 0) INTO count_result
   FROM public.zetsuguide_user_profiles
   WHERE user_id = target_user_id;
-  
+
   RETURN COALESCE(count_result, 0);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -139,7 +139,7 @@ BEGIN
   SELECT COALESCE(followers_count, 0) INTO count_result
   FROM public.zetsuguide_user_profiles
   WHERE user_email = target_email;
-  
+
   RETURN COALESCE(count_result, 0);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -153,7 +153,7 @@ BEGIN
   SELECT COALESCE(following_count, 0) INTO count_result
   FROM public.zetsuguide_user_profiles
   WHERE user_email = target_email;
-  
+
   RETURN COALESCE(count_result, 0);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -1,14 +1,14 @@
 import {
-  ArrowLeft,
-  Calendar,
-  Check,
-  Clock,
-  ExternalLink,
-  Loader2,
-  Mail,
-  Share2,
-  Tag,
-  Trash2,
+    ArrowLeft,
+    Calendar,
+    Check,
+    Clock,
+    ExternalLink,
+    Loader2,
+    Mail,
+    Share2,
+    Tag,
+    Trash2,
 } from "lucide-react";
 import { marked } from "marked";
 import mermaid from "mermaid";
@@ -372,11 +372,15 @@ export default function GuidePage() {
     <>
       {/* Dynamic SEO Meta Tags */}
       {guide && (
-        <SEOHelmet 
+        <SEOHelmet
           title={guide.title}
-          description={guide.content ? guide.content.substring(0, 150).replace(/[#*`]/g, '') + '...' : 'A comprehensive developer guide'}
-          author={guide.author_name || guide.user_email?.split('@')[0]}
-          keywords={guide.keywords ? guide.keywords.join(', ') : ''}
+          description={
+            guide.content
+              ? guide.content.substring(0, 150).replace(/[#*`]/g, "") + "..."
+              : "A comprehensive developer guide"
+          }
+          author={guide.author_name || guide.user_email?.split("@")[0]}
+          keywords={guide.keywords ? guide.keywords.join(", ") : ""}
           type="article"
         />
       )}
@@ -463,12 +467,14 @@ export default function GuidePage() {
                     )}
                   </div>
                 </div>
-                
+
                 {/* Follow Button and Profile Link */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                  <FollowButton 
+                  <FollowButton
                     targetUserEmail={guide.user_email}
-                    targetUserName={guide.author_name || guide.user_email.split("@")[0]}
+                    targetUserName={
+                      guide.author_name || guide.user_email.split("@")[0]
+                    }
                   />
                   <Link
                     to={`/@${(guide.author_name || guide.user_email.split("@")[0]).toLowerCase()}/workspace`}
