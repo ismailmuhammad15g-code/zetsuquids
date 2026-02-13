@@ -1,13 +1,14 @@
 import {
-    ArrowLeft,
-    Calendar,
-    Check,
-    ExternalLink,
-    Loader2,
-    Mail,
-    Share2,
-    Tag,
-    Trash2,
+  ArrowLeft,
+  Calendar,
+  Check,
+  Clock,
+  ExternalLink,
+  Loader2,
+  Mail,
+  Share2,
+  Tag,
+  Trash2,
 } from "lucide-react";
 import { marked } from "marked";
 import mermaid from "mermaid";
@@ -16,11 +17,14 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import ConfirmModal from "../components/ConfirmModal";
 import GuideComments from "../components/GuideComments";
+import GuideHistoryModal from "../components/GuideHistoryModal";
 import GuideTimer from "../components/GuideTimer";
+import { ScrollProgress } from "../components/ui/scroll-progress";
 import { useAuth } from "../contexts/AuthContext";
 import { guidesApi } from "../lib/api";
 import { getAvatarForUser } from "../lib/avatar";
 import { supabase } from "../lib/supabase";
+import { sanitizeContent } from "../lib/utils";
 
 // Configure marked
 const renderer = {
@@ -86,6 +90,7 @@ export default function GuidePage() {
   const [deleting, setDeleting] = useState(false);
   const [authorAvatar, setAuthorAvatar] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     loadGuide();
@@ -309,14 +314,17 @@ export default function GuidePage() {
     // Otherwise render markdown
     const markdownContent = guide.markdown || guide.content || "";
     const html = marked.parse(markdownContent);
+    const sanitizedHtml = sanitizeContent(html);
 
     return (
       <div
         className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white"
-        dangerouslySetInnerHTML={{ __html: html }}
+        dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
       />
     );
   }
+  // Check if admin is authenticated via sessionStorage
+  const isAdmin = sessionStorage.getItem("adminAuthenticated") === "true";
 
   // Loading State
   if (loading) {
@@ -331,14 +339,16 @@ export default function GuidePage() {
   }
 
   // Error State
-  if (error) {
+  if (error || !guide) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20">
         <div className="text-center">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <span className="text-4xl">😕</span>
           </div>
-          <h1 className="text-2xl font-black mb-2">{error}</h1>
+          <h1 className="text-2xl font-black mb-2">
+            {error || "Guide not found"}
+          </h1>
           <p className="text-gray-500 mb-6">
             The guide you're looking for doesn't exist or has been removed.
           </p>
@@ -354,168 +364,203 @@ export default function GuidePage() {
     );
   }
 
+  const isOwner = user?.email && guide?.user_email === user.email;
+
   return (
-    <article className="max-w-4xl mx-auto px-4 py-8">
-      {/* Top Bar: Back Link & Timer */}
-      <div className="flex items-center justify-between mb-8">
-        <Link
-          to="/guides"
-          className="inline-flex items-center gap-2 text-gray-500 hover:text-black transition-colors"
-        >
-          <ArrowLeft size={18} />
-          Back to Guides
-        </Link>
+    <>
+      <div className="pointer-events-none fixed left-0 top-0 z-[100] w-full">
+        {/* Backdrop Blur Effect */}
+        <div className="absolute left-0 top-0 h-24 w-full bg-white/50 backdrop-blur-xl [-webkit-mask-image:linear-gradient(to_bottom,black,transparent)]" />
 
-        {/* Real-time Usage Timer */}
-        {user && guide && <GuideTimer guideId={guide.id} userId={user.id} />}
+        {/* Progress Track */}
+        <div className="absolute left-0 top-0 w-full">
+          <div className="absolute left-0 top-0 h-1 w-full bg-gray-200/30" />
+          <ScrollProgress
+            className="absolute top-0 h-1 bg-[linear-gradient(to_right,rgba(0,0,0,0),#000000_75%,#000000_100%)]"
+            springOptions={{ stiffness: 280, damping: 18, mass: 0.3 }}
+          />
+        </div>
       </div>
+      <article className="max-w-4xl mx-auto px-4 py-8 relative z-10">
+        {/* Top Bar: Back Link & Timer */}
+        <div className="flex items-center justify-between mb-8">
+          <Link
+            to="/guides"
+            className="inline-flex items-center gap-2 text-gray-500 hover:text-black transition-colors"
+          >
+            <ArrowLeft size={18} />
+            Back to Guides
+          </Link>
 
-      {/* Header */}
-      <header className="mb-8 pb-8 border-b-2 border-black">
-        <h1 className="text-4xl sm:text-5xl font-black mb-4 leading-tight">
-          {guide.title}
-        </h1>
-
-        {/* Meta */}
-        <div className="flex flex-wrap items-center gap-4 text-gray-500 mb-6">
-          <span className="flex items-center gap-2">
-            <Calendar size={16} />
-            {new Date(guide.created_at).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </span>
-          {guide.content_type === "html" && (
-            <span className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-xs font-medium">
-              <ExternalLink size={12} />
-              HTML/CSS
-            </span>
-          )}
+          {/* Real-time Usage Timer */}
+          {user && guide && <GuideTimer guideId={guide.id} userId={user.id} />}
         </div>
 
-        {/* Author Card */}
-        {guide.user_email && (
-          <div className="mb-8 p-4 border-2 border-black bg-gradient-to-r from-purple-50 to-pink-50">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                {authorAvatar ? (
-                  <img
-                    src={authorAvatar}
-                    alt={guide.author_name}
-                    className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                    {(guide.author_name ||
-                      guide.user_email)?.[0]?.toUpperCase()}
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm text-gray-600">By</p>
-                  <p className="font-bold text-lg">
-                    {guide.author_name || guide.user_email.split("@")[0]}
-                  </p>
-                  {guide.user_email && (
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
-                      <Mail size={12} />
-                      {guide.user_email}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <Link
-                to={`/@${(guide.author_name || guide.user_email.split("@")[0]).toLowerCase()}/workspace`}
-                className="px-4 py-2 bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
-              >
-                View Profile
-              </Link>
-            </div>
-          </div>
-        )}
+        {/* Header */}
+        <header className="mb-8 pb-8 border-b-2 border-black">
+          <h1 className="text-4xl sm:text-5xl font-black mb-4 leading-tight">
+            {guide.title}
+          </h1>
 
-        {/* Keywords */}
-        {guide.keywords && guide.keywords.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-6">
-            {guide.keywords.map((kw, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-sm font-medium"
-              >
-                <Tag size={12} />
-                {kw}
+          {/* Meta */}
+          <div className="flex flex-wrap items-center gap-4 text-gray-500 mb-6">
+            <span className="flex items-center gap-2">
+              <Calendar size={16} />
+              {new Date(guide.created_at).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </span>
+            {guide.content_type === "html" && (
+              <span className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-xs font-medium">
+                <ExternalLink size={12} />
+                HTML/CSS
               </span>
-            ))}
+            )}
           </div>
-        )}
 
-        {/* Actions */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={handleCopyLink}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 hover:border-black transition-colors text-sm"
-          >
-            {copied ? (
+          {/* Author Card */}
+          {guide.user_email && (
+            <div className="mb-8 p-4 border-2 border-black bg-gradient-to-r from-purple-50 to-pink-50">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  {authorAvatar ? (
+                    <img
+                      src={authorAvatar}
+                      alt={guide.author_name}
+                      className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                      {(guide.author_name ||
+                        guide.user_email)?.[0]?.toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm text-gray-600">By</p>
+                    <p className="font-bold text-lg">
+                      {guide.author_name || guide.user_email.split("@")[0]}
+                    </p>
+                    {guide.user_email && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <Mail size={12} />
+                        {guide.user_email}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <Link
+                  to={`/@${(guide.author_name || guide.user_email.split("@")[0]).toLowerCase()}/workspace`}
+                  className="px-4 py-2 bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+                >
+                  View Profile
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Keywords */}
+          {guide.keywords && guide.keywords.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {guide.keywords.map((kw, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-sm font-medium"
+                >
+                  <Tag size={12} />
+                  {kw}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={handleCopyLink}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 hover:border-black transition-colors text-sm"
+            >
+              {copied ? (
+                <>
+                  <Check size={16} className="text-green-600" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Share2 size={16} />
+                  Share
+                </>
+              )}
+            </button>
+
+            {/* ONLY SHOW ACTIONS IF OWNER OR ADMIN */}
+            {(isOwner || isAdmin) && (
               <>
-                <Check size={16} className="text-green-600" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Share2 size={16} />
-                Share
+                <button
+                  onClick={() => setShowHistory(true)}
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 hover:border-black transition-colors text-sm"
+                >
+                  <Clock size={16} />
+                  History
+                </button>
+
+                <button
+                  onClick={handleDeleteClick}
+                  disabled={deleting}
+                  className="flex items-center gap-2 px-4 py-2 border border-red-300 text-red-600 hover:bg-red-50 transition-colors text-sm disabled:opacity-50"
+                >
+                  {deleting ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={16} />
+                  )}
+                  Delete
+                </button>
               </>
             )}
-          </button>
+          </div>
+        </header>
 
-          {/* ONLY SHOW DELETE IF OWNER */}
-          {user?.email && guide.user_email === user.email && (
-            <button
-              onClick={handleDeleteClick}
-              disabled={deleting}
-              className="flex items-center gap-2 px-4 py-2 border border-red-300 text-red-600 hover:bg-red-50 transition-colors text-sm disabled:opacity-50"
-            >
-              {deleting ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Trash2 size={16} />
-              )}
-              Delete
-            </button>
-          )}
+        {/* Content */}
+        <div className="guide-content">{renderContent()}</div>
+
+        {/* Comments Section */}
+        <GuideComments guideId={guide.id} />
+
+        {/* Bottom Navigation */}
+        <div className="mt-12 pt-8 border-t-2 border-black">
+          <Link
+            to="/guides"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white font-medium hover:bg-gray-800"
+          >
+            <ArrowLeft size={18} />
+            Back to All Guides
+          </Link>
         </div>
-      </header>
 
-      {/* Content */}
-      <div className="guide-content">{renderContent()}</div>
+        {/* Delete Confirmation Modal */}
+        <ConfirmModal
+          isOpen={showDeleteConfirm}
+          onClose={() => {
+            console.log("[GuidePage] Delete modal closed without confirmation");
+            setShowDeleteConfirm(false);
+          }}
+          onConfirm={handleDeleteConfirm}
+          title="Delete Guide?"
+          message="Are you sure you want to delete this guide? This action cannot be undone and all content will be permanently removed."
+          confirmText="Yes, Delete"
+          cancelText="Cancel"
+        />
 
-      {/* Comments Section */}
-      <GuideComments guideId={guide.id} />
-
-      {/* Bottom Navigation */}
-      <div className="mt-12 pt-8 border-t-2 border-black">
-        <Link
-          to="/guides"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white font-medium hover:bg-gray-800"
-        >
-          <ArrowLeft size={18} />
-          Back to All Guides
-        </Link>
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      <ConfirmModal
-        isOpen={showDeleteConfirm}
-        onClose={() => {
-          console.log("[GuidePage] Delete modal closed without confirmation");
-          setShowDeleteConfirm(false);
-        }}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Guide?"
-        message="Are you sure you want to delete this guide? This action cannot be undone and all content will be permanently removed."
-        confirmText="Yes, Delete"
-        cancelText="Cancel"
-      />
-    </article>
+        {/* History Modal */}
+        {showHistory && (
+          <GuideHistoryModal
+            guideId={guide.id}
+            onClose={() => setShowHistory(false)}
+          />
+        )}
+      </article>
+    </>
   );
 }

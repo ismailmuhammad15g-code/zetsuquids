@@ -10,6 +10,7 @@ import {
     Plus,
     Search,
     Sparkles,
+    Users,
     X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -223,6 +224,17 @@ export default function Layout() {
                 <span>Guides</span>
               </Link>
               <Link
+                to="/community"
+                className={`flex items-center gap-2 px-4 py-2 font-medium transition-all duration-200 ${
+                  location.pathname === "/community"
+                    ? "bg-black text-white"
+                    : "hover:bg-gray-100"
+                }`}
+              >
+                <Users size={18} />
+                <span>Community</span>
+              </Link>
+              <Link
                 to="/zetsuguide-ai"
                 className={`flex items-center gap-2 px-4 py-2 font-medium transition-all duration-200 relative ${
                   location.pathname === "/zetsuguide-ai"
@@ -426,6 +438,17 @@ export default function Layout() {
                     <span>All Guides</span>
                   </Link>
                   <Link
+                    to="/community"
+                    className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${
+                      location.pathname === "/community"
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Users size={22} />
+                    <span>Community</span>
+                  </Link>
+                  <Link
                     to="/zetsuguide-ai"
                     className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all border-2 border-transparent ${
                       location.pathname === "/zetsuguide-ai"
@@ -538,39 +561,47 @@ export default function Layout() {
         />
       </main>
 
-      {/* Footer */}
-      <footer className="border-t-2 border-black mt-16">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-black flex items-center justify-center">
-                <span className="text-white font-bold text-sm">Z</span>
+      {/* Footer - Hidden on Community Page */}
+      {!location.pathname.startsWith("/community") && (
+        <footer className="border-t-2 border-black mt-16">
+          <div className="max-w-7xl mx-auto px-4 py-8">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-black flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">Z</span>
+                </div>
+                <span className="font-bold">ZetsuGuide</span>
               </div>
-              <span className="font-bold">ZetsuGuide</span>
-            </div>
-            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-6">
-              <Link to="/faq" className="text-sm font-medium hover:underline">
-                FAQ
-              </Link>
-              <Link
-                to="/pricing"
-                className="text-sm font-medium hover:underline"
-              >
-                Pricing
-              </Link>
-              <Link
-                to="/support"
-                className="text-sm font-medium hover:underline"
-              >
-                Support
-              </Link>
-              <p className="text-sm text-gray-500">
-                Your personal knowledge base. Built with ❤️
-              </p>
+              <div className="flex flex-wrap items-center justify-center sm:justify-end gap-6">
+                <Link to="/faq" className="text-sm font-medium hover:underline">
+                  FAQ
+                </Link>
+                <Link
+                  to="/pricing"
+                  className="text-sm font-medium hover:underline"
+                >
+                  Pricing
+                </Link>
+                <Link
+                  to="/support"
+                  className="text-sm font-medium hover:underline"
+                >
+                  Support
+                </Link>
+                <Link
+                  to="/community"
+                  className="text-sm font-medium hover:underline"
+                >
+                  Community
+                </Link>
+                <p className="text-sm text-gray-500">
+                  Your personal knowledge base. Built with ❤️
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      )}
 
       {/* Modals */}
       {showAddModal && <AddGuideModal onClose={() => setShowAddModal(false)} />}

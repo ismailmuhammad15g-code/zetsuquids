@@ -110,7 +110,15 @@ function MarkdownMessage({ content, isTyping = false }) {
 export default function Chatbot() {
     const [isOpen, setIsOpen] = useState(false)
     const [isMinimized, setIsMinimized] = useState(false)
-    const [showPopup, setShowPopup] = useState(true)
+    // Initialize popup state from localStorage to prevent annoyance
+    const [showPopup, setShowPopup] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const dismissed = localStorage.getItem('zetsu_chatbot_popup_dismissed')
+            // Only show if not dismissed and not on a small screen (optional logic, but good practice)
+            return !dismissed
+        }
+        return false
+    })
     const [activeTab, setActiveTab] = useState('chat') // 'chat', 'support-form', or 'direct-support'
     const [unreadSupportCount, setUnreadSupportCount] = useState(0)
     const [showSupportForm, setShowSupportForm] = useState(false)
@@ -594,7 +602,17 @@ export default function Chatbot() {
                 <div className="fixed bottom-6 right-6 z-50 group">
                     {/* Popup Message - Shows once per page load - Hidden on mobile */}
                     {showPopup && (
-                        <div className="hidden md:block absolute bottom-full right-0 mb-3 w-64 p-4 bg-white text-black rounded-xl shadow-2xl opacity-100 transition-all duration-300 transform translate-y-0 pointer-events-none">
+                        <div className="hidden md:block absolute bottom-full right-0 mb-3 w-64 p-4 bg-white text-black rounded-xl shadow-2xl opacity-100 transition-all duration-300 transform translate-y-0">
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowPopup(false);
+                                    localStorage.setItem('zetsu_chatbot_popup_dismissed', 'true');
+                                }}
+                                className="absolute top-2 right-2 text-gray-400 hover:text-black transition-colors"
+                            >
+                                <X size={14} />
+                            </button>
                             <div className="flex items-start gap-3">
                                 <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0">
                                     <Sparkles size={16} />
@@ -615,6 +633,7 @@ export default function Chatbot() {
                         onClick={() => {
                             setIsOpen(!isOpen)
                             setShowPopup(false)
+                            localStorage.setItem('zetsu_chatbot_popup_dismissed', 'true'); // Dismiss forever
                             if (unreadSupportCount > 0) {
                                 setUnreadSupportCount(0)
                             }

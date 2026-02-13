@@ -597,6 +597,9 @@ function apiMiddleware() {
                   res.statusCode = code;
                   return this;
                 },
+                write(data) {
+                  return res.write(data);
+                },
                 json(data) {
                   res.setHeader("Content-Type", "application/json");
                   res.end(JSON.stringify(data));

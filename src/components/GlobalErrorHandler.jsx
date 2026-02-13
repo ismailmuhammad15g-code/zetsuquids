@@ -66,12 +66,15 @@ export default function GlobalErrorHandler() {
 
       if (shouldIgnore) return;
 
-      setLastError({
-        type: "Console Error",
-        message: message,
-        stack: new Error().stack, // Capture current stack
-      });
-      setIsVisible(true);
+      // Defer state update to avoid "Cannot update component while rendering" warning
+      setTimeout(() => {
+        setLastError({
+          type: "Console Error",
+          message: message,
+          stack: new Error().stack, // Capture current stack
+        });
+        setIsVisible(true);
+      }, 0);
     };
 
     return () => {

@@ -1,31 +1,32 @@
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import Lottie from "lottie-react";
 import {
-  ArrowRight,
-  Bot,
-  BrainCircuit,
-  Bug,
-  CheckCircle,
-  HelpCircle,
-  History,
-  Info,
-  Menu,
-  MessageSquare,
-  Plus,
-  RefreshCw,
-  Settings2,
-  Trash2,
-  Wand2,
-  X,
-  Zap,
+    ArrowRight,
+    Bot,
+    BrainCircuit,
+    Bug,
+    CheckCircle,
+    HelpCircle,
+    History,
+    Info,
+    Menu,
+    MessageSquare,
+    Plus,
+    RefreshCw,
+    Settings2,
+    Trash2,
+    Wand2,
+    X,
+    Zap,
 } from "lucide-react";
 import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
+    lazy,
+    Suspense,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -35,12 +36,14 @@ import aiLogoAnimation from "../assets/ailogo.json";
 import robotAnimation from "../assets/robotwelcomming.json";
 import sailboatAnimation from "../assets/sailboat.json";
 import {
-  DailyGiftModal,
-  useDailyCreditsCheck,
+    DailyGiftModal,
+    useDailyCreditsCheck,
 } from "../components/DailyGiftModal";
 import PromptInputWithActions from "../components/PromptInputWithActions";
+import { ThinkingWave } from "../components/ThinkingWave";
 import { OnboardingModal } from "../components/onboarding/OnboardingModal";
 import PixelTrail from "../components/ui/PixelTrail";
+import AnimatedGradientBackground from "../components/ui/animated-gradient-background";
 import { CodeBlock } from "../components/ui/code-block";
 import { Confetti } from "../components/ui/confetti";
 import { LinkPreview } from "../components/ui/link-preview";
@@ -50,9 +53,9 @@ import { useAuth } from "../contexts/AuthContext";
 import useScreenSize from "../hooks/useScreenSize";
 import { guidesApi, isSupabaseConfigured, supabase } from "../lib/api";
 import {
-  commitReservedCredit,
-  releaseReservedCredit,
-  reserveCredit,
+    commitReservedCredit,
+    releaseReservedCredit,
+    reserveCredit,
 } from "../lib/creditReservation";
 
 // Lazy load heavy components
@@ -1493,41 +1496,113 @@ export default function ZetsuGuideAIPage() {
     setIsLoadingHistory(false);
   }
 
-  // Save current conversation to Supabase
+  // Helper: Background AI Title Generator (Summarizer)
+  async function generateSmartTitle(conversationId, msgContent, useAI = false) {
+    let newTitle = "";
+
+    if (useAI) {
+      // Set temporary state to show we are generating
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === conversationId ? { ...c, isGeneratingTitle: true } : c,
+        ),
+      );
+
+      try {
+        const response = await fetch("/api/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: AI_MODEL,
+            messages: [
+              {
+                role: "system",
+                content: isArabicText(msgContent)
+                  ? "أنت ملخص للمحادثات. قم بتلخيص رسالة المستخدم في عنوان قصير جداً (3-5 كلمات) للمحادثة. أعد العنوان فقط."
+                  : "You are a chat summarizer. Summarize the user message into a very short (3-5 words) title for the conversation. Return ONLY the title text.",
+              },
+              { role: "user", content: `Summarize this: "${msgContent}"` },
+            ],
+            skipCreditDeduction: true,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const aiTitle = data.choices?.[0]?.message?.content?.trim();
+          if (aiTitle) {
+            newTitle = aiTitle.replace(/^["']|["']$/g, ""); // Remove quotes
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to generate AI title:", e);
+      }
+    }
+
+    // Fallback if AI fails or not used
+    if (!newTitle) {
+      newTitle =
+        msgContent.substring(0, 40) + (msgContent.length > 40 ? "..." : "");
+    }
+
+    // Update in Database
+    try {
+      await supabase
+        .from("zetsuguide_conversations")
+        .update({ title: newTitle })
+        .eq("id", conversationId);
+
+      // Update Local State Optimistically
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === conversationId
+            ? { ...c, title: newTitle, isGeneratingTitle: false }
+            : c,
+        ),
+      );
+    } catch (err) {
+      console.error("Error updating title:", err);
+    }
+  }
+
+  // Save current conversation to Supabase (Optimized for immediate UI updates)
   async function saveConversation(
     msgs = messages,
     convId = currentConversationId,
   ) {
-    // Basic check for auth
-    if (!isAuthenticated() || !user?.email) {
-      console.warn("Cannot save conversation: User not authenticated");
-      return;
-    }
-
+    if (!isAuthenticated() || !user?.email) return;
     if (msgs.length === 0) return;
 
     try {
-      // Generate title from first user message
       const firstUserMsg = msgs.find((m) => m.role === "user");
+      // Initial title (will be AI summarized later if new)
       const title = firstUserMsg
         ? firstUserMsg.content.substring(0, 50) +
           (firstUserMsg.content.length > 50 ? "..." : "")
         : "New Chat";
 
+      const msgsForDb = msgs.map((m) => ({
+        role: m.role,
+        content: m.content,
+        sources: m.sources || [],
+        timestamp: m.timestamp || new Date().toISOString(),
+      }));
+
       const saveData = {
-        messages: msgs.map((m) => ({
-          role: m.role,
-          content: m.content,
-          // Include sources and timestamp if available to persist rich data
-          sources: m.sources || [],
-          timestamp: m.timestamp || new Date().toISOString(),
-        })),
-        title,
+        messages: msgsForDb,
         updated_at: new Date().toISOString(),
       };
 
       if (convId) {
-        // Update existing conversation
+        // --- Optimistic UI Update (Existing Chat) ---
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === convId
+              ? { ...c, messages: msgsForDb, updated_at: new Date() }
+              : c,
+          ),
+        );
+
         const { error } = await supabase
           .from("zetsuguide_conversations")
           .update(saveData)
@@ -1536,11 +1611,13 @@ export default function ZetsuGuideAIPage() {
         if (error) throw error;
         return convId;
       } else {
-        // Create new conversation
+        // --- Optimistic UI Update (New Chat) ---
+        // Insert with title
         const { data, error } = await supabase
           .from("zetsuguide_conversations")
           .insert({
-            user_email: user.email.toLowerCase(), // Force lowercase for consistency
+            user_email: user.email.toLowerCase(),
+            title: title, // Initial title
             ...saveData,
             created_at: new Date().toISOString(),
           })
@@ -1550,22 +1627,26 @@ export default function ZetsuGuideAIPage() {
         if (error) throw error;
 
         if (data) {
-          setCurrentConversationId(data.id);
-          return data.id;
+          const newId = data.id;
+          setCurrentConversationId(newId);
+
+          // Add to local list immediately
+          setConversations((prev) => [
+            {
+              id: newId,
+              title: title,
+              messages: msgsForDb,
+              updated_at: new Date(),
+              isNew: true, // Marker for AI summarizer
+            },
+            ...prev,
+          ]);
+
+          return newId;
         }
       }
-
-      // Refresh conversation list silently
-      // loadConversations(); // Don't block or re-trigger massive loads unnecessarily
-      // Instead, we might want to update local list optimistically?
-      // For now, let's just trigger load to be safe but catch errors
-      loadConversations().catch((err) =>
-        console.error("Error reloading conversations:", err),
-      );
     } catch (err) {
       console.error("Error saving conversation:", err);
-      // Optional: Toast notification for error
-      // toast.error("Failed to save chat history");
     }
   }
 
@@ -2883,14 +2964,30 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
     ],
   );
 
-  // Mark streaming as complete and save conversation
+  // Mark streaming as complete, save conversation, and generate title
   function handleStreamingComplete(index) {
     setMessages((prev) => {
       const updatedMessages = prev.map((msg, i) =>
         i === index ? { ...msg, isStreaming: false } : msg,
       );
+
       // Save conversation after streaming is complete
-      saveConversation(updatedMessages);
+      saveConversation(updatedMessages).then((savedId) => {
+        if (savedId) {
+          // Check if this is a fresh conversation that needs a title
+          // Condition: Approx 2 messages (User + AI) AND id exists
+          const isFresh = updatedMessages.length <= 2;
+
+          if (isFresh) {
+            const userMsg = updatedMessages.find((m) => m.role === "user");
+            if (userMsg) {
+              console.log(" Generating AI Title for ID:", savedId);
+              generateSmartTitle(savedId, userMsg.content, true);
+            }
+          }
+        }
+      });
+
       return updatedMessages;
     });
     setIsStreamingResponse(false);
@@ -2909,23 +3006,59 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
       <OnboardingModal />
       {/* SECURITY: Login Required Screen */}
       {!isAuthenticated() && (
-        <div className="zetsu-ai-login-required">
-          <div className="zetsu-ai-login-modal">
-            <div className="zetsu-ai-login-icon">
-              <Bot size={48} />
+        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black font-sans">
+          {/* Gradient Background */}
+          <AnimatedGradientBackground
+            startingGap={200}
+            Breathing={true}
+            animationSpeed={0.01}
+            breathingRange={10}
+            gradientColors={[
+              "#0A0A0A",
+              "#2979FF",
+              "#FF80AB",
+              "#FF6D00",
+              "#FFD600",
+              "#00E676",
+              "#3D5AFE",
+            ]}
+          />
+
+          <div className="relative z-10 flex flex-col items-center justify-center p-8 max-w-md w-full bg-black/40 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl animate-in fade-in zoom-in duration-500">
+            <div className="w-40 h-40 mb-2 -mt-10">
+              <DotLottieReact
+                src="https://lottie.host/8cf4ba71-e5fb-44f3-8134-178c4d389417/0CCsdcgNIP.json"
+                loop
+                autoplay
+              />
             </div>
-            <h2>Login Required</h2>
-            <p>You need to sign in to use ZetsuGuide AI.</p>
-            <p className="zetsu-ai-login-subtitle">
-              Get 5 free credits when you create an account!
+
+            <h2 className="text-4xl font-black mb-4 tracking-tight text-center bg-gradient-to-br from-white via-white to-neutral-400 bg-clip-text text-transparent drop-shadow-sm">
+              Login Required
+            </h2>
+            <p className="text-neutral-300 text-center mb-2 text-lg leading-relaxed">
+              You need to sign in to use ZetsuGuide AI.
             </p>
+            <p className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-8">
+              <SparklesText
+                className="text-emerald-400"
+                colors={{ first: "#34D399", second: "#10B981" }}
+              >
+                Get 5 free credits
+              </SparklesText>
+            </p>
+
             <button
-              className="zetsu-ai-login-action-btn"
               onClick={() => navigate("/auth")}
+              className="w-full py-4 px-6 rounded-xl bg-white text-black font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_-5px_rgba(255,255,255,0.5)] mb-4 flex items-center justify-center gap-2"
             >
               Sign In / Create Account
+              <ArrowRight size={20} />
             </button>
-            <button className="zetsu-ai-back-btn" onClick={() => navigate("/")}>
+            <button
+              onClick={() => navigate("/")}
+              className="text-neutral-500 text-sm font-medium hover:text-white transition-colors flex items-center gap-1 py-2 px-4 rounded-lg hover:bg-white/5"
+            >
               ← Back to Home
             </button>
           </div>
@@ -3002,7 +3135,9 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                   {publishStep > 1 ? (
                     "✓"
                   ) : publishStep === 1 ? (
-                    <span className="zetsu-step-spinner"></span>
+                    <div style={{ transform: "scale(0.5)" }}>
+                      <ThinkingWave text="" />
+                    </div>
                   ) : (
                     "1"
                   )}
@@ -3025,7 +3160,9 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                   {publishStep > 2 ? (
                     "✓"
                   ) : publishStep === 2 ? (
-                    <span className="zetsu-step-spinner"></span>
+                    <div style={{ transform: "scale(0.5)" }}>
+                      <ThinkingWave text="" />
+                    </div>
                   ) : (
                     "2"
                   )}
@@ -3209,9 +3346,37 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                       <span className="zetsu-history-item-title">
                         {conv.title}
                       </span>
-                      <span className="zetsu-history-item-date">
-                        {new Date(conv.updated_at).toLocaleDateString()}
-                      </span>
+                      {conv.isGeneratingTitle ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            marginTop: "4px",
+                          }}
+                        >
+                          <span
+                            className="spinner-ring"
+                            style={{
+                              width: "12px",
+                              height: "12px",
+                              borderWidth: "1px",
+                            }}
+                          ></span>
+                          <span
+                            style={{
+                              fontSize: "0.7rem",
+                              color: "rgba(255,255,255,0.5)",
+                            }}
+                          >
+                            Generating title...
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="zetsu-history-item-date">
+                          {new Date(conv.updated_at).toLocaleDateString()}
+                        </span>
+                      )}
                     </div>
                     <button
                       className="zetsu-history-delete"
@@ -4689,47 +4854,52 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                           isRtl={isArabicText(msg.content)}
                         />
                       </div>
-                      {/* Publish to Guide button - for all AI messages */}
+                      {/* Publish to Guide button - RESTORED & ENHANCED */}
                       {msg.role === "assistant" &&
                         !msg.isStreaming &&
-                        msg.publishable && (
-                          <button
-                            className="zetsu-publish-guide-btn group"
-                            onClick={() => publishToGuide(msg.content)}
-                            title="Publish as Guide"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                              padding: "8px 16px",
-                              background: "rgba(255,255,255,0.1)",
-                              borderRadius: "12px",
-                              border: "1px solid rgba(255,255,255,0.2)",
-                              transition: "all 0.2s",
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: 24,
-                                height: 24,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
+                        !msg.isError &&
+                        msg.content &&
+                        msg.content.length > 50 && (
+                          <div className="mt-4 flex justify-end">
+                            <button
+                              className="group relative flex items-center gap-3 px-5 py-2.5 bg-gradient-to-r from-gray-800/80 to-gray-900/80 hover:from-purple-900/40 hover:to-pink-900/40 border border-white/10 hover:border-purple-500/30 rounded-xl transition-all duration-300 shadow-lg hover:shadow-purple-500/10 backdrop-blur-md overflow-hidden"
+                              onClick={() => publishToGuide(msg.content)}
+                              title={
+                                isArabicText(msg.content)
+                                  ? "حفظ ومشاركة هذا الرد كدليل"
+                                  : "Save and share this response as a guide"
+                              }
                             >
-                              <Lottie
-                                animationData={guidePublishAnimation}
-                                loop={true}
-                                autoplay={true}
-                                style={{ width: 32, height: 32 }}
+                              <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                              <div
+                                style={{
+                                  width: 24,
+                                  height: 24,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  filter:
+                                    "drop-shadow(0 0 8px rgba(168,85,247,0.5))",
+                                }}
+                              >
+                                <Lottie
+                                  animationData={guidePublishAnimation}
+                                  loop={true}
+                                  autoplay={true}
+                                  style={{ width: 32, height: 32 }}
+                                />
+                              </div>
+                              <span className="text-sm font-semibold text-gray-300 group-hover:text-white transition-colors relative z-10">
+                                {isArabicText(msg.content)
+                                  ? "نشر كدليل"
+                                  : "Submit as Guide"}
+                              </span>
+                              <ArrowRight
+                                size={14}
+                                className="text-gray-500 group-hover:text-purple-400 group-hover:translate-x-1 transition-all relative z-10"
                               />
-                            </div>
-                            <span className="font-medium group-hover:text-purple-300 transition-colors">
-                              {isArabicText(msg.content)
-                                ? "نشر كدليل"
-                                : "Publish as Guide"}
-                            </span>
-                          </button>
+                            </button>
+                          </div>
                         )}
 
                       {/* Error Message Actions - Report Bug & Retry */}
@@ -4873,38 +5043,28 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                           <div className="zetsu-agent-standard-content">
                             <div className="zetsu-agent-standard-text">
                               {agentPhase === AGENT_PHASES.INITIAL_THINKING && (
-                                <span className="zetsu-agent-status">
-                                  Initializing AI Processing...
-                                </span>
+                                <ThinkingWave text="Initializing AI Processing..." />
                               )}
                               {agentPhase === AGENT_PHASES.BRAINSTORMING && (
-                                <span className="zetsu-agent-status">
-                                  🧠 Brainstorming Research Strategies
-                                </span>
+                                <ThinkingWave text="🧠 Brainstorming Research Strategies" />
                               )}
                               {agentPhase === AGENT_PHASES.RESEARCHING && (
-                                <span className="zetsu-agent-status">
-                                  🌐 Exploring Knowledge Sources
-                                </span>
+                                <ThinkingWave text="🌐 Exploring Knowledge Sources" />
                               )}
                               {agentPhase === AGENT_PHASES.ANALYZING && (
-                                <span className="zetsu-agent-status">
-                                  📊 Analyzing Information
-                                </span>
+                                <ThinkingWave text="📊 Analyzing Information" />
                               )}
                               {agentPhase === AGENT_PHASES.READING_SOURCE && (
-                                <span className="zetsu-agent-status">
-                                  📖 Deep-Reading Content
-                                </span>
+                                <ThinkingWave text="📖 Deep-Reading Content" />
                               )}
                               {agentPhase === AGENT_PHASES.RESPONDING && (
-                                <span className="zetsu-agent-status">
-                                  {isImageGenEnabled ? (
-                                    <> Generating Response & Visuals</>
-                                  ) : (
-                                    <> Generating Response</>
-                                  )}
-                                </span>
+                                <ThinkingWave
+                                  text={
+                                    isImageGenEnabled
+                                      ? "Generating Response & Visuals"
+                                      : "Generating Response"
+                                  }
+                                />
                               )}
                             </div>
                             {agentPhase !== AGENT_PHASES.FOUND_GUIDES && (
@@ -4954,274 +5114,280 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
       </main>
 
       {/* Input Area */}
-      <footer className="zetsu-ai-input-area">
-        <div className="zetsu-ai-input-form relative">
-          {/* Deep Reasoning Demo Video */}
-          {isDeepReasoning && isDemoVideoVisible && (
-            <div className="absolute bottom-full mb-4 left-0 w-full animate-in fade-in slide-in-from-bottom-4 duration-500 z-40">
-              <div className="relative w-full max-w-lg mx-auto bg-black/40 backdrop-blur-md rounded-xl overflow-hidden border border-white/10 shadow-2xl group">
-                <div className="absolute top-2 right-2 z-50">
-                  <button
-                    onClick={() => setIsDemoVideoVisible(false)}
-                    className="p-1 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-colors backdrop-blur-sm"
-                    title="Close Demo"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-                <video
-                  src={demoVideo}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="w-full h-auto object-cover opacity-90 group-hover:opacity-100 transition-opacity"
-                  style={{ maxHeight: "250px" }}
-                />
-                <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/80 to-transparent p-3">
-                  <div className="flex items-center gap-2">
-                    <BrainCircuit size={14} className="text-purple-400" />
-                    <span className="text-xs font-semibold text-white/90">
-                      Deep Reasoning Active
-                    </span>
+      {isAuthenticated() && (
+        <footer className="zetsu-ai-input-area">
+          <div className="zetsu-ai-input-form relative">
+            {/* Deep Reasoning Demo Video */}
+            {isDeepReasoning && isDemoVideoVisible && (
+              <div className="absolute bottom-full mb-4 left-0 w-full animate-in fade-in slide-in-from-bottom-4 duration-500 z-40">
+                <div className="relative w-full max-w-lg mx-auto bg-black/40 backdrop-blur-md rounded-xl overflow-hidden border border-white/10 shadow-2xl group">
+                  <div className="absolute top-2 right-2 z-50">
+                    <button
+                      onClick={() => setIsDemoVideoVisible(false)}
+                      className="p-1 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-colors backdrop-blur-sm"
+                      title="Close Demo"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <video
+                    src={demoVideo}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-auto object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                    style={{ maxHeight: "250px" }}
+                  />
+                  <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/80 to-transparent p-3">
+                    <div className="flex items-center gap-2">
+                      <BrainCircuit size={14} className="text-purple-400" />
+                      <span className="text-xs font-semibold text-white/90">
+                        Deep Reasoning Active
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Reopen Demo Button (only if closed and deep reasoning is on) */}
-          {isDeepReasoning && !isDemoVideoVisible && (
-            <div className="absolute bottom-full mb-2 right-0 animate-in fade-in zoom-in duration-300 z-40">
-              <button
-                onClick={() => setIsDemoVideoVisible(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-black/80 hover:bg-black border border-white/10 rounded-full backdrop-blur-md text-[10px] text-zinc-300 hover:text-white transition-all hover:scale-105 shadow-lg"
-              >
-                <Info size={10} />
-                <span>Show Demo</span>
-              </button>
-            </div>
-          )}
-
-          <PromptInputWithActions
-            placeholder="Ask me anything about programming..."
-            value={input}
-            onChange={(val) => setInput(val)}
-            onSend={() => handleSubmit({ preventDefault: () => {} })}
-            isLoading={isThinking}
-            startActions={
-              <div className="relative">
-                {/* Tools Toggle Button */}
+            {/* Reopen Demo Button (only if closed and deep reasoning is on) */}
+            {isDeepReasoning && !isDemoVideoVisible && (
+              <div className="absolute bottom-full mb-2 right-0 animate-in fade-in zoom-in duration-300 z-40">
                 <button
-                  type="button"
-                  onMouseEnter={handleToolsMouseEnter}
-                  onMouseLeave={handleToolsMouseLeave}
-                  className={`p-2 rounded-xl transition-all duration-300 ${
-                    isToolsOpen
-                      ? "bg-white/10 text-white shadow-lg shadow-purple-500/10"
-                      : "text-gray-400 hover:text-white hover:bg-white/5"
-                  }`}
-                  title="AI Tools & Configuration"
+                  onClick={() => setIsDemoVideoVisible(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-black/80 hover:bg-black border border-white/10 rounded-full backdrop-blur-md text-[10px] text-zinc-300 hover:text-white transition-all hover:scale-105 shadow-lg"
                 >
-                  <Settings2
-                    size={20}
-                    className={isToolsOpen ? "animate-spin-slow" : ""}
-                  />
+                  <Info size={10} />
+                  <span>Show Demo</span>
                 </button>
+              </div>
+            )}
 
-                {/* Tools Popover Menu - Rendered INSIDE the input relative container to align correctly */}
-                {isToolsOpen && (
-                  <div
-                    className="absolute bottom-full left-0 mb-3 w-64 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 z-50 overflow-hidden origin-bottom-left"
+            <PromptInputWithActions
+              placeholder="Ask me anything about programming..."
+              value={input}
+              onChange={(val) => setInput(val)}
+              onSend={() => handleSubmit({ preventDefault: () => {} })}
+              isLoading={isThinking}
+              startActions={
+                <div className="relative">
+                  {/* Tools Toggle Button */}
+                  <button
+                    type="button"
                     onMouseEnter={handleToolsMouseEnter}
                     onMouseLeave={handleToolsMouseLeave}
+                    className={`p-2 rounded-xl transition-all duration-300 ${
+                      isToolsOpen
+                        ? "bg-white/10 text-white shadow-lg shadow-purple-500/10"
+                        : "text-gray-400 hover:text-white hover:bg-white/5"
+                    }`}
+                    title="AI Tools & Configuration"
                   >
-                    <div className="px-4 py-3 border-b border-white/5 bg-white/5">
-                      <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                        AI Configuration
-                      </h4>
-                    </div>
+                    <Settings2
+                      size={20}
+                      className={isToolsOpen ? "animate-spin-slow" : ""}
+                    />
+                  </button>
 
-                    <div className="p-2 space-y-1">
-                      <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`p-1.5 rounded-md ${isDeepReasoning ? "bg-purple-500/20 text-purple-400" : "bg-zinc-800 text-zinc-400"}`}
-                          >
-                            <BrainCircuit size={16} />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm text-zinc-200 font-medium">
-                              Deep Reasoning
-                            </span>
-                            <span className="text-[10px] text-zinc-500">
-                              3-Stage detailed analysis
-                            </span>
-                          </div>
-                        </div>
-                        <label
-                          className="zetsu-switch"
-                          style={{ transform: "scale(0.8)" }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isDeepReasoning}
-                            onChange={(e) => {
-                              setIsDeepReasoning(e.target.checked);
-                              if (e.target.checked) setIsSubAgentMode(false); // Mutual exclusion
-                            }}
-                            disabled={isThinking || isSubAgentMode}
-                          />
-                          <span className="zetsu-slider round"></span>
-                        </label>
+                  {/* Tools Popover Menu - Rendered INSIDE the input relative container to align correctly */}
+                  {isToolsOpen && (
+                    <div
+                      className="absolute bottom-full left-0 mb-3 w-64 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 z-50 overflow-hidden origin-bottom-left"
+                      onMouseEnter={handleToolsMouseEnter}
+                      onMouseLeave={handleToolsMouseLeave}
+                    >
+                      <div className="px-4 py-3 border-b border-white/5 bg-white/5">
+                        <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                          AI Configuration
+                        </h4>
                       </div>
 
-                      {/* SubAgent Mode (5-Stage) */}
-                      <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`p-1.5 rounded-md ${isSubAgentMode ? "bg-cyan-500/20 text-cyan-400" : "bg-zinc-800 text-zinc-400"}`}
-                          >
-                            <Bot size={16} />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm text-zinc-200 font-medium">
-                              SubAgent Mode
-                            </span>
-                            <span className="text-[10px] text-zinc-500">
-                              5-Agent Advanced Pipeline
-                            </span>
-                          </div>
-                        </div>
-                        <label
-                          className="zetsu-switch"
-                          style={{ transform: "scale(0.8)" }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isSubAgentMode}
-                            onChange={(e) => {
-                              setIsSubAgentMode(e.target.checked);
-                              if (e.target.checked) setIsDeepReasoning(false); // Mutual exclusion
-                            }}
-                            disabled={isThinking || isDeepReasoning}
-                          />
-                          <span className="zetsu-slider round"></span>
-                        </label>
-                      </div>
-
-                      {/* Prompt Enhancer */}
-                      <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`p-1.5 rounded-md ${isEnhancing ? "bg-amber-500/20 text-amber-400 animate-pulse" : "bg-zinc-800 text-zinc-400"}`}
-                          >
-                            <Wand2
-                              size={16}
-                              className={isEnhancing ? "animate-spin-slow" : ""}
-                            />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm text-zinc-200 font-medium">
-                              Prompt Enhancer
-                            </span>
-                            <span className="text-[10px] text-zinc-500">
-                              Auto-optimize your question
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={handleEnhancePrompt}
-                          disabled={!input.trim() || isEnhancing || isThinking}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                            !input.trim()
-                              ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
-                              : "bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:scale-105 shadow-lg shadow-orange-500/20"
-                          }`}
-                        >
-                          {isEnhancing ? "Enhancing..." : "Enhance"}
-                        </button>
-                      </div>
-
-                      {/* Dynamic Image Generation */}
-                      <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`p-1.5 rounded-md ${isImageGenEnabled ? "bg-blue-500/20 text-blue-400" : "bg-zinc-800 text-zinc-400"}`}
-                          >
-                            <svg
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
+                      <div className="p-2 space-y-1">
+                        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`p-1.5 rounded-md ${isDeepReasoning ? "bg-purple-500/20 text-purple-400" : "bg-zinc-800 text-zinc-400"}`}
                             >
-                              <rect
-                                x="3"
-                                y="3"
-                                width="18"
-                                height="18"
-                                rx="2"
-                                ry="2"
-                              ></rect>
-                              <circle cx="9" cy="9" r="2"></circle>
-                              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
-                            </svg>
+                              <BrainCircuit size={16} />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm text-zinc-200 font-medium">
+                                Deep Reasoning
+                              </span>
+                              <span className="text-[10px] text-zinc-500">
+                                3-Stage detailed analysis
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm text-zinc-200 font-medium">
-                              Image Generation
-                            </span>
-                            <span className="text-[10px] text-zinc-500">
-                              Auto-generate visuals
-                            </span>
-                          </div>
+                          <label
+                            className="zetsu-switch"
+                            style={{ transform: "scale(0.8)" }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isDeepReasoning}
+                              onChange={(e) => {
+                                setIsDeepReasoning(e.target.checked);
+                                if (e.target.checked) setIsSubAgentMode(false); // Mutual exclusion
+                              }}
+                              disabled={isThinking || isSubAgentMode}
+                            />
+                            <span className="zetsu-slider round"></span>
+                          </label>
                         </div>
-                        <label
-                          className="zetsu-switch"
-                          style={{ transform: "scale(0.8)" }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isImageGenEnabled}
-                            onChange={(e) =>
-                              setIsImageGenEnabled(e.target.checked)
+
+                        {/* SubAgent Mode (5-Stage) */}
+                        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`p-1.5 rounded-md ${isSubAgentMode ? "bg-cyan-500/20 text-cyan-400" : "bg-zinc-800 text-zinc-400"}`}
+                            >
+                              <Bot size={16} />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm text-zinc-200 font-medium">
+                                SubAgent Mode
+                              </span>
+                              <span className="text-[10px] text-zinc-500">
+                                5-Agent Advanced Pipeline
+                              </span>
+                            </div>
+                          </div>
+                          <label
+                            className="zetsu-switch"
+                            style={{ transform: "scale(0.8)" }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSubAgentMode}
+                              onChange={(e) => {
+                                setIsSubAgentMode(e.target.checked);
+                                if (e.target.checked) setIsDeepReasoning(false); // Mutual exclusion
+                              }}
+                              disabled={isThinking || isDeepReasoning}
+                            />
+                            <span className="zetsu-slider round"></span>
+                          </label>
+                        </div>
+
+                        {/* Prompt Enhancer */}
+                        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`p-1.5 rounded-md ${isEnhancing ? "bg-amber-500/20 text-amber-400 animate-pulse" : "bg-zinc-800 text-zinc-400"}`}
+                            >
+                              <Wand2
+                                size={16}
+                                className={
+                                  isEnhancing ? "animate-spin-slow" : ""
+                                }
+                              />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm text-zinc-200 font-medium">
+                                Prompt Enhancer
+                              </span>
+                              <span className="text-[10px] text-zinc-500">
+                                Auto-optimize your question
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleEnhancePrompt}
+                            disabled={
+                              !input.trim() || isEnhancing || isThinking
                             }
-                            disabled={isThinking}
-                          />
-                          <span className="zetsu-slider round"></span>
-                        </label>
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                              !input.trim()
+                                ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                                : "bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:scale-105 shadow-lg shadow-orange-500/20"
+                            }`}
+                          >
+                            {isEnhancing ? "Enhancing..." : "Enhance"}
+                          </button>
+                        </div>
+
+                        {/* Dynamic Image Generation */}
+                        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`p-1.5 rounded-md ${isImageGenEnabled ? "bg-blue-500/20 text-blue-400" : "bg-zinc-800 text-zinc-400"}`}
+                            >
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <rect
+                                  x="3"
+                                  y="3"
+                                  width="18"
+                                  height="18"
+                                  rx="2"
+                                  ry="2"
+                                ></rect>
+                                <circle cx="9" cy="9" r="2"></circle>
+                                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+                              </svg>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm text-zinc-200 font-medium">
+                                Image Generation
+                              </span>
+                              <span className="text-[10px] text-zinc-500">
+                                Auto-generate visuals
+                              </span>
+                            </div>
+                          </div>
+                          <label
+                            className="zetsu-switch"
+                            style={{ transform: "scale(0.8)" }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isImageGenEnabled}
+                              onChange={(e) =>
+                                setIsImageGenEnabled(e.target.checked)
+                              }
+                              disabled={isThinking}
+                            />
+                            <span className="zetsu-slider round"></span>
+                          </label>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              }
+            />
+            {/* Sailboat Animation */}
+            {messages.length === 0 && (
+              <div
+                className={`sailboat-animation-container ${isThinking || isStreamingResponse ? "sailboat-fade-out" : ""}`}
+              >
+                <Lottie
+                  animationData={sailboatAnimation}
+                  loop={true}
+                  autoplay={true}
+                  style={{
+                    width: "120px",
+                    height: "80px",
+                  }}
+                />
               </div>
-            }
-          />
-          {/* Sailboat Animation */}
-          {messages.length === 0 && (
-            <div
-              className={`sailboat-animation-container ${isThinking || isStreamingResponse ? "sailboat-fade-out" : ""}`}
-            >
-              <Lottie
-                animationData={sailboatAnimation}
-                loop={true}
-                autoplay={true}
-                style={{
-                  width: "120px",
-                  height: "80px",
-                }}
-              />
-            </div>
-          )}
-          <p className="zetsu-ai-disclaimer">
-            ZetsuGuide AI can make mistakes. Check important info.
-          </p>
-        </div>
-      </footer>
+            )}
+            <p className="zetsu-ai-disclaimer">
+              ZetsuGuide AI can make mistakes. Check important info.
+            </p>
+          </div>
+        </footer>
+      )}
 
       <style>{`
                 /* Follow-ups CSS */

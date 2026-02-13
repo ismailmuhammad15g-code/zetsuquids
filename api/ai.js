@@ -1376,8 +1376,27 @@ Here is the explanation...
     });
 
     if (supportsStreaming) {
-      // Verify the upstream response is actually a stream
-      if (!response.body || !response.body.getReader) {
+      // Create a compatible reader for both Web Streams and Node Streams
+      let reader;
+
+      if (response.body && typeof response.body.getReader === "function") {
+        reader = response.body.getReader();
+      } else if (
+        response.body &&
+        typeof response.body[Symbol.asyncIterator] === "function"
+      ) {
+        // Node.js PassThrough/Readable stream
+        const iterator = response.body[Symbol.asyncIterator]();
+        reader = {
+          read: async () => {
+            const { done, value } = await iterator.next();
+            return { done, value };
+          },
+        };
+      }
+
+      // Verify we have a valid reader
+      if (!reader) {
         console.error("❌ AI provider did not return a readable stream!");
         console.error("Response body type:", typeof response.body);
 
@@ -1406,8 +1425,6 @@ Here is the explanation...
       res.write(
         `data: ${JSON.stringify({ type: "start", sources: fetchedSources.map((s) => ({ url: s.url, method: s.method })) })}\n\n`,
       );
-
-      const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
       let totalTokensSent = 0; // Track if we're actually receiving content

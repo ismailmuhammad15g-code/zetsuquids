@@ -13,12 +13,13 @@ import {
     Search,
     Sparkles,
     Wand2,
-    X
+    X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { basicSearch, getAIEnhancement, isAIConfigured } from "../lib/ai";
 import { guidesApi } from "../lib/api";
+import AnimatedLoadingSkeleton from "./ui/animated-loading-skeleton";
 
 // Blacklisted words - inappropriate content
 const BLACKLIST = [
@@ -290,6 +291,7 @@ export default function SearchModal({ onClose }) {
 
   async function enhanceWithAI(searchQuery) {
     setAiState("thinking");
+    setShowAiPanel(true); // Show skeleton immediately while thinking
 
     try {
       const aiData = await getAIEnhancement(searchQuery, allGuides);
@@ -297,7 +299,7 @@ export default function SearchModal({ onClose }) {
       if (aiData && aiData.aiInsight) {
         setAiResults(aiData);
         setAiState("ready");
-        setShowAiPanel(true);
+        // setShowAiPanel(true) is already true
 
         // Merge AI results with basic results
         if (aiData.results && aiData.results.length > 0) {
@@ -549,9 +551,11 @@ export default function SearchModal({ onClose }) {
               </div>
             )}
 
-            {/* AI Thinking Panel */}
+            {/* AI Thinking Panel - Replaced with AnimatedLoadingSkeleton */}
             {!loading && aiState === "thinking" && showAiPanel && (
-              <AIThinkingPanel />
+              <div className="py-8">
+                <AnimatedLoadingSkeleton />
+              </div>
             )}
 
             {/* AI Results Panel */}
