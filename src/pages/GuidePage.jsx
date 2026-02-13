@@ -16,9 +16,11 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import ConfirmModal from "../components/ConfirmModal";
+import FollowButton from "../components/FollowButton";
 import GuideComments from "../components/GuideComments";
 import GuideHistoryModal from "../components/GuideHistoryModal";
 import GuideTimer from "../components/GuideTimer";
+import SEOHelmet from "../components/SEOHelmet";
 import { ScrollProgress } from "../components/ui/scroll-progress";
 import { useAuth } from "../contexts/AuthContext";
 import { guidesApi } from "../lib/api";
@@ -368,6 +370,17 @@ export default function GuidePage() {
 
   return (
     <>
+      {/* Dynamic SEO Meta Tags */}
+      {guide && (
+        <SEOHelmet 
+          title={guide.title}
+          description={guide.content ? guide.content.substring(0, 150).replace(/[#*`]/g, '') + '...' : 'A comprehensive developer guide'}
+          author={guide.author_name || guide.user_email?.split('@')[0]}
+          keywords={guide.keywords ? guide.keywords.join(', ') : ''}
+          type="article"
+        />
+      )}
+
       <div className="pointer-events-none fixed left-0 top-0 z-[100] w-full">
         {/* Backdrop Blur Effect */}
         <div className="absolute left-0 top-0 h-24 w-full bg-white/50 backdrop-blur-xl [-webkit-mask-image:linear-gradient(to_bottom,black,transparent)]" />
@@ -450,12 +463,20 @@ export default function GuidePage() {
                     )}
                   </div>
                 </div>
-                <Link
-                  to={`/@${(guide.author_name || guide.user_email.split("@")[0]).toLowerCase()}/workspace`}
-                  className="px-4 py-2 bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
-                >
-                  View Profile
-                </Link>
+                
+                {/* Follow Button and Profile Link */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <FollowButton 
+                    targetUserEmail={guide.user_email}
+                    targetUserName={guide.author_name || guide.user_email.split("@")[0]}
+                  />
+                  <Link
+                    to={`/@${(guide.author_name || guide.user_email.split("@")[0]).toLowerCase()}/workspace`}
+                    className="px-4 py-2 bg-white text-black border-2 border-black text-sm font-medium hover:bg-gray-100 transition-colors text-center"
+                  >
+                    View Profile
+                  </Link>
+                </div>
               </div>
             </div>
           )}

@@ -1,6 +1,7 @@
 import { BookOpen, Calendar, Edit2, Loader2, Mail, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import FollowButton from '../components/FollowButton'
 import Toast from '../components/Toast'
 import { useAuth } from '../contexts/AuthContext'
 import { getAllAvatars, getAvatarForUser } from '../lib/avatar'
@@ -271,15 +272,23 @@ export default function UserWorkspacePage() {
                         <div className="flex-1 w-full">
                             <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4 mb-4">
                                 <h1 className="text-3xl sm:text-4xl font-black break-all">@{userProfile?.author_name}</h1>
-                                {isOwnWorkspace && (
-                                    <button
-                                        onClick={() => setShowEditModal(true)}
-                                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors font-medium text-sm"
-                                    >
-                                        <Edit2 size={16} className="text-gray-600" />
-                                        <span>Edit Profile</span>
-                                    </button>
-                                )}
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                                    {!isOwnWorkspace && userProfile?.author_email && (
+                                        <FollowButton 
+                                            targetUserEmail={userProfile.author_email}
+                                            targetUserName={userProfile.author_name}
+                                        />
+                                    )}
+                                    {isOwnWorkspace && (
+                                        <button
+                                            onClick={() => setShowEditModal(true)}
+                                            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors font-medium text-sm"
+                                        >
+                                            <Edit2 size={16} className="text-gray-600" />
+                                            <span>Edit Profile</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
                             {userProfile?.bio && (
