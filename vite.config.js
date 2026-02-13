@@ -145,6 +145,50 @@ function apiMiddleware() {
           return;
         }
 
+        // Handle follow_user API
+        if (req.url === "/api/follow_user" && req.method === "POST") {
+          let body = "";
+          req.on("data", (chunk) => {
+            body += chunk;
+          });
+          req.on("end", async () => {
+            try {
+              const data = JSON.parse(body);
+
+              // Inject env vars
+              process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+              process.env.VITE_SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY;
+
+              const mockReq = {
+                method: "POST",
+                body: data,
+                headers: req.headers,
+              };
+              const mockRes = {
+                statusCode: 200,
+                setHeader: (key, value) => res.setHeader(key, value),
+                status: (code) => {
+                  res.statusCode = code;
+                  return mockRes;
+                },
+                json: (data) => {
+                  res.setHeader("Content-Type", "application/json");
+                  res.end(JSON.stringify(data));
+                },
+              };
+
+              const { default: followUser } = await import("./api/follow_user.js");
+              await followUser(mockReq, mockRes);
+            } catch (error) {
+              console.error("Follow User API Error:", error);
+              res.statusCode = 500;
+              res.setHeader("Content-Type", "application/json");
+              res.end(JSON.stringify({ error: error.message }));
+            }
+          });
+          return;
+        }
+
         // Handle daily_credits API
         if (req.url === "/api/daily_credits" && req.method === "POST") {
           let body = "";
