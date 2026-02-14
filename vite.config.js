@@ -156,7 +156,8 @@ function apiMiddleware() {
               const data = JSON.parse(body);
 
               // Inject env vars
-              process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+              process.env.VITE_SUPABASE_URL =
+                env.VITE_SUPABASE_URL || env.SUPABASE_URL;
               process.env.VITE_SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY;
 
               const mockReq = {
@@ -177,7 +178,8 @@ function apiMiddleware() {
                 },
               };
 
-              const { default: followUser } = await import("./api/follow_user.js");
+              const { default: followUser } =
+                await import("./api/follow_user.js");
               await followUser(mockReq, mockRes);
             } catch (error) {
               console.error("Follow User API Error:", error);

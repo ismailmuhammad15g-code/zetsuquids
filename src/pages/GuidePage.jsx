@@ -3,24 +3,30 @@ import {
     Calendar,
     Check,
     Clock,
+    Download,
     ExternalLink,
     Loader2,
     Mail,
+    MoreVertical,
     Share2,
     Tag,
     Trash2,
+    Volume2,
+    VolumeX,
 } from "lucide-react";
 import { marked } from "marked";
 import mermaid from "mermaid";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import ConfirmModal from "../components/ConfirmModal";
+import DownloadGuideModal from "../components/DownloadGuideModal";
 import FollowButton from "../components/FollowButton";
 import GuideComments from "../components/GuideComments";
 import GuideHistoryModal from "../components/GuideHistoryModal";
 import GuideTimer from "../components/GuideTimer";
 import SEOHelmet from "../components/SEOHelmet";
+import TextToSpeech from "../components/TextToSpeech";
 import { ScrollProgress } from "../components/ui/scroll-progress";
 import { useAuth } from "../contexts/AuthContext";
 import { guidesApi } from "../lib/api";
@@ -93,6 +99,11 @@ export default function GuidePage() {
   const [authorAvatar, setAuthorAvatar] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [isPlayingTTS, setIsPlayingTTS] = useState(false);
+  const moreMenuRef = useRef(null);
+  const ttsRef = useRef(null);
 
   useEffect(() => {
     loadGuide();
@@ -101,6 +112,23 @@ export default function GuidePage() {
   useEffect(() => {
     mermaid.initialize({ startOnLoad: false, theme: "default" });
   }, []);
+
+  // Close More menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target)) {
+        setShowMoreMenu(false);
+      }
+    };
+
+    if (showMoreMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showMoreMenu]);
 
   useEffect(() => {
     if (guide) {
@@ -328,6 +356,26 @@ export default function GuidePage() {
   // Check if admin is authenticated via sessionStorage
   const isAdmin = sessionStorage.getItem("adminAuthenticated") === "true";
 
+  // Robust check for ownership (case-insensitive)
+  const isOwner =
+    user?.email &&
+    guide?.user_email &&
+    (guide.user_email === user.email ||
+      guide.user_email.toLowerCase() === user.email.toLowerCase());
+
+  // Debug permissions
+  useEffect(() => {
+    if (guide) {
+      console.log("[GuidePage] Permissions Check:", {
+        userEmail: user?.email,
+        guideAuthor: guide?.user_email,
+        isOwner,
+        isAdmin,
+        sessionAdmin: sessionStorage.getItem("adminAuthenticated"),
+      });
+    }
+  }, [guide, user, isOwner, isAdmin]);
+
   // Loading State
   if (loading) {
     return (
@@ -365,8 +413,6 @@ export default function GuidePage() {
       </div>
     );
   }
-
-  const isOwner = user?.email && guide?.user_email === user.email;
 
   return (
     <>
@@ -504,6 +550,15 @@ export default function GuidePage() {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2">
+            {/* Save/Download Button - Available to all users */}
+            <button
+              onClick={() => setShowDownloadModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black hover:from-purple-600 hover:to-pink-600 transition-all text-sm font-medium shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+            >
+              <Download size={16} />
+              Save
+            </button>
+
             <button
               onClick={handleCopyLink}
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 hover:border-black transition-colors text-sm"
@@ -521,31 +576,86 @@ export default function GuidePage() {
               )}
             </button>
 
-            {/* ONLY SHOW ACTIONS IF OWNER OR ADMIN */}
-            {(isOwner || isAdmin) && (
-              <>
-                <button
-                  onClick={() => setShowHistory(true)}
-                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 hover:border-black transition-colors text-sm"
-                >
-                  <Clock size={16} />
-                  History
-                </button>
+            {/* More Menu */}
+            <div className="relative" ref={moreMenuRef}>
+              <button
+                onClick={() => setShowMoreMenu(!showMoreMenu)}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 hover:border-black transition-colors text-sm"
+              >
+                <MoreVertical size={16} />
+                More
+              </button>
 
-                <button
-                  onClick={handleDeleteClick}
-                  disabled={deleting}
-                  className="flex items-center gap-2 px-4 py-2 border border-red-300 text-red-600 hover:bg-red-50 transition-colors text-sm disabled:opacity-50"
-                >
-                  {deleting ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Trash2 size={16} />
+              {/* Dropdown Menu */}
+              {showMoreMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-50">
+                  {/* Text-to-Speech Button */}
+                  {guide.content && (
+                    <button
+                      onClick={() => {
+                        if (ttsRef.current) {
+                          if (isPlayingTTS) {
+                            ttsRef.current.stopSpeech();
+                            setIsPlayingTTS(false);
+                          } else {
+                            ttsRef.current.startSpeech();
+                            setIsPlayingTTS(true);
+                          }
+                          setShowMoreMenu(false);
+                        }
+                      }}
+                      className={
+                        isPlayingTTS
+                          ? "w-full text-left px-4 py-2 hover:bg-red-50 transition-colors text-sm flex items-center gap-2 font-medium text-red-600 border-b border-gray-100"
+                          : "w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors text-sm flex items-center gap-2 font-medium border-b border-gray-100"
+                      }
+                      title={
+                        isPlayingTTS ? "Stop listening" : "Listen to this guide"
+                      }
+                    >
+                      {isPlayingTTS ? (
+                        <VolumeX size={16} />
+                      ) : (
+                        <Volume2 size={16} />
+                      )}
+                      {isPlayingTTS ? "Stop Listening" : "Listen to Guide"}
+                    </button>
                   )}
-                  Delete
-                </button>
-              </>
-            )}
+
+                  {/* Owner/Admin Actions */}
+                  {(isOwner || isAdmin) && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setShowHistory(true);
+                          setShowMoreMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors text-sm flex items-center gap-2 font-medium border-b border-gray-100"
+                      >
+                        <Clock size={16} />
+                        History
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          handleDeleteClick();
+                          setShowMoreMenu(false);
+                        }}
+                        disabled={deleting}
+                        className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 transition-colors text-sm flex items-center gap-2 font-medium disabled:opacity-50"
+                      >
+                        {deleting ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={16} />
+                        )}
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -585,6 +695,30 @@ export default function GuidePage() {
           <GuideHistoryModal
             guideId={guide.id}
             onClose={() => setShowHistory(false)}
+          />
+        )}
+
+        {/* Download Modal */}
+        {showDownloadModal && (
+          <DownloadGuideModal
+            guide={guide}
+            authorName={
+              guide.author_name ||
+              guide.user_email?.split("@")[0] ||
+              "Unknown Author"
+            }
+            onClose={() => setShowDownloadModal(false)}
+          />
+        )}
+
+        {/* Text-to-Speech Component (Permanently Mounted) */}
+        {guide && guide.content && (
+          <TextToSpeech
+            ref={ttsRef}
+            content={guide.content}
+            title={guide.title}
+            hideButton={true}
+            onClose={() => setIsPlayingTTS(false)}
           />
         )}
       </article>

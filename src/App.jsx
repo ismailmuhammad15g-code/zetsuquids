@@ -7,6 +7,7 @@ import cakeAnimation from "./assets/cake_snipper.json";
 import GlobalErrorHandler from "./components/GlobalErrorHandler";
 import GlobalLoader from "./components/GlobalLoader";
 import Layout from "./components/Layout";
+import NetworkStatusMonitor from "./components/NetworkStatusMonitor";
 import { AuthProvider } from "./contexts/AuthContext";
 import { LoadingProvider } from "./contexts/LoadingContext";
 import { prefetchGuidesOnLoad } from "./hooks/useGuides";
@@ -63,6 +64,7 @@ function App() {
       <AuthProvider>
         <GlobalLoader />
         <GlobalErrorHandler />
+        <NetworkStatusMonitor />
         <Toaster position="top-center" richColors closeButton />
         <Suspense fallback={<PageLoader />}>
           <Routes>
