@@ -5,14 +5,17 @@ import {
     Clock,
     Download,
     ExternalLink,
+    Eye,
     Loader2,
+    Lock,
     Mail,
     MoreVertical,
     Share2,
     Tag,
     Trash2,
+    UserPlus,
     Volume2,
-    VolumeX,
+    VolumeX
 } from "lucide-react";
 import { marked } from "marked";
 import mermaid from "mermaid";
@@ -102,6 +105,7 @@ export default function GuidePage() {
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isPlayingTTS, setIsPlayingTTS] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false); // New Feature: Focus Mode
   const moreMenuRef = useRef(null);
   const ttsRef = useRef(null);
 
@@ -434,6 +438,29 @@ export default function GuidePage() {
       <div className="pointer-events-none fixed left-0 top-0 z-[100] w-full">
         {/* Backdrop Blur Effect */}
         <div className="absolute left-0 top-0 h-24 w-full bg-white/50 backdrop-blur-xl [-webkit-mask-image:linear-gradient(to_bottom,black,transparent)]" />
+        {/* Focus Mode Overlay */}
+        {isFocusMode && (
+          <div className="fixed inset-0 z-[200] bg-white pointer-events-auto overflow-y-auto animate-in fade-in duration-300">
+            <div className="max-w-3xl mx-auto px-6 py-12">
+              <button
+                onClick={() => setIsFocusMode(false)}
+                className="fixed top-6 right-6 p-2 bg-gray-100 hover:bg-black hover:text-white rounded-full transition-all"
+                title="Exit Focus Mode"
+              >
+                <Eye size={24} />
+              </button>
+              <h1 className="text-4xl font-black mb-12 text-center">
+                {guide.title}
+              </h1>
+              <div className="guide-content prose md:prose-xl max-w-none">
+                {renderContent()}
+              </div>
+              <div className="mt-20 text-center text-gray-400 text-sm">
+                End of focus mode
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Progress Track */}
         <div className="absolute left-0 top-0 w-full">
@@ -461,6 +488,32 @@ export default function GuidePage() {
 
         {/* Header */}
         <header className="mb-8 pb-8 border-b-2 border-black">
+          {/* Sign Up Banner for Guest Users */}
+          {!user && (
+            <div className="mb-8 p-6 bg-black text-white border-2 border-gray-800 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full translate-x-16 -translate-y-16 group-hover:scale-110 transition-transform duration-500" />
+              <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
+                <div>
+                  <h3 className="text-xl font-black mb-2 flex items-center justify-center sm:justify-start gap-2">
+                    <UserPlus size={24} className="text-white" />
+                    Join ZetsuGuide Community
+                  </h3>
+                  <p className="text-gray-300 max-w-lg">
+                    Sign up now to unlock exclusive features: Follow authors,
+                    save guides to your profile, comment, and create your own
+                    content!
+                  </p>
+                </div>
+                <Link
+                  to="/auth"
+                  className="px-8 py-3 bg-white text-black font-black text-lg border-2 border-transparent hover:border-black hover:bg-gray-200 transition-all shadow-[4px_4px_0px_0px_rgba(255,255,255,0.3)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]"
+                >
+                  Join Now
+                </Link>
+              </div>
+            </div>
+          )}
+
           <h1 className="text-4xl sm:text-5xl font-black mb-4 leading-tight">
             {guide.title}
           </h1>
@@ -588,7 +641,30 @@ export default function GuidePage() {
 
               {/* Dropdown Menu */}
               {showMoreMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-50">
+                <div className="absolute right-0 mt-2 w-56 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-50 rounded-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  {/* Guest Actions */}
+                  {!user && (
+                    <div className="p-2 bg-gray-50 border-b border-gray-200">
+                      <p className="text-xs font-bold text-gray-500 px-2 mb-2 uppercase tracking-wide">
+                        Join Community
+                      </p>
+                      <Link
+                        to="/auth"
+                        className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black mb-1"
+                      >
+                        <UserPlus size={16} />
+                        Sign Up Free
+                      </Link>
+                      <Link
+                        to="/auth?mode=login"
+                        className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black"
+                      >
+                        <Lock size={16} />
+                        Login to Interact
+                      </Link>
+                    </div>
+                  )}
+
                   {/* Text-to-Speech Button */}
                   {guide.content && (
                     <button
@@ -606,8 +682,8 @@ export default function GuidePage() {
                       }}
                       className={
                         isPlayingTTS
-                          ? "w-full text-left px-4 py-2 hover:bg-red-50 transition-colors text-sm flex items-center gap-2 font-medium text-red-600 border-b border-gray-100"
-                          : "w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors text-sm flex items-center gap-2 font-medium border-b border-gray-100"
+                          ? "w-full text-left px-4 py-3 hover:bg-red-50 transition-colors text-sm flex items-center gap-3 font-medium text-red-600 border-b border-gray-100"
+                          : "w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black border-b border-gray-100"
                       }
                       title={
                         isPlayingTTS ? "Stop listening" : "Listen to this guide"
@@ -622,6 +698,18 @@ export default function GuidePage() {
                     </button>
                   )}
 
+                  {/* Focus Mode Button - NEW FEATURE */}
+                  <button
+                    onClick={() => {
+                      setIsFocusMode(true);
+                      setShowMoreMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors text-sm flex items-center gap-3 font-medium text-purple-600 border-b border-gray-100"
+                  >
+                    <Eye size={16} />
+                    Enter Focus Mode
+                  </button>
+
                   {/* Owner/Admin Actions */}
                   {(isOwner || isAdmin) && (
                     <>
@@ -630,7 +718,7 @@ export default function GuidePage() {
                           setShowHistory(true);
                           setShowMoreMenu(false);
                         }}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors text-sm flex items-center gap-2 font-medium border-b border-gray-100"
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black border-b border-gray-100"
                       >
                         <Clock size={16} />
                         History
@@ -642,7 +730,7 @@ export default function GuidePage() {
                           setShowMoreMenu(false);
                         }}
                         disabled={deleting}
-                        className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 transition-colors text-sm flex items-center gap-2 font-medium disabled:opacity-50"
+                        className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-600 transition-colors text-sm flex items-center gap-3 font-medium disabled:opacity-50"
                       >
                         {deleting ? (
                           <Loader2 size={16} className="animate-spin" />

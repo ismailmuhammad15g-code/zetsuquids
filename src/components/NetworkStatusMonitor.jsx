@@ -1,4 +1,4 @@
-import { RefreshCcw, Signal, Wifi, WifiOff } from "lucide-react";
+import { Activity, RefreshCcw, Signal, Wifi, WifiOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -6,13 +6,60 @@ export default function NetworkStatusMonitor() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [showModal, setShowModal] = useState(!navigator.onLine);
   const [connectionType, setConnectionType] = useState("unknown");
+  const [latency, setLatency] = useState(0); // My custom feature: latency tracking
   const wasOfflineRef = useRef(!navigator.onLine);
   const slowConnectionToastRef = useRef(null);
+
+  // Custom Feature: Active Latency Check
+  const checkLatency = async () => {
+    const start = Date.now();
+    try {
+      // Ping the server (using a small resource or HEAD request)
+      await fetch("/", { method: "HEAD", cache: "no-store" });
+      const end = Date.now();
+      const currentLatency = end - start;
+      setLatency(currentLatency);
+
+      // If latency is very high (> 3000ms), consider it weak internet
+      if (currentLatency > 3000) {
+        showWeakConnectionToast(currentLatency);
+      }
+      return true;
+    } catch (err) {
+      // If fetch fails, we might be offline or super slow
+      return false;
+    }
+  };
+
+  const showWeakConnectionToast = (currentLatency) => {
+    if (!slowConnectionToastRef.current) {
+      slowConnectionToastRef.current = toast.warning(
+        "Weak Internet Connection",
+        {
+          description: `High latency detected (${currentLatency}ms). Trying to stabilize...`,
+          icon: (
+            <Activity size={20} className="text-yellow-500 animate-pulse" />
+          ),
+          duration: 6000,
+          action: {
+            label: "Test Speed",
+            onClick: () => checkLatency(),
+          },
+          onDismiss: () => {
+            slowConnectionToastRef.current = null;
+          },
+        },
+      );
+    }
+  };
 
   useEffect(() => {
     // Check connection quality
     const checkConnectionQuality = () => {
-      if (navigator.connection) {
+      // 1. Browser API Check
+      // 2. Browser API Check (Passive)
+      let isWeak = false;
+      if (typeof navigator !== "undefined" && navigator.connection) {
         const connection =
           navigator.connection ||
           navigator.mozConnection ||
@@ -27,15 +74,15 @@ export default function NetworkStatusMonitor() {
         if (
           effectiveType === "2g" ||
           effectiveType === "slow-2g" ||
-          downlink < 1
+          (downlink && downlink < 1)
         ) {
+          isWeak = true;
           if (!slowConnectionToastRef.current) {
             slowConnectionToastRef.current = toast.warning(
-              "Slow internet connection detected",
+              "Unstable Network Detected",
               {
-                description:
-                  "Your connection is weak, some features may be slower",
-                icon: <Signal size={20} />,
+                description: `Signal strength is low (${effectiveType}). Some features may lag.`,
+                icon: <Signal size={20} className="text-orange-500" />,
                 duration: 5000,
                 onDismiss: () => {
                   slowConnectionToastRef.current = null;
@@ -45,7 +92,65 @@ export default function NetworkStatusMonitor() {
           }
         }
       }
+
+      // 3. Active Latency Check (My Added Feature)
+      // Only do deep check if we suspect issues or periodically
+      if (!isOffline && !isWeak) {
+        // Simple fetch check to confirm real connectivity
+        // Using HEAD request to root path which always exists and is small
+        const start = Date.now();
+        fetch(window.location.origin + "/favicon.svg", {
+          method: "HEAD",
+          cache: "no-store",
+        })
+          .catch(() => {
+            // First check failed, likely file not found but maybe connection. Try root fallback.
+            return fetch(window.location.origin, {
+              method: "HEAD",
+              cache: "no-store",
+              mode: "no-cors",
+            });
+          })
+          .then((response) => {
+            // If response is undefined, the catch above ran
+            if (response && !response.ok && response.type !== "opaque") {
+              // Ignore 404s, but connection is OK
+            }
+            return response;
+          })
+          .then(() => {
+            const time = Date.now() - start;
+            setLatency(time);
+            if (time > 2000) {
+              // High latency detected actively
+              if (!slowConnectionToastRef.current) {
+                slowConnectionToastRef.current = toast.warning(
+                  "Weak Internet Connection",
+                  {
+                    description:
+                      "Your network is unstable. Loading may be slow.",
+                    icon: <Signal size={20} className="text-yellow-500" />,
+                    duration: 5000,
+                    onDismiss: () => {
+                      slowConnectionToastRef.current = null;
+                    },
+                  },
+                );
+              }
+            }
+          })
+          .catch(() => {
+            // Fetch failed -> likely offline or super unstable
+            // We let the offline listener handle the main offline event
+          });
+      }
     };
+
+    // Run check every 30 seconds
+    const interval = setInterval(checkConnectionQuality, 30000);
+
+    // Initial check
+    checkConnectionQuality();
 
     // Handle online event
     const handleOnline = () => {
@@ -111,6 +216,7 @@ export default function NetworkStatusMonitor() {
 
     // Cleanup
     return () => {
+      clearInterval(interval); // Clear my latency check interval
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
 

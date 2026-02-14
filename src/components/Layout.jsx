@@ -22,6 +22,7 @@ import AccountSetupModal from "./AccountSetupModal";
 import AddGuideModal from "./AddGuideModal";
 import ApprovedBugModal from "./ApprovedBugModal";
 import GlobalLoader from "./GlobalLoader";
+import GooeyNav from "./react-bits/GooeyNav";
 import ReferralBonusNotification from "./ReferralBonusNotification";
 import ReferralSuccessModal from "./ReferralSuccessModal";
 import SearchModal from "./SearchModal";
@@ -183,6 +184,35 @@ export default function Layout() {
     checkBugRewards();
   }, [user]);
 
+  const navItems = [
+    {
+      label: "Home",
+      icon: <Home size={18} className="translate-y-[1px]" />,
+      href: "/",
+    },
+    {
+      label: "Guides",
+      icon: <BookOpen size={18} className="translate-y-[1px]" />,
+      href: "/guides",
+      isActive: location.pathname.startsWith("/guide"),
+    },
+    {
+      label: "Community",
+      icon: <Users size={18} className="translate-y-[1px]" />,
+      href: "/community",
+    },
+    {
+      label: "ZetsuGuide AI",
+      icon: <Bot size={18} className="translate-y-[1px]" />,
+      href: "/zetsuguide-ai",
+      extra: (
+        <span className="absolute -top-3 -right-6 px-1.5 py-0.5 text-[10px] font-bold bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-full animate-pulse shadow-sm pointer-events-none">
+          NEW
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -200,55 +230,9 @@ export default function Layout() {
             </Link>
 
             {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-1">
-              <Link
-                to="/"
-                className={`flex items-center gap-2 px-4 py-2 font-medium transition-all duration-200 ${
-                  location.pathname === "/"
-                    ? "bg-black text-white"
-                    : "hover:bg-gray-100"
-                }`}
-              >
-                <Home size={18} />
-                <span>Home</span>
-              </Link>
-              <Link
-                to="/guides"
-                className={`flex items-center gap-2 px-4 py-2 font-medium transition-all duration-200 ${
-                  location.pathname.startsWith("/guide")
-                    ? "bg-black text-white"
-                    : "hover:bg-gray-100"
-                }`}
-              >
-                <BookOpen size={18} />
-                <span>Guides</span>
-              </Link>
-              <Link
-                to="/community"
-                className={`flex items-center gap-2 px-4 py-2 font-medium transition-all duration-200 ${
-                  location.pathname === "/community"
-                    ? "bg-black text-white"
-                    : "hover:bg-gray-100"
-                }`}
-              >
-                <Users size={18} />
-                <span>Community</span>
-              </Link>
-              <Link
-                to="/zetsuguide-ai"
-                className={`flex items-center gap-2 px-4 py-2 font-medium transition-all duration-200 relative ${
-                  location.pathname === "/zetsuguide-ai"
-                    ? "bg-black text-white"
-                    : "hover:bg-gray-100"
-                }`}
-              >
-                <Bot size={18} />
-                <span>ZetsuGuide AI</span>
-                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[10px] font-bold bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-full animate-pulse shadow-sm">
-                  NEW
-                </span>
-              </Link>
-            </nav>
+            <div className="hidden md:block">
+              <GooeyNav items={navItems} />
+            </div>
 
             {/* Actions */}
             <div className="flex items-center gap-2">

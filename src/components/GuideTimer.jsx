@@ -80,20 +80,23 @@ export default function GuideTimer({ guideId, userId }) {
       stopTimerFunctions();
 
       // Try invalidating/saving on unmount
-      // Note: We can't easily call saveCurrentProgress here because of stale closures potentially
-      // affecting guideId/userId if they changed (though they shouldn't usually).
-      // But we can try:
       const now = Date.now();
       const diff = Math.round((now - lastTick.current) / 1000);
       if (diff > 1 && diff < 3000) {
-        // Fire and forget
+        // Fire and forget with silent catch
         supabase
           .rpc("track_guide_time", {
             p_guide_id: guideId,
             p_duration_add: diff,
           })
           .then(({ error }) => {
-            if (error) console.error("Unmount save error", error);
+            // Only log logic errors, suppress network errors on unmount as page allows it
+            if (error && !error.message?.includes("fetch")) {
+              // console.warn("Unmount save warning", error);
+            }
+          })
+          .catch(() => {
+            // Totally ignore unmount errors as they are often due to cancelled requests
           });
       }
     };
@@ -114,14 +117,39 @@ export default function GuideTimer({ guideId, userId }) {
   const saveProgress = async (amount) => {
     if (!userId || !guideId) return;
 
+    // Skip if offline
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return;
+    }
+
     try {
       const { error } = await supabase.rpc("track_guide_time", {
         p_guide_id: guideId,
         p_duration_add: amount,
       });
-      if (error) console.error("Error saving time:", error);
+
+      if (error) {
+        // Suppress network errors from console to avoid noise
+        if (
+          error.message?.includes("Failed to fetch") ||
+          error.message?.includes("NetworkError") ||
+          error.message?.includes("connection")
+        ) {
+          // Silent fail for network issues - we'll just try again next interval
+          return;
+        }
+        console.warn("Error saving time:", error.message);
+      }
     } catch (err) {
-      console.error("Failed to save time:", err);
+      // Suppress network errors from console
+      if (
+        err.message?.includes("Failed to fetch") ||
+        err.message?.includes("NetworkError") ||
+        err.name === "TypeError"
+      ) {
+        return;
+      }
+      console.warn("Failed to save time:", err);
     }
   };
 
