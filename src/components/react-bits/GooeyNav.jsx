@@ -107,7 +107,13 @@ const GooeyNav = ({
     )
       return;
     const containerRect = containerRef.current.getBoundingClientRect();
-    const pos = element.getBoundingClientRect();
+    const pos = element.getBoundingClientRect(); // This gets the LI rect
+
+    // Debug log to check if rect is correct
+    // console.log("Rect for", element.innerText, pos);
+
+    // If pos.width seems suspiciously large compared to text content, or pos.x is off
+    // It might be including psuedo-elements or something weird.
 
     const styles = {
       left: `${pos.x - containerRect.x}px`,

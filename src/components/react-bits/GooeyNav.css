@@ -51,7 +51,13 @@
   z-index: 5; /* Ensure list is top for interactions */
 }
 
+.gooey-nav-container nav ul li:hover {
+  /* No hover effect, handled by JS active state */
+}
+
 .gooey-nav-container nav ul li {
+  /* Using inline-flex for tighter bounds */
+  display: inline-flex;
   border-radius: 100vw;
   position: relative;
   cursor: pointer;
@@ -59,18 +65,20 @@
     background-color 0.3s ease,
     color 0.3s ease,
     box-shadow 0.3s ease;
-  /* box-shadow: 0 0 0.5px 1.5px transparent; */ /* Removed border-like shadow for cleaner look/integration */
-  color: #666; /* Default text color matching Layout */
+  color: #666;
   font-weight: 500;
+  white-space: nowrap; /* Prevent wrapping */
 }
 
 .gooey-nav-container nav ul li a {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5em 1em;
+  padding: 0.5em 1em; /* This is the main padding */
   text-decoration: none;
   color: inherit;
+  width: 100%;
+  justify-content: center;
 }
 
 .gooey-nav-container nav ul li:focus-within:has(:focus-visible) {
@@ -160,13 +168,14 @@
 .gooey-nav-container .effect.filter::after {
   content: "";
   position: absolute;
-  /* Size matching the original pill, center it */
-  width: calc(100% - 80px); /* Subtract 2x padding (40px*2) */
+  top: 40px;
+  left: 40px;
+  width: calc(100% - 80px);
   height: calc(100% - 80px);
-  background: black; /* The moving blob color */
+  background: black;
   transform: scale(0);
   opacity: 0;
-  border-radius: 100vw;
+  border-radius: 9999px; /* Force pill shape */
 }
 
 .gooey-nav-container .effect.active::after {

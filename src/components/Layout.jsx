@@ -1,17 +1,17 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    BarChart3,
-    BookOpen,
-    Bot,
-    Home,
-    LogIn,
-    LogOut,
-    Menu,
-    Plus,
-    Search,
-    Sparkles,
-    Users,
-    X,
+  BarChart3,
+  BookOpen,
+  Bot,
+  Home,
+  LogIn,
+  LogOut,
+  Menu,
+  Plus,
+  Search,
+  Sparkles,
+  Users,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -95,7 +95,12 @@ export default function Layout() {
           setCheckingReferral(false);
         }
       } catch (err) {
-        console.error("Retry claim referral failed:", err);
+        // If fetch aborted or network error, just log warning
+        if (err.name === "AbortError" || err.message?.includes("network")) {
+          console.warn("Retry claim referral paused (network/abort):", err);
+        } else {
+          console.error("Retry claim referral failed:", err);
+        }
         setCheckingReferral(false);
       }
     }
@@ -117,8 +122,17 @@ export default function Layout() {
         supabase.auth.getUser(),
       ]);
 
-      const { data } = profileResult;
+      const { data, error: profileError } = profileResult;
       const { error: authError } = authResult;
+
+      // Priority 0: Network Resilience - unexpected profile fetch error
+      if (profileError) {
+        console.warn("Profile fetch failed (likely network):", profileError);
+        // If it's a network error, do NOT assume user is new. Just abort this check.
+        // The user might experience limited functionality (no profile),
+        // but it's better than forcing "Account Setup".
+        return;
+      }
 
       // Priority 1: If Auth User is gone (Deleted by Admin), trigger deletion flow
       if (authError) {
