@@ -1,30 +1,28 @@
 :root {
-  --linear-ease: linear(
-    0,
-    0.068,
-    0.19 2.7%,
-    0.804 8.1%,
-    1.037,
-    1.199 13.2%,
-    1.245,
-    1.27 15.8%,
-    1.274,
-    1.272 17.4%,
-    1.249 19.1%,
-    0.996 28%,
-    0.949,
-    0.928 33.3%,
-    0.926,
-    0.933 36.8%,
-    1.001 45.6%,
-    1.013,
-    1.019 50.8%,
-    1.018 54.4%,
-    1 63.1%,
-    0.995 68%,
-    1.001 85%,
-    1
-  );
+  --linear-ease: linear(0,
+      0.068,
+      0.19 2.7%,
+      0.804 8.1%,
+      1.037,
+      1.199 13.2%,
+      1.245,
+      1.27 15.8%,
+      1.274,
+      1.272 17.4%,
+      1.249 19.1%,
+      0.996 28%,
+      0.949,
+      0.928 33.3%,
+      0.926,
+      0.933 36.8%,
+      1.001 45.6%,
+      1.013,
+      1.019 50.8%,
+      1.018 54.4%,
+      1 63.1%,
+      0.995 68%,
+      1.001 85%,
+      1);
 }
 
 .gooey-nav-container {
@@ -38,21 +36,25 @@
   display: flex;
   position: relative;
   /* transform: translate3d(0, 0, 0.01px); Removed transform to avoid premature stacking context, or keep it but manage z-index carefully */
-  z-index: 10; /* Ensure nav sits above everything else */
+  z-index: 10;
+  /* Ensure nav sits above everything else */
 }
 
 .gooey-nav-container nav ul {
   display: flex;
-  gap: 0.5rem; /* Reduced gap for navbar fit */
+  gap: 0.5rem;
+  /* Reduced gap for navbar fit */
   list-style: none;
   padding: 0 0.5em;
   margin: 0;
   position: relative;
-  z-index: 5; /* Ensure list is top for interactions */
+  z-index: 5;
+  /* Ensure list is top for interactions */
 }
 
-.gooey-nav-container nav ul li:hover {
-  /* No hover effect, handled by JS active state */
+.gooey-nav-container nav ul li:not(.active):hover::before {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .gooey-nav-container nav ul li {
@@ -67,14 +69,29 @@
     box-shadow 0.3s ease;
   color: #666;
   font-weight: 500;
-  white-space: nowrap; /* Prevent wrapping */
+  white-space: nowrap;
+  /* Prevent wrapping */
+}
+
+.gooey-nav-container nav ul li::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  /* Perfect pill shape */
+  background: rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  transform: scale(0.95);
+  transition: all 0.25s ease;
+  z-index: -1;
 }
 
 .gooey-nav-container nav ul li a {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5em 1em; /* This is the main padding */
+  padding: 0.5em 1em;
+  /* This is the main padding */
   text-decoration: none;
   color: inherit;
   width: 100%;
@@ -89,16 +106,23 @@
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 100px;
-  background: black; /* Active background color */
+  border-radius: 9999px;
+  /* Perfect pill shape */
+  background: black;
   opacity: 0;
   transform: scale(0);
   transition: all 0.3s ease;
-  z-index: -1;
+  z-index: -2;
+}
+
+.gooey-nav-container nav ul li.active::before {
+  opacity: 0;
+  /* Hide hover background when active */
 }
 
 .gooey-nav-container nav ul li.active {
-  color: white; /* Active text color */
+  color: white;
+  /* Active text color */
 }
 
 .gooey-nav-container nav ul li.active::after {
@@ -126,16 +150,22 @@
 
 .gooey-nav-container .effect.text {
   color: #666;
-  white-space: nowrap; /* Prevent wrapping */
+  white-space: nowrap;
+  /* Prevent wrapping */
   font-weight: 500;
-  display: flex; /* Align items if icon present */
+  display: flex;
+  /* Align items if icon present */
   align-items: center;
-  justify-content: center; /* Center content */
+  justify-content: center;
+  /* Center content */
   gap: 0.5rem;
-  padding: 0.5em 1em; /* Match padding of link */
+  padding: 0.5em 1em;
+  /* Match padding of link */
   transition: color 0.3s ease;
-  pointer-events: none; /* Ensure it doesn't block clicks */
-  z-index: 4; /* On top of everything */
+  pointer-events: none;
+  /* Ensure it doesn't block clicks */
+  z-index: 4;
+  /* On top of everything */
 }
 
 .gooey-nav-container .effect.text.active {
@@ -147,7 +177,8 @@
   filter: url("#goo");
   mix-blend-mode: normal;
   pointer-events: none;
-  display: flex; /* Center items */
+  display: flex;
+  /* Center items */
   align-items: center;
   justify-content: center;
 }
@@ -162,7 +193,8 @@
 
 .gooey-nav-container .effect.filter::before {
   /* This needs to cover the area where blobs move */
-  content: none; /* Removed the background patch entirely */
+  content: none;
+  /* Removed the background patch entirely */
 }
 
 .gooey-nav-container .effect.filter::after {
@@ -175,7 +207,8 @@
   background: black;
   transform: scale(0);
   opacity: 0;
-  border-radius: 9999px; /* Force pill shape */
+  border-radius: 9999px;
+  /* Force pill shape */
 }
 
 .gooey-nav-container .effect.active::after {
@@ -209,35 +242,32 @@
 }
 
 .point {
-  background: black; /* Particle color */
+  background: black;
+  /* Particle color */
   opacity: 1;
   animation: point calc(var(--time)) ease 1 -350ms;
 }
 
 @keyframes particle {
   0% {
-    transform: rotate(0deg)
-      translate(calc(var(--start-x)), calc(var(--start-y)));
+    transform: rotate(0deg) translate(calc(var(--start-x)), calc(var(--start-y)));
     opacity: 1;
     animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
   }
 
   70% {
-    transform: rotate(calc(var(--rotate) * 0.5))
-      translate(calc(var(--end-x) * 1.2), calc(var(--end-y) * 1.2));
+    transform: rotate(calc(var(--rotate) * 0.5)) translate(calc(var(--end-x) * 1.2), calc(var(--end-y) * 1.2));
     opacity: 1;
     animation-timing-function: ease;
   }
 
   85% {
-    transform: rotate(calc(var(--rotate) * 0.66))
-      translate(calc(var(--end-x)), calc(var(--end-y)));
+    transform: rotate(calc(var(--rotate) * 0.66)) translate(calc(var(--end-x)), calc(var(--end-y)));
     opacity: 1;
   }
 
   100% {
-    transform: rotate(calc(var(--rotate) * 1.2))
-      translate(calc(var(--end-x) * 0.5), calc(var(--end-y) * 0.5));
+    transform: rotate(calc(var(--rotate) * 1.2)) translate(calc(var(--end-x) * 0.5), calc(var(--end-y) * 0.5));
     opacity: 1;
   }
 }

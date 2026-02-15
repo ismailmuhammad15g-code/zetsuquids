@@ -1,27 +1,28 @@
 import {
-    ArrowLeft,
-    Calendar,
-    Check,
-    Clock,
-    Download,
-    ExternalLink,
-    Eye,
-    Loader2,
-    Lock,
-    Mail,
-    MoreVertical,
-    Share2,
-    Tag,
-    Trash2,
-    UserPlus,
-    Volume2,
-    VolumeX
+  ArrowLeft,
+  Calendar,
+  Check,
+  Clock,
+  Download,
+  ExternalLink,
+  Eye,
+  Loader2,
+  Lock,
+  Mail,
+  MoreVertical,
+  Share2,
+  Tag,
+  Trash2,
+  UserPlus,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import { marked } from "marked";
 import mermaid from "mermaid";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import Breadcrumbs from "../components/Breadcrumbs";
 import ConfirmModal from "../components/ConfirmModal";
 import DownloadGuideModal from "../components/DownloadGuideModal";
 import FollowButton from "../components/FollowButton";
@@ -473,7 +474,7 @@ export default function GuidePage() {
       </div>
       <article className="max-w-4xl mx-auto px-4 py-8 relative z-10">
         {/* Top Bar: Back Link & Timer */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-4">
           <Link
             to="/guides"
             className="inline-flex items-center gap-2 text-gray-500 hover:text-black transition-colors"
@@ -485,6 +486,16 @@ export default function GuidePage() {
           {/* Real-time Usage Timer */}
           {user && guide && <GuideTimer guideId={guide.id} userId={user.id} />}
         </div>
+
+        {/* Breadcrumbs Navigation */}
+        <Breadcrumbs
+          dividerType="chevron"
+          items={[
+            { href: "/", label: "Home" },
+            { href: "/guides", label: "Guides" },
+            { href: "#", label: guide.title }
+          ]}
+        />
 
         {/* Header */}
         <header className="mb-8 pb-8 border-b-2 border-black">

@@ -2,33 +2,34 @@ import { BlurFade } from "@/components/magicui/blur-fade";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import { Button } from "@/components/ui/button";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Lottie from "lottie-react";
 import {
-    ArrowLeft,
-    ArrowRight,
-    Check,
-    ChevronLeft,
-    ChevronRight,
-    Eye,
-    EyeOff,
-    Gift,
-    Loader2,
-    Lock,
-    Mail,
-    User,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Gift,
+  Loader2,
+  Lock,
+  Mail,
+  User,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import celebrateAnimation from "../assets/celebrate.json";
+import { SocialButton, GithubIcon } from "../components/SocialButton";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/api";
 
@@ -305,6 +306,36 @@ export default function AuthPage() {
     }
   };
 
+  // GitHub OAuth Handler
+  const handleGitHubLogin = async () => {
+    try {
+      setLoading(true);
+      setMessage({ type: "", text: "" });
+
+      const redirectUrl = import.meta.env.PROD
+        ? "https://zetsuquids.vercel.app/auth"
+        : `${window.location.origin}/auth`;
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          redirectTo: redirectUrl,
+        },
+      });
+
+      if (error) throw error;
+
+      // User will be redirected to GitHub, then back to app
+    } catch (error) {
+      console.error("GitHub OAuth error:", error);
+      setMessage({
+        type: "error",
+        text: error.message || "Failed to connect with GitHub",
+      });
+      setLoading(false);
+    }
+  };
+
   const nextSlide = () =>
     setCurrentSlide((prev) => (prev + 1) % testimonials.length);
   const prevSlide = () =>
@@ -346,9 +377,8 @@ export default function AuthPage() {
           {bgImages.map((img, idx) => (
             <div
               key={idx}
-              className={`absolute inset-0 transition-opacity duration-1000 ${
-                idx === currentSlide ? "opacity-40" : "opacity-0"
-              }`}
+              className={`absolute inset-0 transition-opacity duration-1000 ${idx === currentSlide ? "opacity-40" : "opacity-0"
+                }`}
               style={{
                 backgroundImage: `url(${img})`,
                 backgroundSize: "cover",
@@ -383,11 +413,10 @@ export default function AuthPage() {
               {testimonials.map((testimonial, idx) => (
                 <div
                   key={idx}
-                  className={`transition-all duration-1000 ease-out ${
-                    idx === currentSlide
-                      ? "opacity-100 translate-y-0 filter blur-0"
-                      : "opacity-0 translate-y-12 absolute filter blur-sm"
-                  }`}
+                  className={`transition-all duration-1000 ease-out ${idx === currentSlide
+                    ? "opacity-100 translate-y-0 filter blur-0"
+                    : "opacity-0 translate-y-12 absolute filter blur-sm"
+                    }`}
                 >
                   {idx === currentSlide && (
                     <>
@@ -435,11 +464,10 @@ export default function AuthPage() {
                 <button
                   key={idx}
                   onClick={() => setCurrentSlide(idx)}
-                  className={`h-1.5 rounded-full transition-all duration-500 ${
-                    idx === currentSlide
-                      ? "bg-white w-12"
-                      : "bg-white/20 w-3 hover:bg-white/40"
-                  }`}
+                  className={`h-1.5 rounded-full transition-all duration-500 ${idx === currentSlide
+                    ? "bg-white w-12"
+                    : "bg-white/20 w-3 hover:bg-white/40"
+                    }`}
                 />
               ))}
             </div>
@@ -541,11 +569,10 @@ export default function AuthPage() {
             {/* Message */}
             {message.text && (
               <div
-                className={`mb-6 p-3 rounded-lg flex items-center gap-3 ${
-                  message.type === "success"
-                    ? "bg-green-50 text-green-900 border border-green-100"
-                    : "bg-red-50 text-red-900 border border-red-100"
-                } animate-in zoom-in-95 duration-200`}
+                className={`mb-6 p-3 rounded-lg flex items-center gap-3 ${message.type === "success"
+                  ? "bg-green-50 text-green-900 border border-green-100"
+                  : "bg-red-50 text-red-900 border border-red-100"
+                  } animate-in zoom-in-95 duration-200`}
               >
                 {message.type === "success" ? (
                   <Check size={18} className="text-green-600" />
@@ -584,59 +611,59 @@ export default function AuthPage() {
               {(mode === "login" ||
                 mode === "register" ||
                 mode === "forgot") && (
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <div className="relative">
-                    <Mail
-                      size={18}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <Input
-                      id="email"
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      required
-                      className="pl-10 h-11"
-                      placeholder="name@example.com"
-                    />
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <div className="relative">
+                      <Mail
+                        size={18}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      />
+                      <Input
+                        id="email"
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                        className="pl-10 h-11"
+                        placeholder="name@example.com"
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Password Field */}
               {(mode === "login" ||
                 mode === "register" ||
                 mode === "reset") && (
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Lock
-                      size={18}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      required
-                      minLength={6}
-                      className="pl-10 h-11 pr-10"
-                      placeholder="••••••••"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Lock
+                        size={18}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      />
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        required
+                        minLength={6}
+                        className="pl-10 h-11 pr-10"
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Confirm Password (Register & Reset) */}
               {(mode === "register" || mode === "reset") && (
@@ -693,6 +720,27 @@ export default function AuthPage() {
                   </>
                 )}
               </Button>
+
+              {/* Social Login - Only on Login/Register */}
+              {(mode === "login" || mode === "register") && (
+                <>
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-4 bg-white text-gray-500 font-medium">
+                        Or continue with
+                      </span>
+                    </div>
+                  </div>
+
+                  <SocialButton onClick={handleGitHubLogin} disabled={loading}>
+                    <GithubIcon />
+                    Continue with GitHub
+                  </SocialButton>
+                </>
+              )}
             </form>
           </CardContent>
 
