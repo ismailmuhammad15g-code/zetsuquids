@@ -35,6 +35,7 @@ const VerifyEmailPage = lazy(() => import("./pages/VerifyEmailPage"));
 const ZetsuGuideAIPage = lazy(() => import("./pages/ZetsuGuideAIPage"));
 const CommunityPage = lazy(() => import("./pages/CommunityPage"));
 const PostDetailsPage = lazy(() => import("./pages/PostDetailsPage"));
+const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
 
 function App() {
   const queryClient = useQueryClient();
@@ -87,6 +88,7 @@ function App() {
                 <Route path="stats" element={<UserStatsPage />} />
                 <Route path="pricing" element={<PricingPage />} />
                 <Route path="privacy" element={<PrivacyPolicy />} />
+                <Route path="cookie-policy" element={<CookiePolicy />} />
                 <Route path="terms" element={<TermsOfService />} />
                 <Route path="support" element={<SupportPage />} />
                 <Route path="reportbug" element={<ReportBugPage />} />

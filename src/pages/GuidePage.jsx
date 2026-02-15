@@ -15,11 +15,12 @@ import {
   Trash2,
   UserPlus,
   Volume2,
-  VolumeX
+  VolumeX,
+  Search
 } from "lucide-react";
 import { marked } from "marked";
 import mermaid from "mermaid";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import Breadcrumbs from "../components/Breadcrumbs";
@@ -28,6 +29,7 @@ import DownloadGuideModal from "../components/DownloadGuideModal";
 import FollowButton from "../components/FollowButton";
 import GuideComments from "../components/GuideComments";
 import GuideHistoryModal from "../components/GuideHistoryModal";
+import GuideRating from "../components/GuideRating";
 import GuideTimer from "../components/GuideTimer";
 import SEOHelmet from "../components/SEOHelmet";
 import TextToSpeech from "../components/TextToSpeech";
@@ -107,6 +109,7 @@ export default function GuidePage() {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isPlayingTTS, setIsPlayingTTS] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false); // New Feature: Focus Mode
+  const [searchQuery, setSearchQuery] = useState("");
   const moreMenuRef = useRef(null);
   const ttsRef = useRef(null);
 
@@ -299,21 +302,17 @@ export default function GuidePage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  // Render content based on type
-  function renderContent() {
+  // Process content with memoization to avoid Hook violations and performance issues
+  const processedContent = useMemo(() => {
     if (!guide) return null;
 
-    // If HTML content exists, render in iframe with full support
-    if (guide.html_content && guide.html_content.trim()) {
-      const htmlContent = guide.html_content.trim();
-
-      // Check if it's a complete HTML document
+    // 1. Handle HTML Content Type
+    if (guide.content_type === "html" || (guide.html_content && guide.html_content.trim())) {
+      const htmlContent = guide.html_content?.trim() || "";
       const isFullDocument =
         htmlContent.toLowerCase().includes("<!doctype") ||
         htmlContent.toLowerCase().includes("<html");
 
-      // If it's a full HTML document, use it directly
-      // Otherwise wrap it in a basic HTML structure
       const fullHTML = isFullDocument
         ? htmlContent
         : `<!DOCTYPE html>
@@ -334,10 +333,60 @@ export default function GuidePage() {
     ${htmlContent}
 </body>
 </html>`;
+      return { type: 'html', content: fullHTML };
+    }
 
+    // 2. Handle Markdown Content
+    const markdownContent = guide.markdown || guide.content || "";
+    const html = marked.parse(markdownContent);
+    const sanitizedHtml = sanitizeContent(html);
+
+    // Apply Search Highlighting
+    if (!searchQuery || !searchQuery.trim()) {
+      return { type: 'markdown', content: sanitizedHtml };
+    }
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(sanitizedHtml, 'text/html');
+      const walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null, false);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+
+      const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+
+      nodes.forEach(node => {
+        if (node.nodeValue && regex.test(node.nodeValue)) {
+          const fragment = document.createDocumentFragment();
+          const parts = node.nodeValue.split(regex);
+          parts.forEach(part => {
+            if (regex.test(part)) {
+              const mark = document.createElement('mark');
+              mark.className = "bg-yellow-200 text-black font-bold px-1 rounded-sm";
+              mark.textContent = part;
+              fragment.appendChild(mark);
+            } else {
+              fragment.appendChild(document.createTextNode(part));
+            }
+          });
+          node.parentNode.replaceChild(fragment, node);
+        }
+      });
+      return { type: 'markdown', content: doc.body.innerHTML };
+    } catch (e) {
+      console.error("Highlight error:", e);
+      return { type: 'markdown', content: sanitizedHtml };
+    }
+  }, [guide, searchQuery]);
+
+  // Render content based on processed data
+  function renderContent() {
+    if (!processedContent) return null;
+
+    if (processedContent.type === 'html') {
       return (
         <iframe
-          srcDoc={fullHTML}
+          srcDoc={processedContent.content}
           className="w-full min-h-[700px] border-2 border-black bg-white"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
           title={guide.title}
@@ -346,15 +395,10 @@ export default function GuidePage() {
       );
     }
 
-    // Otherwise render markdown
-    const markdownContent = guide.markdown || guide.content || "";
-    const html = marked.parse(markdownContent);
-    const sanitizedHtml = sanitizeContent(html);
-
     return (
       <div
         className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white"
-        dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+        dangerouslySetInnerHTML={{ __html: processedContent.content }}
       />
     );
   }
@@ -758,6 +802,24 @@ export default function GuidePage() {
           </div>
         </header>
 
+        {/* Match Search Bar */}
+        <div className="max-w-md mb-8 mx-auto sm:mx-0">
+          <div className="flex w-full shadow-sm hover:shadow-md transition-shadow rounded-lg overflow-hidden border border-gray-300 hover:border-black group">
+            <div className="flex-1 bg-white flex items-center px-4 group-focus-within:ring-2 group-focus-within:ring-black group-focus-within:ring-inset">
+              <Search size={18} className="text-gray-400 mr-2 flex-shrink-0" />
+              <input
+                className="w-full py-3 outline-none text-gray-800 placeholder:text-gray-400 bg-transparent text-sm font-medium"
+                placeholder="Search related text in guide..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <button className="bg-black text-white px-6 py-3 font-bold text-sm hover:bg-gray-800 transition-colors flex-shrink-0">
+              Search
+            </button>
+          </div>
+        </div>
+
         {/* Content */}
         <div className="guide-content">{renderContent()}</div>
 
@@ -820,6 +882,15 @@ export default function GuidePage() {
             onClose={() => setIsPlayingTTS(false)}
           />
         )}
+        {/* Guide Rating System */}
+        {guide && (
+          <GuideRating
+            guideId={guide.id}
+            authorId={guide.author_id}
+            guideTitle={guide.title}
+          />
+        )}
+
       </article>
     </>
   );

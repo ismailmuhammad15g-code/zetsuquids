@@ -26,6 +26,8 @@ import GooeyNav from "./react-bits/GooeyNav";
 import ReferralBonusNotification from "./ReferralBonusNotification";
 import ReferralSuccessModal from "./ReferralSuccessModal";
 import SearchModal from "./SearchModal";
+import SubscriptionRenewAd from "./SubscriptionRenewAd";
+import CookieConsent from "./CookieConsent";
 
 export default function Layout() {
   const location = useLocation();
@@ -415,44 +417,40 @@ export default function Layout() {
                 <nav className="space-y-2">
                   <Link
                     to="/"
-                    className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${
-                      location.pathname === "/"
-                        ? "bg-black text-white shadow-lg shadow-black/20"
-                        : "text-gray-600 hover:bg-gray-100"
-                    }`}
+                    className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname === "/"
+                      ? "bg-black text-white shadow-lg shadow-black/20"
+                      : "text-gray-600 hover:bg-gray-100"
+                      }`}
                   >
                     <Home size={22} />
                     <span>Home</span>
                   </Link>
                   <Link
                     to="/guides"
-                    className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${
-                      location.pathname.startsWith("/guide")
-                        ? "bg-black text-white shadow-lg shadow-black/20"
-                        : "text-gray-600 hover:bg-gray-100"
-                    }`}
+                    className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname.startsWith("/guide")
+                      ? "bg-black text-white shadow-lg shadow-black/20"
+                      : "text-gray-600 hover:bg-gray-100"
+                      }`}
                   >
                     <BookOpen size={22} />
                     <span>All Guides</span>
                   </Link>
                   <Link
                     to="/community"
-                    className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${
-                      location.pathname === "/community"
-                        ? "bg-black text-white shadow-lg shadow-black/20"
-                        : "text-gray-600 hover:bg-gray-100"
-                    }`}
+                    className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname === "/community"
+                      ? "bg-black text-white shadow-lg shadow-black/20"
+                      : "text-gray-600 hover:bg-gray-100"
+                      }`}
                   >
                     <Users size={22} />
                     <span>Community</span>
                   </Link>
                   <Link
                     to="/zetsuguide-ai"
-                    className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all border-2 border-transparent ${
-                      location.pathname === "/zetsuguide-ai"
-                        ? "bg-black text-white shadow-lg shadow-black/20"
-                        : "bg-gradient-to-r from-purple-50 to-pink-50 text-gray-900 border-purple-100"
-                    }`}
+                    className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all border-2 border-transparent ${location.pathname === "/zetsuguide-ai"
+                      ? "bg-black text-white shadow-lg shadow-black/20"
+                      : "bg-gradient-to-r from-purple-50 to-pink-50 text-gray-900 border-purple-100"
+                      }`}
                   >
                     <Bot
                       size={22}
@@ -699,6 +697,12 @@ export default function Layout() {
 
       {/* Real-time Referral Bonus Notification */}
       <ReferralBonusNotification />
+
+      {/* New User Advertisement */}
+      <SubscriptionRenewAd />
+
+      {/* Cookie Consent */}
+      <CookieConsent />
     </div>
   );
 }

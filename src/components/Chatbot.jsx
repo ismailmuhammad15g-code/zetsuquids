@@ -1,14 +1,14 @@
 import "highlight.js/styles/github-dark.css";
 import {
-    ChevronDown,
-    FileText,
-    Loader2,
-    Lock,
-    MessageSquare,
-    Send,
-    Sparkles,
-    X,
-    Zap,
+  ChevronDown,
+  FileText,
+  Loader2,
+  Lock,
+  MessageSquare,
+  Send,
+  Sparkles,
+  X,
+  Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -350,21 +350,29 @@ export default function Chatbot() {
 
     let subscription = null;
 
-    // Get user's conversation ID first
+
+
+    // Request notification permission
+    if (Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+
+    const channelName = `chatbot_support_${user.email.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
     const subscribeToMessages = async () => {
       try {
         const { data: conv } = await supabase
           .from("support_conversations")
           .select("id")
           .eq("user_email", user.email)
-          .single();
+          .maybeSingle();
 
         if (!conv) {
           return;
         }
 
         subscription = supabase
-          .channel(`chatbot_support_${conv.id}_${Date.now()}`)
+          .channel(channelName)
           .on(
             "postgres_changes",
             {
@@ -405,7 +413,9 @@ export default function Chatbot() {
             },
           )
           .subscribe((status) => {
-            // Status handling
+            if (status === 'SUBSCRIBED') {
+              console.log('Chatbot support channel subscribed');
+            }
           });
       } catch (error) {
         console.log("Could not subscribe to support messages:", error);
@@ -414,14 +424,10 @@ export default function Chatbot() {
 
     subscribeToMessages();
 
-    // Request notification permission
-    if (Notification.permission === "default") {
-      Notification.requestPermission();
-    }
 
     return () => {
       if (subscription) {
-        subscription.unsubscribe();
+        supabase.removeChannel(subscription);
       }
     };
   }, [user?.email]);
@@ -436,7 +442,7 @@ export default function Chatbot() {
           .from("support_conversations")
           .select("unread_count")
           .eq("user_email", user.email)
-          .single();
+          .maybeSingle();
 
         if (conv && conv.unread_count > 0) {
           setUnreadSupportCount(conv.unread_count);
@@ -766,11 +772,10 @@ export default function Chatbot() {
       {isOpen && (
         <div
           className={`fixed z-50 transition-all duration-300 ease-in-out bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 shadow-2xl flex flex-col overflow-hidden font-sans
-                    ${
-                      isMinimized
-                        ? "bottom-6 right-6 w-72 h-16 rounded-2xl cursor-pointer"
-                        : "bottom-0 right-0 w-full h-[85vh] rounded-t-3xl sm:bottom-6 sm:right-6 sm:w-[500px] sm:h-[700px] sm:max-h-[90vh] sm:rounded-3xl"
-                    }
+                    ${isMinimized
+              ? "bottom-6 right-6 w-72 h-16 rounded-2xl cursor-pointer"
+              : "bottom-0 right-0 w-full h-[85vh] rounded-t-3xl sm:bottom-6 sm:right-6 sm:w-[500px] sm:h-[700px] sm:max-h-[90vh] sm:rounded-3xl"
+            }
                 `}
         >
           {/* Header */}
@@ -860,11 +865,10 @@ export default function Chatbot() {
                   setActiveTab("chat");
                   setShowSupportForm(false);
                 }}
-                className={`px-4 py-2 rounded-t-lg font-semibold transition-all ${
-                  activeTab === "chat"
-                    ? "bg-white/10 text-white"
-                    : "text-white/60 hover:text-white/80"
-                }`}
+                className={`px-4 py-2 rounded-t-lg font-semibold transition-all ${activeTab === "chat"
+                  ? "bg-white/10 text-white"
+                  : "text-white/60 hover:text-white/80"
+                  }`}
               >
                 AI Chat
               </button>
@@ -873,11 +877,10 @@ export default function Chatbot() {
                   setActiveTab("direct-support");
                   setShowSupportForm(false);
                 }}
-                className={`px-4 py-2 rounded-t-lg font-semibold transition-all relative ${
-                  activeTab === "direct-support"
-                    ? "bg-white/10 text-white"
-                    : "text-white/60 hover:text-white/80"
-                }`}
+                className={`px-4 py-2 rounded-t-lg font-semibold transition-all relative ${activeTab === "direct-support"
+                  ? "bg-white/10 text-white"
+                  : "text-white/60 hover:text-white/80"
+                  }`}
               >
                 Direct Support
                 {unreadSupportCount > 0 && (
@@ -891,11 +894,10 @@ export default function Chatbot() {
                   setActiveTab("support-form");
                   setShowSupportForm(true);
                 }}
-                className={`px-4 py-2 rounded-t-lg font-semibold transition-all ${
-                  activeTab === "support-form"
-                    ? "bg-white/10 text-white"
-                    : "text-white/60 hover:text-white/80"
-                }`}
+                className={`px-4 py-2 rounded-t-lg font-semibold transition-all ${activeTab === "support-form"
+                  ? "bg-white/10 text-white"
+                  : "text-white/60 hover:text-white/80"
+                  }`}
               >
                 Support Form
               </button>
@@ -1057,18 +1059,17 @@ export default function Chatbot() {
                             className={`max-w-[85%] ${msg.role === "user" ? "order-1" : ""}`}
                           >
                             <div
-                              className={`rounded-2xl px-4 py-3 shadow-md ${
-                                msg.role === "user"
-                                  ? `bg-white text-black ${isArabic ? "rounded-bl-none" : "rounded-tr-none"}`
-                                  : "bg-[#2a2a2a] text-gray-100 border border-white/10 rounded-tl-none"
-                              }`}
+                              className={`rounded-2xl px-4 py-3 shadow-md ${msg.role === "user"
+                                ? `bg-white text-black ${isArabic ? "rounded-bl-none" : "rounded-tr-none"}`
+                                : "bg-[#2a2a2a] text-gray-100 border border-white/10 rounded-tl-none"
+                                }`}
                             >
                               {msg.role === "assistant" ? (
                                 <MarkdownMessage
                                   content={msg.content}
                                   isTyping={
                                     msg.id ===
-                                      messages[messages.length - 1]?.id &&
+                                    messages[messages.length - 1]?.id &&
                                     isTyping
                                   }
                                 />
