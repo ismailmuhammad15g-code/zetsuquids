@@ -26,7 +26,7 @@ import {
   Mail,
   User,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import celebrateAnimation from "../assets/celebrate.json";
 import { SocialButton, GithubIcon } from "../components/SocialButton";
@@ -96,7 +96,8 @@ export default function AuthPage() {
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login } = useAuth();
+  const { login, user: currentUser } = useAuth();
+  const loginAttempted = useRef(false);
 
   // Auto-slide testimonials
   useEffect(() => {
@@ -152,6 +153,15 @@ export default function AuthPage() {
 
   // Handle OAuth callback - detect tokens in URL hash and process login
   useEffect(() => {
+    // If already logged in, redirect to home and stop
+    if (currentUser) {
+      console.log("⚡ Already logged in, skipping OAuth check");
+      if (!loginAttempted.current) {
+        navigate("/");
+      }
+      return;
+    }
+
     let didLogin = false;
 
     // 1. Set up auth state listener FIRST
@@ -163,9 +173,11 @@ export default function AuthPage() {
         if (
           (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") &&
           session?.user &&
-          !didLogin
+          !didLogin &&
+          !loginAttempted.current
         ) {
           didLogin = true;
+          loginAttempted.current = true;
           console.log("✅ OAuth login successful:", session.user.email);
 
           // Save to AuthContext
@@ -200,8 +212,9 @@ export default function AuthPage() {
           if (error) {
             console.error("❌ setSession error:", error);
             setMessage({ type: "error", text: "Login failed: " + error.message });
-          } else if (data?.session?.user && !didLogin) {
+          } else if (data?.session?.user && !didLogin && !loginAttempted.current) {
             didLogin = true;
+            loginAttempted.current = true;
             console.log("✅ Session set successfully:", data.session.user.email);
 
             // Save to AuthContext

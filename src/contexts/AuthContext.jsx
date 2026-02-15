@@ -1,5 +1,6 @@
 import { jwtDecode } from 'jwt-decode'
 import { createContext, useContext, useEffect, useState } from 'react'
+import { supabase } from '../lib/api'
 
 const AuthContext = createContext(null)
 
