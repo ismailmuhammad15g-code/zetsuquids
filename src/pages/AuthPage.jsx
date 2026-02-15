@@ -150,6 +150,80 @@ export default function AuthPage() {
     }
   }, [searchParams]);
 
+  // Handle OAuth callback - detect tokens in URL hash and process login
+  useEffect(() => {
+    let didLogin = false;
+
+    // 1. Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log("🔑 Auth event:", event, "User:", session?.user?.email);
+
+        // Handle ALL sign-in events (SIGNED_IN, INITIAL_SESSION, TOKEN_REFRESHED)
+        if (
+          (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") &&
+          session?.user &&
+          !didLogin
+        ) {
+          didLogin = true;
+          console.log("✅ OAuth login successful:", session.user.email);
+
+          // Save to AuthContext
+          login(session.access_token, session.user);
+
+          // Navigate to home
+          setTimeout(() => {
+            navigate("/");
+          }, 300);
+        }
+      }
+    );
+
+    // 2. THEN check if URL has OAuth tokens in hash fragment (#access_token=...)
+    const hash = window.location.hash;
+    if (hash && hash.includes("access_token")) {
+      console.log("🔍 Found OAuth tokens in URL hash, processing...");
+
+      // Parse hash fragment manually as a backup
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+
+      if (accessToken && refreshToken) {
+        console.log("🔄 Setting session from URL tokens...");
+
+        // Tell Supabase to set the session from these tokens
+        supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        }).then(({ data, error }) => {
+          if (error) {
+            console.error("❌ setSession error:", error);
+            setMessage({ type: "error", text: "Login failed: " + error.message });
+          } else if (data?.session?.user && !didLogin) {
+            didLogin = true;
+            console.log("✅ Session set successfully:", data.session.user.email);
+
+            // Save to AuthContext
+            login(data.session.access_token, data.session.user);
+
+            // Clean the URL hash
+            window.history.replaceState(null, "", window.location.pathname);
+
+            // Navigate to home
+            setTimeout(() => {
+              navigate("/");
+            }, 300);
+          }
+        });
+      }
+    }
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [navigate, login]);
+
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setMessage({ type: "", text: "" });
