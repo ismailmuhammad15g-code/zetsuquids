@@ -394,6 +394,9 @@ export default function AuthPage() {
         provider: "github",
         options: {
           redirectTo: redirectUrl,
+          queryParams: {
+            prompt: 'consent', // Force consent screen to allow account switching
+          }
         },
       });
 

@@ -25,7 +25,11 @@ export function AuthProvider({ children }) {
                 } else {
                     // Token expired, clear storage
                     console.log("Token expired, clearing auth");
-                    logout()
+                    if (token || user) logout() // Only logout if we think we are logged in
+                    else {
+                        localStorage.removeItem('auth_token')
+                        localStorage.removeItem('auth_user')
+                    }
                 }
             } catch (error) {
                 // If JWT decode fails, try treating it as Supabase session token
@@ -51,7 +55,12 @@ export function AuthProvider({ children }) {
         localStorage.setItem('auth_user', JSON.stringify(userData))
     }
 
-    const logout = () => {
+    const logout = async () => {
+        try {
+            await supabase.auth.signOut()
+        } catch (error) {
+            console.error('Error signing out:', error)
+        }
         setToken(null)
         setUser(null)
         localStorage.removeItem('auth_token')
