@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvatarForUser } from "../lib/avatar";
 import { supabase } from "../lib/supabase";
+import ConfirmModal from "./ConfirmModal";
 
 // Helper to format date
 const formatDate = (dateString) => {
@@ -24,7 +25,7 @@ const formatDate = (dateString) => {
   }).format(date);
 };
 
-export default function GuideComments({ guideId }) {
+export default function GuideComments({ guideId, onCommentPosted }) {
   const { user } = useAuth();
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +33,8 @@ export default function GuideComments({ guideId }) {
   const [newComment, setNewComment] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyContent, setReplyContent] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState(null);
 
   useEffect(() => {
     if (guideId) {
@@ -81,6 +84,12 @@ export default function GuideComments({ guideId }) {
       if (error) throw error;
 
       toast.success("Comment posted!");
+      
+      // Record interaction for recommendations
+      if (onCommentPosted && typeof onCommentPosted === 'function') {
+        onCommentPosted();
+      }
+      
       if (parentId) {
         setReplyingTo(null);
         setReplyContent("");
@@ -96,23 +105,32 @@ export default function GuideComments({ guideId }) {
     }
   };
 
-  const handleDelete = async (commentId) => {
-    if (!confirm("Are you sure you want to delete this comment?")) return;
+  const handleDeleteClick = (commentId) => {
+    setCommentToDelete(commentId);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDelete = async () => {
+    if (!commentToDelete) return;
 
     try {
       const { error } = await supabase
         .from("guide_comments")
         .delete()
-        .eq("id", commentId)
+        .eq("id", commentToDelete)
         .eq("user_id", user.id); // Security check
 
       if (error) throw error;
 
       toast.success("Comment deleted");
       fetchComments();
+      setShowDeleteConfirm(false);
+      setCommentToDelete(null);
     } catch (err) {
       console.error("Error deleting comment:", err);
       toast.error("Failed to delete comment");
+      setShowDeleteConfirm(false);
+      setCommentToDelete(null);
     }
   };
 
@@ -210,12 +228,27 @@ export default function GuideComments({ guideId }) {
               replyContent={replyContent}
               setReplyContent={setReplyContent}
               onReply={handleSubmit}
-              onDelete={handleDelete}
+              onDelete={handleDeleteClick}
               submitting={submitting}
             />
           ))
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setCommentToDelete(null);
+        }}
+        onConfirm={handleDelete}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDangerous={true}
+      />
     </div>
   );
 }

@@ -1,14 +1,15 @@
 import {
-    Bot,
-    Loader2,
-    MessageCircle,
-    Send,
-    X,
-    Zap
+  Bot,
+  Loader2,
+  MessageCircle,
+  Send,
+  X,
+  Zap
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
+import { extractGuideContent } from "../lib/utils";
 import { supabase } from "../lib/api";
 
 export function GuideAIChat({ guide, isOpen, onClose }) {
@@ -132,7 +133,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
 
     try {
       // Prepare context from guide
-      const context = `Guide Title: ${guide.title}\n\nGuide Content:\n${guide.content}`;
+      const context = `Guide Title: ${guide.title}\n\nGuide Content:\n${extractGuideContent(guide)}`;
 
       const response = await fetch("/api/ai", {
         method: "POST",
@@ -262,9 +263,8 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
                 {messages.map((message, index) => (
                   <div
                     key={index}
-                    className={`flex gap-3 ${
-                      message.role === "user" ? "justify-end" : "justify-start"
-                    }`}
+                    className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"
+                      }`}
                   >
                     {message.role === "assistant" && (
                       <div className="w-10 h-10 bg-black flex items-center justify-center flex-shrink-0">
@@ -272,11 +272,10 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
                       </div>
                     )}
                     <div
-                      className={`max-w-[70%] px-5 py-3 border-3 border-black ${
-                        message.role === "user"
-                          ? "bg-black text-white"
-                          : "bg-white text-black"
-                      }`}
+                      className={`max-w-[70%] px-5 py-3 border-3 border-black ${message.role === "user"
+                        ? "bg-black text-white"
+                        : "bg-white text-black"
+                        }`}
                     >
                       <p className="whitespace-pre-wrap break-words leading-relaxed font-medium">
                         {message.content}

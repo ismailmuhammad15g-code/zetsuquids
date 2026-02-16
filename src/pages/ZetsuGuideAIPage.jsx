@@ -1,32 +1,32 @@
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import Lottie from "lottie-react";
 import {
-    ArrowRight,
-    Bot,
-    BrainCircuit,
-    Bug,
-    CheckCircle,
-    HelpCircle,
-    History,
-    Info,
-    Menu,
-    MessageSquare,
-    Plus,
-    RefreshCw,
-    Settings2,
-    Trash2,
-    Wand2,
-    X,
-    Zap,
+  ArrowRight,
+  Bot,
+  BrainCircuit,
+  Bug,
+  CheckCircle,
+  HelpCircle,
+  History,
+  Info,
+  Menu,
+  MessageSquare,
+  Plus,
+  RefreshCw,
+  Settings2,
+  Trash2,
+  Wand2,
+  X,
+  Zap,
 } from "lucide-react";
 import {
-    lazy,
-    Suspense,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -36,8 +36,8 @@ import aiLogoAnimation from "../assets/ailogo.json";
 import robotAnimation from "../assets/robotwelcomming.json";
 import sailboatAnimation from "../assets/sailboat.json";
 import {
-    DailyGiftModal,
-    useDailyCreditsCheck,
+  DailyGiftModal,
+  useDailyCreditsCheck,
 } from "../components/DailyGiftModal";
 import PromptInputWithActions from "../components/PromptInputWithActions";
 import { ThinkingWave } from "../components/ThinkingWave";
@@ -53,9 +53,9 @@ import { useAuth } from "../contexts/AuthContext";
 import useScreenSize from "../hooks/useScreenSize";
 import { guidesApi, isSupabaseConfigured, supabase } from "../lib/api";
 import {
-    commitReservedCredit,
-    releaseReservedCredit,
-    reserveCredit,
+  commitReservedCredit,
+  releaseReservedCredit,
+  reserveCredit,
 } from "../lib/creditReservation";
 
 // Lazy load heavy components
@@ -188,12 +188,14 @@ async function getCreditsFromDB(user) {
         .maybeSingle();
 
       if (!error && data) {
+        /*
         console.log(
           "Credits from DB:",
           data.credits,
           "Referrals:",
           data.total_referrals,
         );
+        */
         return {
           credits: data.credits,
           total_referrals: data.total_referrals || 0,
@@ -201,14 +203,39 @@ async function getCreditsFromDB(user) {
         };
       }
 
-      console.warn("No credits record found for user:", user.email);
+      // If no record, create one silently
+      const { error: insertError } = await supabase
+        .from("zetsuguide_credits")
+        .insert([
+          {
+            user_email: user.email.toLowerCase(),
+            credits: 5,
+            total_referrals: 0,
+          },
+        ]);
+
+      if (!insertError) {
+        return {
+          credits: 5,
+          total_referrals: 0,
+          referred_by: null,
+        };
+      }
+
+      console.warn(
+        "Could not create credits record for user:",
+        user.email,
+        insertError,
+      );
       return {
-        credits: 0,
+        credits: 5,
         total_referrals: 0,
         referred_by: null,
       };
     } catch (err) {
-      console.error("Supabase credits error:", err);
+      if (err.name !== "AbortError") {
+        console.error("Supabase credits error:", err);
+      }
     }
   }
 
@@ -1180,24 +1207,57 @@ export default function ZetsuGuideAIPage() {
   };
 
   // Fire confetti only twice - on welcome screen and on first message
+  // FIX: One-time compensation for the "Guide Summarizer" bug
   useEffect(() => {
-    if (
-      messages.length === 0 &&
-      !isThinking &&
-      confettiRef.current &&
-      confettiFireCount < 1
-    ) {
-      // Fire confetti on page load (first time)
-      const timer = setTimeout(() => {
-        confettiRef.current?.fire({
-          particleCount: 30,
-          origin: { x: 0.5, y: 0.3 },
-        });
-        setConfettiFireCount((prev) => prev + 1);
-      }, 800);
-      return () => clearTimeout(timer);
+    if (isAuthenticated() && user?.email && !creditsLoading) {
+      const compensationKey = `zetsuguide_bug_refund_v1_${user.email}`;
+      const hasClaimed = localStorage.getItem(compensationKey);
+
+      if (!hasClaimed) {
+        // Attempt to refund
+        const applyRefund = async () => {
+          try {
+            // Fetch current fresh first
+            const { data: current, error: fetchError } = await supabase
+              .from("zetsuguide_credits")
+              .select("credits")
+              .eq("user_email", user.email.toLowerCase())
+              .single();
+
+            if (fetchError) return;
+
+            // Add 20 credits
+            const newBalance = (current?.credits || 0) + 20;
+
+            const { error: updateError } = await supabase
+              .from("zetsuguide_credits")
+              .update({ credits: newBalance, updated_at: new Date().toISOString() })
+              .eq("user_email", user.email.toLowerCase());
+
+            if (!updateError) {
+              setCredits(newBalance);
+              localStorage.setItem(compensationKey, "true");
+              toast.success("Credits Refunded", {
+                description: "We've added 20 credits to your account to make up for the recent guide summarizer issue. Happy coding!",
+                duration: 8000
+              });
+              // Fire confetti
+              if (confettiRef.current) {
+                confettiRef.current.fire({
+                  particleCount: 100,
+                  spread: 70,
+                  origin: { y: 0.6 }
+                });
+              }
+            }
+          } catch (err) {
+            console.error("Refund failed", err);
+          }
+        };
+        applyRefund();
+      }
     }
-  }, [messages.length, isThinking, confettiFireCount]);
+  }, [isAuthenticated, user, creditsLoading]);
 
   // Reset loading state on mount
   useEffect(() => {
@@ -1578,7 +1638,7 @@ export default function ZetsuGuideAIPage() {
       // Initial title (will be AI summarized later if new)
       const title = firstUserMsg
         ? firstUserMsg.content.substring(0, 50) +
-          (firstUserMsg.content.length > 50 ? "..." : "")
+        (firstUserMsg.content.length > 50 ? "..." : "")
         : "New Chat";
 
       const msgsForDb = msgs.map((m) => ({
@@ -2210,12 +2270,12 @@ export default function ZetsuGuideAIPage() {
         const guidesContext =
           relevantGuides.length > 0
             ? relevantGuides
-                .slice(0, 3)
-                .map(
-                  (g) =>
-                    `**${g.title}** (ID: ${g.id || g.slug}):\n${(g.markdown || g.content || "").substring(0, 300)}`,
-                )
-                .join("\n\n---\n\n")
+              .slice(0, 3)
+              .map(
+                (g) =>
+                  `**${g.title}** (ID: ${g.id || g.slug}):\n${(g.markdown || g.content || "").substring(0, 300)}`,
+              )
+              .join("\n\n---\n\n")
             : buildGuidesContext();
 
         // Save used sources for the response (show up to 5 but only use top 3)
@@ -2241,9 +2301,8 @@ ${isImageGenEnabled ? "\n✅ You have DYNAMIC IMAGE GENERATION - You can create 
 
 ${guidesContext ? `📚 RELEVANT GUIDES FOUND:\n${guidesContext}\n\n` : ""}
 
-${
-  isImageGenEnabled
-    ? `### CORE FEATURE: DYNAMIC IMAGE GENERATION
+${isImageGenEnabled
+            ? `### CORE FEATURE: DYNAMIC IMAGE GENERATION
 You are equipped with a real-time "Visual Engine" capability. You MUST use this to generate images.
 
 **Instructions:**
@@ -2258,8 +2317,8 @@ You are equipped with a real-time "Visual Engine" capability. You MUST use this 
 
 Here is the design for the dashboard...
 `
-    : ""
-}
+            : ""
+          }
 
 CRITICAL INSTRUCTIONS:
 1. ALWAYS provide LONG, DETAILED explanations - minimum 300-500 words
@@ -3707,20 +3766,18 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                         <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar relative z-10">
                           {/* Task: Daily Login */}
                           <div
-                            className={`group relative p-[1px] rounded-2xl transition-all duration-300 ${
-                              tasksStatus.dailyLogin
-                                ? "opacity-60 grayscale"
-                                : "hover:scale-[1.02] hover:shadow-lg hover:shadow-yellow-500/10"
-                            }`}
+                            className={`group relative p-[1px] rounded-2xl transition-all duration-300 ${tasksStatus.dailyLogin
+                              ? "opacity-60 grayscale"
+                              : "hover:scale-[1.02] hover:shadow-lg hover:shadow-yellow-500/10"
+                              }`}
                           >
                             <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-yellow-500/20 to-orange-500/20 opacity-50 group-hover:opacity-100 transition-opacity" />
                             <div className="relative bg-[#0c0c0c] rounded-2xl p-4 flex items-center gap-4 h-full border border-white/5 group-hover:border-yellow-500/30 transition-colors">
                               <div
-                                className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner ${
-                                  tasksStatus.dailyLogin
-                                    ? "bg-green-500/10 text-green-500"
-                                    : "bg-gradient-to-br from-yellow-500/20 to-orange-500/20 text-yellow-400 group-hover:text-yellow-300"
-                                }`}
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner ${tasksStatus.dailyLogin
+                                  ? "bg-green-500/10 text-green-500"
+                                  : "bg-gradient-to-br from-yellow-500/20 to-orange-500/20 text-yellow-400 group-hover:text-yellow-300"
+                                  }`}
                               >
                                 {tasksStatus.dailyLogin ? (
                                   <CheckCircle size={22} />
@@ -3750,11 +3807,10 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
 
                           {/* Task: Focus Reader */}
                           <div
-                            className={`group relative p-[1px] rounded-2xl transition-all duration-300 ${
-                              tasksStatus.focusReader
-                                ? "opacity-60 grayscale"
-                                : "hover:scale-[1.02] hover:shadow-lg hover:shadow-purple-500/10"
-                            }`}
+                            className={`group relative p-[1px] rounded-2xl transition-all duration-300 ${tasksStatus.focusReader
+                              ? "opacity-60 grayscale"
+                              : "hover:scale-[1.02] hover:shadow-lg hover:shadow-purple-500/10"
+                              }`}
                           >
                             <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-50 group-hover:opacity-100 transition-opacity" />
                             <Link
@@ -3767,11 +3823,10 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                               className="relative bg-[#0c0c0c] rounded-2xl p-4 flex items-center gap-4 h-full border border-white/5 group-hover:border-purple-500/30 transition-colors block"
                             >
                               <div
-                                className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner ${
-                                  tasksStatus.focusReader
-                                    ? "bg-green-500/10 text-green-500"
-                                    : "bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-purple-400 group-hover:text-purple-300"
-                                }`}
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner ${tasksStatus.focusReader
+                                  ? "bg-green-500/10 text-green-500"
+                                  : "bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-purple-400 group-hover:text-purple-300"
+                                  }`}
                               >
                                 {tasksStatus.focusReader ? (
                                   <CheckCircle size={22} />
@@ -3807,11 +3862,10 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
 
                           {/* Task: Bug Hunter */}
                           <div
-                            className={`group relative p-[1px] rounded-2xl transition-all duration-300 ${
-                              tasksStatus.bugHunter
-                                ? "opacity-60 grayscale"
-                                : "hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/10"
-                            }`}
+                            className={`group relative p-[1px] rounded-2xl transition-all duration-300 ${tasksStatus.bugHunter
+                              ? "opacity-60 grayscale"
+                              : "hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/10"
+                              }`}
                           >
                             <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/20 to-cyan-500/20 opacity-50 group-hover:opacity-100 transition-opacity" />
                             <Link
@@ -3824,11 +3878,10 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                               className="relative bg-[#0c0c0c] rounded-2xl p-4 flex items-center gap-4 h-full border border-white/5 group-hover:border-blue-500/30 transition-colors block"
                             >
                               <div
-                                className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner ${
-                                  tasksStatus.bugHunter
-                                    ? "bg-green-500/10 text-green-500"
-                                    : "bg-gradient-to-br from-blue-500/20 to-cyan-500/20 text-blue-400 group-hover:text-blue-300"
-                                }`}
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner ${tasksStatus.bugHunter
+                                  ? "bg-green-500/10 text-green-500"
+                                  : "bg-gradient-to-br from-blue-500/20 to-cyan-500/20 text-blue-400 group-hover:text-blue-300"
+                                  }`}
                               >
                                 {tasksStatus.bugHunter ? (
                                   <CheckCircle size={22} />
@@ -3878,11 +3931,10 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                           <button
                             disabled={isVerifyingTasks || !user}
                             onClick={handleVerifyTasks}
-                            className={`w-full py-4 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all relative overflow-hidden group ${
-                              isVerifyingTasks
-                                ? "bg-gray-800 text-gray-400 cursor-not-allowed"
-                                : "bg-white text-black hover:bg-gray-200 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-[0.98]"
-                            }`}
+                            className={`w-full py-4 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all relative overflow-hidden group ${isVerifyingTasks
+                              ? "bg-gray-800 text-gray-400 cursor-not-allowed"
+                              : "bg-white text-black hover:bg-gray-200 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-[0.98]"
+                              }`}
                           >
                             {isVerifyingTasks ? (
                               <>
@@ -4960,12 +5012,12 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                                 transition: "all 0.2s",
                               }}
                               onMouseOver={(e) =>
-                                (e.target.style.background =
-                                  "rgba(255,255,255,0.2)")
+                              (e.target.style.background =
+                                "rgba(255,255,255,0.2)")
                               }
                               onMouseOut={(e) =>
-                                (e.target.style.background =
-                                  "rgba(255,255,255,0.1)")
+                              (e.target.style.background =
+                                "rgba(255,255,255,0.1)")
                               }
                             >
                               <RefreshCw size={14} />
@@ -5168,7 +5220,7 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
               placeholder="Ask me anything about programming..."
               value={input}
               onChange={(val) => setInput(val)}
-              onSend={() => handleSubmit({ preventDefault: () => {} })}
+              onSend={() => handleSubmit({ preventDefault: () => { } })}
               isLoading={isThinking}
               startActions={
                 <div className="relative">
@@ -5177,11 +5229,10 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                     type="button"
                     onMouseEnter={handleToolsMouseEnter}
                     onMouseLeave={handleToolsMouseLeave}
-                    className={`p-2 rounded-xl transition-all duration-300 ${
-                      isToolsOpen
-                        ? "bg-white/10 text-white shadow-lg shadow-purple-500/10"
-                        : "text-gray-400 hover:text-white hover:bg-white/5"
-                    }`}
+                    className={`p-2 rounded-xl transition-all duration-300 ${isToolsOpen
+                      ? "bg-white/10 text-white shadow-lg shadow-purple-500/10"
+                      : "text-gray-400 hover:text-white hover:bg-white/5"
+                      }`}
                     title="AI Tools & Configuration"
                   >
                     <Settings2
@@ -5298,11 +5349,10 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                             disabled={
                               !input.trim() || isEnhancing || isThinking
                             }
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                              !input.trim()
-                                ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
-                                : "bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:scale-105 shadow-lg shadow-orange-500/20"
-                            }`}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${!input.trim()
+                              ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                              : "bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:scale-105 shadow-lg shadow-orange-500/20"
+                              }`}
                           >
                             {isEnhancing ? "Enhancing..." : "Enhance"}
                           </button>

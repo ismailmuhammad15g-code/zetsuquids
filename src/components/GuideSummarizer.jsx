@@ -1,16 +1,17 @@
 import {
-    CheckCircle,
-    Crown,
-    FileText,
-    Loader2,
-    Lock,
-    Sparkles,
-    X,
+  CheckCircle,
+  Crown,
+  FileText,
+  Loader2,
+  Lock,
+  Sparkles,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
+import { extractGuideContent, sanitizeContent } from "../lib/utils";
 import { supabase } from "../lib/api";
 
 const SUMMARIZER_FREE_TRIAL_KEY = "guide_summarizer_free_trial_used";
@@ -102,7 +103,7 @@ export function GuideSummarizer({ guide, isOpen, onClose }) {
 Guide Title: ${guide.title}
 
 Guide Content:
-${guide.content}
+${extractGuideContent(guide)}
 
 Format the summary in a clear, easy-to-read structure.`,
             },

@@ -2,6 +2,7 @@ import { Loader2, UserCheck, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
+import { useAuthorFollowInteraction } from "../hooks/useGuideInteraction";
 import { supabase } from "../lib/supabase";
 
 export default function FollowButton({
@@ -10,6 +11,7 @@ export default function FollowButton({
   className = "",
 }) {
   const { user } = useAuth();
+  const { recordFollowInteraction } = useAuthorFollowInteraction(targetUserEmail);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -132,6 +134,8 @@ export default function FollowButton({
 
         if (result.isFollowing) {
           toast.success(`Following ${targetUserName || "user"}!`);
+          // Record interaction for recommendations
+          recordFollowInteraction();
         } else {
           toast.success(`Unfollowed ${targetUserName || "user"}`);
         }

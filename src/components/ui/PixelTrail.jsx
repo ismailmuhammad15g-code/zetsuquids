@@ -48,6 +48,7 @@ const PixelTrail = ({
       // Calculate which pixel we are over
       // We use client coordinates because the background is usually fixed/full screen
       // But better to be relative to container
+      if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;

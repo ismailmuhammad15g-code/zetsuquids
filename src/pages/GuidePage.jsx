@@ -1,28 +1,28 @@
 import {
-    ArrowLeft,
-    Bot,
-    Calendar,
-    Check,
-    ChevronDown,
-    ChevronUp,
-    Clock,
-    Download,
-    ExternalLink,
-    Eye,
-    FileText,
-    Languages,
-    Loader2,
-    Lock,
-    Mail,
-    MoreVertical,
-    Search,
-    Share2,
-    Sparkles,
-    Tag,
-    Trash2,
-    UserPlus,
-    Volume2,
-    VolumeX,
+  ArrowLeft,
+  Bot,
+  Calendar,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Download,
+  ExternalLink,
+  Eye,
+  FileText,
+  Languages,
+  Loader2,
+  Lock,
+  Mail,
+  MoreVertical,
+  Search,
+  Share2,
+  Sparkles,
+  Tag,
+  Trash2,
+  UserPlus,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { marked } from "marked";
 import mermaid from "mermaid";
@@ -38,6 +38,7 @@ import { GuideAIChat } from "../components/GuideAIChat";
 import GuideComments from "../components/GuideComments";
 import GuideHistoryModal from "../components/GuideHistoryModal";
 import GuideRating from "../components/GuideRating";
+import GuideRecommendations from "../components/GuideRecommendations";
 import { GuideSummarizer } from "../components/GuideSummarizer";
 import GuideTimer from "../components/GuideTimer";
 import { GuideTranslator } from "../components/GuideTranslator";
@@ -46,6 +47,7 @@ import SEOHelmet from "../components/SEOHelmet";
 import TextToSpeech from "../components/TextToSpeech";
 import { ScrollProgress } from "../components/ui/scroll-progress";
 import { useAuth } from "../contexts/AuthContext";
+import { useGuideInteraction } from "../hooks/useGuideInteraction";
 import { guidesApi } from "../lib/api";
 import { getAvatarForUser } from "../lib/avatar";
 import { supabase } from "../lib/supabase";
@@ -127,6 +129,10 @@ export default function GuidePage() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth(); // Get current user
+
+  // Track interactions for recommendations
+  const { recordComment, recordRate } = useGuideInteraction(slug);
+
   const [guide, setGuide] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -207,13 +213,28 @@ export default function GuidePage() {
     if (guide) {
       // Small delay to ensure DOM is ready
       const timer = setTimeout(() => {
-        try {
-          mermaid.run({
-            querySelector: ".mermaid",
-          });
-        } catch (err) {
-          console.error("Mermaid failed to render:", err);
-        }
+        const timer = setTimeout(async () => {
+          try {
+            // Reset mermaid to default before running to clear any bad state
+            mermaid.initialize({
+              startOnLoad: false,
+              theme: "default",
+              securityLevel: "loose",
+              flowchart: { htmlLabels: true },
+              failOnError: false,
+              suppressErrorRendering: true // Suppress the ugly error box
+            });
+
+            await mermaid.run({
+              querySelector: ".mermaid",
+            });
+          } catch (err) {
+            // Suppress the "Could not find a suitable point" error which is a known Mermaid bug
+            if (!err.message?.includes("suitable point")) {
+              console.error("Mermaid failed to render:", err);
+            }
+          }
+        }, 500); // Increased delay slightly to ensures fonts/styles are loaded
       }, 250);
 
       return () => clearTimeout(timer);
@@ -1103,7 +1124,12 @@ export default function GuidePage() {
         <div className="guide-content">{renderContent()}</div>
 
         {/* Comments Section */}
-        <GuideComments guideId={guide.id} />
+        <GuideComments guideId={guide.id} onCommentPosted={recordComment} />
+
+        {/* Recommendations Section */}
+        <div className="mt-16 mb-12">
+          <GuideRecommendations currentGuideSlug={slug} limit={3} />
+        </div>
 
         {/* Bottom Navigation */}
         <div className="mt-12 pt-8 border-t-2 border-black">

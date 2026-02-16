@@ -2,6 +2,7 @@ import { CheckCircle, Globe, Languages, Loader2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
+import { extractGuideContent } from "../lib/utils";
 import { supabase } from "../lib/api";
 
 const LANGUAGES = [
@@ -51,7 +52,7 @@ export function GuideTranslator({ guide, isOpen, onClose }) {
       const targetLang = LANGUAGES.find((l) => l.code === selectedLanguage);
 
       // Use AI for translation - more reliable and complete
-      const fullText = `# ${guide.title}\n\n${guide.content}`;
+      const fullText = `# ${guide.title}\n\n${extractGuideContent(guide)}`;
 
       const response = await fetch("/api/ai", {
         method: "POST",
@@ -173,11 +174,10 @@ Text to translate:`,
                       <button
                         key={lang.code}
                         onClick={() => setSelectedLanguage(lang.code)}
-                        className={`p-3 border-3 border-black transition-all ${
-                          selectedLanguage === lang.code
-                            ? "bg-black text-white"
-                            : "bg-white hover:bg-gray-100"
-                        }`}
+                        className={`p-3 border-3 border-black transition-all ${selectedLanguage === lang.code
+                          ? "bg-black text-white"
+                          : "bg-white hover:bg-gray-100"
+                          }`}
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-2xl">{lang.flag}</span>
