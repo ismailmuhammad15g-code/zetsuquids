@@ -1,36 +1,47 @@
 import {
-  ArrowLeft,
-  Calendar,
-  Check,
-  Clock,
-  Download,
-  ExternalLink,
-  Eye,
-  Loader2,
-  Lock,
-  Mail,
-  MoreVertical,
-  Share2,
-  Tag,
-  Trash2,
-  UserPlus,
-  Volume2,
-  VolumeX,
-  Search
+    ArrowLeft,
+    Bot,
+    Calendar,
+    Check,
+    ChevronDown,
+    ChevronUp,
+    Clock,
+    Download,
+    ExternalLink,
+    Eye,
+    FileText,
+    Languages,
+    Loader2,
+    Lock,
+    Mail,
+    MoreVertical,
+    Search,
+    Share2,
+    Sparkles,
+    Tag,
+    Trash2,
+    UserPlus,
+    Volume2,
+    VolumeX,
 } from "lucide-react";
 import { marked } from "marked";
 import mermaid from "mermaid";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import Breadcrumbs from "../components/Breadcrumbs";
 import ConfirmModal from "../components/ConfirmModal";
 import DownloadGuideModal from "../components/DownloadGuideModal";
 import FollowButton from "../components/FollowButton";
+import { GuideAIChat } from "../components/GuideAIChat";
 import GuideComments from "../components/GuideComments";
 import GuideHistoryModal from "../components/GuideHistoryModal";
 import GuideRating from "../components/GuideRating";
+import { GuideSummarizer } from "../components/GuideSummarizer";
 import GuideTimer from "../components/GuideTimer";
+import { GuideTranslator } from "../components/GuideTranslator";
+import QuizComponent from "../components/quiz/QuizComponent";
 import SEOHelmet from "../components/SEOHelmet";
 import TextToSpeech from "../components/TextToSpeech";
 import { ScrollProgress } from "../components/ui/scroll-progress";
@@ -67,6 +78,25 @@ const renderer = {
       text.trim().startsWith("flowchart")
     ) {
       return `<pre class="mermaid">${text}</pre>`;
+    }
+
+    if (lang === "quiz") {
+      try {
+        const jsonStr = typeof code === "object" ? code.text : code;
+        // Secure encoding for data attribute
+        const encoded = btoa(
+          encodeURIComponent(jsonStr).replace(
+            /%([0-9A-F]{2})/g,
+            function toSolidBytes(match, p1) {
+              return String.fromCharCode("0x" + p1);
+            },
+          ),
+        );
+        return `<div class="interactive-quiz-container my-8" data-quiz="${encoded}"></div>`;
+      } catch (e) {
+        console.error("Quiz encoding error", e);
+        return `<pre class="bg-red-50 text-red-600 p-4 rounded border border-red-200">Error rendering quiz</pre>`;
+      }
     }
 
     // Manual fallback for normal code blocks to avoid renderer recursion issues
@@ -110,8 +140,16 @@ export default function GuidePage() {
   const [isPlayingTTS, setIsPlayingTTS] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false); // New Feature: Focus Mode
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewsCount, setViewsCount] = useState(0);
+  const [hasRecordedView, setHasRecordedView] = useState(false);
+  // AI Tools Modals
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [showSummarizer, setShowSummarizer] = useState(false);
+  const [showTranslator, setShowTranslator] = useState(false);
+  const [aiToolsExpanded, setAiToolsExpanded] = useState(false);
   const moreMenuRef = useRef(null);
   const ttsRef = useRef(null);
+  const contentRef = useRef(null);
 
   useEffect(() => {
     loadGuide();
@@ -120,6 +158,33 @@ export default function GuidePage() {
   useEffect(() => {
     mermaid.initialize({ startOnLoad: false, theme: "default" });
   }, []);
+
+  // Track view when user scrolls to bottom
+  useEffect(() => {
+    if (!guide || hasRecordedView) return;
+
+    const handleScroll = () => {
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const scrollPercentage = (scrollTop + windowHeight) / documentHeight;
+
+      // If user scrolled 85% or more, record view
+      if (scrollPercentage >= 0.85 && !hasRecordedView) {
+        recordView();
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [guide, hasRecordedView]);
+
+  // Fetch views count
+  useEffect(() => {
+    if (guide?.id) {
+      fetchViewsCount();
+    }
+  }, [guide?.id]);
 
   // Close More menu when clicking outside
   useEffect(() => {
@@ -154,6 +219,125 @@ export default function GuidePage() {
       return () => clearTimeout(timer);
     }
   }, [guide]);
+
+  // Process content with memoization to avoid Hook violations and performance issues
+  const processedContent = useMemo(() => {
+    if (!guide) return null;
+
+    // 1. Handle HTML Content Type
+    if (
+      guide.content_type === "html" ||
+      (guide.html_content && guide.html_content.trim())
+    ) {
+      const htmlContent = guide.html_content?.trim() || "";
+      const isFullDocument =
+        htmlContent.toLowerCase().includes("<!doctype") ||
+        htmlContent.toLowerCase().includes("<html");
+
+      const fullHTML = isFullDocument
+        ? htmlContent
+        : `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    ${htmlContent}
+</body>
+</html>`;
+      return { type: "html", content: fullHTML };
+    }
+
+    // 2. Handle Markdown Content
+    const markdownContent = guide.markdown || guide.content || "";
+    const html = marked.parse(markdownContent);
+    const sanitizedHtml = sanitizeContent(html);
+
+    // Apply Search Highlighting
+    if (!searchQuery || !searchQuery.trim()) {
+      return { type: "markdown", content: sanitizedHtml };
+    }
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(sanitizedHtml, "text/html");
+      const walker = document.createTreeWalker(
+        doc.body,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false,
+      );
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+
+      const regex = new RegExp(
+        `(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+        "gi",
+      );
+
+      nodes.forEach((node) => {
+        if (node.nodeValue && regex.test(node.nodeValue)) {
+          const fragment = document.createDocumentFragment();
+          const parts = node.nodeValue.split(regex);
+          parts.forEach((part) => {
+            if (regex.test(part)) {
+              const mark = document.createElement("mark");
+              mark.className =
+                "bg-yellow-200 text-black font-bold px-1 rounded-sm";
+              mark.textContent = part;
+              fragment.appendChild(mark);
+            } else {
+              fragment.appendChild(document.createTextNode(part));
+            }
+          });
+          node.parentNode.replaceChild(fragment, node);
+        }
+      });
+      return { type: "markdown", content: doc.body.innerHTML };
+    } catch (e) {
+      console.error("Highlight error:", e);
+      return { type: "markdown", content: sanitizedHtml };
+    }
+  }, [guide, searchQuery]);
+
+  // Hydrate Interactive Quizzes
+  useEffect(() => {
+    const containers = document.querySelectorAll(".interactive-quiz-container");
+    containers.forEach((container) => {
+      if (container.getAttribute("data-hydrated") === "true") return;
+
+      const encoded = container.getAttribute("data-quiz");
+      if (!encoded) return;
+
+      try {
+        const json = decodeURIComponent(
+          atob(encoded)
+            .split("")
+            .map(function (c) {
+              return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+            })
+            .join(""),
+        );
+
+        const data = JSON.parse(json);
+        const root = createRoot(container);
+        root.render(<QuizComponent data={data} />);
+        container.setAttribute("data-hydrated", "true");
+      } catch (e) {
+        console.error("Quiz hydration error:", e);
+        container.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded">Failed to load quiz.</div>`;
+      }
+    });
+  }, [guide, processedContent]);
 
   async function loadGuide() {
     try {
@@ -200,6 +384,101 @@ export default function GuidePage() {
       setError("Failed to load guide");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchViewsCount() {
+    try {
+      const { data, error } = await supabase
+        .from("guides")
+        .select("views_count")
+        .eq("id", guide.id)
+        .single();
+
+      if (error) throw error;
+      setViewsCount(data?.views_count || 0);
+    } catch (err) {
+      // If views_count column doesn't exist yet, default to 0
+      console.log("Views count not available yet");
+      setViewsCount(0);
+    }
+  }
+
+  async function recordView() {
+    if (hasRecordedView || !guide?.id) return;
+
+    try {
+      // 🔒 SECURITY: Prevent author from viewing their own guide
+      if (user?.id && guide.author_id && user.id === guide.author_id) {
+        console.log(
+          "🔒 Security: Author cannot record views on their own guide",
+        );
+        setHasRecordedView(true);
+        return;
+      }
+
+      // 🔒 SECURITY: Check if user already viewed this guide today
+      const viewKey = `guide_view_${guide.id}_${user?.id || "anon"}`;
+      const lastViewTime = localStorage.getItem(viewKey);
+      const now = Date.now();
+      const ONE_DAY = 24 * 60 * 60 * 1000; // 24 hours
+
+      if (lastViewTime) {
+        const timeSinceLastView = now - parseInt(lastViewTime);
+        if (timeSinceLastView < ONE_DAY) {
+          const hoursLeft = Math.ceil(
+            (ONE_DAY - timeSinceLastView) / (60 * 60 * 1000),
+          );
+          console.log(
+            `⏰ View already recorded. Next view allowed in ${hoursLeft} hours.`,
+          );
+          setHasRecordedView(true);
+          return;
+        }
+      }
+
+      setHasRecordedView(true);
+
+      // Generate session ID for anonymous users
+      let sessionId = localStorage.getItem("guide_session_id");
+      if (!sessionId) {
+        sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem("guide_session_id", sessionId);
+      }
+
+      const { error } = await supabase.from("guide_views").insert({
+        guide_id: guide.id,
+        user_id: user?.id || null,
+        session_id: !user ? sessionId : null,
+      });
+
+      if (error) {
+        // If duplicate or table doesn't exist, that's fine
+        if (
+          !error.message?.includes("unique") &&
+          !error.message?.includes("does not exist") &&
+          !error.message?.includes("duplicate")
+        ) {
+          console.log("View tracking not available yet");
+        } else if (
+          error.message?.includes("unique") ||
+          error.message?.includes("duplicate")
+        ) {
+          console.log("✅ View already recorded (database protection active)");
+        }
+      } else {
+        // ✅ Success: Save timestamp and refresh count
+        localStorage.setItem(viewKey, now.toString());
+        setViewsCount((prev) => prev + 1);
+        console.log("✅ View recorded successfully!");
+      }
+    } catch (err) {
+      // Silently fail if views tracking is not set up yet
+      console.log(
+        "Error recording view (views tracking may not be enabled yet):",
+        err.message,
+      );
+      setHasRecordedView(false); // Allow retry
     }
   }
 
@@ -302,88 +581,11 @@ export default function GuidePage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  // Process content with memoization to avoid Hook violations and performance issues
-  const processedContent = useMemo(() => {
-    if (!guide) return null;
-
-    // 1. Handle HTML Content Type
-    if (guide.content_type === "html" || (guide.html_content && guide.html_content.trim())) {
-      const htmlContent = guide.html_content?.trim() || "";
-      const isFullDocument =
-        htmlContent.toLowerCase().includes("<!doctype") ||
-        htmlContent.toLowerCase().includes("<html");
-
-      const fullHTML = isFullDocument
-        ? htmlContent
-        : `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            padding: 20px;
-            margin: 0;
-        }
-    </style>
-</head>
-<body>
-    ${htmlContent}
-</body>
-</html>`;
-      return { type: 'html', content: fullHTML };
-    }
-
-    // 2. Handle Markdown Content
-    const markdownContent = guide.markdown || guide.content || "";
-    const html = marked.parse(markdownContent);
-    const sanitizedHtml = sanitizeContent(html);
-
-    // Apply Search Highlighting
-    if (!searchQuery || !searchQuery.trim()) {
-      return { type: 'markdown', content: sanitizedHtml };
-    }
-
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(sanitizedHtml, 'text/html');
-      const walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null, false);
-      const nodes = [];
-      while (walker.nextNode()) nodes.push(walker.currentNode);
-
-      const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-
-      nodes.forEach(node => {
-        if (node.nodeValue && regex.test(node.nodeValue)) {
-          const fragment = document.createDocumentFragment();
-          const parts = node.nodeValue.split(regex);
-          parts.forEach(part => {
-            if (regex.test(part)) {
-              const mark = document.createElement('mark');
-              mark.className = "bg-yellow-200 text-black font-bold px-1 rounded-sm";
-              mark.textContent = part;
-              fragment.appendChild(mark);
-            } else {
-              fragment.appendChild(document.createTextNode(part));
-            }
-          });
-          node.parentNode.replaceChild(fragment, node);
-        }
-      });
-      return { type: 'markdown', content: doc.body.innerHTML };
-    } catch (e) {
-      console.error("Highlight error:", e);
-      return { type: 'markdown', content: sanitizedHtml };
-    }
-  }, [guide, searchQuery]);
-
   // Render content based on processed data
   function renderContent() {
     if (!processedContent) return null;
 
-    if (processedContent.type === 'html') {
+    if (processedContent.type === "html") {
       return (
         <iframe
           srcDoc={processedContent.content}
@@ -537,7 +739,7 @@ export default function GuidePage() {
           items={[
             { href: "/", label: "Home" },
             { href: "/guides", label: "Guides" },
-            { href: "#", label: guide.title }
+            { href: "#", label: guide.title },
           ]}
         />
 
@@ -583,6 +785,13 @@ export default function GuidePage() {
                 day: "numeric",
               })}
             </span>
+            {viewsCount > 0 && (
+              <span className="flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-sm font-medium border border-blue-100">
+                <Eye size={16} />
+                {viewsCount.toLocaleString()}{" "}
+                {viewsCount === 1 ? "view" : "views"}
+              </span>
+            )}
             {guide.content_type === "html" && (
               <span className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-xs font-medium">
                 <ExternalLink size={12} />
@@ -765,6 +974,76 @@ export default function GuidePage() {
                     Enter Focus Mode
                   </button>
 
+                  {/* AI Tools Section */}
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
+                    <button
+                      onClick={() => setAiToolsExpanded(!aiToolsExpanded)}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-purple-100/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={16} className="text-purple-600" />
+                        <p className="text-sm font-bold text-purple-700 uppercase tracking-wide">
+                          AI Tools
+                        </p>
+                      </div>
+                      {aiToolsExpanded ? (
+                        <ChevronUp size={16} className="text-purple-600" />
+                      ) : (
+                        <ChevronDown size={16} className="text-purple-600" />
+                      )}
+                    </button>
+
+                    {aiToolsExpanded && (
+                      <div className="px-2 pb-2">
+                        <button
+                          onClick={() => {
+                            setShowSummarizer(true);
+                            setShowMoreMenu(false);
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-purple-600 mb-1"
+                        >
+                          <FileText size={16} />
+                          <div className="flex-1">
+                            <div className="font-bold">Guide Summarizer</div>
+                            <div className="text-xs text-gray-500">
+                              1 FREE trial
+                            </div>
+                          </div>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setShowAIChat(true);
+                            setShowMoreMenu(false);
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-purple-600 mb-1"
+                        >
+                          <Bot size={16} />
+                          <div className="flex-1">
+                            <div className="font-bold">Ask Guide</div>
+                            <div className="text-xs text-gray-500">
+                              2 credits/question
+                            </div>
+                          </div>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setShowTranslator(true);
+                            setShowMoreMenu(false);
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-purple-600"
+                        >
+                          <Languages size={16} />
+                          <div className="flex-1">
+                            <div className="font-bold">Translator</div>
+                            <div className="text-xs text-gray-500">FREE</div>
+                          </div>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Owner/Admin Actions */}
                   {(isOwner || isAdmin) && (
                     <>
@@ -891,6 +1170,26 @@ export default function GuidePage() {
           />
         )}
 
+        {/* AI Tools Modals */}
+        {guide && (
+          <>
+            <GuideAIChat
+              guide={guide}
+              isOpen={showAIChat}
+              onClose={() => setShowAIChat(false)}
+            />
+            <GuideSummarizer
+              guide={guide}
+              isOpen={showSummarizer}
+              onClose={() => setShowSummarizer(false)}
+            />
+            <GuideTranslator
+              guide={guide}
+              isOpen={showTranslator}
+              onClose={() => setShowTranslator(false)}
+            />
+          </>
+        )}
       </article>
     </>
   );

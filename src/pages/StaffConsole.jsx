@@ -7,11 +7,15 @@ import {
     MessageSquare,
     RefreshCw,
     Send,
-    User
+    User,
+    BookOpen,
+    CheckCircle,
+    XCircle,
+    Eye
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/api'
+import { supabase, adminGuidesApi } from '../lib/api'
 import { supportApi } from '../lib/supportApi'
 
 // Import staff profile animations
@@ -35,6 +39,12 @@ export default function StaffConsole() {
     const [loading, setLoading] = useState(true)
     const [selectedProfile, setSelectedProfile] = useState(null)
     const [showProfileSelector, setShowProfileSelector] = useState(true)
+    const [activeTab, setActiveTab] = useState('support') // 'support' or 'guides'
+
+    // Guide Reviews State
+    const [pendingGuides, setPendingGuides] = useState([])
+    const [loadingGuides, setLoadingGuides] = useState(false)
+    const [processingGuideId, setProcessingGuideId] = useState(null)
 
     // Support Messages State
     const [conversations, setConversations] = useState([])
@@ -67,6 +77,7 @@ export default function StaffConsole() {
                 }
             }
             loadConversations()
+            loadPendingGuides() // Load guides on init
         } else {
             sessionStorage.removeItem('staffAuthenticated')
             sessionStorage.removeItem('staffLoginTime')
@@ -229,6 +240,54 @@ export default function StaffConsole() {
         setLoadingMessages(false)
     }
 
+    // Load pending guides
+    const loadPendingGuides = async () => {
+        setLoadingGuides(true)
+        try {
+            const data = await adminGuidesApi.getPendingGuides()
+            setPendingGuides(data || [])
+        } catch (error) {
+            console.error('Error loading pending guides:', error)
+        }
+        setLoadingGuides(false)
+    }
+
+    // Approve guide
+    const handleApproveGuide = async (guide) => {
+        if (!guide || !selectedProfile) return
+        setProcessingGuideId(guide.id)
+        try {
+            const success = await adminGuidesApi.approveGuide(guide.id, selectedProfile.id)
+            if (success) {
+                // Remove from list
+                setPendingGuides(prev => prev.filter(g => g.id !== guide.id))
+                // Notify via toast/alert (optional)
+            } else {
+                alert('فشل الموافقة على الدليل')
+            }
+        } catch (error) {
+            console.error('Error approving guide:', error)
+        }
+        setProcessingGuideId(null)
+    }
+
+    // Reject guide
+    const handleRejectGuide = async (guide) => {
+        if (!confirm('هل أنت متأكد من رفض وحذف هذا الدليل؟')) return
+        setProcessingGuideId(guide.id)
+        try {
+            const success = await adminGuidesApi.rejectGuide(guide.id)
+            if (success) {
+                setPendingGuides(prev => prev.filter(g => g.id !== guide.id))
+            } else {
+                alert('فشل رفض الدليل')
+            }
+        } catch (error) {
+            console.error('Error rejecting guide:', error)
+        }
+        setProcessingGuideId(null)
+    }
+
     // Toggle conversation expansion
     const toggleConversation = async (conversation) => {
         if (expandedConversation === conversation.id) {
@@ -388,192 +447,292 @@ export default function StaffConsole() {
                 </div>
             </header>
 
+
+
+            {/* Tabs Navigation */}
+            <div className="staff-tabs">
+                <button
+                    className={`tab-btn ${activeTab === 'support' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('support')}
+                >
+                    <MessageSquare size={18} />
+                    <span>الدعم الفني</span>
+                    {conversations.some(c => c.unread_count > 0) && <span className="tab-badge" />}
+                </button>
+                <button
+                    className={`tab-btn ${activeTab === 'guides' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('guides')}
+                >
+                    <BookOpen size={18} />
+                    <span>مراجعة الأدلة</span>
+                    {pendingGuides.length > 0 && <span className="count-badge">{pendingGuides.length}</span>}
+                </button>
+            </div>
+
             {/* Main Content */}
             <main className="staff-content">
-                <section className="support-section">
-                    <div className="section-header">
-                        <MessageSquare size={20} />
-                        <h2>رسائل العملاء</h2>
-                        <span className="conv-count">{conversations.length}</span>
-                        <button
-                            className="refresh-btn"
-                            onClick={loadConversations}
-                            disabled={loadingConversations}
-                        >
-                            <RefreshCw size={16} className={loadingConversations ? 'spin' : ''} />
-                        </button>
-                    </div>
+                {activeTab === 'support' ? (
+                    <section className="support-section">
+                        {/* ... existing support section content ... */}
+                        <div className="section-header">
+                            <MessageSquare size={20} />
+                            <h2>رسائل العملاء</h2>
+                            <span className="conv-count">{conversations.length}</span>
+                            <button
+                                className="refresh-btn"
+                                onClick={loadConversations}
+                                disabled={loadingConversations}
+                            >
+                                <RefreshCw size={16} className={loadingConversations ? 'spin' : ''} />
+                            </button>
+                        </div>
 
-                    {loadingConversations ? (
-                        <div className="loading-state">
-                            <RefreshCw className="spin" size={24} />
-                            <p>جاري التحميل...</p>
-                        </div>
-                    ) : conversations.length === 0 ? (
-                        <div className="empty-state">
-                            <Mail size={48} />
-                            <p>لا توجد رسائل بعد</p>
-                        </div>
-                    ) : (
-                        <div className="conversations-list">
-                            {conversations.map(conv => (
-                                <div key={conv.id} className="conversation-item">
-                                    <div
-                                        className="conversation-header"
-                                        onClick={() => toggleConversation(conv)}
-                                    >
-                                        <div className="conversation-info">
-                                            <div className="conversation-user">
-                                                <User size={16} />
-                                                <span className="user-email">{conv.user_email}</span>
-                                                {conv.unread_count > 0 && (
-                                                    <span className="unread-badge">{conv.unread_count}</span>
+                        {loadingConversations ? (
+                            <div className="loading-state">
+                                <RefreshCw className="spin" size={24} />
+                                <p>جاري التحميل...</p>
+                            </div>
+                        ) : conversations.length === 0 ? (
+                            <div className="empty-state">
+                                <Mail size={48} />
+                                <p>لا توجد رسائل بعد</p>
+                            </div>
+                        ) : (
+                            <div className="conversations-list">
+                                {conversations.map(conv => (
+                                    <div key={conv.id} className="conversation-item">
+                                        <div
+                                            className="conversation-header"
+                                            onClick={() => toggleConversation(conv)}
+                                        >
+                                            <div className="conversation-info">
+                                                <div className="conversation-user">
+                                                    <User size={16} />
+                                                    <span className="user-email">{conv.user_email}</span>
+                                                    {conv.unread_count > 0 && (
+                                                        <span className="unread-badge">{conv.unread_count}</span>
+                                                    )}
+                                                </div>
+                                                <div className="conversation-meta">
+                                                    <Clock size={12} />
+                                                    <span>{formatTime(conv.last_message_at)}</span>
+                                                </div>
+                                            </div>
+                                            <div className="expand-icon">
+                                                {expandedConversation === conv.id ? (
+                                                    <ChevronUp size={20} />
+                                                ) : (
+                                                    <ChevronDown size={20} />
                                                 )}
                                             </div>
-                                            <div className="conversation-meta">
-                                                <Clock size={12} />
-                                                <span>{formatTime(conv.last_message_at)}</span>
-                                            </div>
                                         </div>
-                                        <div className="expand-icon">
-                                            {expandedConversation === conv.id ? (
-                                                <ChevronUp size={20} />
-                                            ) : (
-                                                <ChevronDown size={20} />
-                                            )}
-                                        </div>
-                                    </div>
 
-                                    {expandedConversation === conv.id && (
-                                        <div className="conversation-messages">
-                                            {loadingMessages ? (
-                                                <div className="loading-messages">
-                                                    <RefreshCw className="spin" size={20} />
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    <div className="messages-list">
-                                                        {conversationMessages.length === 0 ? (
-                                                            <p className="no-messages">لا توجد رسائل</p>
-                                                        ) : (
-                                                            conversationMessages.map(msg => {
-                                                                const avatar = getMessageAvatar(msg)
-                                                                return (
-                                                                    <div
-                                                                        key={msg.id}
-                                                                        className={`message-bubble ${msg.sender_type}`}
-                                                                    >
-                                                                        {msg.sender_type !== 'user' && avatar && (
-                                                                            <div className="message-avatar" style={{ borderColor: avatar.color }}>
-                                                                                {avatar.type === 'lottie' ? (
-                                                                                    <Lottie
-                                                                                        animationData={avatar.animation}
-                                                                                        loop={true}
-                                                                                        style={{ width: 32, height: 32 }}
-                                                                                    />
-                                                                                ) : avatar.type === 'image' ? (
-                                                                                    <img src={avatar.src} alt={avatar.name} />
-                                                                                ) : (
-                                                                                    <User size={16} />
-                                                                                )}
-                                                                            </div>
-                                                                        )}
-                                                                        <div className="message-body">
-                                                                            <div className="message-sender">
-                                                                                {msg.sender_type === 'user' ? '👤 العميل' :
-                                                                                    msg.sender_type === 'admin' ? '👨‍💻 Admin' :
-                                                                                        `${avatar?.name || 'Staff'}`}
-                                                                            </div>
-                                                                            <div className="message-content">
-                                                                                {/* Show image if exists */}
-                                                                                {msg.image_url && (
-                                                                                    <div className="message-image-container" style={{ marginBottom: '8px' }}>
-                                                                                        <img
-                                                                                            src={msg.image_url}
-                                                                                            alt="Attachment"
-                                                                                            style={{
-                                                                                                maxWidth: '250px',
-                                                                                                maxHeight: '250px',
-                                                                                                borderRadius: '8px',
-                                                                                                cursor: 'pointer',
-                                                                                                display: 'block'
-                                                                                            }}
-                                                                                            onClick={() => window.open(msg.image_url, '_blank')}
-                                                                                            onError={(e) => {
-                                                                                                e.target.style.display = 'none'
-                                                                                                e.target.parentElement.innerHTML = '<span style="color: #ff6b6b; font-size: 12px;">📷 Image expired (24h)</span>'
-                                                                                            }}
+                                        {expandedConversation === conv.id && (
+                                            <div className="conversation-messages">
+                                                {loadingMessages ? (
+                                                    <div className="loading-messages">
+                                                        <RefreshCw className="spin" size={20} />
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="messages-list">
+                                                            {conversationMessages.length === 0 ? (
+                                                                <p className="no-messages">لا توجد رسائل</p>
+                                                            ) : (
+                                                                conversationMessages.map(msg => {
+                                                                    const avatar = getMessageAvatar(msg)
+                                                                    return (
+                                                                        <div
+                                                                            key={msg.id}
+                                                                            className={`message-bubble ${msg.sender_type}`}
+                                                                        >
+                                                                            {msg.sender_type !== 'user' && avatar && (
+                                                                                <div className="message-avatar" style={{ borderColor: avatar.color }}>
+                                                                                    {avatar.type === 'lottie' ? (
+                                                                                        <Lottie
+                                                                                            animationData={avatar.animation}
+                                                                                            loop={true}
+                                                                                            style={{ width: 32, height: 32 }}
                                                                                         />
-                                                                                    </div>
-                                                                                )}
-                                                                                {/* Show text message */}
-                                                                                {msg.message && msg.message !== '📷 Image' && (
-                                                                                    <div>{msg.message}</div>
-                                                                                )}
-                                                                                {/* If only image, show indicator */}
-                                                                                {!msg.message && msg.image_url && (
-                                                                                    <span style={{ fontSize: '12px', color: '#888' }}>📷 Image attached</span>
-                                                                                )}
-                                                                            </div>
-                                                                            <div className="message-time">
-                                                                                {formatTime(msg.created_at)}
+                                                                                    ) : avatar.type === 'image' ? (
+                                                                                        <img src={avatar.src} alt={avatar.name} />
+                                                                                    ) : (
+                                                                                        <User size={16} />
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+                                                                            <div className="message-body">
+                                                                                <div className="message-sender">
+                                                                                    {msg.sender_type === 'user' ? '👤 العميل' :
+                                                                                        msg.sender_type === 'admin' ? '👨‍💻 Admin' :
+                                                                                            `${avatar?.name || 'Staff'}`}
+                                                                                </div>
+                                                                                <div className="message-content">
+                                                                                    {/* Show image if exists */}
+                                                                                    {msg.image_url && (
+                                                                                        <div className="message-image-container" style={{ marginBottom: '8px' }}>
+                                                                                            <img
+                                                                                                src={msg.image_url}
+                                                                                                alt="Attachment"
+                                                                                                style={{
+                                                                                                    maxWidth: '250px',
+                                                                                                    maxHeight: '250px',
+                                                                                                    borderRadius: '8px',
+                                                                                                    cursor: 'pointer',
+                                                                                                    display: 'block'
+                                                                                                }}
+                                                                                                onClick={() => window.open(msg.image_url, '_blank')}
+                                                                                                onError={(e) => {
+                                                                                                    e.target.style.display = 'none'
+                                                                                                    e.target.parentElement.innerHTML = '<span style="color: #ff6b6b; font-size: 12px;">📷 Image expired (24h)</span>'
+                                                                                                }}
+                                                                                            />
+                                                                                        </div>
+                                                                                    )}
+                                                                                    {/* Show text message */}
+                                                                                    {msg.message && msg.message !== '📷 Image' && (
+                                                                                        <div>{msg.message}</div>
+                                                                                    )}
+                                                                                    {/* If only image, show indicator */}
+                                                                                    {!msg.message && msg.image_url && (
+                                                                                        <span style={{ fontSize: '12px', color: '#888' }}>📷 Image attached</span>
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="message-time">
+                                                                                    {formatTime(msg.created_at)}
+                                                                                </div>
                                                                             </div>
                                                                         </div>
-                                                                    </div>
-                                                                )
-                                                            })
-                                                        )}
-                                                        <div ref={messagesEndRef} />
-                                                    </div>
+                                                                    )
+                                                                })
+                                                            )}
+                                                            <div ref={messagesEndRef} />
+                                                        </div>
 
-                                                    <div className="reply-section">
-                                                        {selectedProfile ? (
-                                                            <>
-                                                                <div className="reply-profile">
-                                                                    <Lottie
-                                                                        animationData={selectedProfile.animation}
-                                                                        loop={true}
-                                                                        style={{ width: 36, height: 36 }}
+                                                        <div className="reply-section">
+                                                            {selectedProfile ? (
+                                                                <>
+                                                                    <div className="reply-profile">
+                                                                        <Lottie
+                                                                            animationData={selectedProfile.animation}
+                                                                            loop={true}
+                                                                            style={{ width: 36, height: 36 }}
+                                                                        />
+                                                                    </div>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="اكتب ردك..."
+                                                                        value={replyText}
+                                                                        onChange={(e) => handleTyping(e.target.value)}
+                                                                        onKeyPress={(e) => e.key === 'Enter' && handleSendReply()}
+                                                                        disabled={sendingReply}
+                                                                        dir="rtl"
                                                                     />
-                                                                </div>
-                                                                <input
-                                                                    type="text"
-                                                                    placeholder="اكتب ردك..."
-                                                                    value={replyText}
-                                                                    onChange={(e) => handleTyping(e.target.value)}
-                                                                    onKeyPress={(e) => e.key === 'Enter' && handleSendReply()}
-                                                                    disabled={sendingReply}
-                                                                    dir="rtl"
-                                                                />
+                                                                    <button
+                                                                        onClick={handleSendReply}
+                                                                        disabled={sendingReply || !replyText.trim()}
+                                                                    >
+                                                                        {sendingReply ? (
+                                                                            <RefreshCw className="spin" size={18} />
+                                                                        ) : (
+                                                                            <Send size={18} />
+                                                                        )}
+                                                                    </button>
+                                                                </>
+                                                            ) : (
                                                                 <button
-                                                                    onClick={handleSendReply}
-                                                                    disabled={sendingReply || !replyText.trim()}
+                                                                    className="select-profile-btn"
+                                                                    onClick={() => setShowProfileSelector(true)}
                                                                 >
-                                                                    {sendingReply ? (
-                                                                        <RefreshCw className="spin" size={18} />
-                                                                    ) : (
-                                                                        <Send size={18} />
-                                                                    )}
+                                                                    اختر شخصيتك للرد
                                                                 </button>
-                                                            </>
-                                                        ) : (
-                                                            <button
-                                                                className="select-profile-btn"
-                                                                onClick={() => setShowProfileSelector(true)}
-                                                            >
-                                                                اختر شخصيتك للرد
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                                            )}
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </section>
+                ) : (
+                    <section className="guides-section">
+                        <div className="section-header">
+                            <BookOpen size={20} />
+                            <h2>أدلة بانتظار المراجعة</h2>
+                            <span className="conv-count">{pendingGuides.length}</span>
+                            <button
+                                className="refresh-btn"
+                                onClick={loadPendingGuides}
+                                disabled={loadingGuides}
+                            >
+                                <RefreshCw size={16} className={loadingGuides ? 'spin' : ''} />
+                            </button>
                         </div>
-                    )}
-                </section>
+
+                        {loadingGuides ? (
+                            <div className="loading-state">
+                                <RefreshCw className="spin" size={24} />
+                                <p>جاري التحميل...</p>
+                            </div>
+                        ) : pendingGuides.length === 0 ? (
+                            <div className="empty-state">
+                                <BookOpen size={48} />
+                                <p>لا توجد أدلة معلقة</p>
+                            </div>
+                        ) : (
+                            <div className="guides-grid">
+                                {pendingGuides.map(guide => (
+                                    <div key={guide.id} className="guide-review-card">
+                                        <div className="guide-header">
+                                            <h3>{guide.title}</h3>
+                                            <span className="guide-date">{new Date(guide.created_at).toLocaleDateString()}</span>
+                                        </div>
+                                        <div className="guide-meta">
+                                            <div className="guide-author">
+                                                <User size={14} />
+                                                <span>{guide.author_name || guide.user_email}</span>
+                                            </div>
+                                            <span className="guide-type">{guide.content_type || 'markdown'}</span>
+                                        </div>
+                                        <p className="guide-preview text-sm text-gray-400 mt-2 mb-4 line-clamp-3">
+                                            {guide.content?.substring(0, 150) || 'No content preview'}...
+                                        </p>
+                                        <div className="guide-actions">
+                                            <button
+                                                className="preview-btn"
+                                                onClick={() => window.open(`/guide/${guide.slug}?preview=true`, '_blank')}
+                                            >
+                                                <Eye size={16} />
+                                                معاينة
+                                            </button>
+
+                                            <div className="approval-actions">
+                                                <button
+                                                    className="reject-btn"
+                                                    onClick={() => handleRejectGuide(guide)}
+                                                    disabled={processingGuideId === guide.id}
+                                                >
+                                                    {processingGuideId === guide.id ? <RefreshCw className="spin" size={16} /> : <XCircle size={16} />}
+                                                </button>
+                                                <button
+                                                    className="approve-btn"
+                                                    onClick={() => handleApproveGuide(guide)}
+                                                    disabled={processingGuideId === guide.id}
+                                                >
+                                                    {processingGuideId === guide.id ? <RefreshCw className="spin" size={16} /> : <CheckCircle size={16} />}
+                                                    موافقة
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </section>
+                )}
             </main>
 
             <style>{`
@@ -1012,7 +1171,140 @@ export default function StaffConsole() {
                 .select-profile-btn:hover {
                     background: rgba(255,255,255,0.15);
                 }
+                
+                /* Tabs */
+                .staff-tabs {
+                    display: flex;
+                    justify-content: center;
+                    gap: 16px;
+                    margin-top: 16px;
+                }
+
+                .tab-btn {
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 12px;
+                    padding: 8px 16px;
+                    color: rgba(255,255,255,0.6);
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    transition: all 0.2s;
+                    position: relative;
+                }
+
+                .tab-btn:hover { background: rgba(255,255,255,0.1); }
+                .tab-btn.active {
+                    background: #10b981;
+                    color: white;
+                    border-color: #10b981;
+                }
+
+                .count-badge {
+                    background: #ef4444;
+                    color: white;
+                    font-size: 0.7rem;
+                    padding: 2px 6px;
+                    border-radius: 8px;
+                    min-width: 20px;
+                }
+
+                /* Guide Cards */
+                .guides-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                    gap: 16px;
+                }
+
+                .guide-review-card {
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 12px;
+                    padding: 16px;
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .guide-header {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 8px;
+                }
+
+                .guide-header h3 {
+                    margin: 0;
+                    font-size: 1.1rem;
+                    font-weight: 600;
+                }
+
+                .guide-date {
+                    font-size: 0.8rem;
+                    color: rgba(255,255,255,0.4);
+                }
+
+                .guide-meta {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 12px;
+                    font-size: 0.85rem;
+                    color: rgba(255,255,255,0.6);
+                }
+
+                .guide-author {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                }
+
+                .guide-actions {
+                    margin-top: auto;
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 12px;
+                }
+
+                .preview-btn {
+                    padding: 6px 12px;
+                    background: rgba(255,255,255,0.1);
+                    border-radius: 8px;
+                    color: white;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 0.9rem;
+                }
+
+                .approval-actions {
+                    display: flex;
+                    gap: 8px;
+                }
+
+                .approve-btn, .reject-btn {
+                    padding: 6px 12px;
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 0.9rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    border: none;
+                }
+
+                .approve-btn {
+                    background: #10b981;
+                    color: white;
+                }
+                .approve-btn:hover { background: #059669; }
+
+                .reject-btn {
+                    background: rgba(239,68,68,0.2);
+                    color: #fca5a5;
+                }
+                .reject-btn:hover { background: rgba(239,68,68,0.3); }
+
             `}</style>
-        </div>
+        </div >
     )
 }

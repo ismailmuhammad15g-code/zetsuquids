@@ -1,6 +1,14 @@
-import { ArrowLeft, BarChart3, Calendar, Clock } from "lucide-react";
+import {
+    ArrowLeft,
+    BarChart3,
+    Calendar,
+    Clock,
+    Eye,
+    Star
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { AreaChart } from "../components/retroui/charts/AreaChart";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
 
@@ -12,6 +20,8 @@ export default function UserStatsPage() {
   const [activeTab, setActiveTab] = useState("overview"); // 'overview' or 'analytics'
   const [analyticsData, setAnalyticsData] = useState([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [viewsChartData, setViewsChartData] = useState([]);
+  const [ratingsChartData, setRatingsChartData] = useState([]);
 
   useEffect(() => {
     if (user) {
@@ -30,7 +40,8 @@ export default function UserStatsPage() {
       // Fetch time logs joined with guide details
       const { data, error } = await supabase
         .from("guide_time_logs")
-        .select(`
+        .select(
+          `
             duration_seconds,
             last_updated,
             guides (
@@ -38,7 +49,8 @@ export default function UserStatsPage() {
                 title,
                 slug
             )
-        `)
+        `,
+        )
         .eq("user_id", user.id)
         .order("last_updated", { ascending: false });
 
@@ -65,51 +77,137 @@ export default function UserStatsPage() {
 
       // 1. Get guides owned by user
       const { data: myGuides } = await supabase
-        .from('guides')
-        .select('id, title, slug')
-        .eq('author_id', user.id);
+        .from("guides")
+        .select("id, title, slug")
+        .eq("author_id", user.id);
 
       if (!myGuides || myGuides.length === 0) {
         setAnalyticsData([]);
+        setViewsChartData([]);
+        setRatingsChartData([]);
+        setAnalyticsLoading(false);
         return;
       }
 
-      const guideIds = myGuides.map(g => g.id);
+      const guideIds = myGuides.map((g) => g.id);
       const guideMap = {};
-      myGuides.forEach(g => guideMap[g.id] = g);
+      myGuides.forEach((g) => (guideMap[g.id] = g));
 
       // 2. Get ratings for these guides
       const { data: ratings, error } = await supabase
-        .from('guide_ratings')
-        .select('*')
-        .in('guide_id', guideIds)
-        .order('created_at', { ascending: false });
+        .from("guide_ratings")
+        .select("*")
+        .in("guide_id", guideIds)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
+
+      // If no ratings, set empty arrays and return
       if (!ratings || ratings.length === 0) {
         setAnalyticsData([]);
+        setViewsChartData([]);
+        setRatingsChartData([]);
+        setAnalyticsLoading(false);
         return;
       }
 
       // 3. Get reviewer profiles
-      const userIds = [...new Set(ratings.map(r => r.user_id))];
+      const userIds = [...new Set(ratings.map((r) => r.user_id))];
       const { data: profiles } = await supabase
-        .from('zetsuguide_user_profiles')
-        .select('user_id, display_name, avatar_url')
-        .in('user_id', userIds);
+        .from("zetsuguide_user_profiles")
+        .select("user_id, display_name, avatar_url")
+        .in("user_id", userIds);
 
       const profileMap = {};
-      profiles?.forEach(p => profileMap[p.user_id] = p);
+      profiles?.forEach((p) => (profileMap[p.user_id] = p));
 
       // 4. Combine data
-      const fullData = ratings.map(r => ({
+      const fullData = ratings.map((r) => ({
         ...r,
         guide: guideMap[r.guide_id],
-        reviewer: profileMap[r.user_id] || { display_name: 'Unknown User', avatar_url: null }
+        reviewer: profileMap[r.user_id] || {
+          display_name: "Unknown User",
+          avatar_url: null,
+        },
       }));
 
       setAnalyticsData(fullData);
 
+      // 5. Generate charts data for views (with fallback if table doesn't exist)
+      try {
+        const { data: viewsData, error: viewsError } = await supabase
+          .from("guide_views")
+          .select("created_at, guide_id")
+          .in("guide_id", guideIds)
+          .order("created_at", { ascending: true });
+
+        if (!viewsError && viewsData) {
+          // Group views by date
+          const viewsByDate = {};
+          viewsData.forEach((view) => {
+            const date = new Date(view.created_at).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            });
+            viewsByDate[date] = (viewsByDate[date] || 0) + 1;
+          });
+
+          // Get last 7 days
+          const last7Days = [];
+          for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            });
+            last7Days.push({
+              name: dateStr,
+              views: viewsByDate[dateStr] || 0,
+            });
+          }
+          setViewsChartData(last7Days);
+        } else {
+          // Fallback: empty data if table doesn't exist
+          setViewsChartData([]);
+        }
+      } catch (viewsErr) {
+        console.log("Views table not available yet, skipping views chart");
+        setViewsChartData([]);
+      }
+
+      // 6. Generate charts data for ratings
+      const ratingsByDate = {};
+      ratings?.forEach((rating) => {
+        const date = new Date(rating.created_at).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
+        if (!ratingsByDate[date]) {
+          ratingsByDate[date] = { total: 0, count: 0 };
+        }
+        ratingsByDate[date].total += Number(rating.rating) || 0;
+        ratingsByDate[date].count += 1;
+      });
+
+      const ratingsLast7Days = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
+        const dayData = ratingsByDate[dateStr];
+        const avgRating =
+          dayData && dayData.count > 0 ? dayData.total / dayData.count : 0;
+        ratingsLast7Days.push({
+          name: dateStr,
+          ratings: Number(avgRating.toFixed(1)) || 0,
+          count: dayData?.count || 0,
+        });
+      }
+      setRatingsChartData(ratingsLast7Days);
     } catch (err) {
       console.error("Error fetching analytics:", err);
     } finally {
@@ -137,9 +235,13 @@ export default function UserStatsPage() {
   };
 
   const getAverageRating = () => {
-    if (analyticsData.length === 0) return 0;
-    const sum = analyticsData.reduce((acc, curr) => acc + Number(curr.rating), 0);
-    return (sum / analyticsData.length).toFixed(1);
+    if (analyticsData.length === 0) return "0.0";
+    const sum = analyticsData.reduce(
+      (acc, curr) => acc + (Number(curr.rating) || 0),
+      0,
+    );
+    const avg = sum / analyticsData.length;
+    return isFinite(avg) ? avg.toFixed(1) : "0.0";
   };
 
   return (
@@ -159,20 +261,23 @@ export default function UserStatsPage() {
         {/* Tabs */}
         <div className="flex gap-4 mb-8 border-b-2 border-gray-200">
           <button
-            onClick={() => setActiveTab('overview')}
-            className={`pb-2 px-4 font-bold text-lg transition-colors ${activeTab === 'overview' ? 'border-b-4 border-black text-black' : 'text-gray-400 hover:text-gray-600'}`}
+            onClick={() => setActiveTab("overview")}
+            className={`pb-2 px-4 font-bold text-lg transition-colors ${activeTab === "overview" ? "border-b-4 border-black text-black" : "text-gray-400 hover:text-gray-600"}`}
           >
             Overview
           </button>
           <button
-            onClick={() => setActiveTab('analytics')}
-            className={`pb-2 px-4 font-bold text-lg transition-colors ${activeTab === 'analytics' ? 'border-b-4 border-black text-black' : 'text-gray-400 hover:text-gray-600'}`}
+            onClick={() => setActiveTab("analytics")}
+            className={`pb-2 px-4 font-bold text-lg transition-colors ${activeTab === "analytics" ? "border-b-4 border-black text-black" : "text-gray-400 hover:text-gray-600"}`}
           >
-            Analytics <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full ml-1">Beta</span>
+            Analytics{" "}
+            <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full ml-1">
+              Beta
+            </span>
           </button>
         </div>
 
-        {activeTab === 'overview' ? (
+        {activeTab === "overview" ? (
           <>
             {/* Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
@@ -183,7 +288,9 @@ export default function UserStatsPage() {
                     <Clock className="w-6 h-6 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-gray-500 font-medium">Total Time Learning</p>
+                    <p className="text-gray-500 font-medium">
+                      Total Time Learning
+                    </p>
                     <h2 className="text-4xl font-black">
                       {formatDuration(totalTime)}
                     </h2>
@@ -255,8 +362,8 @@ export default function UserStatsPage() {
                       <div className="mt-2 text-xs font-semibold text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-100 flex items-center gap-2 animate-in slide-in-from-left-2 duration-500">
                         <span className="text-lg">🧙‍♂️</span>
                         <i>
-                          "Whoa! You read this in 0 minutes? You must be a wizard!
-                          Calculated speed reading at its finest! ✨"
+                          "Whoa! You read this in 0 minutes? You must be a
+                          wizard! Calculated speed reading at its finest! ✨"
                         </i>
                       </div>
                     )}
@@ -283,8 +390,54 @@ export default function UserStatsPage() {
               <div className="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                 <p className="text-gray-500 font-medium mb-1">5-Star Ratings</p>
                 <h2 className="text-4xl font-black text-green-600">
-                  {analyticsData.filter(r => Number(r.rating) === 5).length}
+                  {analyticsData.filter((r) => Number(r.rating) === 5).length}
                 </h2>
+              </div>
+            </div>
+
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+              {/* Views Chart */}
+              <div>
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <Eye className="w-5 h-5 text-blue-600" />
+                  Guide Views (Last 7 Days)
+                </h3>
+                {viewsChartData.length > 0 ? (
+                  <AreaChart
+                    data={viewsChartData}
+                    index="name"
+                    categories={["views"]}
+                    colors={["#3b82f6"]}
+                  />
+                ) : (
+                  <div className="bg-white border-2 border-black p-12 text-center text-gray-400">
+                    <Eye className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                    <p>No views data yet</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Ratings Chart */}
+              <div>
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <Star className="w-5 h-5 text-yellow-600" />
+                  Average Ratings (Last 7 Days)
+                </h3>
+                {ratingsChartData.length > 0 &&
+                ratingsChartData.some((d) => d.count > 0) ? (
+                  <AreaChart
+                    data={ratingsChartData}
+                    index="name"
+                    categories={["ratings"]}
+                    colors={["#eab308"]}
+                  />
+                ) : (
+                  <div className="bg-white border-2 border-black p-12 text-center text-gray-400">
+                    <Star className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                    <p>No ratings data yet</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -299,16 +452,25 @@ export default function UserStatsPage() {
               ) : analyticsData.length === 0 ? (
                 <div className="p-12 text-center bg-white border-2 border-black">
                   <p className="text-gray-500">No ratings received yet.</p>
-                  <p className="text-sm text-gray-400 mt-2">Write more guides to get feedback!</p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Write more guides to get feedback!
+                  </p>
                 </div>
               ) : (
                 analyticsData.map((review) => (
-                  <div key={review.id} className="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:translate-y-[-2px]">
+                  <div
+                    key={review.id}
+                    className="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:translate-y-[-2px]"
+                  >
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-gray-100 rounded-full overflow-hidden border border-black">
                           {review.reviewer?.avatar_url ? (
-                            <img src={review.reviewer.avatar_url} alt={review.reviewer.display_name} className="w-full h-full object-cover" />
+                            <img
+                              src={review.reviewer.avatar_url}
+                              alt={review.reviewer.display_name}
+                              className="w-full h-full object-cover"
+                            />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500 font-bold">
                               {review.reviewer?.display_name?.[0] || "?"}
@@ -316,23 +478,34 @@ export default function UserStatsPage() {
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-sm">{review.reviewer?.display_name}</p>
-                          <p className="text-xs text-gray-400">{new Date(review.created_at).toLocaleDateString()}</p>
+                          <p className="font-bold text-sm">
+                            {review.reviewer?.display_name}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {new Date(review.created_at).toLocaleDateString()}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
-                        <span className="font-black text-yellow-600">{review.rating}</span>
+                        <span className="font-black text-yellow-600">
+                          {review.rating}
+                        </span>
                         <span className="text-yellow-500 text-xs">★</span>
                       </div>
                     </div>
 
                     {review.comment && (
-                      <p className="text-gray-700 mb-4 italic">"{review.comment}"</p>
+                      <p className="text-gray-700 mb-4 italic">
+                        "{review.comment}"
+                      </p>
                     )}
 
                     <div className="pt-4 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-400">
                       <span>Guide:</span>
-                      <Link to={`/guide/${review.guide?.slug}`} className="font-bold text-black hover:underline truncate max-w-[200px] md:max-w-none">
+                      <Link
+                        to={`/guide/${review.guide?.slug}`}
+                        className="font-bold text-black hover:underline truncate max-w-[200px] md:max-w-none"
+                      >
                         {review.guide?.title}
                       </Link>
                     </div>

@@ -468,8 +468,8 @@ async function executeSubAgentWorkflow(
   );
   const researchData = researchResult.success
     ? researchResult.sources
-        .map((s) => `[SOURCE: ${s.url}] ${s.content.substring(0, 1000)}`)
-        .join("\n\n")
+      .map((s) => `[SOURCE: ${s.url}] ${s.content.substring(0, 1000)}`)
+      .join("\n\n")
     : "No new external data found (using internal knowledge).";
 
   // STAGE 4: ANALYST
@@ -514,10 +514,10 @@ async function executeDeepReasoning(query, apiKey, apiUrl, model) {
   const researchResult = await deepResearch(query, apiKey, apiUrl);
   const externalData = researchResult.success
     ? researchResult.sources
-        .map(
-          (s) => `SOURCE: ${s.url}\nCONTENT: ${s.content.substring(0, 1500)}`,
-        )
-        .join("\n\n")
+      .map(
+        (s) => `SOURCE: ${s.url}\nCONTENT: ${s.content.substring(0, 1500)}`,
+      )
+      .join("\n\n")
     : "No external data found.";
 
   // STAGE 3: SYNTHESIS
@@ -638,7 +638,7 @@ export default async function handler(req, res) {
     if (typeof body === "string") {
       try {
         body = JSON.parse(body);
-      } catch (e) {}
+      } catch (e) { }
     }
 
     const { messages, model, userId, userEmail, skipCreditDeduction } =
@@ -1289,18 +1289,47 @@ Here is the explanation...
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const lookupEmail = userEmail ? userEmail.toLowerCase() : userId;
+    let currentCredits = 0;
+
+    // Check if user exists in credits table
     const { data: creditData, error: creditError } = await supabase
       .from("zetsuguide_credits")
-      .select("credits, user_email")
+      .select("credits")
       .eq("user_email", lookupEmail)
       .maybeSingle();
 
     if (creditError) {
       console.error("Error fetching credits:", creditError);
-      return res.status(500).json({ error: "Failed to verify credits" });
+      // Return details for debugging
+      return res.status(500).json({
+        error: "Failed to verify credits",
+        details: creditError.message,
+        hint: "Please ensure the 'zetsuguide_credits' table exists."
+      });
     }
 
-    const currentCredits = creditData?.credits || 0;
+    if (!creditData) {
+      // User doesn't exist in table yet, create them with default credits
+      console.log(`User ${lookupEmail} not found in credits table. Creating default entry...`);
+      const { data: newCreditData, error: insertError } = await supabase
+        .from("zetsuguide_credits")
+        .insert([{ user_email: lookupEmail, credits: 10 }]) // Default 10 credits
+        .select("credits")
+        .single();
+
+      if (insertError) {
+        console.error("Error creating default credits:", insertError);
+        return res.status(500).json({
+          error: "Failed to initialize user credits",
+          details: insertError.message
+        });
+      }
+
+      currentCredits = newCreditData?.credits || 10;
+    } else {
+      currentCredits = creditData.credits;
+    }
+
     console.log(`User ${lookupEmail} has ${currentCredits} credits.`);
 
     if (currentCredits < 1) {

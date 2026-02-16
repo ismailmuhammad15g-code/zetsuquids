@@ -1,34 +1,93 @@
 import {
-  Bold,
-  Code,
-  Eye,
-  Heading1,
-  Heading2,
-  Image as ImageIcon,
-  Italic,
-  LayoutTemplate,
-  Link as LinkIcon,
-  List,
-  ListOrdered,
-  Loader2,
-  Maximize2,
-  Minimize2,
-  Quote,
-  Save,
-  Sparkles,
-  SplitSquareHorizontal,
-  Type,
-  Wand2,
-  X,
+    Bold,
+    Code,
+    Coins,
+    Eye,
+    Heading1,
+    Heading2,
+    HelpCircle,
+    Image as ImageIcon,
+    Italic,
+    LayoutTemplate,
+    Link as LinkIcon,
+    List,
+    ListOrdered,
+    Loader2,
+    Quote,
+    Sparkles,
+    SplitSquareHorizontal,
+    Wand2,
+    X,
 } from "lucide-react";
 import { marked } from "marked";
 import { useEffect, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { guidesApi } from "../lib/api";
+import { creditsApi, guidesApi } from "../lib/api";
 import { uploadImageToImgBB } from "../lib/imgbb";
 import { sanitizeContent } from "../lib/utils";
+import QuizBuilderModal from "./quiz/QuizBuilderModal";
+import QuizComponent from "./quiz/QuizComponent";
+
+// Configure marked renderer for quiz support
+const quizRenderer = {
+  code(code, language) {
+    // Handle newer marked versions passing object
+    let text = code;
+    let lang = language;
+
+    if (typeof code === "object" && code !== null) {
+      text = code.text || "";
+      lang = code.lang || "";
+    }
+
+    // Ensure text is a string
+    text = String(text || "");
+
+    if (lang === "quiz") {
+      try {
+        const jsonStr = typeof code === "object" ? code.text : code;
+        // Secure encoding for data attribute
+        const encoded = btoa(
+          encodeURIComponent(jsonStr).replace(
+            /%([0-9A-F]{2})/g,
+            function toSolidBytes(match, p1) {
+              return String.fromCharCode("0x" + p1);
+            },
+          ),
+        );
+        return `<div class="interactive-quiz-container my-8" data-quiz="${encoded}"></div>`;
+      } catch (e) {
+        console.error("Quiz encoding error", e);
+        return `<pre class="bg-red-50 text-red-600 p-4 rounded border border-red-200">Error rendering quiz</pre>`;
+      }
+    }
+
+    // Manual fallback for normal code blocks
+    const escapedText = text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
+    if (!lang) {
+      return `<pre><code>${escapedText}</code></pre>`;
+    }
+
+    const langClass = `language-${lang}`;
+    return `<pre><code class="${langClass}">${escapedText}</code></pre>`;
+  },
+};
+
+marked.use({ renderer: quizRenderer });
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+  headerIds: true,
+});
 
 export default function AddGuideModal({ onClose }) {
   const navigate = useNavigate();
@@ -38,6 +97,8 @@ export default function AddGuideModal({ onClose }) {
   const [viewMode, setViewMode] = useState("split"); // 'edit', 'preview', 'split'
   const [showAIMenu, setShowAIMenu] = useState(false);
   const [aiProcessing, setAiProcessing] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false); // New state for success modal
+  const [showQuizBuilder, setShowQuizBuilder] = useState(false);
   const textareaRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -48,18 +109,168 @@ export default function AddGuideModal({ onClose }) {
     css_content: "",
   });
 
+  const [validationErrors, setValidationErrors] = useState([]);
+  const [credits, setCredits] = useState(0);
+
+  useEffect(() => {
+    if (user?.email) {
+      creditsApi.getBalance(user?.email).then(setCredits);
+    }
+  }, [user]);
+
   // Calculate read time
   const readTime = Math.max(
     1,
-    Math.ceil((formData.content?.split(" ").length || 0) / 200),
+    Math.ceil((formData.content?.split(/\s+/).length || 0) / 200),
   );
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
+    validateContent();
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, []);
+  }, [formData, activeTab]);
+
+  // Hydrate Quizzes in Preview
+  useEffect(() => {
+    if (activeTab === "markdown" && viewMode !== "edit") {
+      // Small delay to let DOM render
+      const timer = setTimeout(() => {
+        const containers = document.querySelectorAll(
+          ".interactive-quiz-container",
+        );
+        containers.forEach((container) => {
+          if (container.getAttribute("data-hydrated") === "true") return;
+
+          const encoded = container.getAttribute("data-quiz");
+          if (!encoded) return;
+
+          try {
+            const json = decodeURIComponent(
+              atob(encoded)
+                .split("")
+                .map(function (c) {
+                  return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+                })
+                .join(""),
+            );
+
+            const data = JSON.parse(json);
+            const root = createRoot(container);
+            root.render(<QuizComponent data={data} />);
+            container.setAttribute("data-hydrated", "true");
+          } catch (e) {
+            console.error("Preview hydration error", e);
+          }
+        });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [formData.content, activeTab, viewMode]);
+
+  // Shared forbidden patterns
+  const forbiddenPatterns = [
+    // Branding
+    {
+      pattern: /(<footer[^>]*>)/gi,
+      message: "Custom <footer> tags are not allowed",
+    },
+    {
+      pattern: /(<\/footer>)/gi,
+      message: "Custom </footer> tags are not allowed",
+    },
+    { pattern: /(&copy;|©)/gi, message: "Copyright symbols are not allowed" },
+    {
+      pattern: /(all rights reserved)/gi,
+      message: "'All rights reserved' phrase is not allowed",
+    },
+    {
+      pattern: /(class="[^"]*footer[^"]*")/gi,
+      message: "Classes containing 'footer' are not allowed",
+    },
+    {
+      pattern: /(id="[^"]*footer[^"]*")/gi,
+      message: "IDs containing 'footer' are not allowed",
+    },
+
+    // Security
+    {
+      pattern: /(<script[^>]*>[\s\S]*?<\/script>)/gi,
+      message: "Script tags are forbidden for security",
+    },
+    {
+      pattern: /(<iframe[^>]*>[\s\S]*?<\/iframe>)/gi,
+      message: "Iframes are forbidden for security",
+    },
+    {
+      pattern: /(<object[^>]*>[\s\S]*?<\/object>)/gi,
+      message: "Object tags are forbidden",
+    },
+    { pattern: /(<embed[^>]*>)/gi, message: "Embed tags are forbidden" },
+    {
+      pattern: /(javascript:)/gi,
+      message: "JavaScript pseudo-protocol is forbidden",
+    },
+    {
+      pattern: /(on[a-z]+="[^"]*")/gi,
+      message: "Event handlers (onclick, etc.) are forbidden",
+    },
+
+    // Profanity
+    {
+      pattern:
+        /\b(sex|penis|vagina|sexual|dick|porn|xxx|asshole|bitch|fuck|cock)\b/gi,
+      message: "Inappropriate content is not allowed",
+    },
+  ];
+
+  const highlightForbiddenContent = (html) => {
+    if (!html) return "";
+    let highlighted = html;
+
+    // Apply highlighting to all forbidden patterns
+    forbiddenPatterns.forEach(({ pattern, message }) => {
+      highlighted = highlighted.replace(pattern, (match) => {
+        // Escape HTML entities to prevent execution while displaying
+        const escapedMatch = match.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return `<span style="background-color: rgba(255, 0, 0, 0.2); outline: 2px solid red; cursor: help; color: red; font-weight: bold;" title="${message}" class="forbidden-highlight">${escapedMatch}</span>`;
+      });
+    });
+
+    return highlighted;
+  };
+
+  const validateContent = () => {
+    const errors = [];
+    const { title, keywords, content, html_content } = formData;
+
+    // 1. Required Fields
+    if (!title?.trim()) errors.push("Title is required");
+    if (!keywords?.trim()) errors.push("Keywords are required");
+
+    // 2. Minimum Content Length (30 words)
+    const activeContent = activeTab === "markdown" ? content : html_content;
+    const wordCount =
+      activeContent?.trim().split(/\s+/).filter(Boolean).length || 0;
+
+    if (wordCount < 30) {
+      errors.push(`Content is too short (${wordCount}/30 words)`);
+    }
+
+    // 3. Forbidden Content Detection
+    if (activeContent) {
+      forbiddenPatterns.forEach(({ pattern, message }) => {
+        // .search() is safe with /g regexes (ignores global flag, returns index)
+        if (activeContent.search(pattern) !== -1) {
+          if (!errors.includes(message)) errors.push(message);
+        }
+      });
+    }
+
+    setValidationErrors(errors);
+    return errors.length === 0;
+  };
 
   if (!isAuthenticated() || !user) return null; // Should be handled by parent or auth check
 
@@ -134,9 +345,9 @@ export default function AddGuideModal({ onClose }) {
     }
   };
 
-  async function callKimiAI(prompt) {
-    // Reuse existing AI logic from previous implementation
+  async function callKimiAI(prompt, onChunk) {
     try {
+      console.log("📡 Calling /api/ai with prompt length:", prompt?.length);
       const response = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -145,12 +356,119 @@ export default function AddGuideModal({ onClose }) {
           messages: [{ role: "user", content: prompt }],
           userEmail: user?.email,
           skipCreditDeduction: false,
+          stream: true,
         }),
       });
 
-      if (!response.ok) throw new Error("AI request failed");
-      const data = await response.json();
-      return data.choices?.[0]?.message?.content?.trim() || "";
+      console.log("📥 Response status:", response.status);
+      if (!response.ok) {
+        let errorMessage = "AI request failed";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+          if (errorData.hint) errorMessage += ` - ${errorData.hint}`;
+          if (errorData.details) errorMessage += ` (${errorData.details})`;
+        } catch (e) {
+          const text = await response.text();
+          errorMessage = text || errorMessage;
+        }
+        console.error("❌ API Error:", errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let result = "";
+      let buffer = "";
+      let chunkCount = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log(
+            "✅ Stream ended. Total chunks:",
+            chunkCount,
+            "Total length:",
+            result.length,
+          );
+          break;
+        }
+
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+        chunkCount++;
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine || trimmedLine === "data: [DONE]") continue;
+
+          if (trimmedLine.startsWith("data: ")) {
+            const jsonStr = trimmedLine.slice(6);
+            try {
+              const json = JSON.parse(jsonStr);
+
+              // Log first few JSON objects to see structure
+              if (chunkCount <= 5) {
+                console.log(`🔍 JSON structure (chunk ${chunkCount}):`, json);
+              }
+
+              // Handle different API response formats:
+              // 1. Custom format: {type: 'token', content: '...'}
+              // 2. OpenAI format: {choices: [{delta: {content: '...'}}]}
+              let content = "";
+
+              if (json.type === "token" && json.content) {
+                content = json.content;
+              } else if (json.choices?.[0]?.delta?.content) {
+                content = json.choices[0].delta.content;
+              } else if (json.choices?.[0]?.message?.content) {
+                content = json.choices[0].message.content;
+              }
+
+              if (content) {
+                result += content;
+                if (onChunk) onChunk(content);
+              }
+            } catch (e) {
+              console.warn(
+                "⚠️ Error parsing chunk:",
+                jsonStr.substring(0, 100),
+                e,
+              );
+            }
+          }
+        }
+      }
+
+      // Process any remaining buffer
+      if (
+        buffer.trim().startsWith("data: ") &&
+        buffer.trim() !== "data: [DONE]"
+      ) {
+        try {
+          const jsonStr = buffer.trim().slice(6);
+          const json = JSON.parse(jsonStr);
+
+          let content = "";
+          if (json.type === "token" && json.content) {
+            content = json.content;
+          } else if (json.choices?.[0]?.delta?.content) {
+            content = json.choices[0].delta.content;
+          } else if (json.choices?.[0]?.message?.content) {
+            content = json.choices[0].message.content;
+          }
+
+          if (content) result += content;
+        } catch (e) {
+          console.warn("⚠️ Error parsing final buffer:", e);
+        }
+      }
+
+      console.log("📊 Final result length:", result.length);
+      return result;
     } catch (error) {
       console.error("AI Error:", error);
       throw error;
@@ -158,9 +476,16 @@ export default function AddGuideModal({ onClose }) {
   }
 
   const handleAIAction = async (type) => {
+    const COST = type === "enhance" ? 2 : 5;
+
+    if (credits < COST) {
+      toast.error(`Insufficient credits! You need ${COST} credits.`);
+      return; // Stop here, maybe open pricing modal? Logic handled in UI button
+    }
+
     setAiProcessing(true);
     setShowAIMenu(false);
-    const toastId = toast.loading("AI is working its magic...");
+    const toastId = toast.loading(`AI is working... (Cost: ${COST} credits)`);
 
     try {
       let prompt = "";
@@ -172,10 +497,35 @@ export default function AddGuideModal({ onClose }) {
         prompt = `Write a comprehensive technical guide in Markdown about: "${formData.title}". Keywords: ${formData.keywords}. Include code examples if relevant.`;
       }
 
-      const result = await callKimiAI(prompt);
-      setFormData({ ...formData, content: result });
-      toast.success("Content generated successfully!", { id: toastId });
+      // Clear content before generating (for clean slate)
+      if (type === "generate") {
+        setFormData((prev) => ({ ...prev, content: "" }));
+      }
+
+      let accumulatedContent = type === "enhance" ? "" : "";
+
+      console.log("🤖 Starting AI generation...");
+      const result = await callKimiAI(prompt, (chunk) => {
+        accumulatedContent += chunk;
+        setFormData((prev) => ({
+          ...prev,
+          content: accumulatedContent,
+        }));
+      });
+
+      console.log("✅ AI generation complete. Total length:", result?.length);
+
+      // Final update with complete result
+      if (result && result.trim()) {
+        setFormData((prev) => ({ ...prev, content: result }));
+        toast.success(`Content generated! (-${COST} credits)`, { id: toastId });
+        setCredits((prev) => Math.max(0, prev - COST)); // Optimistically deduct
+      } else {
+        console.error("❌ Empty result from AI");
+        throw new Error("AI returned empty response");
+      }
     } catch (error) {
+      console.error("❌ AI Error:", error);
       toast.error(error.message || "AI failed", { id: toastId });
     } finally {
       setAiProcessing(false);
@@ -184,9 +534,10 @@ export default function AddGuideModal({ onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title) return toast.error("Please enter a title");
-    if (!formData.content && !formData.html_content)
-      return toast.error("Please enter some content");
+
+    if (!validateContent()) {
+      return toast.error("Please fix validation errors before publishing");
+    }
 
     setSaving(true);
     try {
@@ -206,12 +557,13 @@ export default function AddGuideModal({ onClose }) {
         author_name:
           user?.user_metadata?.full_name || user?.email?.split("@")[0],
         author_id: user?.id,
+        status: "pending", // Explicitly set to pending
       });
 
-      if (guide?.slug) {
-        toast.success("Guide published successfully!");
-        onClose();
-        navigate(`/guide/${guide.slug}`);
+      if (guide) {
+        // Show success message instead of redirecting
+        toast.success("Guide submitted for review!");
+        setShowSuccessModal(true);
       }
     } catch (error) {
       console.error("Publish Error:", error);
@@ -265,41 +617,133 @@ export default function AddGuideModal({ onClose }) {
             </button>
           </div>
 
-          <button
-            onClick={() => setShowAIMenu(!showAIMenu)}
-            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity relative"
-          >
-            <Sparkles size={16} />
-            <span>AI Assistant</span>
+          <div className="relative">
+            <button
+              onClick={() => setShowAIMenu(!showAIMenu)}
+              className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity"
+            >
+              <Sparkles size={16} />
+              <span>AI Assistant</span>
+            </button>
             {showAIMenu && (
-              <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden py-1 z-50 animate-in slide-in-from-top-2">
+              <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden py-1 z-50 animate-in slide-in-from-top-2">
+                <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                  <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+                    <Coins size={14} className="text-yellow-500" />
+                    <span>{credits} Credits</span>
+                  </div>
+                  {credits < 5 && (
+                    <button
+                      onClick={() => navigate("/pricing")}
+                      className="text-xs bg-black text-white px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+                    >
+                      Upgrade
+                    </button>
+                  )}
+                </div>
+
                 <button
                   onClick={() => handleAIAction("enhance")}
-                  className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 hover:text-black"
+                  disabled={credits < 2}
+                  className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center justify-between group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Wand2 size={16} className="text-purple-600" />
-                  Enhance Content
+                  <div className="flex items-center gap-3 text-sm text-gray-700 group-hover:text-black">
+                    <Wand2 size={16} className="text-purple-600" />
+                    <span>Enhance Content</span>
+                  </div>
+                  <span className="text-xs font-medium text-gray-400 border border-gray-200 px-1.5 py-0.5 rounded">
+                    2 🪙
+                  </span>
                 </button>
+
                 <button
                   onClick={() => handleAIAction("generate")}
-                  className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 hover:text-black"
+                  disabled={credits < 5}
+                  className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center justify-between group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Sparkles size={16} className="text-indigo-600" />
-                  Generate from Title
+                  <div className="flex items-center gap-3 text-sm text-gray-700 group-hover:text-black">
+                    <Sparkles size={16} className="text-indigo-600" />
+                    <span>Generate from Title</span>
+                  </div>
+                  <span className="text-xs font-medium text-gray-400 border border-gray-200 px-1.5 py-0.5 rounded">
+                    5 🪙
+                  </span>
                 </button>
               </div>
             )}
-          </button>
+          </div>
 
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="flex items-center gap-2 px-6 py-2 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
-          >
-            {saving ? <Loader2 size={18} className="animate-spin" /> : "Publish"}
-          </button>
+          <div className="relative group">
+            <button
+              onClick={handleSubmit}
+              disabled={saving || validationErrors.length > 0}
+              className="flex items-center gap-2 px-6 py-2 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                "Publish"
+              )}
+            </button>
+
+            {/* Validation Errors Tooltip */}
+            {validationErrors.length > 0 && (
+              <div className="absolute right-0 top-full mt-2 w-64 bg-red-50 text-red-600 text-xs rounded-lg shadow-xl border border-red-100 p-3 z-50 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all">
+                <p className="font-bold mb-1">Cannot publish yet:</p>
+                <ul className="list-disc pl-4 space-y-1">
+                  {validationErrors.map((err, i) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Sparkles className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">
+              Submitted for Review!
+            </h3>
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              Thanks for sharing your knowledge! 🚀 <br />
+              Your guide has been submitted to our team. We'll review it shortly
+              to ensure it meets our quality standards. This usually takes less
+              than 24 hours.
+            </p>
+            <button
+              onClick={() => {
+                setShowSuccessModal(false);
+                onClose();
+              }}
+              className="w-full py-3 bg-black text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors"
+            >
+              Got it, thanks!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Quiz Builder Modal */}
+      {showQuizBuilder && (
+        <QuizBuilderModal
+          onClose={() => setShowQuizBuilder(false)}
+          onInsert={(quizData) => {
+            const quizBlock = `\n\`\`\`quiz\n${JSON.stringify(quizData, null, 2)}\n\`\`\`\n`;
+            setFormData({
+              ...formData,
+              content: formData.content + quizBlock,
+            });
+            toast.success("Quiz inserted successfully!");
+          }}
+        />
+      )}
 
       <div className="flex-1 flex overflow-hidden">
         {/* Editor Side */}
@@ -396,7 +840,10 @@ export default function AddGuideModal({ onClose }) {
                 tooltip="Numbered List"
               />
               <div className="w-px h-5 bg-gray-200 mx-2" />
-              <label className="p-2 text-gray-500 hover:bg-gray-100 hover:text-black rounded cursor-pointer transition-colors" title="Upload Image">
+              <label
+                className="p-2 text-gray-500 hover:bg-gray-100 hover:text-black rounded cursor-pointer transition-colors"
+                title="Upload Image"
+              >
                 <input
                   type="file"
                   accept="image/*"
@@ -405,6 +852,12 @@ export default function AddGuideModal({ onClose }) {
                 />
                 <ImageIcon size={18} />
               </label>
+              <div className="w-px h-5 bg-gray-200 mx-2" />
+              <ToolbarButton
+                icon={<HelpCircle size={18} className="text-indigo-600" />}
+                onClick={() => setShowQuizBuilder(true)}
+                tooltip="Insert Interactive Quiz"
+              />
             </div>
           )}
 
@@ -449,7 +902,9 @@ export default function AddGuideModal({ onClose }) {
               formData.content ? (
                 <div
                   dangerouslySetInnerHTML={{
-                    __html: sanitizeContent(marked.parse(formData.content)),
+                    __html: sanitizeContent(
+                      highlightForbiddenContent(marked.parse(formData.content)),
+                    ),
                   }}
                 />
               ) : (
@@ -460,7 +915,11 @@ export default function AddGuideModal({ onClose }) {
               )
             ) : (
               <iframe
-                srcDoc={formData.html_content}
+                srcDoc={
+                  validationErrors.some((e) => e.includes("Forbidden"))
+                    ? highlightForbiddenContent(formData.html_content)
+                    : formData.html_content
+                }
                 className="w-full h-full min-h-[500px] border-0"
                 sandbox="allow-scripts allow-same-origin"
                 title="Preview"

@@ -109,7 +109,7 @@ function App() {
               <Route path="/admin/console" element={<AdminConsole />} />
               {/* Staff Routes */}
               <Route path="/staff/login" element={<StaffLogin />} />
-              <Route path="/stuff/console" element={<StaffConsole />} />
+              <Route path="/staff/console" element={<StaffConsole />} />
             </Routes>
           </Suspense>
         </AuthProvider>

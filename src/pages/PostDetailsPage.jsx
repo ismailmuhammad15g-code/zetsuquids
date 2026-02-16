@@ -248,7 +248,7 @@ export default function PostDetailsPage() {
               <div className="text-[#71767b] text-[15px] flex items-center gap-1">
                 <span>{formattedDate}</span>
                 <span>·</span>
-                <span className="text-[#e7e9ea] font-bold">Mock Views</span>
+                <span className="text-[#e7e9ea] font-bold">Zetsu Clubber</span>
               </div>
             </div>
 

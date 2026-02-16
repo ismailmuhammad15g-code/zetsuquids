@@ -8,5 +8,8 @@ export function cn(...inputs) {
 
 export function sanitizeContent(html) {
   if (!html) return "";
-  return DOMPurify.sanitize(html);
+  return DOMPurify.sanitize(html, {
+    ADD_TAGS: ["iframe"], // Optional: if we ever want to allow safe iframes, but for now mostly for style
+    ADD_ATTR: ["style", "class", "target", "rel"],
+  });
 }

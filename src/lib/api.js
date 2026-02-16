@@ -1,6 +1,6 @@
 import {
-    isSupabaseConfigured as isSupabaseConfiguredLib,
-    supabase,
+  isSupabaseConfigured as isSupabaseConfiguredLib,
+  supabase,
 } from "./supabase";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
@@ -44,6 +44,7 @@ export const guidesApi = {
         const { data, error } = await supabase
           .from("guides")
           .select("*")
+          .eq("status", "approved") // Filter by approved status
           .order("created_at", { ascending: false });
 
         if (error) {
@@ -161,6 +162,7 @@ export const guidesApi = {
       author_name: guide.author_name || "", // Author name
       author_id: guide.author_id || null, // Author ID
       created_at: new Date().toISOString(),
+      status: guide.status || "pending", // Default to pending
     };
 
     console.log("Creating guide with author info:", {
@@ -530,6 +532,7 @@ fruits.forEach(fruit => console.log(fruit));
 `,
     keywords: ["javascript", "برمجة", "تعلم", "مبتدئين"],
     content_type: "markdown",
+    status: "approved",
   },
   {
     title: "React Hooks Guide",
@@ -564,6 +567,7 @@ useEffect(() => {
 `,
     keywords: ["react", "hooks", "useState", "useEffect"],
     content_type: "markdown",
+    status: "approved",
   },
   {
     title: "CSS Flexbox Tutorial",
@@ -595,10 +599,66 @@ Flexbox makes it easy to design flexible responsive layouts.
 `,
     keywords: ["css", "flexbox", "layout", "responsive"],
     content_type: "markdown",
+    status: "approved",
   },
 ];
 
 // Initialize sample data if database is empty
+// Admin/Staff Guide Management API
+export const adminGuidesApi = {
+  async getPendingGuides() {
+    if (!isSupabaseConfigured()) return [];
+
+    const { data, error } = await supabase
+      .from("guides")
+      .select("*")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching pending guides:", error);
+      return [];
+    }
+    return data;
+  },
+
+  async approveGuide(id, staffId) {
+    if (!isSupabaseConfigured()) return false;
+
+    const { error } = await supabase
+      .from("guides")
+      .update({
+        status: "approved",
+        approved_by: staffId,
+        approved_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error approving guide:", error);
+      return false;
+    }
+    return true;
+  },
+
+  async rejectGuide(id) {
+    if (!isSupabaseConfigured()) return false;
+
+    // For now, we delete rejected guides.
+    // Alternatively, we could set status='rejected' if we wanted to keep them.
+    const { error } = await supabase
+      .from("guides")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error rejecting guide:", error);
+      return false;
+    }
+    return true;
+  },
+};
+
 // Daily Credits API
 export const dailyCreditsApi = {
   async claimDailyCredits(userEmail) {
@@ -743,4 +803,29 @@ export const promptsApi = {
     if (error) throw error;
     return true;
   },
+};
+// Credits API
+export const creditsApi = {
+  async getBalance(userEmail) {
+    if (!userEmail || !isSupabaseConfigured()) return 0;
+
+    try {
+      const { data, error } = await supabase
+        .from('zetsuguide_credits')
+        .select('credits')
+        .eq('user_email', userEmail)
+        .single();
+
+      if (error) {
+        // If row not found (e.g. new user), return 0 or default
+        if (error.code === 'PGRST116') return 0;
+        console.error('Error fetching credits:', error);
+        return 0;
+      }
+      return data?.credits || 0;
+    } catch (e) {
+      console.error('Error fetching credits:', e);
+      return 0;
+    }
+  }
 };
