@@ -23,6 +23,7 @@ import AddGuideModal from "./AddGuideModal";
 import ApprovedBugModal from "./ApprovedBugModal";
 import GlobalLoader from "./GlobalLoader";
 import GooeyNav from "./react-bits/GooeyNav";
+import ClickSpark from "./react-bits/ClickSpark";
 import ReferralBonusNotification from "./ReferralBonusNotification";
 import ReferralSuccessModal from "./ReferralSuccessModal";
 import SearchModal from "./SearchModal";
@@ -230,479 +231,487 @@ export default function Layout() {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="sticky top-0 z-[100] bg-white border-b-2 border-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-black flex items-center justify-center">
-                <span className="text-white font-black text-xl">D</span>
-              </div>
-              <span className="text-2xl font-black tracking-tight hidden sm:block">
-                DevVault
-              </span>
-            </Link>
-
-            {/* Desktop Nav */}
-            <div className="hidden md:block">
-              <GooeyNav items={navItems} />
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-2">
-              {/* Search Button */}
-              <button
-                onClick={() => setShowSearchModal(true)}
-                className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:border-black transition-colors text-sm"
-              >
-                <Search size={16} />
-                <span className="hidden sm:inline text-gray-500">
-                  Search...
+    <ClickSpark
+      sparkColor="#000"
+      sparkSize={10}
+      sparkRadius={15}
+      sparkCount={8}
+      duration={400}
+    >
+      <div className="min-h-screen bg-white">
+        {/* Header */}
+        <header className="sticky top-0 z-[100] bg-white border-b-2 border-black">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              {/* Logo */}
+              <Link to="/" className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-black flex items-center justify-center">
+                  <span className="text-white font-black text-xl">D</span>
+                </div>
+                <span className="text-2xl font-black tracking-tight hidden sm:block">
+                  DevVault
                 </span>
-                <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-gray-100 border rounded">
-                  ⌘K
-                </kbd>
-              </button>
+              </Link>
 
-              {/* Add Guide Button - Only for authenticated users */}
-              {isAuthenticated() && (
+              {/* Desktop Nav */}
+              <div className="hidden md:block">
+                <GooeyNav items={navItems} />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2">
+                {/* Search Button */}
                 <button
-                  onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-black text-white font-medium hover:bg-gray-800 transition-colors"
+                  onClick={() => setShowSearchModal(true)}
+                  className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:border-black transition-colors text-sm"
                 >
-                  <Plus size={18} />
-                  <span className="hidden sm:inline">Add Guide</span>
+                  <Search size={16} />
+                  <span className="hidden sm:inline text-gray-500">
+                    Search...
+                  </span>
+                  <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-gray-100 border rounded">
+                    ⌘K
+                  </kbd>
                 </button>
-              )}
 
-              {/* Auth Section */}
-              {isAuthenticated() ? (
-                <div className="relative">
+                {/* Add Guide Button - Only for authenticated users */}
+                {isAuthenticated() && (
                   <button
-                    onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:border-black transition-colors rounded-lg group"
+                    onClick={() => setShowAddModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white font-medium hover:bg-gray-800 transition-colors"
                   >
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center overflow-hidden border border-black group-hover:scale-105 transition-transform">
-                      <img
-                        src={getAvatarForUser(
-                          user?.email,
-                          userProfile?.avatar_url,
-                        )}
-                        alt="User"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <span className="hidden sm:inline text-sm font-medium">
-                      {user?.name}
-                    </span>
+                    <Plus size={18} />
+                    <span className="hidden sm:inline">Add Guide</span>
                   </button>
+                )}
 
-                  {showUserMenu && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-[998]"
-                        onClick={() => setShowUserMenu(false)}
-                      />
-                      <div className="absolute right-0 mt-2 w-72 bg-white border-2 border-black rounded-xl shadow-2xl z-[999] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                        <div className="px-4 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-black shadow-md">
-                              <img
-                                src={getAvatarForUser(
-                                  user?.email,
-                                  userProfile?.avatar_url,
-                                )}
-                                alt="User"
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-gray-900 truncate">
-                                {user?.name}
-                              </p>
-                              <p className="text-xs text-gray-500 truncate">
-                                {user?.email}
-                              </p>
+                {/* Auth Section */}
+                {isAuthenticated() ? (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowUserMenu(!showUserMenu)}
+                      className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:border-black transition-colors rounded-lg group"
+                    >
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center overflow-hidden border border-black group-hover:scale-105 transition-transform">
+                        <img
+                          src={getAvatarForUser(
+                            user?.email,
+                            userProfile?.avatar_url,
+                          )}
+                          alt="User"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <span className="hidden sm:inline text-sm font-medium">
+                        {user?.name}
+                      </span>
+                    </button>
+
+                    {showUserMenu && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-[998]"
+                          onClick={() => setShowUserMenu(false)}
+                        />
+                        <div className="absolute right-0 mt-2 w-72 bg-white border-2 border-black rounded-xl shadow-2xl z-[999] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                          <div className="px-4 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-black shadow-md">
+                                <img
+                                  src={getAvatarForUser(
+                                    user?.email,
+                                    userProfile?.avatar_url,
+                                  )}
+                                  alt="User"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-gray-900 truncate">
+                                  {user?.name}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate">
+                                  {user?.email}
+                                </p>
+                              </div>
                             </div>
                           </div>
+                          <div className="py-2 border-b border-gray-200">
+                            <Link
+                              to={`/@${(user?.user_metadata?.full_name || user?.email?.split("@")[0]).toLowerCase()}/workspace`}
+                              onClick={() => setShowUserMenu(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              <BookOpen size={18} />
+                              <span>My Workspace</span>
+                            </Link>
+                            <Link
+                              to="/stats"
+                              onClick={() => setShowUserMenu(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              <BarChart3 size={18} />
+                              <span>My Stats</span>
+                            </Link>
+                            <Link
+                              to="/zetsuguide-ai"
+                              onClick={() => setShowUserMenu(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              <Bot size={18} />
+                              <div className="flex-1 flex items-center justify-between">
+                                <span>ZetsuGuide AI</span>
+                                <span className="text-[10px] font-bold bg-gradient-to-r from-pink-500 to-violet-500 text-white px-1.5 py-0.5 rounded-full">
+                                  NEW
+                                </span>
+                              </div>
+                            </Link>
+                            <Link
+                              to="/pricing"
+                              onClick={() => setShowUserMenu(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              <Sparkles size={18} className="text-yellow-500" />
+                              <span>Upgrade to Pro</span>
+                            </Link>
+                          </div>
+                          <button
+                            onClick={() => {
+                              logout();
+                              setShowUserMenu(false);
+                              navigate("/");
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors font-medium"
+                          >
+                            <LogOut size={18} />
+                            <span>Logout</span>
+                          </button>
                         </div>
-                        <div className="py-2 border-b border-gray-200">
-                          <Link
-                            to={`/@${(user?.user_metadata?.full_name || user?.email?.split("@")[0]).toLowerCase()}/workspace`}
-                            onClick={() => setShowUserMenu(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <BookOpen size={18} />
-                            <span>My Workspace</span>
-                          </Link>
-                          <Link
-                            to="/stats"
-                            onClick={() => setShowUserMenu(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <BarChart3 size={18} />
-                            <span>My Stats</span>
-                          </Link>
-                          <Link
-                            to="/zetsuguide-ai"
-                            onClick={() => setShowUserMenu(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <Bot size={18} />
-                            <div className="flex-1 flex items-center justify-between">
-                              <span>ZetsuGuide AI</span>
-                              <span className="text-[10px] font-bold bg-gradient-to-r from-pink-500 to-violet-500 text-white px-1.5 py-0.5 rounded-full">
-                                NEW
-                              </span>
-                            </div>
-                          </Link>
-                          <Link
-                            to="/pricing"
-                            onClick={() => setShowUserMenu(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <Sparkles size={18} className="text-yellow-500" />
-                            <span>Upgrade to Pro</span>
-                          </Link>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <Link
+                    to="/auth"
+                    className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:border-black transition-colors"
+                  >
+                    <LogIn size={18} />
+                    <span className="hidden sm:inline text-sm">Login</span>
+                  </Link>
+                )}
+
+                {/* Mobile Menu Button */}
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="md:hidden p-2 hover:bg-gray-100"
+                >
+                  {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Menu with Framer Motion */}
+          <AnimatePresence>
+            {mobileMenuOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="md:hidden border-b-2 border-black bg-white/95 backdrop-blur-md overflow-hidden relative z-[90]"
+              >
+                <div className="px-4 py-6 space-y-4">
+                  <nav className="space-y-2">
+                    <Link
+                      to="/"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname === "/"
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                    >
+                      <Home size={22} />
+                      <span>Home</span>
+                    </Link>
+                    <Link
+                      to="/guides"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname.startsWith("/guide")
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                    >
+                      <BookOpen size={22} />
+                      <span>All Guides</span>
+                    </Link>
+                    <Link
+                      to="/community"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname === "/community"
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                    >
+                      <Users size={22} />
+                      <span>Community</span>
+                    </Link>
+                    <Link
+                      to="/zetsuguide-ai"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all border-2 border-transparent ${location.pathname === "/zetsuguide-ai"
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "bg-gradient-to-r from-purple-50 to-pink-50 text-gray-900 border-purple-100"
+                        }`}
+                    >
+                      <Bot
+                        size={22}
+                        className={
+                          location.pathname === "/zetsuguide-ai"
+                            ? "text-white"
+                            : "text-purple-600"
+                        }
+                      />
+                      <span className="flex-1">ZetsuGuide AI</span>
+                      <span className="px-2 py-0.5 text-xs font-bold bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-full animate-pulse">
+                        NEW
+                      </span>
+                    </Link>
+                  </nav>
+
+                  {/* Mobile Divider */}
+                  <div className="h-px bg-gray-200 my-2" />
+
+                  {/* Mobile Profile / Auth */}
+                  <div>
+                    {isAuthenticated() ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 mb-2">
+                          <div className="w-10 h-10 rounded-full overflow-hidden border border-black dark:border-white">
+                            <img
+                              src={getAvatarForUser(
+                                user?.email,
+                                userProfile?.avatar_url,
+                              )}
+                              alt="Profile"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-gray-900 truncate">
+                              {user?.name}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {user?.email}
+                            </p>
+                          </div>
                         </div>
+
+                        <Link
+                          to={`/@${(user?.user_metadata?.full_name || user?.email?.split("@")[0]).toLowerCase()}/workspace`}
+                          className="flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                        >
+                          <BookOpen size={20} />
+                          <span>My Workspace</span>
+                        </Link>
+
+                        <Link
+                          to="/stats"
+                          className="flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                        >
+                          <BarChart3 size={20} />
+                          <span>My Stats</span>
+                        </Link>
+
                         <button
                           onClick={() => {
                             logout();
-                            setShowUserMenu(false);
                             navigate("/");
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors font-medium"
+                          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-red-600 hover:bg-red-50 transition-colors"
                         >
-                          <LogOut size={18} />
+                          <LogOut size={20} />
                           <span>Logout</span>
                         </button>
                       </div>
-                    </>
-                  )}
+                    ) : (
+                      <div className="space-y-3">
+                        <Link
+                          to="/auth"
+                          className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border-2 border-black font-bold hover:bg-gray-50 transition-colors"
+                        >
+                          <LogIn size={20} />
+                          <span>Log In</span>
+                        </Link>
+                        <Link
+                          to="/auth?mode=register"
+                          className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-black text-white font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-black/20"
+                        >
+                          <Plus size={20} />
+                          <span>Create Account</span>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <Link
-                  to="/auth"
-                  className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:border-black transition-colors"
-                >
-                  <LogIn size={18} />
-                  <span className="hidden sm:inline text-sm">Login</span>
-                </Link>
-              )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </header>
 
-              {/* Mobile Menu Button */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 hover:bg-gray-100"
-              >
-                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
-            </div>
-          </div>
-        </div>
+        {/* Main Content */}
+        <main className="flex-1">
+          <Outlet
+            context={{
+              openAddModal: () => setShowAddModal(true),
+              checkingReferral,
+            }}
+          />
+        </main>
 
-        {/* Mobile Menu with Framer Motion */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="md:hidden border-b-2 border-black bg-white/95 backdrop-blur-md overflow-hidden relative z-[90]"
-            >
-              <div className="px-4 py-6 space-y-4">
-                <nav className="space-y-2">
-                  <Link
-                    to="/"
-                    className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname === "/"
-                      ? "bg-black text-white shadow-lg shadow-black/20"
-                      : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                  >
-                    <Home size={22} />
-                    <span>Home</span>
+        {/* Footer - Hidden on Community Page */}
+        {!location.pathname.startsWith("/community") && (
+          <footer className="border-t-2 border-black mt-16">
+            <div className="max-w-7xl mx-auto px-4 py-8">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-black flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">Z</span>
+                  </div>
+                  <span className="font-bold">ZetsuGuide</span>
+                </div>
+                <div className="flex flex-wrap items-center justify-center sm:justify-end gap-6">
+                  <Link to="/faq" className="text-sm font-medium hover:underline">
+                    FAQ
                   </Link>
                   <Link
-                    to="/guides"
-                    className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname.startsWith("/guide")
-                      ? "bg-black text-white shadow-lg shadow-black/20"
-                      : "text-gray-600 hover:bg-gray-100"
-                      }`}
+                    to="/pricing"
+                    className="text-sm font-medium hover:underline"
                   >
-                    <BookOpen size={22} />
-                    <span>All Guides</span>
+                    Pricing
+                  </Link>
+                  <Link
+                    to="/support"
+                    className="text-sm font-medium hover:underline"
+                  >
+                    Support
                   </Link>
                   <Link
                     to="/community"
-                    className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname === "/community"
-                      ? "bg-black text-white shadow-lg shadow-black/20"
-                      : "text-gray-600 hover:bg-gray-100"
-                      }`}
+                    className="text-sm font-medium hover:underline"
                   >
-                    <Users size={22} />
-                    <span>Community</span>
+                    Community
                   </Link>
-                  <Link
-                    to="/zetsuguide-ai"
-                    className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all border-2 border-transparent ${location.pathname === "/zetsuguide-ai"
-                      ? "bg-black text-white shadow-lg shadow-black/20"
-                      : "bg-gradient-to-r from-purple-50 to-pink-50 text-gray-900 border-purple-100"
-                      }`}
-                  >
-                    <Bot
-                      size={22}
-                      className={
-                        location.pathname === "/zetsuguide-ai"
-                          ? "text-white"
-                          : "text-purple-600"
-                      }
-                    />
-                    <span className="flex-1">ZetsuGuide AI</span>
-                    <span className="px-2 py-0.5 text-xs font-bold bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-full animate-pulse">
-                      NEW
-                    </span>
-                  </Link>
-                </nav>
-
-                {/* Mobile Divider */}
-                <div className="h-px bg-gray-200 my-2" />
-
-                {/* Mobile Profile / Auth */}
-                <div>
-                  {isAuthenticated() ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 mb-2">
-                        <div className="w-10 h-10 rounded-full overflow-hidden border border-black dark:border-white">
-                          <img
-                            src={getAvatarForUser(
-                              user?.email,
-                              userProfile?.avatar_url,
-                            )}
-                            alt="Profile"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-gray-900 truncate">
-                            {user?.name}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate">
-                            {user?.email}
-                          </p>
-                        </div>
-                      </div>
-
-                      <Link
-                        to={`/@${(user?.user_metadata?.full_name || user?.email?.split("@")[0]).toLowerCase()}/workspace`}
-                        className="flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-gray-600 hover:bg-gray-100 transition-colors"
-                      >
-                        <BookOpen size={20} />
-                        <span>My Workspace</span>
-                      </Link>
-
-                      <Link
-                        to="/stats"
-                        className="flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-gray-600 hover:bg-gray-100 transition-colors"
-                      >
-                        <BarChart3 size={20} />
-                        <span>My Stats</span>
-                      </Link>
-
-                      <button
-                        onClick={() => {
-                          logout();
-                          navigate("/");
-                        }}
-                        className="w-full flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-red-600 hover:bg-red-50 transition-colors"
-                      >
-                        <LogOut size={20} />
-                        <span>Logout</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <Link
-                        to="/auth"
-                        className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border-2 border-black font-bold hover:bg-gray-50 transition-colors"
-                      >
-                        <LogIn size={20} />
-                        <span>Log In</span>
-                      </Link>
-                      <Link
-                        to="/auth?mode=register"
-                        className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-black text-white font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-black/20"
-                      >
-                        <Plus size={20} />
-                        <span>Create Account</span>
-                      </Link>
-                    </div>
-                  )}
+                  <p className="text-sm text-gray-500">
+                    Your personal knowledge base. Built with ❤️
+                  </p>
                 </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </header>
+            </div>
+          </footer>
+        )}
 
-      {/* Main Content */}
-      <main className="flex-1">
-        <Outlet
-          context={{
-            openAddModal: () => setShowAddModal(true),
-            checkingReferral,
-          }}
-        />
-      </main>
-
-      {/* Footer - Hidden on Community Page */}
-      {!location.pathname.startsWith("/community") && (
-        <footer className="border-t-2 border-black mt-16">
-          <div className="max-w-7xl mx-auto px-4 py-8">
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-black flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">Z</span>
-                </div>
-                <span className="font-bold">ZetsuGuide</span>
+        {/* Modals */}
+        {showAddModal && <AddGuideModal onClose={() => setShowAddModal(false)} />}
+        {showSearchModal && (
+          <SearchModal onClose={() => setShowSearchModal(false)} />
+        )}
+        {showAccountSetup && user && !checkingReferral && (
+          <AccountSetupModal
+            user={user}
+            onClose={() => setShowAccountSetup(false)}
+            onComplete={() => {
+              // Refresh profile data
+              const checkProfile = async () => {
+                const { data } = await supabase
+                  .from("zetsuguide_user_profiles")
+                  .select("*")
+                  .eq("user_email", user.email)
+                  .maybeSingle();
+                setUserProfile(data);
+              };
+              checkProfile();
+            }}
+          />
+        )}
+        {showReferralSuccess && (
+          <ReferralSuccessModal
+            onClose={async () => {
+              setShowReferralSuccess(false);
+              // Refresh session to reflect updated metadata
+              await supabase.auth.refreshSession();
+              setCheckingReferral(false);
+            }}
+            bonusCredits={5}
+          />
+        )}
+        {accountDeleted && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white border-2 border-black rounded-xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 mx-auto border-2 border-red-500">
+                <LogOut className="w-6 h-6 text-red-600" />
               </div>
-              <div className="flex flex-wrap items-center justify-center sm:justify-end gap-6">
-                <Link to="/faq" className="text-sm font-medium hover:underline">
-                  FAQ
-                </Link>
-                <Link
-                  to="/pricing"
-                  className="text-sm font-medium hover:underline"
-                >
-                  Pricing
-                </Link>
-                <Link
-                  to="/support"
-                  className="text-sm font-medium hover:underline"
-                >
-                  Support
-                </Link>
-                <Link
-                  to="/community"
-                  className="text-sm font-medium hover:underline"
-                >
-                  Community
-                </Link>
-                <p className="text-sm text-gray-500">
-                  Your personal knowledge base. Built with ❤️
-                </p>
-              </div>
+              <h2 className="text-xl font-black text-center mb-2">
+                Account Deleted
+              </h2>
+              <p className="text-gray-600 text-center mb-6">
+                This account has been permanently deleted as requested. You will
+                now be logged out.
+              </p>
+              <button
+                onClick={() => {
+                  logout();
+                  setAccountDeleted(false);
+                  navigate("/");
+                }}
+                className="w-full py-3 bg-black text-white font-bold rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Return to Home
+              </button>
             </div>
           </div>
-        </footer>
-      )}
+        )}
 
-      {/* Modals */}
-      {showAddModal && <AddGuideModal onClose={() => setShowAddModal(false)} />}
-      {showSearchModal && (
-        <SearchModal onClose={() => setShowSearchModal(false)} />
-      )}
-      {showAccountSetup && user && !checkingReferral && (
-        <AccountSetupModal
-          user={user}
-          onClose={() => setShowAccountSetup(false)}
-          onComplete={() => {
-            // Refresh profile data
-            const checkProfile = async () => {
-              const { data } = await supabase
-                .from("zetsuguide_user_profiles")
-                .select("*")
-                .eq("user_email", user.email)
-                .maybeSingle();
-              setUserProfile(data);
-            };
-            checkProfile();
-          }}
-        />
-      )}
-      {showReferralSuccess && (
-        <ReferralSuccessModal
-          onClose={async () => {
-            setShowReferralSuccess(false);
-            // Refresh session to reflect updated metadata
-            await supabase.auth.refreshSession();
-            setCheckingReferral(false);
-          }}
-          bonusCredits={5}
-        />
-      )}
-      {accountDeleted && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white border-2 border-black rounded-xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 mx-auto border-2 border-red-500">
-              <LogOut className="w-6 h-6 text-red-600" />
-            </div>
-            <h2 className="text-xl font-black text-center mb-2">
-              Account Deleted
-            </h2>
-            <p className="text-gray-600 text-center mb-6">
-              This account has been permanently deleted as requested. You will
-              now be logged out.
-            </p>
-            <button
-              onClick={() => {
-                logout();
-                setAccountDeleted(false);
-                navigate("/");
-              }}
-              className="w-full py-3 bg-black text-white font-bold rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              Return to Home
-            </button>
-          </div>
-        </div>
-      )}
+        {showBugReward && (
+          <ApprovedBugModal
+            onClose={async () => {
+              setShowBugReward(false);
 
-      {showBugReward && (
-        <ApprovedBugModal
-          onClose={async () => {
-            setShowBugReward(false);
-
-            // IMMEDIATELY mark as seen in localStorage (failsafe)
-            if (rewardReportId) {
-              const seenKey = `bug_reward_seen_${rewardReportId}`;
-              localStorage.setItem(seenKey, "true");
-              console.log(
-                "[BugReward] Marked as seen in localStorage:",
-                seenKey,
-              );
-
-              // Also try to update DB via API (but localStorage is the primary guard now)
-              try {
-                await fetch("/api/mark_notification_read", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ report_id: rewardReportId }),
-                });
-              } catch (err) {
-                console.error(
-                  "Failed to mark notification as read in DB:",
-                  err,
+              // IMMEDIATELY mark as seen in localStorage (failsafe)
+              if (rewardReportId) {
+                const seenKey = `bug_reward_seen_${rewardReportId}`;
+                localStorage.setItem(seenKey, "true");
+                console.log(
+                  "[BugReward] Marked as seen in localStorage:",
+                  seenKey,
                 );
+
+                // Also try to update DB via API (but localStorage is the primary guard now)
+                try {
+                  await fetch("/api/mark_notification_read", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ report_id: rewardReportId }),
+                  });
+                } catch (err) {
+                  console.error(
+                    "Failed to mark notification as read in DB:",
+                    err,
+                  );
+                }
               }
-            }
-          }}
-        />
-      )}
+            }}
+          />
+        )}
 
-      {/* Global Loader Helper */}
-      <GlobalLoader />
+        {/* Global Loader Helper */}
+        <GlobalLoader />
 
-      {/* Real-time Referral Bonus Notification */}
-      <ReferralBonusNotification />
+        {/* Real-time Referral Bonus Notification */}
+        <ReferralBonusNotification />
 
-      {/* New User Advertisement */}
-      <SubscriptionRenewAd />
+        {/* New User Advertisement */}
+        <SubscriptionRenewAd />
 
-      {/* Cookie Consent */}
-      <CookieConsent />
-    </div>
+        {/* Cookie Consent */}
+        <CookieConsent />
+      </div>
+    </ClickSpark>
   );
 }

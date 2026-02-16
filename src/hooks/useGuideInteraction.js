@@ -17,7 +17,7 @@ export function useGuideInteraction(guideSlug, guideId = null) {
 
   // Record interaction helper
   const recordInteraction = async (interactionType, score = 1) => {
-    if (!user?.email || !guideSlug) return;
+    if (!user?.email || !guideId) return;
 
     // Prevent duplicate recordings
     if (interactionRecorded.current[interactionType]) return;
@@ -25,24 +25,26 @@ export function useGuideInteraction(guideSlug, guideId = null) {
     try {
       await supabase.rpc("record_guide_interaction", {
         p_user_email: user.email.toLowerCase(),
-        p_guide_slug: guideSlug,
+        p_guide_id: guideId, // Changed from p_guide_slug to p_guide_id
         p_interaction_type: interactionType,
         p_interaction_score: score || 1,
       });
 
       interactionRecorded.current[interactionType] = true;
       console.log(
-        `📊 Recorded ${interactionType} interaction for guide: ${guideSlug}`,
+        `📊 Recorded ${interactionType} interaction for guide: ${guideSlug} (${guideId})`,
       );
     } catch (error) {
       console.error("Error recording interaction:", error);
     }
   };
 
-  // Record view on mount
+  // Record view on mount (only when guideId is available)
   useEffect(() => {
-    recordInteraction("view", 1);
-  }, [guideSlug, user]);
+    if (guideId) {
+      recordInteraction("view", 1);
+    }
+  }, [guideSlug, user, guideId]);
 
   // Track reading time
   useEffect(() => {
@@ -66,7 +68,7 @@ export function useGuideInteraction(guideSlug, guideId = null) {
       clearTimeout(timer5min);
       clearTimeout(timer10min);
     };
-  }, [guideSlug, user]);
+  }, [guideSlug, user, guideId]);
 
   // Manual interaction recording
   const recordComment = () => recordInteraction("comment", 4);
@@ -95,7 +97,7 @@ export function useAuthorFollowInteraction(authorEmail) {
       // Get all guides by this author
       const { data: authorGuides, error } = await supabase
         .from("guides")
-        .select("slug")
+        .select("id, slug") // Changed to select id as well
         .eq("user_email", authorEmail)
         .limit(10);
 
@@ -105,7 +107,7 @@ export function useAuthorFollowInteraction(authorEmail) {
       for (const guide of authorGuides || []) {
         await supabase.rpc("record_guide_interaction", {
           p_user_email: user.email.toLowerCase(),
-          p_guide_slug: guide.slug,
+          p_guide_id: guide.id, // Changed from p_guide_slug to p_guide_id
           p_interaction_type: "author_follow",
           p_interaction_score: 2,
         });

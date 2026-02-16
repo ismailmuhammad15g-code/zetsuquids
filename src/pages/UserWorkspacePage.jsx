@@ -2,6 +2,7 @@ import { BookOpen, Calendar, Edit2, Loader2, Mail, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import FollowButton from "../components/FollowButton";
+import VerifiedBadge from "../components/VerifiedBadge";
 import Toast from "../components/Toast";
 import { useAuth } from "../contexts/AuthContext";
 import { getAllAvatars, getAvatarForUser } from "../lib/avatar";
@@ -300,8 +301,9 @@ export default function UserWorkspacePage() {
             {/* Profile Info */}
             <div className="flex-1 w-full">
               <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4 mb-4">
-                <h1 className="text-3xl sm:text-4xl font-black break-all">
+                <h1 className="text-3xl sm:text-4xl font-black break-all flex items-center">
                   @{userProfile?.author_name}
+                  <VerifiedBadge userEmail={userProfile?.author_email} />
                 </h1>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   {!isOwnWorkspace && userProfile?.author_email && (
@@ -430,11 +432,11 @@ export default function UserWorkspacePage() {
                       <span className="font-bold">
                         {new Date().getFullYear() -
                           new Date(userProfile?.created_at).getFullYear() ===
-                        0
+                          0
                           ? "This Year"
                           : new Date().getFullYear() -
-                            new Date(userProfile?.created_at).getFullYear() +
-                            " Years"}
+                          new Date(userProfile?.created_at).getFullYear() +
+                          " Years"}
                       </span>{" "}
                       Member
                     </p>
@@ -578,11 +580,10 @@ export default function UserWorkspacePage() {
                       <button
                         key={avatarPath}
                         onClick={() => setSelectedAvatar(avatarPath)}
-                        className={`p-2 rounded border-2 transition-all ${
-                          selectedAvatar === avatarPath
-                            ? "border-black bg-black/5"
-                            : "border-gray-300 hover:border-gray-400"
-                        }`}
+                        className={`p-2 rounded border-2 transition-all ${selectedAvatar === avatarPath
+                          ? "border-black bg-black/5"
+                          : "border-gray-300 hover:border-gray-400"
+                          }`}
                       >
                         <img
                           src={avatarPath}

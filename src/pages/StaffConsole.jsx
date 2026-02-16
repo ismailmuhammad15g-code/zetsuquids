@@ -27,10 +27,10 @@ import profile4Animation from '../assets/customarserviceprofiles/profile4.json'
 
 // Staff profiles configuration
 const STAFF_PROFILES = [
-    { id: 'staff1', name: 'سارة', nameEn: 'Sarah', animation: profile1Animation, color: '#4f46e5' },
-    { id: 'staff2', name: 'أحمد', nameEn: 'Ahmed', animation: profile2Animation, color: '#10b981' },
-    { id: 'staff3', name: 'ليلى', nameEn: 'Layla', animation: profile3Animation, color: '#f59e0b' },
-    { id: 'staff4', name: 'محمد', nameEn: 'Mohammed', animation: profile4Animation, color: '#ef4444' },
+    { id: '11111111-1111-4111-8111-111111111111', name: 'سارة', nameEn: 'Sarah', animation: profile1Animation, color: '#4f46e5' },
+    { id: '22222222-2222-4222-8222-222222222222', name: 'أحمد', nameEn: 'Ahmed', animation: profile2Animation, color: '#10b981' },
+    { id: '33333333-3333-4333-8333-333333333333', name: 'ليلى', nameEn: 'Layla', animation: profile3Animation, color: '#f59e0b' },
+    { id: '44444444-4444-4444-8444-444444444444', name: 'محمد', nameEn: 'Mohammed', animation: profile4Animation, color: '#ef4444' },
 ]
 
 export default function StaffConsole() {

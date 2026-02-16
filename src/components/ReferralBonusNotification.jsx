@@ -34,7 +34,7 @@ export default function ReferralBonusNotification() {
         if (status === "SUBSCRIBED") {
           // Connection healthy
         } else if (status === "TIMED_OUT" || status === "CLOSED") {
-          console.warn(
+          console.debug(
             "Realtime subscription paused (network unstable):",
             status,
           );
@@ -44,7 +44,7 @@ export default function ReferralBonusNotification() {
       });
 
     return () => {
-      supabase.removeChannel(channel).catch(() => {});
+      supabase.removeChannel(channel).catch(() => { });
     };
   }, [user?.email]);
 

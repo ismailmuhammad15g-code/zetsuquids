@@ -70,8 +70,12 @@ export const guidesApi = {
 
     const mergedMap = new Map();
 
-    // 1. Add local guides first
-    localGuides.forEach((g) => mergedMap.set(g.slug, g));
+    // 1. Add local guides first (Filter ONLY approved guides for public view)
+    localGuides.forEach((g) => {
+      if (g.status === 'approved') {
+        mergedMap.set(g.slug, g)
+      }
+    });
 
     // 2. Overwrite/Add Supabase guides (authoritative source)
     supabaseGuides.forEach((g) => mergedMap.set(g.slug, g));
@@ -161,6 +165,7 @@ export const guidesApi = {
       user_email: guide.user_email, // Author email
       author_name: guide.author_name || "", // Author name
       author_id: guide.author_id || null, // Author ID
+      views_count: 0, // Explicitly start with 0 views
       created_at: new Date().toISOString(),
       status: guide.status || "pending", // Default to pending
     };
@@ -625,11 +630,12 @@ export const adminGuidesApi = {
   async approveGuide(id, staffId) {
     if (!isSupabaseConfigured()) return false;
 
+    // Use NULL for approved_by to avoid FK violation with virtual staff IDs
     const { error } = await supabase
       .from("guides")
       .update({
         status: "approved",
-        approved_by: staffId,
+        approved_by: null,
         approved_at: new Date().toISOString(),
       })
       .eq("id", id);

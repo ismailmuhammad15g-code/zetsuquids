@@ -45,7 +45,11 @@ export function useGuides() {
         initialData: () => {
             try {
                 const local = localStorage.getItem('guides')
-                return local ? JSON.parse(local) : undefined
+                if (!local) return undefined
+
+                const guides = JSON.parse(local)
+                // Filter ONLY approved guides for public list
+                return guides.filter(g => g.status === 'approved')
             } catch (e) {
                 return undefined
             }

@@ -46,6 +46,7 @@ import QuizComponent from "../components/quiz/QuizComponent";
 import SEOHelmet from "../components/SEOHelmet";
 import TextToSpeech from "../components/TextToSpeech";
 import { ScrollProgress } from "../components/ui/scroll-progress";
+import VerifiedBadge from "../components/VerifiedBadge";
 import { useAuth } from "../contexts/AuthContext";
 import { useGuideInteraction } from "../hooks/useGuideInteraction";
 import { guidesApi } from "../lib/api";
@@ -130,9 +131,6 @@ export default function GuidePage() {
   const navigate = useNavigate();
   const { user } = useAuth(); // Get current user
 
-  // Track interactions for recommendations
-  const { recordComment, recordRate } = useGuideInteraction(slug);
-
   const [guide, setGuide] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -148,6 +146,11 @@ export default function GuidePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewsCount, setViewsCount] = useState(0);
   const [hasRecordedView, setHasRecordedView] = useState(false);
+
+  // Track interactions for recommendations
+  // usage: useGuideInteraction(slug, guideId)
+  // We pass guide?.id so it can record properly once loaded
+  const { recordComment, recordRate } = useGuideInteraction(slug, guide?.id);
   // AI Tools Modals
   const [showAIChat, setShowAIChat] = useState(false);
   const [showSummarizer, setShowSummarizer] = useState(false);
@@ -155,6 +158,7 @@ export default function GuidePage() {
   const [aiToolsExpanded, setAiToolsExpanded] = useState(false);
   const moreMenuRef = useRef(null);
   const ttsRef = useRef(null);
+
   const contentRef = useRef(null);
 
   useEffect(() => {
@@ -213,28 +217,13 @@ export default function GuidePage() {
     if (guide) {
       // Small delay to ensure DOM is ready
       const timer = setTimeout(() => {
-        const timer = setTimeout(async () => {
-          try {
-            // Reset mermaid to default before running to clear any bad state
-            mermaid.initialize({
-              startOnLoad: false,
-              theme: "default",
-              securityLevel: "loose",
-              flowchart: { htmlLabels: true },
-              failOnError: false,
-              suppressErrorRendering: true // Suppress the ugly error box
-            });
-
-            await mermaid.run({
-              querySelector: ".mermaid",
-            });
-          } catch (err) {
-            // Suppress the "Could not find a suitable point" error which is a known Mermaid bug
-            if (!err.message?.includes("suitable point")) {
-              console.error("Mermaid failed to render:", err);
-            }
-          }
-        }, 500); // Increased delay slightly to ensures fonts/styles are loaded
+        try {
+          mermaid.run({
+            querySelector: ".mermaid",
+          });
+        } catch (err) {
+          console.error("Mermaid failed to render:", err);
+        }
       }, 250);
 
       return () => clearTimeout(timer);
@@ -842,6 +831,7 @@ export default function GuidePage() {
                     <p className="text-sm text-gray-600">By</p>
                     <p className="font-bold text-lg">
                       {guide.author_name || guide.user_email.split("@")[0]}
+                      <VerifiedBadge userEmail={guide.user_email} />
                     </p>
                     {guide.user_email && (
                       <p className="text-xs text-gray-500 flex items-center gap-1">

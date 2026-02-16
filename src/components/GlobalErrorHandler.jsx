@@ -57,6 +57,8 @@ export default function GlobalErrorHandler() {
         "empty response", // Streaming errors (debugging)
         "Backend error", // Backend errors (handled)
         "Debug info:", // Debug logging
+        "AbortError", // Request cancellation
+        "signal is aborted", // Request cancellation
       ];
 
       // Check if error should be ignored

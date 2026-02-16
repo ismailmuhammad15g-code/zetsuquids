@@ -8,7 +8,6 @@ import GlobalErrorHandler from "./components/GlobalErrorHandler";
 import GlobalLoader from "./components/GlobalLoader";
 import Layout from "./components/Layout";
 import NetworkStatusMonitor from "./components/NetworkStatusMonitor";
-import ClickSpark from "./components/react-bits/ClickSpark";
 import { AuthProvider } from "./contexts/AuthContext";
 import { LoadingProvider } from "./contexts/LoadingContext";
 import { prefetchGuidesOnLoad } from "./hooks/useGuides";
@@ -36,6 +35,7 @@ const ZetsuGuideAIPage = lazy(() => import("./pages/ZetsuGuideAIPage"));
 const CommunityPage = lazy(() => import("./pages/CommunityPage"));
 const PostDetailsPage = lazy(() => import("./pages/PostDetailsPage"));
 const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
 function App() {
   const queryClient = useQueryClient();
@@ -62,59 +62,54 @@ function App() {
   );
 
   return (
-    <ClickSpark
-      sparkColor="#000"
-      sparkSize={10}
-      sparkRadius={15}
-      sparkCount={8}
-      duration={400}
-    >
-      <LoadingProvider>
-        <AuthProvider>
-          <GlobalLoader />
-          <GlobalErrorHandler />
-          <NetworkStatusMonitor />
-          <Toaster position="top-center" richColors closeButton />
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<Layout />}>
-                <Route index element={<HomePage />} />
-                <Route path="guides" element={<AllGuidesPage />} />
-                <Route path="guide/:slug" element={<GuidePage />} />
-                <Route
-                  path=":username/workspace"
-                  element={<UserWorkspacePage />}
-                />
-                <Route path="stats" element={<UserStatsPage />} />
-                <Route path="pricing" element={<PricingPage />} />
-                <Route path="privacy" element={<PrivacyPolicy />} />
-                <Route path="cookie-policy" element={<CookiePolicy />} />
-                <Route path="terms" element={<TermsOfService />} />
-                <Route path="support" element={<SupportPage />} />
-                <Route path="reportbug" element={<ReportBugPage />} />
-                <Route path="faq" element={<FAQPage />} />
-                <Route path="community" element={<CommunityPage />} />
-                <Route
-                  path="/community/post/:id"
-                  element={<PostDetailsPage />}
-                />
-              </Route>
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/verify-email" element={<VerifyEmailPage />} />
+    <LoadingProvider>
+      <AuthProvider>
+        <GlobalLoader />
+        <GlobalErrorHandler />
+        <NetworkStatusMonitor />
+        <Toaster position="top-center" richColors closeButton />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<HomePage />} />
+              <Route path="guides" element={<AllGuidesPage />} />
+              <Route path="guide/:slug" element={<GuidePage />} />
+              <Route
+                path=":username/workspace"
+                element={<UserWorkspacePage />}
+              />
+              <Route path="stats" element={<UserStatsPage />} />
+              <Route path="pricing" element={<PricingPage />} />
+              <Route path="privacy" element={<PrivacyPolicy />} />
+              <Route path="cookie-policy" element={<CookiePolicy />} />
+              <Route path="terms" element={<TermsOfService />} />
+              <Route path="support" element={<SupportPage />} />
+              <Route path="reportbug" element={<ReportBugPage />} />
+              <Route path="faq" element={<FAQPage />} />
+              <Route path="community" element={<CommunityPage />} />
+              <Route
+                path="/community/post/:id"
+                element={<PostDetailsPage />}
+              />
+            </Route>
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
 
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-              <Route path="/zetsuguide-ai" element={<ZetsuGuideAIPage />} />
-              {/* Admin Routes */}
-              <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin/console" element={<AdminConsole />} />
-              {/* Staff Routes */}
-              <Route path="/staff/login" element={<StaffLogin />} />
-              <Route path="/staff/console" element={<StaffConsole />} />
-            </Routes>
-          </Suspense>
-        </AuthProvider>
-      </LoadingProvider>
-    </ClickSpark>
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/zetsuguide-ai" element={<ZetsuGuideAIPage />} />
+            {/* Admin Routes */}
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin/console" element={<AdminConsole />} />
+            {/* Staff Routes */}
+            <Route path="/staff/login" element={<StaffLogin />} />
+            <Route path="/staff/console" element={<StaffConsole />} />
+
+            {/* 404 Catch-all */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
+      </AuthProvider>
+    </LoadingProvider>
   );
 }
 
