@@ -81,7 +81,7 @@ export default function Layout() {
 
       console.log("Found pending referral, claiming...");
       try {
-        const response = await fetch("/api/claim_referral", {
+        const response = await fetch("/api/payments?type=claim_referral", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId: user.id }),
@@ -684,7 +684,7 @@ export default function Layout() {
 
                 // Also try to update DB via API (but localStorage is the primary guard now)
                 try {
-                  await fetch("/api/mark_notification_read", {
+                  await fetch("/api/interactions?type=mark_read", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ report_id: rewardReportId }),

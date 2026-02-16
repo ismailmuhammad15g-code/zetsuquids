@@ -150,7 +150,7 @@ export default function PricingPage() {
       const toastId = toast.loading("Processing payment request...");
 
       try {
-        const response = await fetch("/api/create_payment", {
+        const response = await fetch("/api/payments?type=create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

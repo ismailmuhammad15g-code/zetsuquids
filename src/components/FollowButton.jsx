@@ -114,7 +114,7 @@ export default function FollowButton({
         return;
       }
 
-      const response = await fetch("/api/follow_user", {
+      const response = await fetch("/api/interactions?type=follow", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -197,10 +197,9 @@ export default function FollowButton({
             flex items-center gap-2 px-4 py-2 text-sm font-medium
             transition-all duration-200 border-2
             ${loading ? "opacity-50 cursor-not-allowed" : "hover:scale-105"}
-            ${
-              isFollowing
-                ? "bg-white text-black border-black hover:bg-gray-100"
-                : "bg-black text-white border-black hover:bg-gray-800"
+            ${isFollowing
+              ? "bg-white text-black border-black hover:bg-gray-100"
+              : "bg-black text-white border-black hover:bg-gray-800"
             }
           `}
         >

@@ -265,7 +265,7 @@ export default function AuthPage() {
           const finalReferralCode = isValidReferral ? referralCode : "";
 
           // Use Custom API for Registration (Bypasses Supabase Email Limits)
-          const response = await fetch("/api/register", {
+          const response = await fetch("/api/users?type=register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

@@ -653,10 +653,11 @@ export default function Chatbot() {
     setSupportSubmitting(true);
 
     try {
-      const response = await fetch("/api/support_ticket", {
+      const response = await fetch("/api/content?type=submission", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          type: 'support',
           email: supportFormData.email,
           phone: supportFormData.phone,
           category: supportFormData.category,
