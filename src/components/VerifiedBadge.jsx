@@ -71,7 +71,7 @@ export default function VerifiedBadge({
     if (isAdmin) {
         return (
             <span
-                className={`group relative inline-flex items-center justify-center ml-1 align-middle ${className}`}
+                className={`group relative inline-flex items-center justify-center ml-1 -translate-y-0.5 translate-x-0.5 align-middle ${className}`}
             >
                 <span
                     className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full p-1 shadow-md transform transition-transform duration-300 group-hover:scale-110 cursor-help flex"

@@ -11,12 +11,15 @@ export default function GlobalErrorHandler() {
     // 1. Capture Global Uncaught Errors
     const handleGlobalError = (event) => {
       const errorMsg = event.reason ? event.reason.message : event.message;
-      setLastError({
-        type: "Crash/Uncaught",
-        message: errorMsg || "Unknown Error",
-        stack: event.error?.stack || event.reason?.stack || "",
-      });
-      setIsVisible(true);
+      // Defer state update to avoid "Cannot update component while rendering" warning
+      setTimeout(() => {
+        setLastError({
+          type: "Crash/Uncaught",
+          message: errorMsg || "Unknown Error",
+          stack: event.error?.stack || event.reason?.stack || "",
+        });
+        setIsVisible(true);
+      }, 0);
     };
 
     window.addEventListener("error", handleGlobalError);
