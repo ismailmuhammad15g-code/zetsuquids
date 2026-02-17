@@ -1,5 +1,3 @@
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import { Download, FileImage, FileText, Loader2, X } from "lucide-react";
 import { useState } from "react";
 
@@ -54,11 +52,11 @@ export default function DownloadGuideModal({ guide, authorName, onClose }) {
     ctx.font = "bold 28px Arial";
     ctx.fillStyle = "#FFFFFF";
     ctx.textAlign = "left";
-    ctx.fillText(`\ud83d\udcdd ${authorName}`, 40, canvas.height - 70);
+    ctx.fillText(`📝 ${authorName}`, 40, canvas.height - 70);
 
     ctx.font = "bold 22px Arial";
     ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-    ctx.fillText(`\u2728 ZetsuGuide Premium`, 40, canvas.height - 35);
+    ctx.fillText(`✨ ZetsuGuide Premium`, 40, canvas.height - 35);
 
     // Page numbers with luxury style
     ctx.textAlign = "right";
@@ -87,187 +85,207 @@ export default function DownloadGuideModal({ guide, authorName, onClose }) {
     setProgress(0);
     setCurrentStep("Preparing guide content...");
 
-    // Lock page scrolling during processing
-    const originalOverflow = document.body.style.overflow;
-    const originalPosition = document.body.style.position;
-    document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
-    document.body.style.width = "100%";
-
     try {
-      const content = document.querySelector(".guide-content");
-      setCurrentStep("Optimizing layout...");
+      // Dynamic imports with error handling
+      const [html2canvasModule, jsPDFModule] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf")
+      ]);
+      const html2canvas = html2canvasModule.default;
+      const jsPDF = jsPDFModule.default;
 
-      // Clone content for clean capture
-      const container = document.createElement("div");
-      container.style.width = "210mm"; // A4 width
-      container.style.padding = "20mm";
-      container.style.background = "white";
-      container.style.position = "absolute";
-      container.style.left = "-9999px";
-      container.style.top = "0";
+      // Lock page scrolling during processing
+      const originalOverflow = document.body.style.overflow;
+      const originalPosition = document.body.style.position;
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
 
-      // Add luxury title page
-      const titlePage = document.createElement("div");
-      titlePage.style.cssText =
-        "min-height: 300px; margin-bottom: 50px; padding: 60px; border: 5px solid #000; background: linear-gradient(135deg, #8B5CF6 0%, #DB2777 50%, #F59E0B 100%); box-shadow: inset 0 0 100px rgba(0,0,0,0.2);";
-      titlePage.innerHTML = `
-        <div style="background: rgba(255,255,255,0.95); padding: 40px; border: 3px solid #000; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-          <div style="text-align: center; border-bottom: 3px solid #000; padding-bottom: 20px; margin-bottom: 20px;">
-            <h1 style="font-size: 42px; font-weight: 900; margin-bottom: 15px; color: #000; text-shadow: 2px 2px 0px #8B5CF6;">✨ ${guide.title}</h1>
-            <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #8B5CF6;">
-              <p style="font-size: 20px; color: #333; margin-bottom: 8px; font-weight: 600;">📝 Created by ${authorName}</p>
-              <p style="font-size: 16px; color: #8B5CF6; font-weight: 700; letter-spacing: 2px;">PREMIUM ZETSUGUIDE CONTENT</p>
+      try {
+        const content = document.querySelector(".guide-content");
+        setCurrentStep("Optimizing layout...");
+
+        // Clone content for clean capture
+        const container = document.createElement("div");
+        container.style.width = "210mm"; // A4 width
+        container.style.padding = "20mm";
+        container.style.background = "white";
+        container.style.position = "absolute";
+        container.style.left = "-9999px";
+        container.style.top = "0";
+
+        // Add luxury title page
+        const titlePage = document.createElement("div");
+        titlePage.style.cssText =
+          "min-height: 300px; margin-bottom: 50px; padding: 60px; border: 5px solid #000; background: linear-gradient(135deg, #8B5CF6 0%, #DB2777 50%, #F59E0B 100%); box-shadow: inset 0 0 100px rgba(0,0,0,0.2);";
+        titlePage.innerHTML = `
+          <div style="background: rgba(255,255,255,0.95); padding: 40px; border: 3px solid #000; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <div style="text-align: center; border-bottom: 3px solid #000; padding-bottom: 20px; margin-bottom: 20px;">
+              <h1 style="font-size: 42px; font-weight: 900; margin-bottom: 15px; color: #000; text-shadow: 2px 2px 0px #8B5CF6;">✨ ${guide.title}</h1>
+              <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #8B5CF6;">
+                <p style="font-size: 20px; color: #333; margin-bottom: 8px; font-weight: 600;">📝 Created by ${authorName}</p>
+                <p style="font-size: 16px; color: #8B5CF6; font-weight: 700; letter-spacing: 2px;">PREMIUM ZETSUGUIDE CONTENT</p>
+              </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+              <p style="font-size: 14px; color: #666; font-style: italic;">High-Quality Professional Guide • zetsuguids.vercel.app</p>
             </div>
           </div>
-          <div style="text-align: center; margin-top: 20px;">
-            <p style="font-size: 14px; color: #666; font-style: italic;">High-Quality Professional Guide • zetsuguids.vercel.app</p>
-          </div>
-        </div>
-      `;
+        `;
 
-      container.appendChild(titlePage);
+        container.appendChild(titlePage);
 
-      // Clone actual content with better formatting
-      const contentClone = content.cloneNode(true);
-      contentClone.style.cssText =
-        "font-family: Arial, sans-serif; line-height: 1.8; color: #000; font-size: 14px; padding-bottom: 60px;";
+        // Clone actual content with better formatting
+        const contentClone = content.cloneNode(true);
+        contentClone.style.cssText =
+          "font-family: Arial, sans-serif; line-height: 1.8; color: #000; font-size: 14px; padding-bottom: 60px;";
 
-      // Improve content styling for better page breaks
-      const headings = contentClone.querySelectorAll("h1, h2, h3, h4, h5, h6");
-      headings.forEach((h) => {
-        h.style.pageBreakAfter = "avoid";
-        h.style.breakAfter = "avoid";
-        h.style.marginTop = "25px";
-        h.style.marginBottom = "15px";
-      });
+        // Improve content styling for better page breaks
+        const headings = contentClone.querySelectorAll("h1, h2, h3, h4, h5, h6");
+        headings.forEach((h) => {
+          h.style.pageBreakAfter = "avoid";
+          h.style.breakAfter = "avoid";
+          h.style.marginTop = "25px";
+          h.style.marginBottom = "15px";
+        });
 
-      const paragraphs = contentClone.querySelectorAll("p");
-      paragraphs.forEach((p) => {
-        p.style.marginBottom = "12px";
-        p.style.orphans = "3";
-        p.style.widows = "3";
-      });
+        const paragraphs = contentClone.querySelectorAll("p");
+        paragraphs.forEach((p) => {
+          p.style.marginBottom = "12px";
+          p.style.orphans = "3";
+          p.style.widows = "3";
+        });
 
-      container.appendChild(contentClone);
+        container.appendChild(contentClone);
 
-      document.body.appendChild(container);
+        document.body.appendChild(container);
 
-      setProgress(10);
-      setCurrentStep("Capturing high-quality snapshots...");
+        setProgress(10);
+        setCurrentStep("Capturing high-quality snapshots...");
 
-      // Capture entire container
-      const canvas = await html2canvas(container, {
-        scale: 3, // Higher quality
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        windowWidth: 794, // A4 width in pixels at 96 DPI
-        windowHeight: container.scrollHeight,
-      });
+        // Capture entire container
+        const canvas = await html2canvas(container, {
+          scale: 3, // Higher quality
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+          windowWidth: 794, // A4 width in pixels at 96 DPI
+          windowHeight: container.scrollHeight,
+        });
 
-      setProgress(40);
-      setCurrentStep("Creating professional PDF...");
+        setProgress(40);
+        setCurrentStep("Creating professional PDF...");
 
-      // Create PDF
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-        compress: true,
-      });
+        // Create PDF
+        const pdf = new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: "a4",
+          compress: true,
+        });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const contentHeight = pdfHeight - 20; // Leave space for watermark
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const contentHeight = pdfHeight - 20; // Leave space for watermark
 
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+        const imgWidth = pdfWidth;
+        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
-      const totalPages = Math.ceil(imgHeight / contentHeight);
+        const totalPages = Math.ceil(imgHeight / contentHeight);
 
-      setProgress(50);
-      setCurrentStep(
-        `Generating ${totalPages} page${totalPages > 1 ? "s" : ""}...`,
-      );
-
-      for (let i = 0; i < totalPages; i++) {
-        setProgress(50 + (40 / totalPages) * (i + 1));
-        setCurrentStep(`Processing page ${i + 1} of ${totalPages}...`);
-
-        if (i > 0) pdf.addPage();
-
-        // Calculate slice position
-        const yPosition = -i * contentHeight;
-
-        // Add image slice
-        pdf.addImage(
-          canvas.toDataURL("image/jpeg", 0.95),
-          "JPEG",
-          0,
-          yPosition,
-          imgWidth,
-          imgHeight,
-          undefined,
-          "FAST",
+        setProgress(50);
+        setCurrentStep(
+          `Generating ${totalPages} page${totalPages > 1 ? "s" : ""}...`,
         );
 
-        // Create overlay canvas for watermark
-        const overlayCanvas = document.createElement("canvas");
-        overlayCanvas.width = canvas.width;
-        overlayCanvas.height = (contentHeight / pdfWidth) * canvas.width;
-        const overlayCtx = overlayCanvas.getContext("2d");
+        for (let i = 0; i < totalPages; i++) {
+          setProgress(50 + (40 / totalPages) * (i + 1));
+          setCurrentStep(`Processing page ${i + 1} of ${totalPages}...`);
 
-        addWatermark(overlayCtx, overlayCanvas, i + 1, totalPages);
+          if (i > 0) pdf.addPage();
 
-        // Add watermark overlay
-        pdf.addImage(
-          overlayCanvas.toDataURL("image/png"),
-          "PNG",
-          0,
-          0,
-          pdfWidth,
-          contentHeight,
-          undefined,
-          "FAST",
-        );
+          // Calculate slice position
+          const yPosition = -i * contentHeight;
+
+          // Add image slice
+          pdf.addImage(
+            canvas.toDataURL("image/jpeg", 0.95),
+            "JPEG",
+            0,
+            yPosition,
+            imgWidth,
+            imgHeight,
+            undefined,
+            "FAST",
+          );
+
+          // Create overlay canvas for watermark
+          const overlayCanvas = document.createElement("canvas");
+          overlayCanvas.width = canvas.width;
+          overlayCanvas.height = (contentHeight / pdfWidth) * canvas.width;
+          const overlayCtx = overlayCanvas.getContext("2d");
+
+          addWatermark(overlayCtx, overlayCanvas, i + 1, totalPages);
+
+          // Add watermark overlay
+          pdf.addImage(
+            overlayCanvas.toDataURL("image/png"),
+            "PNG",
+            0,
+            0,
+            pdfWidth,
+            contentHeight,
+            undefined,
+            "FAST",
+          );
+        }
+
+        // Cleanup
+        document.body.removeChild(container);
+
+        setProgress(95);
+        setCurrentStep("Finalizing PDF...");
+
+        // Add metadata
+        pdf.setProperties({
+          title: guide.title,
+          subject: "ZetsuGuide Export",
+          author: authorName,
+          keywords: guide.keywords?.join(", ") || "",
+          creator: "ZetsuGuide - zetsuguids.vercel.app",
+        });
+
+        // Save PDF
+        const fileName = `${guide.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}_zetsuguide.pdf`;
+        pdf.save(fileName);
+
+        setProgress(100);
+        setCurrentStep("Download complete!");
+
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      } catch (error) {
+        console.error("PDF Download Error:", error);
+        setCurrentStep("Error: " + error.message);
+        setTimeout(() => onClose(), 3000);
+      } finally {
+        // Restore page scrolling
+        document.body.style.overflow = originalOverflow;
+        document.body.style.position = originalPosition;
+        document.body.style.width = "";
       }
-
-      // Cleanup
-      document.body.removeChild(container);
-
-      setProgress(95);
-      setCurrentStep("Finalizing PDF...");
-
-      // Add metadata
-      pdf.setProperties({
-        title: guide.title,
-        subject: "ZetsuGuide Export",
-        author: authorName,
-        keywords: guide.keywords?.join(", ") || "",
-        creator: "ZetsuGuide - zetsuguids.vercel.app",
-      });
-
-      // Save PDF
-      const fileName = `${guide.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}_zetsuguide.pdf`;
-      pdf.save(fileName);
-
-      setProgress(100);
-      setCurrentStep("Download complete!");
-
-      setTimeout(() => {
-        onClose();
-      }, 1500);
     } catch (error) {
       console.error("PDF Download Error:", error);
       setCurrentStep("Error: " + error.message);
       setTimeout(() => onClose(), 3000);
-    } finally {
-      // Restore page scrolling
-      document.body.style.overflow = originalOverflow;
-      document.body.style.position = originalPosition;
+      // Ensure scrolling is restored even if initial setup fails
+      document.body.style.overflow = "";
+      document.body.style.position = "";
       document.body.style.width = "";
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -277,166 +295,182 @@ export default function DownloadGuideModal({ guide, authorName, onClose }) {
     setProgress(0);
     setCurrentStep("Preparing guide content...");
 
-    // Lock page scrolling during processing
-    const originalOverflow = document.body.style.overflow;
-    const originalPosition = document.body.style.position;
-    document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
-    document.body.style.width = "100%";
-
     try {
-      const content = document.querySelector(".guide-content");
-      if (!content) {
-        throw new Error("Guide content not found");
-      }
+      // Dynamic import with error handling
+      const html2canvasModule = await import("html2canvas");
+      const html2canvas = html2canvasModule.default;
 
-      setProgress(5);
-      setCurrentStep("Optimizing layout...");
+      // Lock page scrolling during processing
+      const originalOverflow = document.body.style.overflow;
+      const originalPosition = document.body.style.position;
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
 
-      // Clone content for clean capture
-      const container = document.createElement("div");
-      container.style.width = "210mm"; // A4 width
-      container.style.padding = "20mm";
-      container.style.background = "white";
-      container.style.position = "absolute";
-      container.style.left = "-9999px";
-      container.style.top = "0";
+      try {
+        const content = document.querySelector(".guide-content");
+        if (!content) {
+          throw new Error("Guide content not found");
+        }
 
-      // Add luxury title page
-      const titlePage = document.createElement("div");
-      titlePage.style.cssText =
-        "min-height: 300px; margin-bottom: 50px; padding: 60px; border: 5px solid #000; background: linear-gradient(135deg, #8B5CF6 0%, #DB2777 50%, #F59E0B 100%); box-shadow: inset 0 0 100px rgba(0,0,0,0.2);";
-      titlePage.innerHTML = `
-        <div style="background: rgba(255,255,255,0.95); padding: 40px; border: 3px solid #000; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-          <div style="text-align: center; border-bottom: 3px solid #000; padding-bottom: 20px; margin-bottom: 20px;">
-            <h1 style="font-size: 42px; font-weight: 900; margin-bottom: 15px; color: #000; text-shadow: 2px 2px 0px #8B5CF6;">\u2728 ${guide.title}</h1>
-            <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #8B5CF6;">
-              <p style="font-size: 20px; color: #333; margin-bottom: 8px; font-weight: 600;">\ud83d\udcdd Created by ${authorName}</p>
-              <p style="font-size: 16px; color: #8B5CF6; font-weight: 700; letter-spacing: 2px;">PREMIUM ZETSUGUIDE CONTENT</p>
+        setProgress(5);
+        setCurrentStep("Optimizing layout...");
+
+        // Clone content for clean capture
+        const container = document.createElement("div");
+        container.style.width = "210mm"; // A4 width
+        container.style.padding = "20mm";
+        container.style.background = "white";
+        container.style.position = "absolute";
+        container.style.left = "-9999px";
+        container.style.top = "0";
+
+        // Add luxury title page
+        const titlePage = document.createElement("div");
+        titlePage.style.cssText =
+          "min-height: 300px; margin-bottom: 50px; padding: 60px; border: 5px solid #000; background: linear-gradient(135deg, #8B5CF6 0%, #DB2777 50%, #F59E0B 100%); box-shadow: inset 0 0 100px rgba(0,0,0,0.2);";
+        titlePage.innerHTML = `
+          <div style="background: rgba(255,255,255,0.95); padding: 40px; border: 3px solid #000; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <div style="text-align: center; border-bottom: 3px solid #000; padding-bottom: 20px; margin-bottom: 20px;">
+              <h1 style="font-size: 42px; font-weight: 900; margin-bottom: 15px; color: #000; text-shadow: 2px 2px 0px #8B5CF6;">✨ ${guide.title}</h1>
+              <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #8B5CF6;">
+                <p style="font-size: 20px; color: #333; margin-bottom: 8px; font-weight: 600;">📝 Created by ${authorName}</p>
+                <p style="font-size: 16px; color: #8B5CF6; font-weight: 700; letter-spacing: 2px;">PREMIUM ZETSUGUIDE CONTENT</p>
+              </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+              <p style="font-size: 14px; color: #666; font-style: italic;">High-Quality Professional Guide • zetsuguids.vercel.app</p>
             </div>
           </div>
-          <div style="text-align: center; margin-top: 20px;">
-            <p style="font-size: 14px; color: #666; font-style: italic;">High-Quality Professional Guide \u2022 zetsuguids.vercel.app</p>
-          </div>
-        </div>
-      `;
+        `;
 
-      container.appendChild(titlePage);
+        container.appendChild(titlePage);
 
-      // Clone actual content with better formatting
-      const contentClone = content.cloneNode(true);
-      contentClone.style.cssText =
-        "font-family: Arial, sans-serif; line-height: 1.8; color: #000; font-size: 14px; padding-bottom: 60px;";
+        // Clone actual content with better formatting
+        const contentClone = content.cloneNode(true);
+        contentClone.style.cssText =
+          "font-family: Arial, sans-serif; line-height: 1.8; color: #000; font-size: 14px; padding-bottom: 60px;";
 
-      // Improve content styling for better page breaks
-      const headings = contentClone.querySelectorAll("h1, h2, h3, h4, h5, h6");
-      headings.forEach((h) => {
-        h.style.pageBreakAfter = "avoid";
-        h.style.breakAfter = "avoid";
-        h.style.marginTop = "25px";
-        h.style.marginBottom = "15px";
-      });
-
-      const paragraphs = contentClone.querySelectorAll("p");
-      paragraphs.forEach((p) => {
-        p.style.marginBottom = "12px";
-        p.style.orphans = "3";
-        p.style.widows = "3";
-      });
-
-      container.appendChild(contentClone);
-
-      document.body.appendChild(container);
-
-      setProgress(10);
-      setCurrentStep("Capturing high-quality images...");
-
-      // Capture entire container
-      const fullCanvas = await html2canvas(container, {
-        scale: 3, // Higher quality
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        windowWidth: 794, // A4 width in pixels at 96 DPI
-        windowHeight: container.scrollHeight,
-      });
-
-      setProgress(40);
-
-      // Calculate page splits
-      const pageHeightPx = 1123; // A4 height in pixels at 96 DPI
-      const totalPages = Math.ceil(fullCanvas.height / pageHeightPx);
-
-      setCurrentStep(
-        `Generating ${totalPages} image${totalPages > 1 ? "s" : ""}...`,
-      );
-
-      for (let i = 0; i < totalPages; i++) {
-        setProgress(40 + (50 / totalPages) * (i + 1));
-        setCurrentStep(`Processing image ${i + 1} of ${totalPages}...`);
-
-        // Create page canvas
-        const pageCanvas = document.createElement("canvas");
-        pageCanvas.width = fullCanvas.width;
-        pageCanvas.height = Math.min(
-          pageHeightPx,
-          fullCanvas.height - i * pageHeightPx,
-        );
-        const pageCtx = pageCanvas.getContext("2d");
-
-        // Draw slice from full canvas
-        pageCtx.drawImage(
-          fullCanvas,
-          0,
-          i * pageHeightPx,
-          fullCanvas.width,
-          pageCanvas.height,
-          0,
-          0,
-          fullCanvas.width,
-          pageCanvas.height,
-        );
-
-        // Add watermark
-        addWatermark(pageCtx, pageCanvas, i + 1, totalPages);
-
-        // Convert to blob and download
-        await new Promise((resolve) => {
-          pageCanvas.toBlob((blob) => {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${guide.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}_page_${i + 1}_zetsuguide.png`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            resolve();
-          }, "image/png");
+        // Improve content styling for better page breaks
+        const headings = contentClone.querySelectorAll("h1, h2, h3, h4, h5, h6");
+        headings.forEach((h) => {
+          h.style.pageBreakAfter = "avoid";
+          h.style.breakAfter = "avoid";
+          h.style.marginTop = "25px";
+          h.style.marginBottom = "15px";
         });
 
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        const paragraphs = contentClone.querySelectorAll("p");
+        paragraphs.forEach((p) => {
+          p.style.marginBottom = "12px";
+          p.style.orphans = "3";
+          p.style.widows = "3";
+        });
+
+        container.appendChild(contentClone);
+
+        document.body.appendChild(container);
+
+        setProgress(10);
+        setCurrentStep("Capturing high-quality images...");
+
+        // Capture entire container
+        const fullCanvas = await html2canvas(container, {
+          scale: 3, // Higher quality
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+          windowWidth: 794, // A4 width in pixels at 96 DPI
+          windowHeight: container.scrollHeight,
+        });
+
+        setProgress(40);
+
+        // Calculate page splits
+        const pageHeightPx = 1123; // A4 height in pixels at 96 DPI
+        const totalPages = Math.ceil(fullCanvas.height / pageHeightPx);
+
+        setCurrentStep(
+          `Generating ${totalPages} image${totalPages > 1 ? "s" : ""}...`,
+        );
+
+        for (let i = 0; i < totalPages; i++) {
+          setProgress(40 + (50 / totalPages) * (i + 1));
+          setCurrentStep(`Processing image ${i + 1} of ${totalPages}...`);
+
+          // Create page canvas
+          const pageCanvas = document.createElement("canvas");
+          pageCanvas.width = fullCanvas.width;
+          pageCanvas.height = Math.min(
+            pageHeightPx,
+            fullCanvas.height - i * pageHeightPx,
+          );
+          const pageCtx = pageCanvas.getContext("2d");
+
+          // Draw slice from full canvas
+          pageCtx.drawImage(
+            fullCanvas,
+            0,
+            i * pageHeightPx,
+            fullCanvas.width,
+            pageCanvas.height,
+            0,
+            0,
+            fullCanvas.width,
+            pageCanvas.height,
+          );
+
+          // Add watermark
+          addWatermark(pageCtx, pageCanvas, i + 1, totalPages);
+
+          // Convert to blob and download
+          await new Promise((resolve) => {
+            pageCanvas.toBlob((blob) => {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `${guide.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}_page_${i + 1}_zetsuguide.png`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              resolve();
+            }, "image/png");
+          });
+
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+
+        // Cleanup
+        document.body.removeChild(container);
+
+        setProgress(100);
+        setCurrentStep("All images downloaded!");
+
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      } catch (error) {
+        console.error("Images Download Error:", error);
+        setCurrentStep("Error: " + error.message);
+        setTimeout(() => onClose(), 3000);
+      } finally {
+        // Restore page scrolling
+        document.body.style.overflow = originalOverflow;
+        document.body.style.position = originalPosition;
+        document.body.style.width = "";
       }
-
-      // Cleanup
-      document.body.removeChild(container);
-
-      setProgress(100);
-      setCurrentStep("All images downloaded!");
-
-      setTimeout(() => {
-        onClose();
-      }, 1500);
     } catch (error) {
       console.error("Images Download Error:", error);
       setCurrentStep("Error: " + error.message);
       setTimeout(() => onClose(), 3000);
-    } finally {
-      // Restore page scrolling
-      document.body.style.overflow = originalOverflow;
-      document.body.style.position = originalPosition;
+      // Ensure scrolling is restored even if initial setup fails
+      document.body.style.overflow = "";
+      document.body.style.position = "";
       document.body.style.width = "";
+    } finally {
+      setDownloading(false);
     }
   };
 

@@ -1,31 +1,30 @@
 import {
-    ArrowLeft,
-    Bot,
-    Calendar,
-    Check,
-    ChevronDown,
-    ChevronUp,
-    Clock,
-    Download,
-    ExternalLink,
-    Eye,
-    FileText,
-    Languages,
-    Loader2,
-    Lock,
-    Mail,
-    MoreVertical,
-    Search,
-    Share2,
-    Sparkles,
-    Tag,
-    Trash2,
-    UserPlus,
-    Volume2,
-    VolumeX,
+  ArrowLeft,
+  Bot,
+  Calendar,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Download,
+  ExternalLink,
+  Eye,
+  FileText,
+  Languages,
+  Loader2,
+  Lock,
+  Mail,
+  MoreVertical,
+  Search,
+  Share2,
+  Sparkles,
+  Tag,
+  Trash2,
+  UserPlus,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { marked } from "marked";
-import mermaid from "mermaid";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -145,6 +144,7 @@ export default function GuidePage() {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isPlayingTTS, setIsPlayingTTS] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false); // New Feature: Focus Mode
+  const [isDarkMode, setIsDarkMode] = useState(false); // New Feature: Dark Mode
   const [searchQuery, setSearchQuery] = useState("");
   const [viewsCount, setViewsCount] = useState(0);
   const [hasRecordedView, setHasRecordedView] = useState(false);
@@ -161,8 +161,21 @@ export default function GuidePage() {
     loadGuide();
   }, [slug]);
 
+  // Initialize Mermaid dynamically
   useEffect(() => {
-    mermaid.initialize({ startOnLoad: false, theme: "default" });
+    const initMermaid = async () => {
+      try {
+        const mermaidModule = await import("mermaid");
+        mermaidModule.default.initialize({
+          startOnLoad: false,
+          theme: "default",
+          securityLevel: "loose",
+        });
+      } catch (error) {
+        console.error("Failed to initialize Mermaid:", error);
+      }
+    };
+    initMermaid();
   }, []);
 
   // Track view when user scrolls to bottom
@@ -192,6 +205,31 @@ export default function GuidePage() {
     }
   }, [guide?.id]);
 
+  // Handle Dark Mode
+  useEffect(() => {
+    // Check if dark mode is saved in localStorage or system preference
+    const savedDarkMode = localStorage.getItem("guideDarkMode");
+    const prefersDark =
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+    if (savedDarkMode) {
+      setIsDarkMode(savedDarkMode === "true");
+    } else {
+      setIsDarkMode(prefersDark);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Apply dark mode class to body
+    if (isDarkMode) {
+      document.body.classList.add("dark");
+    } else {
+      document.body.classList.remove("dark");
+    }
+    localStorage.setItem("guideDarkMode", isDarkMode);
+  }, [isDarkMode]);
+
   // Close More menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -209,17 +247,28 @@ export default function GuidePage() {
     };
   }, [showMoreMenu]);
 
+  // Render Mermaid diagrams
   useEffect(() => {
     if (guide) {
       // Small delay to ensure DOM is ready
       const timer = setTimeout(() => {
-        try {
-          mermaid.run({
-            querySelector: ".mermaid",
-          });
-        } catch (err) {
-          console.error("Mermaid failed to render:", err);
-        }
+        const renderMermaid = async () => {
+          try {
+            const mermaidModule = await import("mermaid");
+            await mermaidModule.default.run({
+              querySelector: ".mermaid",
+            });
+          } catch (err) {
+            console.error("Mermaid failed to render:", err);
+            // Hide Mermaid blocks that fail to render to prevent visual issues
+            const mermaidBlocks = document.querySelectorAll(".mermaid");
+            mermaidBlocks.forEach((block) => {
+              block.style.display = "none";
+            });
+            toast.error("Failed to render diagram");
+          }
+        };
+        renderMermaid();
       }, 250);
 
       return () => clearTimeout(timer);
@@ -408,6 +457,10 @@ export default function GuidePage() {
       console.log("Views count not available yet");
       setViewsCount(0);
     }
+  }
+
+  function toggleDarkMode() {
+    setIsDarkMode(!isDarkMode);
   }
 
   async function recordView() {
@@ -968,17 +1021,33 @@ export default function GuidePage() {
                     </button>
                   )}
 
-                  {/* Focus Mode Button - NEW FEATURE */}
-                  <button
-                    onClick={() => {
-                      setIsFocusMode(true);
-                      setShowMoreMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors text-sm flex items-center gap-3 font-medium text-purple-600 border-b border-gray-100"
-                  >
-                    <Eye size={16} />
-                    Enter Focus Mode
-                  </button>
+                   {/* Dark Mode Toggle - NEW FEATURE */}
+                   <button
+                     onClick={() => {
+                       toggleDarkMode();
+                       setShowMoreMenu(false);
+                     }}
+                     className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors text-sm flex items-center gap-3 font-medium text-blue-600 border-b border-gray-100"
+                   >
+                     {isDarkMode ? (
+                       <Sun size={16} />
+                     ) : (
+                       <Moon size={16} />
+                     )}
+                     {isDarkMode ? "Light Mode" : "Dark Mode"}
+                   </button>
+
+                   {/* Focus Mode Button - NEW FEATURE */}
+                   <button
+                     onClick={() => {
+                       setIsFocusMode(true);
+                       setShowMoreMenu(false);
+                     }}
+                     className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors text-sm flex items-center gap-3 font-medium text-purple-600 border-b border-gray-100"
+                   >
+                     <Eye size={16} />
+                     Enter Focus Mode
+                   </button>
 
                   {/* AI Tools Section */}
                   <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
