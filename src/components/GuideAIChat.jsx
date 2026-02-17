@@ -1,15 +1,7 @@
-import {
-  Bot,
-  Loader2,
-  MessageCircle,
-  Send,
-  X,
-  Zap
-} from "lucide-react";
+import { Bot, Loader2, MessageCircle, Send, X, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { extractGuideContent } from "../lib/utils";
 import { supabase } from "../lib/api";
 
 export function GuideAIChat({ guide, isOpen, onClose }) {
@@ -133,19 +125,27 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
 
     try {
       // Prepare context from guide
-      const context = `Guide Title: ${guide.title}\n\nGuide Content:\n${extractGuideContent(guide)}`;
-
       const response = await fetch("/api/ai", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "glm-4.5-air:free",
+          // Removed hardcoded model to let backend choose the best available one
+          // model: "google/gemini-2.0-flash-exp:free",
           messages: [
             {
               role: "system",
-              content: `You are a helpful assistant answering questions about a specific guide. Be concise, accurate, and reference specific parts of the guide when relevant.\n\nContext:\n${context}`,
+              content: `You are ZetsuGuide AI, a helpful and intelligent assistant for a developer documentation platform.
+
+              CONTEXT:
+              ${context}
+
+              INSTRUCTIONS:
+              1. Answer the user's question based on the provided guide content.
+              2. If the answer is not in the guide, use your general knowledge but mention that it's not in the guide.
+              3. Be concise, professional, and helpful.
+              4. Format code blocks properly.`,
             },
             ...messages.map((msg) => ({
               role: msg.role,
@@ -263,8 +263,9 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
                 {messages.map((message, index) => (
                   <div
                     key={index}
-                    className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"
-                      }`}
+                    className={`flex gap-3 ${
+                      message.role === "user" ? "justify-end" : "justify-start"
+                    }`}
                   >
                     {message.role === "assistant" && (
                       <div className="w-10 h-10 bg-black flex items-center justify-center flex-shrink-0">
@@ -272,10 +273,11 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
                       </div>
                     )}
                     <div
-                      className={`max-w-[70%] px-5 py-3 border-3 border-black ${message.role === "user"
-                        ? "bg-black text-white"
-                        : "bg-white text-black"
-                        }`}
+                      className={`max-w-[70%] px-5 py-3 border-3 border-black ${
+                        message.role === "user"
+                          ? "bg-black text-white"
+                          : "bg-white text-black"
+                      }`}
                     >
                       <p className="whitespace-pre-wrap break-words leading-relaxed font-medium">
                         {message.content}

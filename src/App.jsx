@@ -10,6 +10,7 @@ import Layout from "./components/Layout";
 import NetworkStatusMonitor from "./components/NetworkStatusMonitor";
 import { AuthProvider } from "./contexts/AuthContext";
 import { LoadingProvider } from "./contexts/LoadingContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
 import { prefetchGuidesOnLoad } from "./hooks/useGuides";
 
 // Lazy load pages for performance optimization
@@ -62,8 +63,9 @@ function App() {
   );
 
   return (
-    <LoadingProvider>
-      <AuthProvider>
+    <ThemeProvider>
+      <LoadingProvider>
+        <AuthProvider>
         <GlobalLoader />
         <GlobalErrorHandler />
         <NetworkStatusMonitor />
@@ -109,7 +111,8 @@ function App() {
           </Routes>
         </Suspense>
       </AuthProvider>
-    </LoadingProvider>
+      </LoadingProvider>
+    </ThemeProvider>
   );
 }
 

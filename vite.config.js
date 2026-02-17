@@ -15,7 +15,7 @@ function apiMiddleware() {
       const apiKey = env.VITE_AI_API_KEY || env.ROUTEWAY_API_KEY;
       const apiUrl =
         env.VITE_AI_API_URL || "https://api.routeway.ai/v1/chat/completions";
-      const apiModel = env.VITE_AI_MODEL || "kimi-k2-0905:free";
+      const apiModel = env.VITE_AI_MODEL || "google/gemini-2.0-flash-exp:free";
 
       // Supabase config for daily credits
       const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
@@ -53,18 +53,21 @@ function apiMiddleware() {
         }
 
         // Helper to parse body
-        const parseBody = (req) => new Promise((resolve, reject) => {
-          let body = "";
-          req.on("data", (chunk) => { body += chunk; });
-          req.on("end", () => {
-            try {
-              resolve(body ? JSON.parse(body) : {});
-            } catch (e) {
-              resolve({});
-            }
+        const parseBody = (req) =>
+          new Promise((resolve, reject) => {
+            let body = "";
+            req.on("data", (chunk) => {
+              body += chunk;
+            });
+            req.on("end", () => {
+              try {
+                resolve(body ? JSON.parse(body) : {});
+              } catch (e) {
+                resolve({});
+              }
+            });
+            req.on("error", reject);
           });
-          req.on("error", reject);
-        });
 
         // Helper to create mock objects for Vercel functions
         const createMocks = (req, res, body, query = {}) => {
@@ -73,7 +76,7 @@ function apiMiddleware() {
             body: body,
             query: query,
             headers: req.headers,
-            url: req.url
+            url: req.url,
           };
           const mockRes = {
             statusCode: 200,
@@ -99,7 +102,7 @@ function apiMiddleware() {
             },
             write(data) {
               return res.write(data);
-            }
+            },
           };
           return { mockReq, mockRes };
         };
@@ -107,10 +110,13 @@ function apiMiddleware() {
         // --- USERS API (Register) ---
         if (req.url === "/api/register" && req.method === "POST") {
           const body = await parseBody(req);
-          const { mockReq, mockRes } = createMocks(req, res, body, { type: 'register' });
+          const { mockReq, mockRes } = createMocks(req, res, body, {
+            type: "register",
+          });
 
           // Environment variables
-          process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+          process.env.VITE_SUPABASE_URL =
+            env.VITE_SUPABASE_URL || env.SUPABASE_URL;
           process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
           process.env.MAIL_USERNAME = env.MAIL_USERNAME;
           process.env.MAIL_PASSWORD = env.MAIL_PASSWORD;
@@ -130,13 +136,17 @@ function apiMiddleware() {
         // --- PAYMENTS API (Create Payment, Claim Referral, Daily Credits, etc.) ---
         if (req.url === "/api/claim_referral" && req.method === "POST") {
           const body = await parseBody(req);
-          const { mockReq, mockRes } = createMocks(req, res, body, { type: 'claim_referral' });
+          const { mockReq, mockRes } = createMocks(req, res, body, {
+            type: "claim_referral",
+          });
 
-          process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+          process.env.VITE_SUPABASE_URL =
+            env.VITE_SUPABASE_URL || env.SUPABASE_URL;
           process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
 
           try {
-            const { default: paymentsHandler } = await import("./api/payments.js");
+            const { default: paymentsHandler } =
+              await import("./api/payments.js");
             await paymentsHandler(mockReq, mockRes);
           } catch (error) {
             console.error("Claim Referral API Error:", error);
@@ -148,13 +158,17 @@ function apiMiddleware() {
 
         if (req.url === "/api/daily_credits" && req.method === "POST") {
           const body = await parseBody(req);
-          const { mockReq, mockRes } = createMocks(req, res, body, { type: 'daily_credits' });
+          const { mockReq, mockRes } = createMocks(req, res, body, {
+            type: "daily_credits",
+          });
 
-          process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+          process.env.VITE_SUPABASE_URL =
+            env.VITE_SUPABASE_URL || env.SUPABASE_URL;
           process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
 
           try {
-            const { default: paymentsHandler } = await import("./api/payments.js");
+            const { default: paymentsHandler } =
+              await import("./api/payments.js");
             await paymentsHandler(mockReq, mockRes);
           } catch (error) {
             console.error("Daily Credits API Error:", error);
@@ -166,14 +180,18 @@ function apiMiddleware() {
 
         if (req.url === "/api/create_payment" && req.method === "POST") {
           const body = await parseBody(req);
-          const { mockReq, mockRes } = createMocks(req, res, body, { type: 'create' });
+          const { mockReq, mockRes } = createMocks(req, res, body, {
+            type: "create",
+          });
 
           process.env.VITE_PAYMOB_API_KEY = env.VITE_PAYMOB_API_KEY;
-          process.env.VITE_PAYMOB_INTEGRATION_ID = env.VITE_PAYMOB_INTEGRATION_ID;
+          process.env.VITE_PAYMOB_INTEGRATION_ID =
+            env.VITE_PAYMOB_INTEGRATION_ID;
           process.env.VITE_PAYMOB_IFRAME_ID = env.VITE_PAYMOB_IFRAME_ID;
 
           try {
-            const { default: paymentsHandler } = await import("./api/payments.js");
+            const { default: paymentsHandler } =
+              await import("./api/payments.js");
             await paymentsHandler(mockReq, mockRes);
           } catch (error) {
             console.error("Create Payment API Error:", error);
@@ -187,16 +205,20 @@ function apiMiddleware() {
           try {
             const url = new URL(req.url, `http://${req.headers.host}`);
             const query = Object.fromEntries(url.searchParams);
-            query.type = 'approve_reward'; // Add type for router
+            query.type = "approve_reward"; // Add type for router
 
             // Environment
-            process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-            process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
-            if (env.ADMIN_APPROVAL_TOKEN) process.env.ADMIN_APPROVAL_TOKEN = env.ADMIN_APPROVAL_TOKEN;
+            process.env.VITE_SUPABASE_URL =
+              env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+            process.env.SUPABASE_SERVICE_KEY =
+              env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
+            if (env.ADMIN_APPROVAL_TOKEN)
+              process.env.ADMIN_APPROVAL_TOKEN = env.ADMIN_APPROVAL_TOKEN;
 
             const { mockReq, mockRes } = createMocks(req, res, {}, query);
 
-            const { default: paymentsHandler } = await import("./api/payments.js");
+            const { default: paymentsHandler } =
+              await import("./api/payments.js");
             await paymentsHandler(mockReq, mockRes);
           } catch (error) {
             console.error("Approve API Error:", error);
@@ -206,18 +228,25 @@ function apiMiddleware() {
           return;
         }
 
-        if (req.url === "/api/payment_callback" || req.url?.startsWith("/api/payment_status")) {
+        if (
+          req.url === "/api/payment_callback" ||
+          req.url?.startsWith("/api/payment_status")
+        ) {
           // For simplicity, verify this logic again if needed.
           // But for now, routing to payments.js with type 'webhook'
           if (req.method === "POST") {
             const body = await parseBody(req);
-            const { mockReq, mockRes } = createMocks(req, res, body, { type: 'webhook' });
+            const { mockReq, mockRes } = createMocks(req, res, body, {
+              type: "webhook",
+            });
 
-            process.env.SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+            process.env.SUPABASE_URL =
+              env.VITE_SUPABASE_URL || env.SUPABASE_URL;
             process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
 
             try {
-              const { default: paymentsHandler } = await import("./api/payments.js");
+              const { default: paymentsHandler } =
+                await import("./api/payments.js");
               await paymentsHandler(mockReq, mockRes);
             } catch (error) {
               console.error("Payment Handler Error:", error);
@@ -234,13 +263,17 @@ function apiMiddleware() {
         // --- INTERACTIONS API (Follow, Record, Mark Read) ---
         if (req.url === "/api/follow_user" && req.method === "POST") {
           const body = await parseBody(req);
-          const { mockReq, mockRes } = createMocks(req, res, body, { type: 'follow' });
+          const { mockReq, mockRes } = createMocks(req, res, body, {
+            type: "follow",
+          });
 
-          process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+          process.env.VITE_SUPABASE_URL =
+            env.VITE_SUPABASE_URL || env.SUPABASE_URL;
           process.env.VITE_SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY;
 
           try {
-            const { default: interactionsHandler } = await import("./api/interactions.js");
+            const { default: interactionsHandler } =
+              await import("./api/interactions.js");
             await interactionsHandler(mockReq, mockRes);
           } catch (error) {
             console.error("Follow User API Error:", error);
@@ -250,15 +283,23 @@ function apiMiddleware() {
           return;
         }
 
-        if (req.url === "/api/mark_notification_read" && req.method === "POST") {
+        if (
+          req.url === "/api/mark_notification_read" &&
+          req.method === "POST"
+        ) {
           const body = await parseBody(req);
-          const { mockReq, mockRes } = createMocks(req, res, body, { type: 'mark_read' });
+          const { mockReq, mockRes } = createMocks(req, res, body, {
+            type: "mark_read",
+          });
 
-          process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-          process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
+          process.env.VITE_SUPABASE_URL =
+            env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+          process.env.SUPABASE_SERVICE_KEY =
+            env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
 
           try {
-            const { default: interactionsHandler } = await import("./api/interactions.js");
+            const { default: interactionsHandler } =
+              await import("./api/interactions.js");
             await interactionsHandler(mockReq, mockRes);
           } catch (error) {
             console.error("Mark Read API Error:", error);
@@ -274,19 +315,27 @@ function apiMiddleware() {
           // Frontend might send headers, usually sends issueType etc.
           // Map to content.js expected structure if needed, or just pass body
           // content.js expects 'type' in query to be 'submission'
-          const { mockReq, mockRes } = createMocks(req, res, body, { type: 'submission' });
+          const { mockReq, mockRes } = createMocks(req, res, body, {
+            type: "submission",
+          });
           // content.js expects 'type' in BODY to be 'bug' or 'support'
-          mockReq.body.type = 'bug';
+          mockReq.body.type = "bug";
 
-          process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-          process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
-          process.env.MAIL_USERNAME = env.MAIL_USERNAME || process.env.MAIL_USERNAME;
-          process.env.MAIL_PASSWORD = env.MAIL_PASSWORD || process.env.MAIL_PASSWORD;
-          if (env.ADMIN_APPROVAL_TOKEN) process.env.ADMIN_APPROVAL_TOKEN = env.ADMIN_APPROVAL_TOKEN;
+          process.env.VITE_SUPABASE_URL =
+            env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+          process.env.SUPABASE_SERVICE_KEY =
+            env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
+          process.env.MAIL_USERNAME =
+            env.MAIL_USERNAME || process.env.MAIL_USERNAME;
+          process.env.MAIL_PASSWORD =
+            env.MAIL_PASSWORD || process.env.MAIL_PASSWORD;
+          if (env.ADMIN_APPROVAL_TOKEN)
+            process.env.ADMIN_APPROVAL_TOKEN = env.ADMIN_APPROVAL_TOKEN;
           process.env.VITE_APP_URL = "http://localhost:3001";
 
           try {
-            const { default: contentHandler } = await import("./api/content.js");
+            const { default: contentHandler } =
+              await import("./api/content.js");
             await contentHandler(mockReq, mockRes);
           } catch (error) {
             console.error("Bug API Error:", error);
@@ -296,17 +345,24 @@ function apiMiddleware() {
           return;
         }
 
-        if ((req.url === "/api/support_ticket" || req.url === "/api/submit_support") && req.method === "POST") {
+        if (
+          (req.url === "/api/support_ticket" ||
+            req.url === "/api/submit_support") &&
+          req.method === "POST"
+        ) {
           const body = await parseBody(req);
-          const { mockReq, mockRes } = createMocks(req, res, body, { type: 'submission' });
-          mockReq.body.type = 'support';
+          const { mockReq, mockRes } = createMocks(req, res, body, {
+            type: "submission",
+          });
+          mockReq.body.type = "support";
 
           process.env.MAIL_USERNAME = env.MAIL_USERNAME;
           process.env.MAIL_PASSWORD = env.MAIL_PASSWORD;
           process.env.SUPPORT_EMAIL = "zetsuserv@gmail.com";
 
           try {
-            const { default: contentHandler } = await import("./api/content.js");
+            const { default: contentHandler } =
+              await import("./api/content.js");
             await contentHandler(mockReq, mockRes);
           } catch (error) {
             console.error("Support API Error:", error);
@@ -321,9 +377,13 @@ function apiMiddleware() {
           const body = await parseBody(req);
           const { mockReq, mockRes } = createMocks(req, res, body, {});
 
-          process.env.VITE_AI_API_KEY = env.VITE_AI_API_KEY || env.ROUTEWAY_API_KEY;
-          process.env.VITE_AI_API_URL = env.VITE_AI_API_URL || "https://api.routeway.ai/v1/chat/completions";
-          process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+          process.env.VITE_AI_API_KEY =
+            env.VITE_AI_API_KEY || env.ROUTEWAY_API_KEY;
+          process.env.VITE_AI_API_URL =
+            env.VITE_AI_API_URL ||
+            "https://api.routeway.ai/v1/chat/completions";
+          process.env.VITE_SUPABASE_URL =
+            env.VITE_SUPABASE_URL || env.SUPABASE_URL;
           process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
 
           try {
@@ -343,33 +403,38 @@ function apiMiddleware() {
           const url = new URL(req.url, `http://${req.headers.host}`);
           const query = Object.fromEntries(url.searchParams);
 
-          if (req.method === 'POST') {
+          if (req.method === "POST") {
             const body = await parseBody(req);
             const { mockReq, mockRes } = createMocks(req, res, body, query);
             // Inject necessary envs (superset of all)
-            process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+            process.env.VITE_SUPABASE_URL =
+              env.VITE_SUPABASE_URL || env.SUPABASE_URL;
             process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
             // + Paymob envs
             process.env.VITE_PAYMOB_API_KEY = env.VITE_PAYMOB_API_KEY;
-            process.env.VITE_PAYMOB_INTEGRATION_ID = env.VITE_PAYMOB_INTEGRATION_ID;
+            process.env.VITE_PAYMOB_INTEGRATION_ID =
+              env.VITE_PAYMOB_INTEGRATION_ID;
             process.env.VITE_PAYMOB_IFRAME_ID = env.VITE_PAYMOB_IFRAME_ID;
 
             try {
-              const { default: paymentsHandler } = await import("./api/payments.js");
+              const { default: paymentsHandler } =
+                await import("./api/payments.js");
               await paymentsHandler(mockReq, mockRes);
             } catch (error) {
               console.error("Payments API Error:", error);
               res.statusCode = 500;
               res.end(JSON.stringify({ error: error.message }));
             }
-          } else if (req.method === 'GET') {
+          } else if (req.method === "GET") {
             const { mockReq, mockRes } = createMocks(req, res, {}, query);
             // Inject necessary envs
-            process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+            process.env.VITE_SUPABASE_URL =
+              env.VITE_SUPABASE_URL || env.SUPABASE_URL;
             process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
 
             try {
-              const { default: paymentsHandler } = await import("./api/payments.js");
+              const { default: paymentsHandler } =
+                await import("./api/payments.js");
               await paymentsHandler(mockReq, mockRes);
             } catch (error) {
               console.error("Payments API Error:", error);
@@ -384,16 +449,18 @@ function apiMiddleware() {
           const url = new URL(req.url, `http://${req.headers.host}`);
           const query = Object.fromEntries(url.searchParams);
 
-          if (req.method === 'POST') {
+          if (req.method === "POST") {
             const body = await parseBody(req);
             const { mockReq, mockRes } = createMocks(req, res, body, query);
 
-            process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+            process.env.VITE_SUPABASE_URL =
+              env.VITE_SUPABASE_URL || env.SUPABASE_URL;
             process.env.VITE_SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY;
             process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
 
             try {
-              const { default: interactionsHandler } = await import("./api/interactions.js");
+              const { default: interactionsHandler } =
+                await import("./api/interactions.js");
               await interactionsHandler(mockReq, mockRes);
             } catch (error) {
               console.error("Interactions API Error:", error);
@@ -408,24 +475,26 @@ function apiMiddleware() {
           const url = new URL(req.url, `http://${req.headers.host}`);
           const query = Object.fromEntries(url.searchParams);
 
-          if (req.method === 'POST') {
+          if (req.method === "POST") {
             const body = await parseBody(req);
             const { mockReq, mockRes } = createMocks(req, res, body, query);
 
-            process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+            process.env.VITE_SUPABASE_URL =
+              env.VITE_SUPABASE_URL || env.SUPABASE_URL;
             process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
             process.env.MAIL_USERNAME = env.MAIL_USERNAME;
             process.env.MAIL_PASSWORD = env.MAIL_PASSWORD;
 
             try {
-              const { default: contentHandler } = await import("./api/content.js");
+              const { default: contentHandler } =
+                await import("./api/content.js");
               await contentHandler(mockReq, mockRes);
             } catch (error) {
               console.error("Content API Error:", error);
               res.statusCode = 500;
               res.end(JSON.stringify({ error: error.message }));
             }
-          } else if (req.method === 'GET') {
+          } else if (req.method === "GET") {
             // Handle GET requests if needed
             res.statusCode = 405;
             res.end(JSON.stringify({ error: "Method not allowed" }));
@@ -437,11 +506,12 @@ function apiMiddleware() {
           const url = new URL(req.url, `http://${req.headers.host}`);
           const query = Object.fromEntries(url.searchParams);
 
-          if (req.method === 'POST') {
+          if (req.method === "POST") {
             const body = await parseBody(req);
             const { mockReq, mockRes } = createMocks(req, res, body, query);
 
-            process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+            process.env.VITE_SUPABASE_URL =
+              env.VITE_SUPABASE_URL || env.SUPABASE_URL;
             process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
             process.env.MAIL_USERNAME = env.MAIL_USERNAME;
             process.env.MAIL_PASSWORD = env.MAIL_PASSWORD;
@@ -483,5 +553,17 @@ export default defineConfig({
     hmr: {
       port: 3000,
     },
+  },
+  optimizeDeps: {
+    include: [
+      "html2canvas",
+      "jspdf",
+      "react",
+      "react-dom",
+      "react-dom/client",
+      "react/jsx-runtime",
+      "@tanstack/react-query",
+    ],
+    force: true, // Forces dependency pre-bundling
   },
 });

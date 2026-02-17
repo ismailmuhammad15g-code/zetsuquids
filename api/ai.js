@@ -468,8 +468,8 @@ async function executeSubAgentWorkflow(
   );
   const researchData = researchResult.success
     ? researchResult.sources
-      .map((s) => `[SOURCE: ${s.url}] ${s.content.substring(0, 1000)}`)
-      .join("\n\n")
+        .map((s) => `[SOURCE: ${s.url}] ${s.content.substring(0, 1000)}`)
+        .join("\n\n")
     : "No new external data found (using internal knowledge).";
 
   // STAGE 4: ANALYST
@@ -514,10 +514,10 @@ async function executeDeepReasoning(query, apiKey, apiUrl, model) {
   const researchResult = await deepResearch(query, apiKey, apiUrl);
   const externalData = researchResult.success
     ? researchResult.sources
-      .map(
-        (s) => `SOURCE: ${s.url}\nCONTENT: ${s.content.substring(0, 1500)}`,
-      )
-      .join("\n\n")
+        .map(
+          (s) => `SOURCE: ${s.url}\nCONTENT: ${s.content.substring(0, 1500)}`,
+        )
+        .join("\n\n")
     : "No external data found.";
 
   // STAGE 3: SYNTHESIS
@@ -638,14 +638,14 @@ export default async function handler(req, res) {
     if (typeof body === "string") {
       try {
         body = JSON.parse(body);
-      } catch (e) { }
+      } catch (e) {}
     }
 
     const { messages, model, userId, userEmail, skipCreditDeduction } =
       body || {};
 
     // Validate and set default model
-    const validatedModel = model || "glm-4.5-air:free";
+    const validatedModel = model || "google/gemini-2.0-flash-exp:free";
 
     // Get the last user message for intelligent fetch
     const userMessage = messages?.find((m) => m.role === "user")?.content || "";
@@ -1268,7 +1268,7 @@ Here is the explanation...
     console.log("AI Request:", {
       userId,
       userEmail,
-      model: model || "glm-4.5-air:free",
+      model: model || "google/gemini-2.0-flash-exp:free",
       messageLength: userMessage.length,
       isSubAgent: isSubAgentMode,
       isDeepReasoning: isDeepReasoning,
@@ -1304,13 +1304,15 @@ Here is the explanation...
       return res.status(500).json({
         error: "Failed to verify credits",
         details: creditError.message,
-        hint: "Please ensure the 'zetsuguide_credits' table exists."
+        hint: "Please ensure the 'zetsuguide_credits' table exists.",
       });
     }
 
     if (!creditData) {
       // User doesn't exist in table yet, create them with default credits
-      console.log(`User ${lookupEmail} not found in credits table. Creating default entry...`);
+      console.log(
+        `User ${lookupEmail} not found in credits table. Creating default entry...`,
+      );
       const { data: newCreditData, error: insertError } = await supabase
         .from("zetsuguide_credits")
         .insert([{ user_email: lookupEmail, credits: 10 }]) // Default 10 credits
@@ -1321,7 +1323,7 @@ Here is the explanation...
         console.error("Error creating default credits:", insertError);
         return res.status(500).json({
           error: "Failed to initialize user credits",
-          details: insertError.message
+          details: insertError.message,
         });
       }
 

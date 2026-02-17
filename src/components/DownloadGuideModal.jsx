@@ -1,5 +1,8 @@
 import { Download, FileImage, FileText, Loader2, X } from "lucide-react";
 import { useState } from "react";
+// Dynamic imports moved inside function to prevent load errors
+// import html2canvas from "html2canvas";
+// import jsPDF from "jspdf";
 
 export default function DownloadGuideModal({ guide, authorName, onClose }) {
   const [downloading, setDownloading] = useState(false);
@@ -83,16 +86,19 @@ export default function DownloadGuideModal({ guide, authorName, onClose }) {
   const downloadAsPDF = async () => {
     setDownloading(true);
     setProgress(0);
-    setCurrentStep("Preparing guide content...");
+    setCurrentStep("Loading PDF tools...");
 
     try {
-      // Dynamic imports with error handling
-      const [html2canvasModule, jsPDFModule] = await Promise.all([
-        import("html2canvas"),
-        import("jspdf")
-      ]);
-      const html2canvas = html2canvasModule.default;
-      const jsPDF = jsPDFModule.default;
+      // Dynamically import libraries to prevent load errors
+      console.log("Loading html2canvas...");
+      const html2canvasModule = await import("html2canvas");
+      const html2canvas = html2canvasModule.default || html2canvasModule;
+      console.log("Loading jsPDF...");
+      const jsPDFModule = await import("jspdf");
+      const jsPDF = jsPDFModule.default || jsPDFModule.jsPDF;
+      console.log("Libraries loaded successfully");
+
+      setCurrentStep("Preparing guide content...");
 
       // Lock page scrolling during processing
       const originalOverflow = document.body.style.overflow;
@@ -141,7 +147,9 @@ export default function DownloadGuideModal({ guide, authorName, onClose }) {
           "font-family: Arial, sans-serif; line-height: 1.8; color: #000; font-size: 14px; padding-bottom: 60px;";
 
         // Improve content styling for better page breaks
-        const headings = contentClone.querySelectorAll("h1, h2, h3, h4, h5, h6");
+        const headings = contentClone.querySelectorAll(
+          "h1, h2, h3, h4, h5, h6",
+        );
         headings.forEach((h) => {
           h.style.pageBreakAfter = "avoid";
           h.style.breakAfter = "avoid";
@@ -165,7 +173,7 @@ export default function DownloadGuideModal({ guide, authorName, onClose }) {
 
         // Capture entire container
         const canvas = await html2canvas(container, {
-          scale: 3, // Higher quality
+          scale: 2, // Reduced for performance
           useCORS: true,
           allowTaint: true,
           backgroundColor: "#ffffff",
@@ -293,12 +301,18 @@ export default function DownloadGuideModal({ guide, authorName, onClose }) {
   const downloadAsImages = async () => {
     setDownloading(true);
     setProgress(0);
-    setCurrentStep("Preparing guide content...");
+    setCurrentStep("Loading tools...");
 
     try {
-      // Dynamic import with error handling
+      // Dynamically import libraries
+      console.log("Loading html2canvas for images...");
       const html2canvasModule = await import("html2canvas");
-      const html2canvas = html2canvasModule.default;
+      const html2canvas = html2canvasModule.default || html2canvasModule;
+      console.log("html2canvas loaded", {
+        hasDefault: !!html2canvasModule.default,
+      });
+
+      setCurrentStep("Preparing guide content...");
 
       // Lock page scrolling during processing
       const originalOverflow = document.body.style.overflow;
@@ -352,7 +366,9 @@ export default function DownloadGuideModal({ guide, authorName, onClose }) {
           "font-family: Arial, sans-serif; line-height: 1.8; color: #000; font-size: 14px; padding-bottom: 60px;";
 
         // Improve content styling for better page breaks
-        const headings = contentClone.querySelectorAll("h1, h2, h3, h4, h5, h6");
+        const headings = contentClone.querySelectorAll(
+          "h1, h2, h3, h4, h5, h6",
+        );
         headings.forEach((h) => {
           h.style.pageBreakAfter = "avoid";
           h.style.breakAfter = "avoid";
@@ -375,8 +391,9 @@ export default function DownloadGuideModal({ guide, authorName, onClose }) {
         setCurrentStep("Capturing high-quality images...");
 
         // Capture entire container
+        // Reduced scale to 2 for better performance prevent hanging
         const fullCanvas = await html2canvas(container, {
-          scale: 3, // Higher quality
+          scale: 2,
           useCORS: true,
           allowTaint: true,
           backgroundColor: "#ffffff",

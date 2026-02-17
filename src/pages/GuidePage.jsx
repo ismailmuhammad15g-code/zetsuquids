@@ -15,9 +15,11 @@ import {
   Lock,
   Mail,
   MoreVertical,
+  Moon,
   Search,
   Share2,
   Sparkles,
+  Sun,
   Tag,
   Trash2,
   UserPlus,
@@ -26,6 +28,7 @@ import {
 } from "lucide-react";
 import { marked } from "marked";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTheme } from "../contexts/ThemeContext";
 import { createRoot } from "react-dom/client";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -144,7 +147,7 @@ export default function GuidePage() {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isPlayingTTS, setIsPlayingTTS] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false); // New Feature: Focus Mode
-  const [isDarkMode, setIsDarkMode] = useState(false); // New Feature: Dark Mode
+  const { isDarkMode, toggleTheme } = useTheme(); // New Feature: Dark Mode
   const [searchQuery, setSearchQuery] = useState("");
   const [viewsCount, setViewsCount] = useState(0);
   const [hasRecordedView, setHasRecordedView] = useState(false);
@@ -205,30 +208,10 @@ export default function GuidePage() {
     }
   }, [guide?.id]);
 
+  /* Dark Mode handled by ThemeContext now
   // Handle Dark Mode
-  useEffect(() => {
-    // Check if dark mode is saved in localStorage or system preference
-    const savedDarkMode = localStorage.getItem("guideDarkMode");
-    const prefersDark =
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches;
-
-    if (savedDarkMode) {
-      setIsDarkMode(savedDarkMode === "true");
-    } else {
-      setIsDarkMode(prefersDark);
-    }
-  }, []);
-
-  useEffect(() => {
-    // Apply dark mode class to body
-    if (isDarkMode) {
-      document.body.classList.add("dark");
-    } else {
-      document.body.classList.remove("dark");
-    }
-    localStorage.setItem("guideDarkMode", isDarkMode);
-  }, [isDarkMode]);
+  // ... (Deleted local effect)
+  */
 
   // Close More menu when clicking outside
   useEffect(() => {
@@ -460,7 +443,7 @@ export default function GuidePage() {
   }
 
   function toggleDarkMode() {
-    setIsDarkMode(!isDarkMode);
+    toggleTheme();
   }
 
   async function recordView() {
@@ -658,7 +641,7 @@ export default function GuidePage() {
 
     return (
       <div
-        className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white"
+        className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800"
         dangerouslySetInnerHTML={{ __html: processedContent.content }}
       />
     );
@@ -743,25 +726,25 @@ export default function GuidePage() {
 
       <div className="pointer-events-none fixed left-0 top-0 z-[100] w-full">
         {/* Backdrop Blur Effect */}
-        <div className="absolute left-0 top-0 h-24 w-full bg-white/50 backdrop-blur-xl [-webkit-mask-image:linear-gradient(to_bottom,black,transparent)]" />
+        <div className="absolute left-0 top-0 h-24 w-full bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl [-webkit-mask-image:linear-gradient(to_bottom,black,transparent)]" />
         {/* Focus Mode Overlay */}
         {isFocusMode && (
-          <div className="fixed inset-0 z-[200] bg-white pointer-events-auto overflow-y-auto animate-in fade-in duration-300">
+          <div className="fixed inset-0 z-[200] bg-white dark:bg-gray-900 pointer-events-auto overflow-y-auto animate-in fade-in duration-300">
             <div className="max-w-3xl mx-auto px-6 py-12">
               <button
                 onClick={() => setIsFocusMode(false)}
-                className="fixed top-6 right-6 p-2 bg-gray-100 hover:bg-black hover:text-white rounded-full transition-all"
+                className="fixed top-6 right-6 p-2 bg-gray-100 dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white dark:text-gray-200 dark:hover:text-white rounded-full transition-all"
                 title="Exit Focus Mode"
               >
                 <Eye size={24} />
               </button>
-              <h1 className="text-4xl font-black mb-12 text-center">
+              <h1 className="text-4xl font-black mb-12 text-center text-black dark:text-white">
                 {guide.title}
               </h1>
-              <div className="guide-content prose md:prose-xl max-w-none">
+              <div className="guide-content prose md:prose-xl max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800">
                 {renderContent()}
               </div>
-              <div className="mt-20 text-center text-gray-400 text-sm">
+              <div className="mt-20 text-center text-gray-400 dark:text-gray-500 text-sm">
                 End of focus mode
               </div>
             </div>
@@ -770,19 +753,19 @@ export default function GuidePage() {
 
         {/* Progress Track */}
         <div className="absolute left-0 top-0 w-full">
-          <div className="absolute left-0 top-0 h-1 w-full bg-gray-200/30" />
+          <div className="absolute left-0 top-0 h-1 w-full bg-gray-200/30 dark:bg-gray-700/30" />
           <ScrollProgress
-            className="absolute top-0 h-1 bg-[linear-gradient(to_right,rgba(0,0,0,0),#000000_75%,#000000_100%)]"
+            className="absolute top-0 h-1 bg-[linear-gradient(to_right,rgba(0,0,0,0),#000000_75%,#000000_100%)] dark:bg-[linear-gradient(to_right,rgba(255,255,255,0),#ffffff_75%,#ffffff_100%)]"
             springOptions={{ stiffness: 280, damping: 18, mass: 0.3 }}
           />
         </div>
       </div>
-      <article className="max-w-4xl mx-auto px-4 py-8 relative z-10">
+      <article className="max-w-4xl mx-auto px-4 py-8 relative z-10 bg-white dark:bg-gray-900 text-black dark:text-white">
         {/* Top Bar: Back Link & Timer */}
         <div className="flex items-center justify-between mb-4">
           <Link
             to="/guides"
-            className="inline-flex items-center gap-2 text-gray-500 hover:text-black transition-colors"
+            className="inline-flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
           >
             <ArrowLeft size={18} />
             Back to Guides
@@ -835,7 +818,7 @@ export default function GuidePage() {
           </h1>
 
           {/* Meta */}
-          <div className="flex flex-wrap items-center gap-4 text-gray-500 mb-6">
+          <div className="flex flex-wrap items-center gap-4 text-gray-500 dark:text-gray-400 mb-6">
             <span className="flex items-center gap-2">
               <Calendar size={16} />
               {new Date(guide.created_at).toLocaleDateString("en-US", {
@@ -845,14 +828,14 @@ export default function GuidePage() {
               })}
             </span>
             {viewsCount > 0 && (
-              <span className="flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-sm font-medium border border-blue-100">
+              <span className="flex items-center gap-2 px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-sm font-medium border border-blue-100 dark:border-blue-800">
                 <Eye size={16} />
                 {viewsCount.toLocaleString()}{" "}
                 {viewsCount === 1 ? "view" : "views"}
               </span>
             )}
             {guide.content_type === "html" && (
-              <span className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-xs font-medium">
+              <span className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-300">
                 <ExternalLink size={12} />
                 HTML/CSS
               </span>
@@ -861,7 +844,7 @@ export default function GuidePage() {
 
           {/* Author Card */}
           {guide.user_email && (
-            <div className="mb-8 p-4 border-2 border-black bg-gradient-to-r from-purple-50 to-pink-50">
+            <div className="mb-8 p-4 border-2 border-black bg-gradient-to-r from-purple-50 to-pink-50 dark:bg-gradient-to-r from-purple-900/30 to-pink-900/30 dark:border-gray-700">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   {authorAvatar ? (
@@ -877,12 +860,12 @@ export default function GuidePage() {
                     </div>
                   )}
                   <div>
-                    <p className="text-sm text-gray-600">By</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">By</p>
                     <p className="font-bold text-lg">
                       {guide.author_name || guide.user_email.split("@")[0]}
                     </p>
                     {guide.user_email && (
-                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                         <Mail size={12} />
                         {guide.user_email}
                       </p>
@@ -900,7 +883,7 @@ export default function GuidePage() {
                   />
                   <Link
                     to={`/@${(guide.author_name || guide.user_email.split("@")[0]).toLowerCase()}/workspace`}
-                    className="px-4 py-2 bg-white text-black border-2 border-black text-sm font-medium hover:bg-gray-100 transition-colors text-center"
+                    className="px-4 py-2 bg-white dark:bg-gray-800 text-black dark:text-white border-2 border-black dark:border-gray-600 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-center"
                   >
                     View Profile
                   </Link>
@@ -915,7 +898,7 @@ export default function GuidePage() {
               {guide.keywords.map((kw, i) => (
                 <span
                   key={i}
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-sm font-medium"
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
                   <Tag size={12} />
                   {kw}

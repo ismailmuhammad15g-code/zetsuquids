@@ -238,17 +238,17 @@ export default function Layout() {
       sparkCount={8}
       duration={400}
     >
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-white transition-colors duration-300 dark:bg-black dark:text-white">
         {/* Header */}
-        <header className="sticky top-0 z-[100] bg-white border-b-2 border-black">
+        <header className="sticky top-0 z-[100] bg-white border-b-2 border-black transition-colors duration-300 dark:bg-black dark:border-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               {/* Logo */}
               <Link to="/" className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-black flex items-center justify-center">
-                  <span className="text-white font-black text-xl">D</span>
+                <div className="w-10 h-10 bg-black flex items-center justify-center transition-colors duration-300 dark:bg-white">
+                  <span className="text-white font-black text-xl transition-colors duration-300 dark:text-black">D</span>
                 </div>
-                <span className="text-2xl font-black tracking-tight hidden sm:block">
+                <span className="text-2xl font-black tracking-tight hidden sm:block transition-colors duration-300 dark:text-white">
                   DevVault
                 </span>
               </Link>
@@ -263,13 +263,14 @@ export default function Layout() {
                 {/* Search Button */}
                 <button
                   onClick={() => setShowSearchModal(true)}
-                  className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:border-black transition-colors text-sm"
+                  className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-white/20 dark:hover:border-white hover:border-black transition-colors text-sm dark:bg-black/50"
+                  aria-label="Search"
                 >
-                  <Search size={16} />
-                  <span className="hidden sm:inline text-gray-500">
+                  <Search size={16} className="text-gray-500 dark:text-gray-400" />
+                  <span className="hidden sm:inline text-gray-500 dark:text-gray-400">
                     Search...
                   </span>
-                  <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-gray-100 border rounded">
+                  <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-gray-100 dark:bg-white/10 border dark:border-white/10 rounded dark:text-gray-300">
                     ⌘K
                   </kbd>
                 </button>
@@ -278,7 +279,7 @@ export default function Layout() {
                 {isAuthenticated() && (
                   <button
                     onClick={() => setShowAddModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-black text-white font-medium hover:bg-gray-800 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white dark:bg-white dark:text-black font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
                   >
                     <Plus size={18} />
                     <span className="hidden sm:inline">Add Guide</span>
@@ -290,9 +291,9 @@ export default function Layout() {
                   <div className="relative">
                     <button
                       onClick={() => setShowUserMenu(!showUserMenu)}
-                      className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:border-black transition-colors rounded-lg group"
+                      className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-white/20 hover:border-black dark:hover:border-white transition-colors rounded-lg group"
                     >
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center overflow-hidden border border-black group-hover:scale-105 transition-transform">
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center overflow-hidden border border-black dark:border-white group-hover:scale-105 transition-transform">
                         <img
                           src={getAvatarForUser(
                             user?.email,
