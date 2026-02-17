@@ -11,7 +11,8 @@ export default function FollowButton({
   className = "",
 }) {
   const { user } = useAuth();
-  const { recordFollowInteraction } = useAuthorFollowInteraction(targetUserEmail);
+  const { recordFollowInteraction } =
+    useAuthorFollowInteraction(targetUserEmail);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [loading, setLoading] = useState(false);

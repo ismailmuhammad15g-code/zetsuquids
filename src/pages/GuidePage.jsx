@@ -129,10 +129,10 @@ export default function GuidePage() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth(); // Get current user
-  
+
   // Track interactions for recommendations
   const { recordComment, recordRate } = useGuideInteraction(slug);
-  
+
   const [guide, setGuide] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
