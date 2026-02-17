@@ -1,17 +1,17 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  BarChart3,
-  BookOpen,
-  Bot,
-  Home,
-  LogIn,
-  LogOut,
-  Menu,
-  Plus,
-  Search,
-  Sparkles,
-  Users,
-  X,
+    BarChart3,
+    BookOpen,
+    Bot,
+    Home,
+    LogIn,
+    LogOut,
+    Menu,
+    Plus,
+    Search,
+    Sparkles,
+    Users,
+    X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -21,14 +21,14 @@ import { supabase } from "../lib/supabase";
 import AccountSetupModal from "./AccountSetupModal";
 import AddGuideModal from "./AddGuideModal";
 import ApprovedBugModal from "./ApprovedBugModal";
+import CookieConsent from "./CookieConsent";
 import GlobalLoader from "./GlobalLoader";
-import GooeyNav from "./react-bits/GooeyNav";
 import ClickSpark from "./react-bits/ClickSpark";
+import GooeyNav from "./react-bits/GooeyNav";
 import ReferralBonusNotification from "./ReferralBonusNotification";
 import ReferralSuccessModal from "./ReferralSuccessModal";
 import SearchModal from "./SearchModal";
 import SubscriptionRenewAd from "./SubscriptionRenewAd";
-import CookieConsent from "./CookieConsent";
 
 export default function Layout() {
   const location = useLocation();
@@ -246,7 +246,9 @@ export default function Layout() {
               {/* Logo */}
               <Link to="/" className="flex items-center gap-2">
                 <div className="w-10 h-10 bg-black flex items-center justify-center transition-colors duration-300 dark:bg-white">
-                  <span className="text-white font-black text-xl transition-colors duration-300 dark:text-black">D</span>
+                  <span className="text-white font-black text-xl transition-colors duration-300 dark:text-black">
+                    D
+                  </span>
                 </div>
                 <span className="text-2xl font-black tracking-tight hidden sm:block transition-colors duration-300 dark:text-white">
                   DevVault
@@ -266,7 +268,10 @@ export default function Layout() {
                   className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-white/20 dark:hover:border-white hover:border-black transition-colors text-sm dark:bg-black/50"
                   aria-label="Search"
                 >
-                  <Search size={16} className="text-gray-500 dark:text-gray-400" />
+                  <Search
+                    size={16}
+                    className="text-gray-500 dark:text-gray-400"
+                  />
                   <span className="hidden sm:inline text-gray-500 dark:text-gray-400">
                     Search...
                   </span>
@@ -426,40 +431,44 @@ export default function Layout() {
                   <nav className="space-y-2">
                     <Link
                       to="/"
-                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname === "/"
-                        ? "bg-black text-white shadow-lg shadow-black/20"
-                        : "text-gray-600 hover:bg-gray-100"
-                        }`}
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${
+                        location.pathname === "/"
+                          ? "bg-black text-white shadow-lg shadow-black/20"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
                     >
                       <Home size={22} />
                       <span>Home</span>
                     </Link>
                     <Link
                       to="/guides"
-                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname.startsWith("/guide")
-                        ? "bg-black text-white shadow-lg shadow-black/20"
-                        : "text-gray-600 hover:bg-gray-100"
-                        }`}
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${
+                        location.pathname.startsWith("/guide")
+                          ? "bg-black text-white shadow-lg shadow-black/20"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
                     >
                       <BookOpen size={22} />
                       <span>All Guides</span>
                     </Link>
                     <Link
                       to="/community"
-                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname === "/community"
-                        ? "bg-black text-white shadow-lg shadow-black/20"
-                        : "text-gray-600 hover:bg-gray-100"
-                        }`}
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${
+                        location.pathname === "/community"
+                          ? "bg-black text-white shadow-lg shadow-black/20"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
                     >
                       <Users size={22} />
                       <span>Community</span>
                     </Link>
                     <Link
                       to="/zetsuguide-ai"
-                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all border-2 border-transparent ${location.pathname === "/zetsuguide-ai"
-                        ? "bg-black text-white shadow-lg shadow-black/20"
-                        : "bg-gradient-to-r from-purple-50 to-pink-50 text-gray-900 border-purple-100"
-                        }`}
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all border-2 border-transparent ${
+                        location.pathname === "/zetsuguide-ai"
+                          ? "bg-black text-white shadow-lg shadow-black/20"
+                          : "bg-gradient-to-r from-purple-50 to-pink-50 text-gray-900 border-purple-100"
+                      }`}
                     >
                       <Bot
                         size={22}
@@ -578,7 +587,10 @@ export default function Layout() {
                   <span className="font-bold">ZetsuGuide</span>
                 </div>
                 <div className="flex flex-wrap items-center justify-center sm:justify-end gap-6">
-                  <Link to="/faq" className="text-sm font-medium hover:underline">
+                  <Link
+                    to="/faq"
+                    className="text-sm font-medium hover:underline"
+                  >
                     FAQ
                   </Link>
                   <Link
@@ -609,7 +621,9 @@ export default function Layout() {
         )}
 
         {/* Modals */}
-        {showAddModal && <AddGuideModal onClose={() => setShowAddModal(false)} />}
+        {showAddModal && (
+          <AddGuideModal onClose={() => setShowAddModal(false)} />
+        )}
         {showSearchModal && (
           <SearchModal onClose={() => setShowSearchModal(false)} />
         )}

@@ -14,8 +14,8 @@ import {
   Loader2,
   Lock,
   Mail,
-  MoreVertical,
   Moon,
+  MoreVertical,
   Search,
   Share2,
   Sparkles,
@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import { marked } from "marked";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useTheme } from "../contexts/ThemeContext";
 import { createRoot } from "react-dom/client";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -49,6 +48,7 @@ import SEOHelmet from "../components/SEOHelmet";
 import TextToSpeech from "../components/TextToSpeech";
 import { ScrollProgress } from "../components/ui/scroll-progress";
 import { useAuth } from "../contexts/AuthContext";
+import { useTheme } from "../contexts/ThemeContext";
 import { useGuideInteraction } from "../hooks/useGuideInteraction";
 import { guidesApi } from "../lib/api";
 import { getAvatarForUser } from "../lib/avatar";
@@ -860,7 +860,9 @@ export default function GuidePage() {
                     </div>
                   )}
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">By</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      By
+                    </p>
                     <p className="font-bold text-lg">
                       {guide.author_name || guide.user_email.split("@")[0]}
                     </p>
@@ -1004,33 +1006,29 @@ export default function GuidePage() {
                     </button>
                   )}
 
-                   {/* Dark Mode Toggle - NEW FEATURE */}
-                   <button
-                     onClick={() => {
-                       toggleDarkMode();
-                       setShowMoreMenu(false);
-                     }}
-                     className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors text-sm flex items-center gap-3 font-medium text-blue-600 border-b border-gray-100"
-                   >
-                     {isDarkMode ? (
-                       <Sun size={16} />
-                     ) : (
-                       <Moon size={16} />
-                     )}
-                     {isDarkMode ? "Light Mode" : "Dark Mode"}
-                   </button>
+                  {/* Dark Mode Toggle - NEW FEATURE */}
+                  <button
+                    onClick={() => {
+                      toggleDarkMode();
+                      setShowMoreMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors text-sm flex items-center gap-3 font-medium text-blue-600 border-b border-gray-100"
+                  >
+                    {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+                    {isDarkMode ? "Light Mode" : "Dark Mode"}
+                  </button>
 
-                   {/* Focus Mode Button - NEW FEATURE */}
-                   <button
-                     onClick={() => {
-                       setIsFocusMode(true);
-                       setShowMoreMenu(false);
-                     }}
-                     className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors text-sm flex items-center gap-3 font-medium text-purple-600 border-b border-gray-100"
-                   >
-                     <Eye size={16} />
-                     Enter Focus Mode
-                   </button>
+                  {/* Focus Mode Button - NEW FEATURE */}
+                  <button
+                    onClick={() => {
+                      setIsFocusMode(true);
+                      setShowMoreMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors text-sm flex items-center gap-3 font-medium text-purple-600 border-b border-gray-100"
+                  >
+                    <Eye size={16} />
+                    Enter Focus Mode
+                  </button>
 
                   {/* AI Tools Section */}
                   <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
