@@ -1,8 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from 'nodemailer';
-import deepResearchHandler from './ai'; // Import existing AI logic if complex, or copy it here. 
-// Note: Since 'ai.js' is complex, we'll keep the core logic there but likely need to move it into this file 
-// or import it to avoid file count. 
+import deepResearchHandler from './ai'; // Import existing AI logic if complex, or copy it here.
+// Note: Since 'ai.js' is complex, we'll keep the core logic there but likely need to move it into this file
+// or import it to avoid file count.
 // STRATEGY ADJUSTMENT: 'ai.js' is huge. Let's renaming 'ai.js' to 'content.js' and adding other handlers to it might be messy.
 // BETTER STRATEGY: Create 'content.js' that IMPORTS the logic or copies it.
 // Given strict file limits, I will COPY the AI logic into here or refactor.
@@ -60,7 +60,7 @@ async function handleSubmit(req, res) {
 
     try {
         const { submissionType } = req.body;
-        // Note: Frontend currently sends 'type' in body for submit.js. 
+        // Note: Frontend currently sends 'type' in body for submit.js.
         // We will need to map that.
 
         const bodyType = req.body.type; // 'bug' or 'support' from original code
@@ -93,10 +93,10 @@ async function handleSubmit(req, res) {
 async function handleBugReport(body, transporter, res) {
     const { userId, userEmail, issueType, description, improvements, browserInfo } = body;
 
-    // Initialize Supabase Service Client
+    // Initialize Supabase Service Client with fallback to anon key if service key not available
     const supabaseService = createClient(
         process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_KEY
+        process.env.SUPABASE_SERVICE_KEY || (process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY)
     );
 
     const { data: report, error: dbError } = await supabaseService
@@ -112,7 +112,10 @@ async function handleBugReport(body, transporter, res) {
         .select()
         .single();
 
-    if (dbError) throw new Error('Failed to save bug report');
+    if (dbError) {
+        console.error('Database error:', dbError);
+        throw new Error('Failed to save bug report');
+    }
 
     const adminToken = process.env.ADMIN_APPROVAL_TOKEN || 'secure_admin_token_123';
     const approvalLink = `${process.env.VITE_APP_URL || 'http://localhost:3001'}/api/payments?type=approve_reward&report_id=${report.id}&token=${adminToken}`;

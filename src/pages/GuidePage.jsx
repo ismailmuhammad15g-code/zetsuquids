@@ -1,28 +1,28 @@
 import {
-  ArrowLeft,
-  Bot,
-  Calendar,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Clock,
-  Download,
-  ExternalLink,
-  Eye,
-  FileText,
-  Languages,
-  Loader2,
-  Lock,
-  Mail,
-  MoreVertical,
-  Search,
-  Share2,
-  Sparkles,
-  Tag,
-  Trash2,
-  UserPlus,
-  Volume2,
-  VolumeX,
+    ArrowLeft,
+    Bot,
+    Calendar,
+    Check,
+    ChevronDown,
+    ChevronUp,
+    Clock,
+    Download,
+    ExternalLink,
+    Eye,
+    FileText,
+    Languages,
+    Loader2,
+    Lock,
+    Mail,
+    MoreVertical,
+    Search,
+    Share2,
+    Sparkles,
+    Tag,
+    Trash2,
+    UserPlus,
+    Volume2,
+    VolumeX,
 } from "lucide-react";
 import { marked } from "marked";
 import mermaid from "mermaid";
@@ -46,7 +46,6 @@ import QuizComponent from "../components/quiz/QuizComponent";
 import SEOHelmet from "../components/SEOHelmet";
 import TextToSpeech from "../components/TextToSpeech";
 import { ScrollProgress } from "../components/ui/scroll-progress";
-import VerifiedBadge from "../components/VerifiedBadge";
 import { useAuth } from "../contexts/AuthContext";
 import { useGuideInteraction } from "../hooks/useGuideInteraction";
 import { guidesApi } from "../lib/api";
@@ -130,7 +129,10 @@ export default function GuidePage() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth(); // Get current user
-
+  
+  // Track interactions for recommendations
+  const { recordComment, recordRate } = useGuideInteraction(slug);
+  
   const [guide, setGuide] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -146,11 +148,6 @@ export default function GuidePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewsCount, setViewsCount] = useState(0);
   const [hasRecordedView, setHasRecordedView] = useState(false);
-
-  // Track interactions for recommendations
-  // usage: useGuideInteraction(slug, guideId)
-  // We pass guide?.id so it can record properly once loaded
-  const { recordComment, recordRate } = useGuideInteraction(slug, guide?.id);
   // AI Tools Modals
   const [showAIChat, setShowAIChat] = useState(false);
   const [showSummarizer, setShowSummarizer] = useState(false);
@@ -158,7 +155,6 @@ export default function GuidePage() {
   const [aiToolsExpanded, setAiToolsExpanded] = useState(false);
   const moreMenuRef = useRef(null);
   const ttsRef = useRef(null);
-
   const contentRef = useRef(null);
 
   useEffect(() => {
@@ -831,7 +827,6 @@ export default function GuidePage() {
                     <p className="text-sm text-gray-600">By</p>
                     <p className="font-bold text-lg">
                       {guide.author_name || guide.user_email.split("@")[0]}
-                      <VerifiedBadge userEmail={guide.user_email} />
                     </p>
                     {guide.user_email && (
                       <p className="text-xs text-gray-500 flex items-center gap-1">

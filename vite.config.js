@@ -362,6 +362,20 @@ function apiMiddleware() {
               res.statusCode = 500;
               res.end(JSON.stringify({ error: error.message }));
             }
+          } else if (req.method === 'GET') {
+            const { mockReq, mockRes } = createMocks(req, res, {}, query);
+            // Inject necessary envs
+            process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+            process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
+
+            try {
+              const { default: paymentsHandler } = await import("./api/payments.js");
+              await paymentsHandler(mockReq, mockRes);
+            } catch (error) {
+              console.error("Payments API Error:", error);
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: error.message }));
+            }
           }
           return;
         }
@@ -411,6 +425,10 @@ function apiMiddleware() {
               res.statusCode = 500;
               res.end(JSON.stringify({ error: error.message }));
             }
+          } else if (req.method === 'GET') {
+            // Handle GET requests if needed
+            res.statusCode = 405;
+            res.end(JSON.stringify({ error: "Method not allowed" }));
           }
           return;
         }

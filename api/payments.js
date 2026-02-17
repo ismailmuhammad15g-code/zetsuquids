@@ -58,11 +58,19 @@ async function handleDailyCredits(req, res) {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: "User ID required" });
 
-    // simplified RPC call
-    const { data, error } = await supabase.rpc('claim_daily_gift', { p_user_id: userId });
+    try {
+        // simplified RPC call
+        const { data, error } = await supabase.rpc('claim_daily_gift', { p_user_id: userId });
 
-    if (error) return res.status(400).json({ error: error.message });
-    return res.status(200).json(data);
+        if (error) {
+            console.error('Daily credits error:', error);
+            return res.status(400).json({ error: error.message });
+        }
+        return res.status(200).json(data);
+    } catch (error) {
+        console.error('Daily credits exception:', error);
+        return res.status(500).json({ error: "Failed to claim daily credits" });
+    }
 }
 
 async function handleApproveReward(req, res) {
