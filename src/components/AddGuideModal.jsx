@@ -1,9 +1,16 @@
 import {
+    Activity,
+    Anchor,
+    // new / different icons to remove visual duplication
+    BadgeCheck,
     Bold,
+    BookOpen,
     ChevronDown,
     Code,
     Coins,
     Eye,
+    FileCode,
+    FileImage,
     FileText,
     Hash,
     Heading1,
@@ -11,22 +18,27 @@ import {
     HelpCircle,
     Image as ImageIcon,
     Italic,
+    Keyboard,
     LayoutTemplate,
     Link as LinkIcon,
     List,
     ListChecks,
     ListOrdered,
     Loader2,
+    MessageCircle,
     Minus,
+    MoreHorizontal,
     Quote,
     Sparkles,
     SplitSquareHorizontal,
+    Star,
     Strikethrough,
     Table,
-    Tag,
+    Terminal,
     Video,
     Wand2,
     X,
+    Zap
 } from "lucide-react";
 import { marked } from "marked";
 import { useEffect, useRef, useState } from "react";
@@ -110,6 +122,7 @@ export default function AddGuideModal({ onClose }) {
   const [aiProcessing, setAiProcessing] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false); // New state for success modal
   const [showQuizBuilder, setShowQuizBuilder] = useState(false);
+  const [showMoreTools, setShowMoreTools] = useState(false); // overflow menu for less-used tools
   const textareaRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -711,16 +724,30 @@ export default function AddGuideModal({ onClose }) {
         break;
       }
 
-      case "callout-warn": {
-        insertText(
-          `<div class="callout callout-warn"><strong>Warning:</strong> Important caution here.</div>`,
-        );
+      // New tools: CTA, Citation, Run
+      case "cta": {
+        const label = window.prompt("Button text:", "Get started");
+        if (!label) return;
+        const url = window.prompt("URL:", "https://example.com") || "#";
+        const html = `\n<div class="cta"><a href="${url}" class="btn-cta">${label}</a></div>\n`;
+        insertText(html);
         break;
       }
 
-      case "callout-tip": {
+      case "citation": {
+        const cite = window.prompt("Citation (Author, Year):", "Doe, 2024");
+        const src = window.prompt("Source URL (optional):", "");
+        if (!cite) return;
+        const html = src
+          ? `\n<blockquote class="citation">${cite} — <a href="${src}">source</a></blockquote>\n`
+          : `\n<blockquote class="citation">${cite}</blockquote>\n`;
+        insertText(html);
+        break;
+      }
+
+      case "run": {
         insertText(
-          `<div class="callout callout-success"><strong>Tip:</strong> Helpful tip here.</div>`,
+          "\n```bash\n# Run: replace with your command\nnpm run start\n```\n",
         );
         break;
       }
@@ -1203,7 +1230,7 @@ export default function AddGuideModal({ onClose }) {
                 tooltip="Strikethrough"
               />
               <ToolbarButton
-                icon={<Code size={16} />}
+                icon={<FileCode size={16} />}
                 onClick={() => handleToolbarAction("inline-code")}
                 tooltip="Inline code"
               />
@@ -1316,7 +1343,7 @@ export default function AddGuideModal({ onClose }) {
               />
 
               <ToolbarButton
-                icon={<Tag size={18} />}
+                icon={<Star size={18} />}
                 onClick={() => handleToolbarAction("highlight")}
                 tooltip="Inline highlight"
               />
@@ -1328,71 +1355,170 @@ export default function AddGuideModal({ onClose }) {
               />
 
               <ToolbarButton
-                icon={<List size={18} />}
+                icon={<BookOpen size={18} />}
                 onClick={() => handleToolbarAction("toc")}
                 tooltip="Insert Table of Contents (auto)"
               />
 
-              {/* Additional useful tools */}
+              {/* primary helper buttons (kept visible) */}
               <ToolbarButton
-                icon={<ImageIcon size={18} />}
+                icon={<FileImage size={18} />}
                 onClick={() => handleToolbarAction("figure")}
-                tooltip="Insert image with caption (figure)"
+                tooltip="Insert figure"
               />
 
               <ToolbarButton
-                icon={<Tag size={18} />}
-                onClick={() => handleToolbarAction("badge")}
-                tooltip="Insert badge / pill"
+                icon={<FileCode size={16} />}
+                onClick={() => handleToolbarAction("code")}
+                tooltip="Code block"
               />
 
               <ToolbarButton
-                icon={<Code size={16} />}
-                onClick={() => handleToolbarAction("kbd")}
-                tooltip="Insert keyboard shortcut (kbd)"
+                icon={<Table size={18} />}
+                onClick={() => handleToolbarAction("table")}
+                tooltip="Insert table"
               />
 
               <ToolbarButton
-                icon={<Quote size={18} />}
-                onClick={() => handleToolbarAction("pull-quote")}
-                tooltip="Insert pull quote"
+                icon={<Star size={18} />}
+                onClick={() => handleToolbarAction("highlight")}
+                tooltip="Inline highlight"
               />
 
-              <ToolbarButton
-                icon={<LayoutTemplate size={18} />}
-                onClick={() => handleToolbarAction("columns")}
-                tooltip="Insert two-column layout"
-              />
+              {/* More (overflow) */}
+              <div className="relative">
+                <ToolbarButton
+                  icon={<MoreHorizontal size={18} />}
+                  onClick={() => setShowMoreTools((s) => !s)}
+                  tooltip="More tools"
+                />
 
-              <ToolbarButton
-                icon={<LinkIcon size={18} />}
-                onClick={() => handleToolbarAction("anchor")}
-                tooltip="Insert anchor id"
-              />
+                {showMoreTools && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 p-3 z-50">
+                    <div className="grid grid-cols-3 gap-3">
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => {
+                          handleToolbarAction("badge");
+                          setShowMoreTools(false);
+                        }}
+                        title="Badge"
+                      >
+                        <BadgeCheck size={18} />
+                        <span>Badge</span>
+                      </button>
 
-              <ToolbarButton
-                icon={<FileText size={18} />}
-                onClick={() => handleToolbarAction("mermaid")}
-                tooltip="Insert Mermaid diagram block"
-              />
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => {
+                          handleToolbarAction("kbd");
+                          setShowMoreTools(false);
+                        }}
+                        title="Kbd"
+                      >
+                        <Keyboard size={16} />
+                        <span>Kbd</span>
+                      </button>
 
-              <ToolbarButton
-                icon={<Sparkles size={16} />}
-                onClick={() => handleToolbarAction("emoji")}
-                tooltip="Insert emoji / reaction"
-              />
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => {
+                          handleToolbarAction("pull-quote");
+                          setShowMoreTools(false);
+                        }}
+                        title="Pull quote"
+                      >
+                        <MessageCircle size={18} />
+                        <span>Pull</span>
+                      </button>
 
-              <ToolbarButton
-                icon={<Minus size={18} />}
-                onClick={() => handleToolbarAction("callout-warn")}
-                tooltip="Insert warning callout"
-              />
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => {
+                          handleToolbarAction("columns");
+                          setShowMoreTools(false);
+                        }}
+                        title="Columns"
+                      >
+                        <LayoutTemplate size={18} />
+                        <span>Columns</span>
+                      </button>
 
-              <ToolbarButton
-                icon={<Wand2 size={18} />}
-                onClick={() => handleToolbarAction("callout-tip")}
-                tooltip="Insert tip callout"
-              />
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => {
+                          handleToolbarAction("anchor");
+                          setShowMoreTools(false);
+                        }}
+                        title="Anchor"
+                      >
+                        <Anchor size={16} />
+                        <span>Anchor</span>
+                      </button>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => {
+                          handleToolbarAction("mermaid");
+                          setShowMoreTools(false);
+                        }}
+                        title="Mermaid"
+                      >
+                        <FileCode size={16} />
+                        <span>Mermaid</span>
+                      </button>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => {
+                          handleToolbarAction("emoji");
+                          setShowMoreTools(false);
+                        }}
+                        title="Emoji"
+                      >
+                        <Zap size={16} />
+                        <span>Emoji</span>
+                      </button>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => {
+                          handleToolbarAction("cta");
+                          setShowMoreTools(false);
+                        }}
+                        title="CTA"
+                      >
+                        <Activity size={16} />
+                        <span>CTA</span>
+                      </button>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => {
+                          handleToolbarAction("citation");
+                          setShowMoreTools(false);
+                        }}
+                        title="Citation"
+                      >
+                        <BookOpen size={16} />
+                        <span>Cite</span>
+                      </button>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => {
+                          handleToolbarAction("run");
+                          setShowMoreTools(false);
+                        }}
+                        title="Run code"
+                      >
+                        <Terminal size={16} />
+                        <span>Run</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div
                 className="hidden sm:block w-px h-5 bg-gray-100 mx-2"
