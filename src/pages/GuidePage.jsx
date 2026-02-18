@@ -11,6 +11,7 @@ import {
   Eye,
   FileText,
   Languages,
+  List,
   Loader2,
   Lock,
   Mail,
@@ -27,7 +28,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { marked } from "marked";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -47,6 +48,7 @@ import QuizComponent from "../components/quiz/QuizComponent";
 import SEOHelmet from "../components/SEOHelmet";
 import TextToSpeech from "../components/TextToSpeech";
 import { ScrollProgress } from "../components/ui/scroll-progress";
+import ShinyText from "../components/ui/shiny-text";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useGuideInteraction } from "../hooks/useGuideInteraction";
@@ -146,9 +148,10 @@ export default function GuidePage() {
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isPlayingTTS, setIsPlayingTTS] = useState(false);
-  const [isFocusMode, setIsFocusMode] = useState(false); // New Feature: Focus Mode
-  const { isDarkMode, toggleTheme } = useTheme(); // New Feature: Dark Mode
+  const [isFocusMode, setIsFocusMode] = useState(false); // Focus Mode
+  const { isDarkMode, toggleTheme } = useTheme(); // Dark Mode
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState(""); // Debounced search for performance
   const [viewsCount, setViewsCount] = useState(0);
   const [hasRecordedView, setHasRecordedView] = useState(false);
   // AI Tools Modals
@@ -156,13 +159,30 @@ export default function GuidePage() {
   const [showSummarizer, setShowSummarizer] = useState(false);
   const [showTranslator, setShowTranslator] = useState(false);
   const [aiToolsExpanded, setAiToolsExpanded] = useState(false);
+  // Table of Contents
+  const [showTOC, setShowTOC] = useState(false);
+  const [tableOfContents, setTableOfContents] = useState([]);
+  // HTML content that includes heading IDs for in-page anchors
+  const [contentWithAnchors, setContentWithAnchors] = useState(null);
   const moreMenuRef = useRef(null);
   const ttsRef = useRef(null);
   const contentRef = useRef(null);
+  const searchTimeoutRef = useRef(null); // For debouncing search
 
+  // Debounce search query for performance
   useEffect(() => {
-    loadGuide();
-  }, [slug]);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
 
   // Initialize Mermaid dynamically
   useEffect(() => {
@@ -300,8 +320,8 @@ export default function GuidePage() {
     const html = marked.parse(markdownContent);
     const sanitizedHtml = sanitizeContent(html);
 
-    // Apply Search Highlighting
-    if (!searchQuery || !searchQuery.trim()) {
+    // Apply Search Highlighting (using debounced search for performance)
+    if (!debouncedSearch || !debouncedSearch.trim()) {
       return { type: "markdown", content: sanitizedHtml };
     }
 
@@ -318,7 +338,7 @@ export default function GuidePage() {
       while (walker.nextNode()) nodes.push(walker.currentNode);
 
       const regex = new RegExp(
-        `(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+        `(${debouncedSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
         "gi",
       );
 
@@ -345,7 +365,53 @@ export default function GuidePage() {
       console.error("Highlight error:", e);
       return { type: "markdown", content: sanitizedHtml };
     }
-  }, [guide, searchQuery]);
+  }, [guide, debouncedSearch]);
+
+  // Calculate reading time
+  const readingTime = useMemo(() => {
+    if (!guide) return 0;
+    const content = guide.markdown || guide.content || "";
+    const wordCount = content.trim().split(/\s+/).length;
+    const readingTimeMinutes = Math.ceil(wordCount / 200); // Average reading speed: 200 words/min
+    return readingTimeMinutes;
+  }, [guide]);
+
+  // Extract Table of Contents from headings
+  useEffect(() => {
+    if (!processedContent || processedContent.type === "html") {
+      setTableOfContents([]);
+      setContentWithAnchors(null);
+      return;
+    }
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(processedContent.content, "text/html");
+      const headings = doc.querySelectorAll("h1, h2, h3, h4");
+      const tocItems = [];
+
+      headings.forEach((heading, index) => {
+        const id = `heading-${index}`;
+        heading.id = id; // Add ID for anchor links
+        // Note: we avoid forcing a fixed scrollMargin here to prevent
+        // double-counting offsets. Scroll compensation is handled when
+        // the TOC link is clicked by measuring fixed/sticky elements.
+        tocItems.push({
+          id,
+          text: heading.textContent,
+          level: parseInt(heading.tagName.charAt(1)),
+        });
+      });
+
+      setTableOfContents(tocItems);
+      // Save modified HTML that includes the heading IDs so the rendered
+      // content actually contains the anchors we link to.
+      setContentWithAnchors(doc.body.innerHTML);
+    } catch (e) {
+      console.error("TOC extraction error:", e);
+      setTableOfContents([]);
+    }
+  }, [processedContent]);
 
   // Hydrate Interactive Quizzes
   useEffect(() => {
@@ -377,7 +443,7 @@ export default function GuidePage() {
     });
   }, [guide, processedContent]);
 
-  async function loadGuide() {
+  const loadGuide = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -423,7 +489,12 @@ export default function GuidePage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [slug]);
+
+  // Call loadGuide when slug changes
+  useEffect(() => {
+    loadGuide();
+  }, [loadGuide]);
 
   async function fetchViewsCount() {
     try {
@@ -639,10 +710,12 @@ export default function GuidePage() {
       );
     }
 
+    const htmlToRender = contentWithAnchors || processedContent.content;
+
     return (
       <div
         className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800"
-        dangerouslySetInnerHTML={{ __html: processedContent.content }}
+        dangerouslySetInnerHTML={{ __html: htmlToRender }}
       />
     );
   }
@@ -813,9 +886,43 @@ export default function GuidePage() {
             </div>
           )}
 
-          <h1 className="text-4xl sm:text-5xl font-black mb-4 leading-tight">
-            {guide.title}
+          <h1
+            className="text-4xl sm:text-5xl font-black mb-4 leading-tight relative overflow-hidden select-text z-[1] text-black dark:text-white"
+            style={{ position: "relative" }}
+          >
+            {/* Decorative container: gradient border + solid blue background + padding to fully contain the title */}
+            <span className="inline-block mb-4 leading-tight select-text z-[1] w-full">
+              <span className="inline-block p-[2px] rounded-2xl bg-gradient-to-r from-blue-300/40 via-indigo-200/30 to-pink-100/20 shadow-sm">
+                <span className="inline-block max-w-full px-5 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/60 border border-black/5 overflow-hidden">
+                  <ShinyText
+                    size="4xl"
+                    weight="extrabold"
+                    className="block break-words w-full text-black"
+                    speed={3}
+                    shineWidth={12}
+                    baseColor="#000000"
+                    shineColor="rgba(255,255,255,0.25)"
+                    intensity={1}
+                  >
+                    {guide.title}
+                  </ShinyText>
+                </span>
+              </span>
+            </span>
           </h1>
+
+          <style>{`
+            @keyframes shimmer-wave {
+              0% { background-position: 200% 0; }
+              100% { background-position: -200% 0; }
+            }
+            /* Temporary highlight applied when navigating from TOC */
+            .toc-highlight {
+              background-color: rgba(250,204,21,0.45);
+              transition: background-color 0.25s ease, box-shadow 0.25s ease;
+              box-shadow: 0 0 0 6px rgba(250,204,21,0.24);
+            }
+          `}</style>
 
           {/* Meta */}
           <div className="flex flex-wrap items-center gap-4 text-gray-500 dark:text-gray-400 mb-6">
@@ -827,6 +934,12 @@ export default function GuidePage() {
                 day: "numeric",
               })}
             </span>
+            {readingTime > 0 && (
+              <span className="flex items-center gap-2 px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full text-sm font-medium border border-green-100 dark:border-green-800">
+                <Clock size={16} />
+                {readingTime} min read
+              </span>
+            )}
             {viewsCount > 0 && (
               <span className="flex items-center gap-2 px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-sm font-medium border border-blue-100 dark:border-blue-800">
                 <Eye size={16} />
@@ -906,6 +1019,159 @@ export default function GuidePage() {
                   {kw}
                 </span>
               ))}
+            </div>
+          )}
+
+          {/* Table of Contents Button */}
+          {tableOfContents.length > 0 && (
+            <div className="mb-6">
+              <button
+                onClick={() => setShowTOC(!showTOC)}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border-2 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-800/40 dark:hover:to-indigo-800/40 transition-all text-sm font-medium rounded-lg"
+                aria-expanded={showTOC}
+                aria-label="Toggle table of contents"
+              >
+                <List size={16} />
+                Table of Contents
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform ${showTOC ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {/* Table of Contents Dropdown */}
+              {showTOC && (
+                <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg animate-in fade-in slide-in-from-top-2 duration-200">
+                  <nav aria-label="Table of contents">
+                    <ul className="space-y-2">
+                      {tableOfContents.map((item, index) => (
+                        <li
+                          key={index}
+                          style={{ paddingLeft: `${(item.level - 1) * 12}px` }}
+                        >
+                          <a
+                            href={`#${item.id}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              const element = document.getElementById(item.id);
+                              if (element) {
+                                try {
+                                  // Dynamically compute top offset from any fixed/sticky
+                                  // elements that sit at the top of the viewport so the
+                                  // target heading isn't hidden under them.
+                                  const getTopOffset = () => {
+                                    try {
+                                      // Find visible fixed/sticky elements that overlap the
+                                      // top of the viewport and sum their heights. This
+                                      // avoids picking unrelated fixed elements further
+                                      // down the page.
+                                      const els = Array.from(
+                                        document.querySelectorAll("body *"),
+                                      );
+                                      const candidates = els.filter((el) => {
+                                        const style =
+                                          window.getComputedStyle(el);
+                                        if (
+                                          !(
+                                            style.position === "fixed" ||
+                                            style.position === "sticky"
+                                          )
+                                        )
+                                          return false;
+                                        const rect = el.getBoundingClientRect();
+                                        // element must intersect the top region
+                                        return (
+                                          rect.height > 0 &&
+                                          rect.width > 0 &&
+                                          rect.top <= 1 &&
+                                          rect.bottom > 0
+                                        );
+                                      });
+                                      const total = candidates.reduce(
+                                        (sum, e) =>
+                                          sum +
+                                          (e.getBoundingClientRect().height ||
+                                            0),
+                                        0,
+                                      );
+                                      // Cap to avoid extreme values (e.g., modals)
+                                      const capped = Math.min(
+                                        Math.ceil(total) + 8,
+                                        200,
+                                      );
+                                      return capped;
+                                    } catch (e) {
+                                      return 72; // safer fallback
+                                    }
+                                  };
+
+                                  const OFFSET = getTopOffset();
+                                  const rect = element.getBoundingClientRect();
+                                  const targetY = Math.max(
+                                    0,
+                                    rect.top + window.scrollY - OFFSET,
+                                  );
+                                  window.scrollTo({
+                                    top: targetY,
+                                    behavior: "smooth",
+                                  });
+
+                                  // After the smooth scroll finishes (or shortly after),
+                                  // re-check offsets in case sticky/fixed elements appeared
+                                  // or the layout shifted, and fine-tune the scroll once.
+                                  setTimeout(() => {
+                                    try {
+                                      const newOffset = getTopOffset();
+                                      const newRect =
+                                        element.getBoundingClientRect();
+                                      const newTargetY = Math.max(
+                                        0,
+                                        newRect.top +
+                                          window.scrollY -
+                                          newOffset,
+                                      );
+                                      const diff = Math.abs(
+                                        window.scrollY - newTargetY,
+                                      );
+                                      if (diff > 6) {
+                                        window.scrollTo({
+                                          top: newTargetY,
+                                          behavior: "smooth",
+                                        });
+                                      }
+                                    } catch (e) {
+                                      // ignore
+                                    }
+                                  }, 350);
+
+                                  // Add temporary highlight for 3 seconds (start now)
+                                  element.classList.add("toc-highlight");
+                                  setTimeout(() => {
+                                    element.classList.remove("toc-highlight");
+                                  }, 3000);
+                                } catch (err) {
+                                  console.error(
+                                    "TOC highlight/scroll failed:",
+                                    err,
+                                  );
+                                  element.scrollIntoView({
+                                    behavior: "smooth",
+                                  });
+                                }
+                              }
+                              setShowTOC(false);
+                            }}
+                            className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-sm flex items-center gap-2 py-1"
+                          >
+                            <span className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-500 rounded-full flex-shrink-0" />
+                            {item.text}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </nav>
+                </div>
+              )}
             </div>
           )}
 
@@ -1140,19 +1406,35 @@ export default function GuidePage() {
         {/* Match Search Bar */}
         <div className="max-w-md mb-8 mx-auto sm:mx-0">
           <div className="flex w-full shadow-sm hover:shadow-md transition-shadow rounded-lg overflow-hidden border border-gray-300 hover:border-black group">
-            <div className="flex-1 bg-white flex items-center px-4 group-focus-within:ring-2 group-focus-within:ring-black group-focus-within:ring-inset">
+            <div className="flex-1 bg-white dark:bg-gray-800 flex items-center px-4 group-focus-within:ring-2 group-focus-within:ring-black dark:group-focus-within:ring-white group-focus-within:ring-inset">
               <Search size={18} className="text-gray-400 mr-2 flex-shrink-0" />
               <input
-                className="w-full py-3 outline-none text-gray-800 placeholder:text-gray-400 bg-transparent text-sm font-medium"
+                className="w-full py-3 outline-none text-gray-800 dark:text-gray-200 placeholder:text-gray-400 bg-transparent text-sm font-medium"
                 placeholder="Search related text in guide..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search in guide"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                  aria-label="Clear search"
+                >
+                  <X size={16} className="text-gray-400" />
+                </button>
+              )}
             </div>
-            <button className="bg-black text-white px-6 py-3 font-bold text-sm hover:bg-gray-800 transition-colors flex-shrink-0">
+            <button className="bg-black dark:bg-white dark:text-black text-white px-6 py-3 font-bold text-sm hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors flex-shrink-0">
               Search
             </button>
           </div>
+          {debouncedSearch && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-1">
+              Searching for:{" "}
+              <span className="font-medium">"{debouncedSearch}"</span>
+            </p>
+          )}
         </div>
 
         {/* Content */}
@@ -1252,6 +1534,46 @@ export default function GuidePage() {
           </>
         )}
       </article>
+
+      {/* Scroll to Top Button */}
+      <ScrollToTopButton />
     </>
+  );
+}
+
+// Scroll to Top Button Component
+function ScrollToTopButton() {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const toggleVisibility = () => {
+      if (window.scrollY > 300) {
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    };
+
+    window.addEventListener("scroll", toggleVisibility);
+    return () => window.removeEventListener("scroll", toggleVisibility);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <button
+      onClick={scrollToTop}
+      className="fixed bottom-8 right-8 p-3 bg-black dark:bg-white text-white dark:text-black rounded-full shadow-lg hover:scale-110 transition-transform z-50"
+      aria-label="Scroll to top"
+    >
+      <ChevronUp size={24} />
+    </button>
   );
 }

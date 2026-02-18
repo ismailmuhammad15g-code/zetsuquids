@@ -1,23 +1,32 @@
 import {
-  Bold,
-  Code,
-  Coins,
-  Eye,
-  Heading1,
-  Heading2,
-  HelpCircle,
-  Image as ImageIcon,
-  Italic,
-  LayoutTemplate,
-  Link as LinkIcon,
-  List,
-  ListOrdered,
-  Loader2,
-  Quote,
-  Sparkles,
-  SplitSquareHorizontal,
-  Wand2,
-  X,
+    Bold,
+    ChevronDown,
+    Code,
+    Coins,
+    Eye,
+    FileText,
+    Hash,
+    Heading1,
+    Heading2,
+    HelpCircle,
+    Image as ImageIcon,
+    Italic,
+    LayoutTemplate,
+    Link as LinkIcon,
+    List,
+    ListChecks,
+    ListOrdered,
+    Loader2,
+    Minus,
+    Quote,
+    Sparkles,
+    SplitSquareHorizontal,
+    Strikethrough,
+    Table,
+    Tag,
+    Video,
+    Wand2,
+    X,
 } from "lucide-react";
 import { marked } from "marked";
 import { useEffect, useRef, useState } from "react";
@@ -25,7 +34,9 @@ import { createRoot } from "react-dom/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
+import { useInvalidateGuides } from "../hooks/useGuides";
 import { creditsApi, guidesApi } from "../lib/api";
+import { getAvatarForUser } from "../lib/avatar";
 import { uploadImageToImgBB } from "../lib/imgbb";
 import { sanitizeContent } from "../lib/utils";
 import QuizBuilderModal from "./quiz/QuizBuilderModal";
@@ -109,8 +120,16 @@ export default function AddGuideModal({ onClose }) {
     css_content: "",
   });
 
+  // New: draft/autosave + editable slug
+  const DRAFT_KEY = "add_guide_draft_v1";
+  const [draftAvailable, setDraftAvailable] = useState(false);
+  const [slugEditMode, setSlugEditMode] = useState(false);
+  const [slugValue, setSlugValue] = useState("");
+
   const [validationErrors, setValidationErrors] = useState([]);
   const [credits, setCredits] = useState(0);
+
+  const invalidateGuides = useInvalidateGuides();
 
   useEffect(() => {
     if (user?.email) {
@@ -124,19 +143,77 @@ export default function AddGuideModal({ onClose }) {
     Math.ceil((formData.content?.split(/\s+/).length || 0) / 200),
   );
 
+  // Keep slugValue in sync with title unless user is editing the slug manually
+  useEffect(() => {
+    if (!slugEditMode) {
+      const slugBase = (formData.title || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
+        .replace(/^-|-$/g, "");
+      setSlugValue(slugBase);
+    }
+  }, [formData.title, slugEditMode]);
+
+  // Autosave draft to localStorage (debounced)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      try {
+        const payload = { formData, slugValue, savedAt: Date.now() };
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+      } catch (e) {
+        console.warn("Failed to save draft", e);
+      }
+    }, 1000);
+    return () => clearTimeout(handler);
+  }, [formData, slugValue]);
+
+  // Draft helpers
+  const restoreDraft = () => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.formData) setFormData(parsed.formData);
+      if (parsed?.slugValue) setSlugValue(parsed.slugValue);
+      setDraftAvailable(false);
+      toast.success("Draft restored");
+    } catch (e) {
+      console.error("Failed to restore draft", e);
+    }
+  };
+
+  const discardDraft = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    setDraftAvailable(false);
+    toast.success("Draft discarded");
+  };
+
   useEffect(() => {
     document.body.style.overflow = "hidden";
+
+    // Check for saved draft on mount
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.formData) setDraftAvailable(true);
+      }
+    } catch (e) {
+      // ignore
+    }
+
     validateContent();
     return () => {
       document.body.style.overflow = "unset";
     };
   }, [formData, activeTab]);
 
-  // Hydrate Quizzes in Preview
+  // Hydrate Quizzes + Mermaid diagrams in Preview
   useEffect(() => {
     if (activeTab === "markdown" && viewMode !== "edit") {
       // Small delay to let DOM render
       const timer = setTimeout(() => {
+        // --- Quizzes ---
         const containers = document.querySelectorAll(
           ".interactive-quiz-container",
         );
@@ -164,6 +241,70 @@ export default function AddGuideModal({ onClose }) {
             console.error("Preview hydration error", e);
           }
         });
+
+        // --- Mermaid diagrams ---
+        const mermaidBlocks = document.querySelectorAll(
+          "pre code.language-mermaid",
+        );
+        if (mermaidBlocks.length) {
+          import("mermaid")
+            .then((mod) => {
+              const mermaid = mod.default || mod;
+              try {
+                mermaid.initialize({ startOnLoad: false });
+              } catch (e) {
+                /* ignore init errors */
+              }
+
+              mermaidBlocks.forEach((codeEl) => {
+                const pre = codeEl.closest("pre");
+                if (
+                  !pre ||
+                  pre.getAttribute("data-mermaid-hydrated") === "true"
+                )
+                  return;
+                const diagramCode = codeEl.textContent || "";
+
+                try {
+                  // prefer mermaid.mermaidAPI.render when available
+                  if (mermaid.mermaidAPI && mermaid.mermaidAPI.render) {
+                    const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
+                    mermaid.mermaidAPI.render(id, diagramCode, (svgCode) => {
+                      const wrapper = document.createElement("div");
+                      wrapper.className = "mermaid-render";
+                      wrapper.innerHTML = svgCode;
+                      pre.replaceWith(wrapper);
+                    });
+                  } else if (mermaid.render) {
+                    // newer API may return promise
+                    Promise.resolve(
+                      mermaid.render(
+                        `mermaid-${Math.random().toString(36).slice(2, 9)}`,
+                        diagramCode,
+                      ),
+                    )
+                      .then((res) => {
+                        const svg = res && (res.svg || res);
+                        const wrapper = document.createElement("div");
+                        wrapper.className = "mermaid-render";
+                        wrapper.innerHTML = svg || "";
+                        pre.replaceWith(wrapper);
+                      })
+                      .catch((err) =>
+                        console.error("Mermaid render failed", err),
+                      );
+                  }
+
+                  pre.setAttribute("data-mermaid-hydrated", "true");
+                } catch (e) {
+                  console.error("Mermaid hydration error", e);
+                }
+              });
+            })
+            .catch((err) => {
+              console.error("Failed to load mermaid for preview", err);
+            });
+        }
       }, 100);
       return () => clearTimeout(timer);
     }
@@ -199,10 +340,9 @@ export default function AddGuideModal({ onClose }) {
       pattern: /(<script[^>]*>[\s\S]*?<\/script>)/gi,
       message: "Script tags are forbidden for security",
     },
-    {
-      pattern: /(<iframe[^>]*>[\s\S]*?<\/iframe>)/gi,
-      message: "Iframes are forbidden for security",
-    },
+    // NOTE: iframe handling is validated dynamically (see validateContent) —
+    // we allow only trusted video providers (YouTube/Vimeo). This lets
+    // authors embed videos while preventing arbitrary iframes.
     {
       pattern: /(<object[^>]*>[\s\S]*?<\/object>)/gi,
       message: "Object tags are forbidden",
@@ -258,7 +398,7 @@ export default function AddGuideModal({ onClose }) {
       errors.push(`Content is too short (${wordCount}/30 words)`);
     }
 
-    // 3. Forbidden Content Detection
+    // 3. Forbidden Content Detection (pattern-based)
     if (activeContent) {
       forbiddenPatterns.forEach(({ pattern, message }) => {
         // .search() is safe with /g regexes (ignores global flag, returns index)
@@ -266,6 +406,28 @@ export default function AddGuideModal({ onClose }) {
           if (!errors.includes(message)) errors.push(message);
         }
       });
+
+      // 3.a Allow only whitelisted <iframe> embeds (YouTube / Vimeo).
+      // Any iframe with a non-whitelisted src will be rejected.
+      if (activeContent.includes("<iframe")) {
+        const iframeRegex = /<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi;
+        let m;
+        while ((m = iframeRegex.exec(activeContent)) !== null) {
+          const tag = m[0];
+          const srcMatch = tag.match(/src\s*=\s*["']([^"']+)["']/i);
+          const src = srcMatch ? srcMatch[1] : "";
+          const allowed =
+            /(?:youtube\.com|youtu\.be|youtube-nocookie\.com|player\.vimeo\.com)/i.test(
+              src,
+            );
+          if (!src || !allowed) {
+            if (!errors.includes("Only YouTube/Vimeo iframes are allowed")) {
+              errors.push("Only YouTube/Vimeo iframes are allowed");
+            }
+            break;
+          }
+        }
+      }
     }
 
     setValidationErrors(errors);
@@ -312,6 +474,32 @@ export default function AddGuideModal({ onClose }) {
   };
 
   const handleToolbarAction = (action) => {
+    // helper: wrap selection or insert fallback
+    const wrapSelection = (before, after, fallback = "") => {
+      const textarea = textareaRef.current;
+      if (!textarea) {
+        insertText(before + (fallback || "") + after);
+        return;
+      }
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const sel = formData.content.substring(start, end) || fallback;
+      const newText =
+        formData.content.substring(0, start) +
+        before +
+        sel +
+        after +
+        formData.content.substring(end);
+      setFormData((prev) => ({ ...prev, content: newText }));
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(
+          start + before.length,
+          start + before.length + sel.length,
+        );
+      }, 0);
+    };
+
     switch (action) {
       case "bold":
         insertText("**Bold Text**");
@@ -324,6 +512,26 @@ export default function AddGuideModal({ onClose }) {
         break;
       case "h2":
         insertText("\n## Heading 2\n");
+        break;
+      case "h3":
+        insertText("\n### Heading 3\n");
+        break;
+      case "strikethrough":
+        insertText("~~Strikethrough~~");
+        break;
+      case "inline-code":
+        insertText("`inline code`");
+        break;
+      case "hr":
+        insertText("\n---\n");
+        break;
+      case "task-list":
+        insertText("\n- [ ] Task item\n");
+        break;
+      case "table":
+        insertText(
+          "\n| Column 1 | Column 2 |\n| --- | --- |\n| Value 1 | Value 2 |\n",
+        );
         break;
       case "link":
         insertText("[Link Text](url)");
@@ -340,6 +548,183 @@ export default function AddGuideModal({ onClose }) {
       case "ordered-list":
         insertText("\n1. List item\n");
         break;
+
+      // Improved highlight: insert HTML <mark> so preview renders correctly
+      case "highlight":
+        wrapSelection("<mark>", "</mark>", "Highlighted text");
+        break;
+
+      // Video embed (YouTube / Vimeo)
+      case "youtube": {
+        const url = window.prompt("Paste YouTube/Vimeo URL to embed:", "");
+        if (!url) return;
+        let embed = url;
+        const ytMatch = url.match(
+          /(?:v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{6,11})/,
+        );
+        if (ytMatch) {
+          embed = `https://www.youtube.com/embed/${ytMatch[1]}`;
+        } else {
+          const vMatch = url.match(/vimeo\.com\/(\d+)/);
+          if (vMatch) embed = `https://player.vimeo.com/video/${vMatch[1]}`;
+        }
+        const html = `\n<div class="embed-responsive">\n  <iframe src="${embed}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>\n</div>\n`;
+        insertText(html);
+        break;
+      }
+
+      case "callout": {
+        const type =
+          window.prompt("Callout type (info/warn/success)", "info") || "info";
+        const label =
+          type === "warn"
+            ? "Warning:"
+            : type === "success"
+              ? "Success:"
+              : "Info:";
+        const html = `\n<div class="callout callout-${type}"><strong>${label}</strong> Your message here...</div>\n`;
+        insertText(html);
+        break;
+      }
+
+      case "details":
+        insertText(
+          "\n<details>\n  <summary>Summary</summary>\n  Collapsible content...\n</details>\n",
+        );
+        break;
+
+      case "footnote": {
+        // Determine next available footnote number and insert a helpful placeholder
+        const content = formData.content || "";
+        const markers = Array.from(content.matchAll(/\[\^(\d+)\]/g)).map((m) =>
+          parseInt(m[1], 10),
+        );
+        const defs = Array.from(content.matchAll(/^\[\^(\d+)\]:/gm)).map((m) =>
+          parseInt(m[1], 10),
+        );
+        const maxExisting = Math.max(
+          0,
+          ...markers.concat(defs).filter(Boolean),
+        );
+        const n = maxExisting + 1;
+        insertText(`[^${n}]`);
+        const placeholder = `[^${n}]: Example — concise source or explanation (مثال: https://example.com)`;
+        setFormData((prev) => ({
+          ...prev,
+          content: prev.content + `\n\n${placeholder}`,
+        }));
+        break;
+      }
+
+      case "toc": {
+        // If the document already has headings, insert an auto-generated Markdown TOC.
+        const mdContent = String(formData.content || "");
+        const matches = Array.from(mdContent.matchAll(/^#{1,6}\s+(.*)$/gim));
+        if (matches.length > 0) {
+          const slugify = (s) =>
+            String(s || "")
+              .toLowerCase()
+              .trim()
+              .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
+              .replace(/^-|-$/g, "");
+          const list = matches
+            .map((m) => {
+              const text = m[1].trim();
+              const level = (m[0].match(/^#+/) || ["#"])[0].length;
+              const indent = "  ".repeat(Math.max(0, level - 1));
+              return `${indent}- [${text}](#${slugify(text)}` + ")";
+            })
+            .join("\n");
+
+          insertText(`<!-- TOC (auto-generated) -->\n\n${list}\n\n`);
+        } else {
+          insertText(
+            `<!-- TOC placeholder: add headings (e.g. # Section) -->\n\n- [Section Title](#section-title)\n\n`,
+          );
+        }
+        break;
+      }
+
+      // New helpful tools (examples + usable HTML/MD so preview renders)
+      case "figure": {
+        const url = window.prompt(
+          "Image URL:",
+          "https://via.placeholder.com/640x360",
+        );
+        if (!url) return;
+        const caption = window.prompt("Caption (optional):", "Figure caption");
+        const html = `\n<figure>\n  <img src="${url}" alt="${(caption || "").replace(/\"/g, "\'")}"/>\n  <figcaption>${caption || ""}</figcaption>\n</figure>\n`;
+        insertText(html);
+        break;
+      }
+
+      case "badge": {
+        const text = window.prompt("Badge text:", "Beta");
+        if (!text) return;
+        insertText(`<span class="badge">${text}</span>`);
+        break;
+      }
+
+      case "kbd": {
+        const keys = window.prompt("Keys (e.g. Ctrl+S):", "Ctrl+S");
+        if (!keys) return;
+        const parts = keys
+          .split("+")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        insertText(parts.map((p) => `<kbd>${p}</kbd>`).join(" + "));
+        break;
+      }
+
+      case "pull-quote": {
+        insertText(
+          `<blockquote class="pull-quote"><p>Pull-quote text — short and striking.</p><footer>— Author</footer></blockquote>`,
+        );
+        break;
+      }
+
+      case "columns": {
+        insertText(
+          `<div class="columns-2">\n  <div>Left column content...</div>\n  <div>Right column content...</div>\n</div>\n`,
+        );
+        break;
+      }
+
+      case "anchor": {
+        const id = window.prompt(
+          "Anchor id (no spaces):",
+          slugValue || "anchor-name",
+        );
+        if (!id) return;
+        insertText(`<a id="${id}"></a>`);
+        break;
+      }
+
+      case "mermaid": {
+        insertText("\n```mermaid\nflowchart LR\n  A-->B\n```");
+        break;
+      }
+
+      case "emoji": {
+        const e = window.prompt("Emoji (or text):", "✅") || "✅";
+        insertText(e);
+        break;
+      }
+
+      case "callout-warn": {
+        insertText(
+          `<div class="callout callout-warn"><strong>Warning:</strong> Important caution here.</div>`,
+        );
+        break;
+      }
+
+      case "callout-tip": {
+        insertText(
+          `<div class="callout callout-success"><strong>Tip:</strong> Helpful tip here.</div>`,
+        );
+        break;
+      }
+
       default:
         break;
     }
@@ -548,6 +933,7 @@ export default function AddGuideModal({ onClose }) {
 
       const guide = await guidesApi.create({
         title: formData.title,
+        slug: slugValue || undefined,
         keywords,
         markdown: formData.content,
         html_content: formData.html_content,
@@ -561,6 +947,13 @@ export default function AddGuideModal({ onClose }) {
       });
 
       if (guide) {
+        // Refresh guides listing so new guide (or fallback localStorage) appears immediately
+        try {
+          invalidateGuides.invalidateAll();
+        } catch (e) {
+          /* ignore */
+        }
+
         // Show success message instead of redirecting
         toast.success("Guide submitted for review!");
         setShowSuccessModal(true);
@@ -750,6 +1143,7 @@ export default function AddGuideModal({ onClose }) {
         <div
           className={`flex-1 flex flex-col h-full bg-white transition-all duration-300 ${viewMode === "preview" ? "hidden" : "block"}`}
         >
+          {" "}
           {/* Metadata Inputs */}
           <div className="px-8 pt-8 pb-4 space-y-4">
             <input
@@ -771,7 +1165,6 @@ export default function AddGuideModal({ onClose }) {
               className="w-full text-gray-500 placeholder:text-gray-300 border-none focus:ring-0 p-0 text-lg"
             />
           </div>
-
           {/* Type Toggle */}
           <div className="px-8 pb-4 flex gap-4 border-b border-gray-100">
             <button
@@ -787,10 +1180,13 @@ export default function AddGuideModal({ onClose }) {
               Custom HTML
             </button>
           </div>
-
           {/* Markdown Toolbar */}
           {activeTab === "markdown" && (
-            <div className="px-6 py-2 border-b border-gray-100 flex items-center gap-1 overflow-x-auto">
+            <div
+              className="px-3 py-2 border-b border-gray-100 bg-white/50 rounded-md shadow-sm flex flex-wrap gap-2 items-center justify-start"
+              role="toolbar"
+              aria-label="Formatting toolbar"
+            >
               <ToolbarButton
                 icon={<Bold size={18} />}
                 onClick={() => handleToolbarAction("bold")}
@@ -801,7 +1197,21 @@ export default function AddGuideModal({ onClose }) {
                 onClick={() => handleToolbarAction("italic")}
                 tooltip="Italic"
               />
-              <div className="w-px h-5 bg-gray-200 mx-2" />
+              <ToolbarButton
+                icon={<Strikethrough size={18} />}
+                onClick={() => handleToolbarAction("strikethrough")}
+                tooltip="Strikethrough"
+              />
+              <ToolbarButton
+                icon={<Code size={16} />}
+                onClick={() => handleToolbarAction("inline-code")}
+                tooltip="Inline code"
+              />
+
+              <div
+                className="hidden sm:block w-px h-5 bg-gray-100 mx-2"
+                aria-hidden="true"
+              />
               <ToolbarButton
                 icon={<Heading1 size={18} />}
                 onClick={() => handleToolbarAction("h1")}
@@ -812,7 +1222,15 @@ export default function AddGuideModal({ onClose }) {
                 onClick={() => handleToolbarAction("h2")}
                 tooltip="Heading 2"
               />
-              <div className="w-px h-5 bg-gray-200 mx-2" />
+              <ToolbarButton
+                icon={<Hash size={16} />}
+                onClick={() => handleToolbarAction("h3")}
+                tooltip="Heading 3"
+              />
+              <div
+                className="hidden sm:block w-px h-5 bg-gray-100 mx-2"
+                aria-hidden="true"
+              />
               <ToolbarButton
                 icon={<LinkIcon size={18} />}
                 onClick={() => handleToolbarAction("link")}
@@ -828,7 +1246,10 @@ export default function AddGuideModal({ onClose }) {
                 onClick={() => handleToolbarAction("quote")}
                 tooltip="Quote"
               />
-              <div className="w-px h-5 bg-gray-200 mx-2" />
+              <div
+                className="hidden sm:block w-px h-5 bg-gray-100 mx-2"
+                aria-hidden="true"
+              />
               <ToolbarButton
                 icon={<List size={18} />}
                 onClick={() => handleToolbarAction("list")}
@@ -839,7 +1260,29 @@ export default function AddGuideModal({ onClose }) {
                 onClick={() => handleToolbarAction("ordered-list")}
                 tooltip="Numbered List"
               />
-              <div className="w-px h-5 bg-gray-200 mx-2" />
+              <ToolbarButton
+                icon={<ListChecks size={18} />}
+                onClick={() => handleToolbarAction("task-list")}
+                tooltip="Task list"
+              />
+              <div
+                className="hidden sm:block w-px h-5 bg-gray-100 mx-2"
+                aria-hidden="true"
+              />
+              <ToolbarButton
+                icon={<Table size={18} />}
+                onClick={() => handleToolbarAction("table")}
+                tooltip="Insert table"
+              />
+              <ToolbarButton
+                icon={<Minus size={18} />}
+                onClick={() => handleToolbarAction("hr")}
+                tooltip="Horizontal rule"
+              />
+              <div
+                className="hidden sm:block w-px h-5 bg-gray-100 mx-2"
+                aria-hidden="true"
+              />
               <label
                 className="p-2 text-gray-500 hover:bg-gray-100 hover:text-black rounded cursor-pointer transition-colors"
                 title="Upload Image"
@@ -852,7 +1295,109 @@ export default function AddGuideModal({ onClose }) {
                 />
                 <ImageIcon size={18} />
               </label>
-              <div className="w-px h-5 bg-gray-200 mx-2" />
+
+              {/* New formatting tools requested by user */}
+              <ToolbarButton
+                icon={<Video size={18} />}
+                onClick={() => handleToolbarAction("youtube")}
+                tooltip="Embed video (YouTube/Vimeo)"
+              />
+
+              <ToolbarButton
+                icon={<Wand2 size={18} />}
+                onClick={() => handleToolbarAction("callout")}
+                tooltip="Insert callout (info/warn/success)"
+              />
+
+              <ToolbarButton
+                icon={<ChevronDown size={18} />}
+                onClick={() => handleToolbarAction("details")}
+                tooltip="Insert collapsible section"
+              />
+
+              <ToolbarButton
+                icon={<Tag size={18} />}
+                onClick={() => handleToolbarAction("highlight")}
+                tooltip="Inline highlight"
+              />
+
+              <ToolbarButton
+                icon={<FileText size={18} />}
+                onClick={() => handleToolbarAction("footnote")}
+                tooltip="Insert footnote"
+              />
+
+              <ToolbarButton
+                icon={<List size={18} />}
+                onClick={() => handleToolbarAction("toc")}
+                tooltip="Insert Table of Contents (auto)"
+              />
+
+              {/* Additional useful tools */}
+              <ToolbarButton
+                icon={<ImageIcon size={18} />}
+                onClick={() => handleToolbarAction("figure")}
+                tooltip="Insert image with caption (figure)"
+              />
+
+              <ToolbarButton
+                icon={<Tag size={18} />}
+                onClick={() => handleToolbarAction("badge")}
+                tooltip="Insert badge / pill"
+              />
+
+              <ToolbarButton
+                icon={<Code size={16} />}
+                onClick={() => handleToolbarAction("kbd")}
+                tooltip="Insert keyboard shortcut (kbd)"
+              />
+
+              <ToolbarButton
+                icon={<Quote size={18} />}
+                onClick={() => handleToolbarAction("pull-quote")}
+                tooltip="Insert pull quote"
+              />
+
+              <ToolbarButton
+                icon={<LayoutTemplate size={18} />}
+                onClick={() => handleToolbarAction("columns")}
+                tooltip="Insert two-column layout"
+              />
+
+              <ToolbarButton
+                icon={<LinkIcon size={18} />}
+                onClick={() => handleToolbarAction("anchor")}
+                tooltip="Insert anchor id"
+              />
+
+              <ToolbarButton
+                icon={<FileText size={18} />}
+                onClick={() => handleToolbarAction("mermaid")}
+                tooltip="Insert Mermaid diagram block"
+              />
+
+              <ToolbarButton
+                icon={<Sparkles size={16} />}
+                onClick={() => handleToolbarAction("emoji")}
+                tooltip="Insert emoji / reaction"
+              />
+
+              <ToolbarButton
+                icon={<Minus size={18} />}
+                onClick={() => handleToolbarAction("callout-warn")}
+                tooltip="Insert warning callout"
+              />
+
+              <ToolbarButton
+                icon={<Wand2 size={18} />}
+                onClick={() => handleToolbarAction("callout-tip")}
+                tooltip="Insert tip callout"
+              />
+
+              <div
+                className="hidden sm:block w-px h-5 bg-gray-100 mx-2"
+                aria-hidden="true"
+              />
               <ToolbarButton
                 icon={<HelpCircle size={18} className="text-indigo-600" />}
                 onClick={() => setShowQuizBuilder(true)}
@@ -860,7 +1405,6 @@ export default function AddGuideModal({ onClose }) {
               />
             </div>
           )}
-
           {/* Editor Area */}
           <div className="flex-1 overflow-auto bg-gray-50/50">
             {activeTab === "markdown" ? (
@@ -898,15 +1442,158 @@ export default function AddGuideModal({ onClose }) {
             </div>
           )}
           <div className="p-8 prose prose-lg prose-slate max-w-none prose-headings:font-black prose-a:text-indigo-600">
+            {/* Integrated preview card (now part of Live Preview to avoid duplication) */}
+            <div className="mb-6">
+              <div className="bg-white border rounded-2xl ring-1 ring-gray-50 overflow-hidden">
+                <div className="px-4 py-2 border-b border-gray-100 bg-white">
+                  <div className="text-xs font-semibold uppercase text-gray-500">
+                    Guide Preview
+                  </div>
+                </div>
+                <div className="p-4">
+                  <h4 className="font-bold text-lg text-gray-900 truncate">
+                    {formData.title || "Untitled guide"}
+                  </h4>
+                  {/* Removed excerpt to avoid duplicate content — full content appears below in Live Preview */}
+                  <div className="flex items-center gap-3 mt-4">
+                    <img
+                      src={
+                        user?.user_metadata?.avatar_url ||
+                        getAvatarForUser(user?.email)
+                      }
+                      alt="avatar"
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                    <div>
+                      <div className="text-sm font-medium">
+                        {user?.user_metadata?.full_name ||
+                          user?.email?.split("@")[0]}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {readTime} min •{" "}
+                        <span className="font-mono">{slugValue || "auto"}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    {(formData.keywords || "")
+                      .split(",")
+                      .map((k) => k.trim())
+                      .filter(Boolean)
+                      .slice(0, 3)
+                      .map((k, i) => (
+                        <span
+                          key={i}
+                          className="text-xs px-2 py-1 bg-gray-100 rounded"
+                        >
+                          {k}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {activeTab === "markdown" ? (
               formData.content ? (
-                <div
-                  dangerouslySetInnerHTML={{
-                    __html: sanitizeContent(
-                      highlightForbiddenContent(marked.parse(formData.content)),
-                    ),
-                  }}
-                />
+                (() => {
+                  // Generate TOC if marker present
+                  let md = String(formData.content || "");
+
+                  // 1) support ==highlight== (convert to <mark>) so preview shows highlights
+                  md = md.replace(/==([^=]+)==/g, "<mark>$1</mark>");
+
+                  // 2) extract footnote definitions (they will be appended below)
+                  const footnoteDefs = {};
+                  md = md.replace(/^\[\^(\d+)\]:\s*(.*)$/gim, (m, id, def) => {
+                    footnoteDefs[id] = def.trim();
+                    return "";
+                  });
+
+                  if (/\[toc\]/i.test(md)) {
+                    const slugify = (s) =>
+                      String(s || "")
+                        .toLowerCase()
+                        .trim()
+                        .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
+                        .replace(/^-|-$/g, "");
+
+                    const matches = Array.from(
+                      md.matchAll(/^#{1,6}\s+(.*)$/gim),
+                    );
+                    if (matches.length > 0) {
+                      const tocItems = matches.map((m) => {
+                        const text = m[1].trim();
+                        const level = (m[0].match(/^#+/) || ["#"])[0].length;
+                        const id = slugify(text);
+                        return { text, level, id };
+                      });
+
+                      // Build nested list (simple flat list with indentation)
+                      const tocHtml = `\n<nav class="guide-toc"><ul class="space-y-1">${tocItems
+                        .map(
+                          (it) =>
+                            `\n<li class="text-sm ml-${Math.max(0, (it.level - 1) * 4)}"><a href=\"#${it.id}\" class=\"text-gray-600 hover:text-gray-900\">${it.text}</a></li>`,
+                        )
+                        .join("")}\n</ul></nav>\n`;
+
+                      md = md.replace(/\[TOC\]/g, tocHtml);
+                    } else {
+                      md = md.replace(/\[TOC\]/g, "");
+                    }
+                  }
+
+                  const htmlRaw = marked.parse(md);
+
+                  // Ensure headings have stable IDs that match TOC links
+                  const slugify = (s) =>
+                    String(s || "")
+                      .toLowerCase()
+                      .trim()
+                      .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
+                      .replace(/^-|-$/g, "");
+
+                  let html = htmlRaw.replace(
+                    /<h([1-6])>(.*?)<\/h\1>/g,
+                    (m, level, inner) => {
+                      const text = inner.replace(/<[^>]+>/g, "").trim();
+                      const id = slugify(text);
+                      return `<h${level} id="${id}">${inner}</h${level}>`;
+                    },
+                  );
+
+                  // Replace inline footnote markers with anchors and append definitions
+                  if (Object.keys(footnoteDefs).length) {
+                    html = html.replace(
+                      /\[\^(\d+)\]/g,
+                      (m, id) =>
+                        `<sup id="fnref-${id}"><a href="#fn-${id}">${id}</a></sup>`,
+                    );
+
+                    const footnotesHtml = `<section class="guide-footnotes"><hr />\n<ol>${Object.keys(
+                      footnoteDefs,
+                    )
+                      .sort((a, b) => a - b)
+                      .map(
+                        (id) =>
+                          `<li id="fn-${id}">${marked.parse(footnoteDefs[id]).replace(/^<p>|<\/p>$/g, "")}&nbsp;<a href="#fnref-${id}" class="footnote-back">↩︎</a></li>`,
+                      )
+                      .join("")}</ol></section>`;
+
+                    html += footnotesHtml;
+                  }
+
+                  // Allow callout/iframe/highlight through sanitizeContent
+                  return (
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: sanitizeContent(
+                          highlightForbiddenContent(html),
+                        ),
+                      }}
+                    />
+                  );
+                })()
               ) : (
                 <div className="flex flex-col items-center justify-center h-64 opacity-20">
                   <Eye size={48} />
@@ -938,7 +1625,8 @@ function ToolbarButton({ icon, onClick, tooltip }) {
       type="button"
       onClick={onClick}
       title={tooltip}
-      className="p-2 text-gray-500 hover:bg-gray-100 hover:text-black rounded transition-colors"
+      aria-label={tooltip}
+      className="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-100 hover:text-black rounded-md transition-colors border border-transparent hover:border-gray-100 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
     >
       {icon}
     </button>

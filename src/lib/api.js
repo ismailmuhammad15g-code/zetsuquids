@@ -1,6 +1,6 @@
 import {
-  isSupabaseConfigured as isSupabaseConfiguredLib,
-  supabase,
+    isSupabaseConfigured as isSupabaseConfiguredLib,
+    supabase,
 } from "./supabase";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
@@ -16,7 +16,7 @@ export function isSupabaseConfigured() {
 }
 
 // Generate unique slug from title
-function generateSlug(title) {
+export function generateSlug(title) {
   return (
     title
       .toLowerCase()
@@ -25,6 +25,16 @@ function generateSlug(title) {
     "-" +
     Date.now().toString(36)
   );
+}
+
+// Sanitize a user-provided slug (no timestamp appended)
+export function sanitizeSlug(value) {
+  if (!value) return "";
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 // Guides API
@@ -72,8 +82,8 @@ export const guidesApi = {
 
     // 1. Add local guides first (Filter ONLY approved guides for public view)
     localGuides.forEach((g) => {
-      if (g.status === 'approved') {
-        mergedMap.set(g.slug, g)
+      if (g.status === "approved") {
+        mergedMap.set(g.slug, g);
       }
     });
 
@@ -152,7 +162,31 @@ export const guidesApi = {
   },
 
   async create(guide) {
-    const slug = generateSlug(guide.title);
+    // Allow optional slug override from the client (sanitized). If none provided, generate one.
+    let slug = guide.slug
+      ? sanitizeSlug(String(guide.slug))
+      : generateSlug(String(guide.title || "untitled"));
+
+    // If Supabase is configured, ensure slug uniqueness by checking existing rows and append short suffix when collision occurs
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: exists } = await supabase
+          .from("guides")
+          .select("id")
+          .eq("slug", slug)
+          .maybeSingle();
+        if (exists) {
+          // Append time-based short suffix to avoid unique constraint conflict
+          slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
+        }
+      } catch (err) {
+        console.warn(
+          "Could not verify slug uniqueness, proceeding with generated slug",
+          err?.message || err,
+        );
+      }
+    }
+
     const guideData = {
       title: guide.title,
       slug,
@@ -652,10 +686,7 @@ export const adminGuidesApi = {
 
     // For now, we delete rejected guides.
     // Alternatively, we could set status='rejected' if we wanted to keep them.
-    const { error } = await supabase
-      .from("guides")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("guides").delete().eq("id", id);
 
     if (error) {
       console.error("Error rejecting guide:", error);
@@ -817,21 +848,21 @@ export const creditsApi = {
 
     try {
       const { data, error } = await supabase
-        .from('zetsuguide_credits')
-        .select('credits')
-        .eq('user_email', userEmail)
-        .single();
+        .from("zetsuguide_credits")
+        .select("credits")
+        .eq("user_email", userEmail)
+        .maybeSingle();
 
+      // maybeSingle returns null data when no row exists (avoids 406)
       if (error) {
-        // If row not found (e.g. new user), return 0 or default
-        if (error.code === 'PGRST116') return 0;
-        console.error('Error fetching credits:', error);
+        console.error("Error fetching credits:", error);
         return 0;
       }
-      return data?.credits || 0;
+      if (!data) return 0;
+      return data.credits || 0;
     } catch (e) {
-      console.error('Error fetching credits:', e);
+      console.error("Error fetching credits:", e);
       return 0;
     }
-  }
+  },
 };

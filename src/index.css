@@ -183,6 +183,159 @@ body {
   @apply w-full border-collapse mb-4;
 }
 
+/* Callout boxes inserted via editor */
+.callout {
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 12px 0;
+  background: #fbfbfb;
+}
+.callout strong {
+  font-weight: 700;
+  margin-right: 6px;
+}
+.callout-info {
+  border-left-color: #3b82f6;
+  background: #f0f9ff;
+}
+.callout-warn {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+}
+.callout-success {
+  border-left-color: #10b981;
+  background: #ecfdf5;
+}
+
+/* Inline highlight */
+.highlight,
+mark,
+.prose mark {
+  background: linear-gradient(90deg, #fff59d, #fff59d);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+/* Figure / caption */
+figure {
+  display: block;
+  margin: 1rem 0;
+}
+figure img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+figcaption {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-top: 6px;
+}
+
+/* Badge */
+.badge {
+  display: inline-block;
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+/* Keyboard key */
+kbd {
+  background: #111827;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Pull-quote */
+.pull-quote {
+  border-left: 4px solid #e5e7eb;
+  padding: 12px 16px;
+  background: #fafafa;
+  margin: 16px 0;
+  font-style: italic;
+}
+.pull-quote footer {
+  font-size: 0.85rem;
+  margin-top: 8px;
+  color: #6b7280;
+}
+
+/* Two-column helper for editor */
+.columns-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* Footnotes */
+.guide-footnotes {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-top: 24px;
+}
+.guide-footnotes ol {
+  padding-left: 1.25rem;
+}
+.guide-footnotes li {
+  margin: 8px 0;
+}
+.footnote-back {
+  margin-left: 8px;
+  color: #6b7280;
+  text-decoration: none;
+}
+
+/* Mermaid rendered SVG container */
+.mermaid-render {
+  margin: 1rem 0;
+}
+
+/* Responsive embed for iframes */
+.embed-responsive {
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+  overflow: hidden;
+  margin: 1rem 0;
+}
+.embed-responsive iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Table-of-contents style */
+.guide-toc {
+  border-left: 2px solid rgba(0, 0, 0, 0.04);
+  padding-left: 12px;
+  margin: 8px 0 16px;
+}
+.guide-toc ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.guide-toc li {
+  margin: 4px 0;
+}
+.guide-toc a {
+  color: #4b5563;
+  text-decoration: none;
+}
+.guide-toc a:hover {
+  color: #111827;
+  text-decoration: underline;
+}
 .guide-content th,
 .guide-content td {
   @apply border border-gray-300 px-4 py-2 text-left;

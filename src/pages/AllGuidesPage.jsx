@@ -1,24 +1,24 @@
 import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
 } from "@/components/ui/pagination";
 import {
-  ArrowUpRight,
-  Calendar,
-  Check,
-  ChevronDown,
-  Filter,
-  Grid,
-  List,
-  Plus,
-  Search,
-  Tag,
-  X,
+    ArrowUpRight,
+    Calendar,
+    Check,
+    ChevronDown,
+    Filter,
+    Grid,
+    List,
+    Plus,
+    Search,
+    Tag,
+    X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
@@ -45,11 +45,23 @@ export default function AllGuidesPage() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const GUIDES_PER_PAGE = 12;
 
+  // Helper to safely read keywords (handles arrays and comma-separated strings)
+  const getKeywords = (g) => {
+    if (!g) return [];
+    if (Array.isArray(g.keywords)) return g.keywords || [];
+    if (typeof g.keywords === "string")
+      return g.keywords
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean);
+    return [];
+  };
+
   // Extract all unique tags
   const allTags = useMemo(() => {
     const tags = new Set();
     guides.forEach((g) => {
-      (g.keywords || []).forEach((k) => tags.add(k));
+      getKeywords(g).forEach((k) => tags.add(k));
     });
     return Array.from(tags);
   }, [guides]);
@@ -64,16 +76,14 @@ export default function AllGuidesPage() {
       filtered = filtered.filter(
         (g) =>
           g.title.toLowerCase().includes(q) ||
-          (g.keywords || []).some((k) => k.toLowerCase().includes(q)) ||
+          getKeywords(g).some((k) => k.toLowerCase().includes(q)) ||
           (g.markdown || g.content || "").toLowerCase().includes(q),
       );
     }
 
     // Tag filter
     if (selectedTag) {
-      filtered = filtered.filter((g) =>
-        (g.keywords || []).includes(selectedTag),
-      );
+      filtered = filtered.filter((g) => getKeywords(g).includes(selectedTag));
     }
 
     return filtered;
@@ -212,16 +222,18 @@ export default function AllGuidesPage() {
                           by{" "}
                           {guide.author_name || guide.user_email?.split("@")[0]}
                         </span>
-                        {guide.keywords && guide.keywords.length > 0 && (
+                        {getKeywords(guide).length > 0 && (
                           <div className="flex gap-1 ml-auto">
-                            {guide.keywords.slice(0, 2).map((k, i) => (
-                              <span
-                                key={i}
-                                className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded"
-                              >
-                                {k}
-                              </span>
-                            ))}
+                            {getKeywords(guide)
+                              .slice(0, 2)
+                              .map((k, i) => (
+                                <span
+                                  key={i}
+                                  className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded"
+                                >
+                                  {k}
+                                </span>
+                              ))}
                           </div>
                         )}
                       </div>
@@ -469,20 +481,22 @@ export default function AllGuidesPage() {
                   day: "numeric",
                 })}
               </div>
-              {guide.keywords && guide.keywords.length > 0 && (
+              {getKeywords(guide).length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {guide.keywords.slice(0, 3).map((kw, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-xs"
-                    >
-                      <Tag size={10} />
-                      {highlight(kw)}
-                    </span>
-                  ))}
-                  {guide.keywords.length > 3 && (
+                  {getKeywords(guide)
+                    .slice(0, 3)
+                    .map((kw, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-xs"
+                      >
+                        <Tag size={10} />
+                        {highlight(kw)}
+                      </span>
+                    ))}
+                  {getKeywords(guide).length > 3 && (
                     <span className="px-2 py-1 bg-gray-100 text-xs">
-                      +{guide.keywords.length - 3}
+                      +{getKeywords(guide).length - 3}
                     </span>
                   )}
                 </div>
@@ -526,10 +540,10 @@ export default function AllGuidesPage() {
                     <Calendar size={12} />
                     {new Date(guide.created_at).toLocaleDateString()}
                   </span>
-                  {guide.keywords && guide.keywords.length > 0 && (
+                  {getKeywords(guide).length > 0 && (
                     <span className="flex items-center gap-1">
                       <Tag size={12} />
-                      {guide.keywords.slice(0, 2).join(", ")}
+                      {getKeywords(guide).slice(0, 2).join(", ")}
                     </span>
                   )}
                 </div>

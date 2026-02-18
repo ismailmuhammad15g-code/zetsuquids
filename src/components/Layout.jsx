@@ -16,6 +16,7 @@ import {
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useLoading } from "../contexts/LoadingContext";
 import { getAvatarForUser } from "../lib/avatar";
 import { supabase } from "../lib/supabase";
 import AccountSetupModal from "./AccountSetupModal";
@@ -29,6 +30,7 @@ import ReferralBonusNotification from "./ReferralBonusNotification";
 import ReferralSuccessModal from "./ReferralSuccessModal";
 import SearchModal from "./SearchModal";
 import SubscriptionRenewAd from "./SubscriptionRenewAd";
+import { TopLoader } from "./TopLoader";
 
 export default function Layout() {
   const location = useLocation();
@@ -46,10 +48,42 @@ export default function Layout() {
   const [showBugReward, setShowBugReward] = useState(false);
   const [rewardReportId, setRewardReportId] = useState(null);
 
+  // Top loader for navigation / global actions
+  const { isLoading } = useLoading();
+  const [navLoading, setNavLoading] = useState(false);
+
   // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location]);
+
+  // Show top loader briefly on navigation changes
+  useEffect(() => {
+    // start nav loading immediately when path changes
+    setNavLoading(true);
+    const t = setTimeout(() => setNavLoading(false), 700);
+    return () => clearTimeout(t);
+  }, [location.pathname]);
+
+  // Also show top loader when internal links are clicked (improves perceived responsiveness)
+  useEffect(() => {
+    const onClick = (e) => {
+      let el = e.target;
+      while (el && el !== document.body) {
+        if (el.tagName === "A") {
+          const href = el.getAttribute("href");
+          if (href && href.startsWith("/")) {
+            setNavLoading(true);
+            setTimeout(() => setNavLoading(false), 900);
+          }
+          break;
+        }
+        el = el.parentElement;
+      }
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
 
   // Keyboard shortcut for search
   useEffect(() => {
@@ -239,6 +273,8 @@ export default function Layout() {
       duration={400}
     >
       <div className="min-h-screen bg-white transition-colors duration-300 dark:bg-black dark:text-white">
+        {/* Top progress loader (light blue) - visible on navigation/actions) */}
+        <TopLoader isLoading={isLoading || navLoading} color="#33C3F0" />
         {/* Header */}
         <header className="sticky top-0 z-[100] bg-white border-b-2 border-black transition-colors duration-300 dark:bg-black dark:border-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

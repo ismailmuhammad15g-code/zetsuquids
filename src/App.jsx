@@ -12,13 +12,14 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { LoadingProvider } from "./contexts/LoadingContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { prefetchGuidesOnLoad } from "./hooks/useGuides";
+import { lazyWithRetry } from "./lib/utils";
 
 // Lazy load pages for performance optimization
 const AdminConsole = lazy(() => import("./pages/AdminConsole"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const AllGuidesPage = lazy(() => import("./pages/AllGuidesPage"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
-const FAQPage = lazy(() => import("./pages/FAQPage"));
+const FAQPage = lazyWithRetry(() => import("./pages/FAQPage"), 3, 300);
 const GuidePage = lazy(() => import("./pages/GuidePage"));
 const HomePage = lazy(() => import("./pages/HomePage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));

@@ -108,6 +108,29 @@ export default function PricingPage() {
 
           if (data) {
             setCredits(data.credits);
+          } else {
+            // No credits row exists for this user — create a default entry (5 credits)
+            try {
+              const { error: insertErr } = await supabase
+                .from("zetsuguide_credits")
+                .insert([
+                  {
+                    user_email: user.email.toLowerCase(),
+                    credits: 5,
+                    total_referrals: 0,
+                  },
+                ]);
+
+              if (!insertErr) {
+                setCredits(5);
+              } else {
+                console.warn("Failed to create credits row:", insertErr);
+                setCredits(0);
+              }
+            } catch (insertEx) {
+              console.error("Insert credits error:", insertEx);
+              setCredits(0);
+            }
           }
         } catch (err) {
           console.error("Error fetching credits:", err);

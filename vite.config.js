@@ -117,14 +117,21 @@ function apiMiddleware() {
           // Environment variables
           process.env.VITE_SUPABASE_URL =
             env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+          process.env.VITE_SUPABASE_ANON_KEY =
+            env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY;
+          process.env.SUPABASE_ANON_KEY =
+            env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY;
           process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
           process.env.MAIL_USERNAME = env.MAIL_USERNAME;
           process.env.MAIL_PASSWORD = env.MAIL_PASSWORD;
           process.env.VITE_APP_URL = "http://localhost:3000";
 
           try {
-            const { default: usersHandler } = await import("./api/users.js");
-            await usersHandler(mockReq, mockRes);
+            // Use legacy register handler that generates the Supabase action link
+            // and sends the verification email via SMTP (nodemailer).
+            const { default: registerHandler } =
+              await import("./api_legacy/register.js");
+            await registerHandler(mockReq, mockRes);
           } catch (error) {
             console.error("Register API Error:", error);
             res.statusCode = 500;
@@ -277,6 +284,29 @@ function apiMiddleware() {
             await interactionsHandler(mockReq, mockRes);
           } catch (error) {
             console.error("Follow User API Error:", error);
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: error.message }));
+          }
+          return;
+        }
+
+        // New route: record individual guide interaction via server (prevents direct RPC 404s)
+        if (req.url === "/api/record_interaction" && req.method === "POST") {
+          const body = await parseBody(req);
+          const { mockReq, mockRes } = createMocks(req, res, body, {
+            type: "record",
+          });
+
+          process.env.VITE_SUPABASE_URL =
+            env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+          process.env.VITE_SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY;
+
+          try {
+            const { default: interactionsHandler } =
+              await import("./api/interactions.js");
+            await interactionsHandler(mockReq, mockRes);
+          } catch (error) {
+            console.error("Record Interaction API Error:", error);
             res.statusCode = 500;
             res.end(JSON.stringify({ error: error.message }));
           }
@@ -512,6 +542,10 @@ function apiMiddleware() {
 
             process.env.VITE_SUPABASE_URL =
               env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+            process.env.VITE_SUPABASE_ANON_KEY =
+              env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY;
+            process.env.SUPABASE_ANON_KEY =
+              env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY;
             process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
             process.env.MAIL_USERNAME = env.MAIL_USERNAME;
             process.env.MAIL_PASSWORD = env.MAIL_PASSWORD;
@@ -562,6 +596,7 @@ export default defineConfig({
       "react-dom",
       "react-dom/client",
       "react/jsx-runtime",
+      "lucide-react",
       "@tanstack/react-query",
     ],
     force: true, // Forces dependency pre-bundling

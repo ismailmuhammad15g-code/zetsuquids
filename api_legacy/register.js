@@ -1,67 +1,73 @@
-import { createClient } from '@supabase/supabase-js'
-import nodemailer from 'nodemailer'
+import { createClient } from "@supabase/supabase-js";
+import nodemailer from "nodemailer";
 
 export default async function handler(req, res) {
-    // Only allow POST
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' })
+  // Only allow POST
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const { email, password, name, redirectUrl, referralCode } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+
+  try {
+    // 1. Init Supabase Admin (Service Role)
+    const supabaseUrl =
+      process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Missing Supabase Config (Register)");
+      return res.status(500).json({ error: "Server configuration error" });
     }
 
-    const { email, password, name, redirectUrl, referralCode } = req.body
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' })
+    // 2. Create User / Generate Link
+    // We use admin.generateLink to get the action link without sending email
+    const { data, error } = await supabase.auth.admin.generateLink({
+      type: "signup",
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          referral_pending: referralCode || null, // Store for later claim
+        },
+        redirectTo: redirectUrl || "https://zetsusave2.vercel.app/auth",
+      },
+    });
+
+    if (error) {
+      console.error(
+        "Supabase Generate Link Error:",
+        JSON.stringify(error, null, 2),
+      );
+      return res
+        .status(400)
+        .json({ error: error.message || "Registration failed" });
     }
 
-    try {
-        // 1. Init Supabase Admin (Service Role)
-        const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY
+    const { action_link } = data.properties;
 
-        if (!supabaseUrl || !supabaseServiceKey) {
-            console.error('Missing Supabase Config (Register)')
-            return res.status(500).json({ error: 'Server configuration error' })
-        }
+    // 3. Send Email via Gmail SMTP
+    const mailPort = parseInt(process.env.MAIL_PORT || "587");
+    const isSecure = mailPort === 465; // Gmail: 465=true (SSL), 587=false (STARTTLS)
 
-        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const transporter = nodemailer.createTransport({
+      host: process.env.MAIL_SERVER || "smtp.gmail.com",
+      port: mailPort,
+      secure: isSecure,
+      auth: {
+        user: process.env.MAIL_USERNAME,
+        pass: process.env.MAIL_PASSWORD,
+      },
+    });
 
-        // 2. Create User / Generate Link
-        // We use admin.generateLink to get the action link without sending email
-        const { data, error } = await supabase.auth.admin.generateLink({
-            type: 'signup',
-            email,
-            password,
-            options: {
-                data: {
-                    name,
-                    referral_pending: referralCode || null // Store for later claim
-                },
-                redirectTo: redirectUrl || 'https://zetsusave2.vercel.app/auth'
-            }
-        })
-
-        if (error) {
-            console.error('Supabase Generate Link Error:', JSON.stringify(error, null, 2))
-            return res.status(400).json({ error: error.message || 'Registration failed' })
-        }
-
-        const { action_link } = data.properties
-
-        // 3. Send Email via Gmail SMTP
-        const mailPort = parseInt(process.env.MAIL_PORT || '587')
-        const isSecure = mailPort === 465 // Gmail: 465=true (SSL), 587=false (STARTTLS)
-
-        const transporter = nodemailer.createTransport({
-            host: process.env.MAIL_SERVER || 'smtp.gmail.com',
-            port: mailPort,
-            secure: isSecure,
-            auth: {
-                user: process.env.MAIL_USERNAME,
-                pass: process.env.MAIL_PASSWORD,
-            },
-        })
-
-        const htmlContent = `
+    const htmlContent = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -85,7 +91,7 @@ export default async function handler(req, res) {
                 </div>
                 <div class="content">
                     <h1 class="title">Welcome to DevVault! 🎉</h1>
-                    <p class="text">Hi ${name || 'there'},<br>You're one step away from joining your personal coding knowledge base. Click the button below to verify your email.</p>
+                    <p class="text">Hi ${name || "there"},<br>You're one step away from joining your personal coding knowledge base. Click the button below to verify your email.</p>
                     <a href="${action_link}" class="button">Verify Email Address</a>
                 </div>
                 <div class="footer">
@@ -95,19 +101,36 @@ export default async function handler(req, res) {
             </div>
         </body>
         </html>
-        `
+        `;
 
-        await transporter.sendMail({
-            from: `"${process.env.MAIL_DEFAULT_SENDER || 'ZetsuGuides'}" <${process.env.MAIL_USERNAME}>`,
-            to: email,
-            subject: 'Confirm your ZetsuGuides account',
-            html: htmlContent
-        })
+    try {
+      await transporter.sendMail({
+        from: `"${process.env.MAIL_DEFAULT_SENDER || "ZetsuGuides"}" <${process.env.MAIL_USERNAME}>`,
+        to: email,
+        subject: "Confirm your ZetsuGuides account",
+        html: htmlContent,
+      });
 
-        return res.status(200).json({ success: true, message: 'Verification email sent' })
-
-    } catch (err) {
-        console.error('Registration Error:', err)
-        return res.status(500).json({ error: 'Internal Server Error: ' + err.message })
+      return res
+        .status(200)
+        .json({ success: true, message: "Verification email sent" });
+    } catch (sendErr) {
+      console.error("SMTP sendMail failed:", sendErr);
+      // Fallback for local/dev: return the action_link so developer can
+      // manually click it or paste into a browser. Do NOT expose this in
+      // production environments.
+      return res.status(200).json({
+        success: true,
+        message:
+          "SMTP send failed; returning action link for manual verification (dev only).",
+        action_link,
+        smtpError: String(sendErr?.message || sendErr),
+      });
     }
+  } catch (err) {
+    console.error("Registration Error:", err);
+    return res
+      .status(500)
+      .json({ error: "Internal Server Error: " + err.message });
+  }
 }

@@ -17,24 +17,51 @@ export function useGuideInteraction(guideSlug, guideId = null) {
 
   // Record interaction helper
   const recordInteraction = async (interactionType, score = 1) => {
-    if (!user?.email || !guideId) return;
+    // Require authenticated user and either a guideSlug or a guideId
+    if (!user?.email || (!guideSlug && !guideId)) return;
 
     // Prevent duplicate recordings
     if (interactionRecorded.current[interactionType]) return;
 
     try {
-      await supabase.rpc("record_guide_interaction", {
-        p_user_email: user.email.toLowerCase(),
-        p_guide_id: guideId, // Changed from p_guide_slug to p_guide_id
-        p_interaction_type: interactionType,
-        p_interaction_score: score || 1,
-      });
+      // Ensure we call the RPC with the guide slug (DB function expects slug)
+      let slugToSend = guideSlug;
+      if (!slugToSend && guideId) {
+        const { data: g, error: gErr } = await supabase
+          .from("guides")
+          .select("slug")
+          .eq("id", guideId)
+          .maybeSingle();
+        if (g && g.slug) slugToSend = g.slug;
+        if (gErr || !slugToSend) return; // can't record without slug
+      }
 
-      interactionRecorded.current[interactionType] = true;
-      console.log(
-        `📊 Recorded ${interactionType} interaction for guide: ${guideSlug} (${guideId})`,
-      );
+      // Use server API to record interactions (avoids exposing RPC 404s in client)
+      try {
+        await fetch("/api/record_interaction", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userEmail: user.email.toLowerCase(),
+            guideSlug: slugToSend,
+            interactionType,
+            interactionScore: score || 1,
+          }),
+        });
+        interactionRecorded.current[interactionType] = true;
+        console.log(
+          `📊 Recorded ${interactionType} interaction for guide: ${guideSlug} (${guideId})`,
+        );
+      } catch (err) {
+        // ignore network/server errors for analytics
+        console.debug("record_interaction API skipped:", err?.message || err);
+      }
     } catch (error) {
+      // Swallow 404 RPC-not-found errors (some Supabase projects may not have the function)
+      if (error?.status === 404 || error?.code === "PGRST116") {
+        // Not present on this DB — ignore silently
+        return;
+      }
       console.error("Error recording interaction:", error);
     }
   };
@@ -103,14 +130,26 @@ export function useAuthorFollowInteraction(authorEmail) {
 
       if (error) throw error;
 
-      // Record interaction with each of the author's guides
+      // Record interaction with each of the author's guides via server API
       for (const guide of authorGuides || []) {
-        await supabase.rpc("record_guide_interaction", {
-          p_user_email: user.email.toLowerCase(),
-          p_guide_id: guide.id, // Changed from p_guide_slug to p_guide_id
-          p_interaction_type: "author_follow",
-          p_interaction_score: 2,
-        });
+        try {
+          await fetch("/api/record_interaction", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userEmail: user.email.toLowerCase(),
+              guideSlug: guide.slug,
+              interactionType: "author_follow",
+              interactionScore: 2,
+            }),
+          });
+        } catch (e) {
+          // ignore per-guide failures
+          console.debug(
+            "record_interaction (author_follow) skipped:",
+            e?.message || e,
+          );
+        }
       }
 
       console.log(`📊 Recorded follow interaction for author: ${authorEmail}`);

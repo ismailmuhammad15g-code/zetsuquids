@@ -1,5 +1,6 @@
 import { clsx } from "clsx";
 import DOMPurify from "dompurify";
+import React from "react";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs) {
@@ -9,8 +10,43 @@ export function cn(...inputs) {
 export function sanitizeContent(html) {
   if (!html) return "";
   return DOMPurify.sanitize(html, {
-    ADD_TAGS: ["iframe"], // Optional: if we ever want to allow safe iframes, but for now mostly for style
-    ADD_ATTR: ["style", "class", "target", "rel"],
+    // allow safe embed-related + lightweight HTML used by editor tools
+    ADD_TAGS: [
+      "iframe",
+      "mark",
+      "figure",
+      "figcaption",
+      "kbd",
+      "details",
+      "summary",
+      "nav",
+      "section",
+      "sup",
+      "time",
+      "aside",
+      "svg",
+    ],
+    // preserve attributes commonly used by embeds, anchors, and accessibility
+    ADD_ATTR: [
+      "style",
+      "class",
+      "target",
+      "rel",
+      "allow",
+      "allowfullscreen",
+      "frameborder",
+      "loading",
+      "referrerpolicy",
+      "width",
+      "height",
+      "src",
+      "id",
+      "aria-label",
+      "aria-hidden",
+      "role",
+      "data-*",
+      "title",
+    ],
   });
 }
 
@@ -34,4 +70,22 @@ export function extractGuideContent(guide) {
   }
 
   return "";
+}
+
+// Helper: lazy import with retry for transient dev-server/import failures
+export function lazyWithRetry(factory, retries = 2, delayMs = 250) {
+  return React.lazy(
+    () =>
+      new Promise((resolve, reject) => {
+        const attempt = (n) => {
+          factory()
+            .then(resolve)
+            .catch((err) => {
+              if (n <= 0) return reject(err);
+              setTimeout(() => attempt(n - 1), delayMs);
+            });
+        };
+        attempt(retries);
+      }),
+  );
 }

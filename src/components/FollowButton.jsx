@@ -1,5 +1,5 @@
 import { Loader2, UserCheck, UserPlus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { useAuthorFollowInteraction } from "../hooks/useGuideInteraction";
@@ -17,6 +17,7 @@ export default function FollowButton({
   const [followersCount, setFollowersCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
+  const buttonRef = useRef(null);
 
   // Check if current user is following the target user
   useEffect(() => {
@@ -137,6 +138,22 @@ export default function FollowButton({
           toast.success(`Following ${targetUserName || "user"}!`);
           // Record interaction for recommendations
           recordFollowInteraction();
+
+          // Trigger confetti from the button position (safe dynamic import)
+          try {
+            const confettiMod = await import("canvas-confetti");
+            const confetti = confettiMod.default || confettiMod;
+            if (buttonRef.current && confetti) {
+              const rect = buttonRef.current.getBoundingClientRect();
+              const x = (rect.left + rect.width / 2) / window.innerWidth;
+              const y = (rect.top + rect.height / 2) / window.innerHeight;
+
+              confetti({ particleCount: 100, spread: 70, origin: { x, y } });
+            }
+          } catch (err) {
+            // Don't surface confetti failures to user
+            console.debug("Confetti failed:", err?.message || err);
+          }
         } else {
           toast.success(`Unfollowed ${targetUserName || "user"}`);
         }
@@ -171,6 +188,7 @@ export default function FollowButton({
           Follower{followersCount !== 1 ? "s" : ""}
         </div>
         <button
+          ref={buttonRef}
           disabled
           className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-400 text-sm font-medium cursor-not-allowed"
         >
@@ -192,6 +210,7 @@ export default function FollowButton({
       {/* Follow/Unfollow Button */}
       {user && (
         <button
+          ref={buttonRef}
           onClick={handleFollowToggle}
           disabled={loading}
           className={`

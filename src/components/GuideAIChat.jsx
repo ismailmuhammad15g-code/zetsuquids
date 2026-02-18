@@ -49,10 +49,20 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
         .from("zetsuguide_credits")
         .select("credits")
         .eq("user_email", user.email.toLowerCase())
-        .single();
+        .maybeSingle(); // use maybeSingle to avoid 406 when row doesn't exist
 
       if (!error && data) {
-        setCredits(data.credits);
+        setCredits(data.credits ?? 0);
+      } else if (!error && !data) {
+        // No row yet — treat as zero credits
+        setCredits(0);
+      } else if (error) {
+        // Log and fallback silently to 0
+        console.debug(
+          "Credits query returned error (handled):",
+          error.message || error,
+        );
+        setCredits(0);
       }
     } catch (err) {
       console.error("Error fetching credits:", err);
