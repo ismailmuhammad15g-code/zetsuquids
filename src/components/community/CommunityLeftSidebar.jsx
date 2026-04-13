@@ -8,6 +8,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [showMenu, setShowMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const navItems = [
     { name: "Home", icon: Home, href: "/community" },
@@ -16,7 +17,6 @@ export default function CommunityLeftSidebar({ onPostClick }) {
     { name: "Messages", icon: Mail, href: "/community/messages" },
     { name: "Bookmarks", icon: Bookmark, href: "/community/bookmarks" },
     { name: "Communities", icon: Users, href: "/community/communities" },
-    { name: "Premium", icon: X, href: "/community/premium" },
     {
       name: "Profile",
       icon: User,
@@ -43,6 +43,50 @@ export default function CommunityLeftSidebar({ onPostClick }) {
             {navItems.map((item) => {
               const isActive = location.pathname === item.href;
               const Icon = item.icon;
+              if (item.name === "More") {
+                return (
+                  <div key={item.name} className="relative w-full flex justify-center xl:justify-start">
+                    {/* More Menu Popup */}
+                    {showMoreMenu && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
+                        <div className="absolute top-full lg:top-auto lg:bottom-full mt-2 lg:mb-2 lg:mt-0 bg-black border border-[#2f3336] rounded-2xl shadow-[0_0_15px_rgba(255,255,255,0.2)] w-max min-w-[260px] overflow-hidden z-50 py-3 left-1/2 -translate-x-1/2 xl:left-0 xl:translate-x-0">
+                          <Link to="/settings" className="block px-4 py-3 hover:bg-white/[0.03] text-[#e7e9ea] font-bold text-[15px] transition-colors">
+                            Settings and privacy
+                          </Link>
+                          <Link to="/support" className="block px-4 py-3 hover:bg-white/[0.03] text-[#e7e9ea] font-bold text-[15px] transition-colors">
+                            Help Center
+                          </Link>
+                          <button onClick={() => setShowMoreMenu(false)} className="w-full text-left px-4 py-3 hover:bg-white/[0.03] text-[#e7e9ea] font-bold text-[15px] transition-colors">
+                            Display
+                          </button>
+                        </div>
+                      </>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowMoreMenu(!showMoreMenu);
+                      }}
+                      className="flex items-center justify-center xl:justify-start w-fit xl:w-auto p-3 xl:px-4 xl:py-3 rounded-full hover:bg-[#181818] transition-colors group mx-auto xl:mx-0"
+                    >
+                      <Icon
+                        size={26}
+                        strokeWidth={isActive ? 2.5 : 2}
+                        className="text-[#e7e9ea]"
+                      />
+                      <span
+                        className={`hidden xl:block ml-4 text-[20px] ${
+                          isActive ? "font-bold" : "font-normal"
+                        } text-[#e7e9ea]`}
+                      >
+                        {item.name}
+                      </span>
+                    </button>
+                  </div>
+                );
+              }
+
               return (
                 <Link
                   key={item.name}
@@ -56,7 +100,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
                   />
                   <span
                     className={`hidden xl:block ml-4 text-[20px] ${
-                      isActive ? "font-bold" : "font-normal"
+                      Math.abs(isActive - 1) < 0.1 || location.pathname.startsWith(item.href) && item.href !== "/community" ? "font-bold" : "font-normal"
                     } text-[#e7e9ea]`}
                   >
                     {item.name}

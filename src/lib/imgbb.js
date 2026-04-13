@@ -1,31 +1,48 @@
 /**
- * Uploads an image file to ImgBB and returns the display URL.
+ * Uploads an image file to ImgBB and returns the display URL with progress tracking.
  * @param {File} file - The image file to upload.
+ * @param {Function} onProgress - Optional callback for upload progress (0-100).
  * @returns {Promise<string>} - The URL of the uploaded image.
  */
-export async function uploadImageToImgBB(file) {
+export function uploadImageToImgBB(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    // Standard API key - should preferably come from env but keeping it robust
     const API_KEY = "1d1f0d90c8b5e24ebdfec95f9c4019ab";
     const formData = new FormData();
     formData.append("image", file);
 
-    try {
-        const response = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY}`, {
-            method: "POST",
-            body: formData,
-        });
-
-        if (!response.ok) {
-            throw new Error(`Upload failed: ${response.statusText}`);
+    const xhr = new XMLHttpRequest();
+    
+    // Listen for progress updates
+    if (onProgress && xhr.upload) {
+      xhr.upload.addEventListener("progress", (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          onProgress(percentComplete);
         }
-
-        const data = await response.json();
-        if (data.success) {
-            return data.data.url;
-        } else {
-            throw new Error(data.error?.message || "Failed to upload image");
-        }
-    } catch (error) {
-        console.error("ImgBB Upload Error:", error);
-        throw error;
+      });
     }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          if (response.success) {
+            resolve(response.data.url);
+          } else {
+            reject(new Error(response.error?.message || "Upload failed"));
+          }
+        } catch (e) {
+          reject(new Error("Failed to parse response"));
+        }
+      } else {
+        reject(new Error(`Upload failed with status: ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Network error during upload"));
+    
+    xhr.open("POST", `https://api.imgbb.com/1/upload?key=${API_KEY}`);
+    xhr.send(formData);
+  });
 }

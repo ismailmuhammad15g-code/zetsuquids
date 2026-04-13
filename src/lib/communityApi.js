@@ -4,7 +4,7 @@ import { supabase } from "./supabase";
 export const communityApi = {
   // --- Posts ---
 
-  async getPosts(category = "All", userId = null) {
+  async getPosts(category = "All", userId = null, groupId = null) {
     if (!isSupabaseConfigured()) {
       return [];
     }
@@ -21,21 +21,30 @@ export const communityApi = {
       .order("created_at", { ascending: false })
       .limit(50);
 
-    if (category === "Following" && userId) {
-      const { data: follows } = await supabase
-        .from("community_follows")
-        .select("following_id")
-        .eq("follower_id", userId);
+    if (groupId) {
+      query = query.eq("group_id", groupId);
+    } else {
+      // By default, only show global posts (where group_id is null) in the main feed
+      // unless specifically requested.
+      if (category === "Following" && userId) {
+        const { data: follows } = await supabase
+          .from("community_follows")
+          .select("following_id")
+          .eq("follower_id", userId);
 
-      if (!follows || follows.length === 0) {
-        return [];
+        if (!follows || follows.length === 0) {
+          return [];
+        }
+
+        const followedIds = follows.map((f) => f.following_id);
+        followedIds.push(userId);
+        query = query.in("user_id", followedIds);
+      } else if (category !== "All" && category !== "For you") {
+        query = query.eq("category", category);
       }
-
-      const followedIds = follows.map((f) => f.following_id);
-      followedIds.push(userId);
-      query = query.in("user_id", followedIds);
-    } else if (category !== "All" && category !== "For you") {
-      query = query.eq("category", category);
+      
+      // Filter out group posts from main feeds to keep them exclusive to the group page
+      query = query.is("group_id", null);
     }
 
     const { data: posts, error } = await query;
@@ -222,6 +231,48 @@ export const communityApi = {
   },
 
   // --- Community Features ---
+
+  async createPost(postData) {
+    if (!isSupabaseConfigured()) throw new Error("Supabase is not configured.");
+
+    const { data: userData, error: authError } = await supabase.auth.getUser();
+    if (authError || !userData?.user) throw new Error("Must be logged in to post.");
+
+    const { data, error } = await supabase
+      .from("posts")
+      .insert({
+        title: postData.title || postData.content?.slice(0, 50) || "Post",
+        content: postData.content,
+        category: postData.category || "General",
+        user_id: userData.user.id,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async deletePost(postId, userId) {
+    if (!isSupabaseConfigured()) throw new Error("Supabase not configured.");
+
+    // Clean up relations first
+    await Promise.all([
+      supabase.from("community_post_hashtags").delete().eq("post_id", postId),
+      supabase.from("post_comments").delete().eq("post_id", postId),
+      supabase.from("post_likes").delete().eq("post_id", postId),
+      supabase.from("post_bookmarks").delete().eq("post_id", postId),
+      supabase.from("community_notifications").delete().eq("post_id", postId),
+    ]);
+
+    const { error } = await supabase
+      .from("posts")
+      .delete()
+      .match({ id: postId, user_id: userId });
+
+    if (error) throw error;
+    return true;
+  },
 
   async getFollowing(userId, limit = 50) {
     if (!isSupabaseConfigured() || !userId) return [];
@@ -425,6 +476,227 @@ export const communityApi = {
       source_image: "https://ui-avatars.com/api/?name=" + (item.category || "News"),
       created_at: item.created_at
     })) || [];
+  },
+
+  async toggleBookmark(postId, userId) {
+    if (!isSupabaseConfigured()) return { bookmarked: false };
+
+    // Check if bookmarked
+    const { data: existing } = await supabase
+      .from("post_bookmarks")
+      .select("post_id")
+      .eq("post_id", postId)
+      .eq("user_id", userId)
+      .single();
+
+    if (existing) {
+      await supabase.from("post_bookmarks").delete().eq("post_id", postId).eq("user_id", userId);
+      return { bookmarked: false };
+    } else {
+      await supabase.from("post_bookmarks").insert({ post_id: postId, user_id: userId });
+      return { bookmarked: true };
+    }
+  },
+
+  async getBookmarkedPosts(userId) {
+    if (!isSupabaseConfigured()) return [];
+
+    // Step 1: Get bookmarked post IDs
+    const { data: bookmarks, error: bErr } = await supabase
+      .from("post_bookmarks")
+      .select("post_id")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (bErr || !bookmarks?.length) return [];
+
+    const postIds = bookmarks.map(b => b.post_id);
+
+    // Step 2: Fetch those posts
+    const { data: posts, error: pErr } = await supabase
+      .from("posts")
+      .select(`
+        *,
+        post_likes(user_id),
+        post_comments(count)
+      `)
+      .in("id", postIds);
+
+    if (pErr || !posts?.length) return [];
+
+    // Step 3: Fetch profiles
+    const userIds = [...new Set(posts.map(p => p.user_id))];
+    const { data: profiles } = await supabase
+      .from("zetsuguide_user_profiles")
+      .select("*")
+      .in("user_id", userIds);
+
+    const profileMap = {};
+    profiles?.forEach(p => (profileMap[p.user_id] = p));
+
+    return posts.map(post => ({
+      ...post,
+      author: profileMap[post.user_id] || {
+        display_name: "Unknown User",
+        username: "unknown",
+        avatar_url: null,
+      },
+      likes_count: post.post_likes?.length || 0,
+      comments_count: post.post_comments?.[0]?.count || 0,
+      has_liked: post.post_likes?.some(l => l.user_id === userId) || false,
+    })).sort((a, b) => {
+      // Preserve bookmark order
+      return postIds.indexOf(a.id) - postIds.indexOf(b.id);
+    });
+  },
+
+  async getNotifications(userId) {
+    if (!isSupabaseConfigured()) return [];
+
+    // Step 1: Get notifications
+    const { data, error } = await supabase
+      .from("community_notifications")
+      .select(`
+        *,
+        post:posts(content)
+      `)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error || !data?.length) return [];
+
+    // Step 2: Fetch actor profiles
+    const actorIds = [...new Set(data.map(n => n.actor_id).filter(Boolean))];
+    const { data: profiles } = await supabase
+      .from("zetsuguide_user_profiles")
+      .select("*")
+      .in("user_id", actorIds);
+
+    const profileMap = {};
+    profiles?.forEach(p => (profileMap[p.user_id] = p));
+
+    return data.map(n => ({
+      ...n,
+      actor: profileMap[n.actor_id] || {
+        display_name: "Someone",
+        username: "user",
+        avatar_url: null,
+      },
+    }));
+  },
+
+  async getCommunities() {
+    if (!isSupabaseConfigured()) return [];
+
+    const { data, error } = await supabase
+      .from("community_groups")
+      .select("*")
+      .order("members_count", { ascending: false });
+
+    if (error) return [];
+    return data;
+  },
+
+  async createCommunity(name, description, avatarUrl, creatorId) {
+    if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
+
+    const { data, error } = await supabase
+      .from("community_groups")
+      .insert([
+        {
+          name,
+          description,
+          avatar_url: avatarUrl,
+          creator_id: creatorId,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Automatically join the community
+    await this.joinCommunity(data.id, creatorId);
+
+    return data;
+  },
+
+  async getGroup(id) {
+    if (!isSupabaseConfigured()) return null;
+    const { data, error } = await supabase
+      .from("community_groups")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error) return null;
+    return data;
+  },
+
+  async deleteCommunity(id) {
+    if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
+    const { error } = await supabase
+      .from("community_groups")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
+    return true;
+  },
+
+  async joinCommunity(groupId, userId) {
+    if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
+
+    const { error } = await supabase
+      .from("community_members")
+      .insert([{ user_id: userId, group_id: groupId }]);
+
+    if (error) throw error;
+    return true;
+  },
+
+  async leaveCommunity(groupId, userId) {
+    if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
+
+    const { error } = await supabase
+      .from("community_members")
+      .delete()
+      .eq("user_id", userId)
+      .eq("group_id", groupId);
+
+    if (error) throw error;
+    return true;
+  },
+
+  async getJoinedCommunities(userId) {
+    if (!isSupabaseConfigured() || !userId) return [];
+
+    const { data, error } = await supabase
+      .from("community_members")
+      .select("group_id")
+      .eq("user_id", userId);
+
+    if (error) return [];
+    return data.map((m) => m.group_id);
+  },
+
+  async getSuggestedCommunities(userId, limit = 3) {
+    if (!isSupabaseConfigured()) return [];
+
+    let query = supabase.from("community_groups").select("*");
+
+    if (userId) {
+      // Get IDs of joined communities
+      const joinedIds = await this.getJoinedCommunities(userId);
+      if (joinedIds.length > 0) {
+        query = query.not("id", "in", `(${joinedIds.join(",")})`);
+      }
+    }
+
+    const { data, error } = await query
+      .order("members_count", { ascending: false })
+      .limit(limit);
+
+    if (error) return [];
+    return data;
   },
 
   async followUser(followerId, followingId) {

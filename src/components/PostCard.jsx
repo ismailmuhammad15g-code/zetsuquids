@@ -5,10 +5,12 @@ import {
   Bookmark,
   Heart,
   MessageSquare,
+  MoreHorizontal,
   Repeat2,
   Share,
+  Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { useNavigate } from "react-router-dom";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -18,13 +20,19 @@ import { useAuth } from "../contexts/AuthContext";
 import { getAvatarForUser } from "../lib/avatar";
 import { communityApi } from "../lib/communityApi";
 
-export default function PostCard({ post }) {
+export default function PostCard({ post, onDeleted }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [liked, setLiked] = useState(post.has_liked ?? false);
   const [likes, setLikes] = useState(post.likes_count ?? 0);
   const [repliesCount, setRepliesCount] = useState(post.comments_count ?? 0);
   const [bookmarked, setBookmarked] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const menuRef = useRef(null);
+
+  const isOwner = user?.id === post.user_id;
 
   useEffect(() => {
     if (typeof post.has_liked !== "undefined") return;
@@ -114,6 +122,38 @@ export default function PostCard({ post }) {
   };
 
   const stopProp = (e) => e.stopPropagation();
+
+  const handleBookmark = async (e) => {
+    e.stopPropagation();
+    if (!user) { toast.error("Please sign in to bookmark posts"); return; }
+    const next = !bookmarked;
+    setBookmarked(next);
+    try {
+      await communityApi.toggleBookmark(post.id, user.id);
+      toast.success(next ? "Added to Bookmarks" : "Removed from Bookmarks", {
+        style: { background: "#16181c", border: "1px solid #1f2937", color: "#e7e9ea" },
+      });
+    } catch {
+      setBookmarked(!next);
+      toast.error("Failed to update bookmark");
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await communityApi.deletePost(post.id, user.id);
+      toast.success("Post deleted", {
+        style: { background: "#16181c", border: "1px solid #1f2937", color: "#e7e9ea" },
+      });
+      if (onDeleted) onDeleted(post.id);
+    } catch {
+      toast.error("Failed to delete post");
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
 
   const formatCount = (num) => {
     if (!num || num === 0) return "";
@@ -216,6 +256,7 @@ export default function PostCard({ post }) {
   };
 
   return (
+    <>
     <article
       onClick={handleCardClick}
       className="cursor-pointer border-b border-gray-800 hover:bg-white/[0.03] transition-colors duration-200 px-4 py-3 flex gap-3"
@@ -233,8 +274,9 @@ export default function PostCard({ post }) {
 
       {/* Content Column */}
       <div className="flex-1 min-w-0">
-        {/* Header: Name, Verified Badge, Handle, Time */}
-        <div className="flex items-center gap-1 text-[15px] leading-5">
+      {/* Header row with three-dot menu */}
+      <div className="flex items-center gap-1 text-[15px] leading-5 justify-between">
+        <div className="flex items-center gap-1 overflow-hidden">
           <span className="font-bold text-[#e7e9ea] hover:underline truncate">
             {authorName}
           </span>
@@ -253,6 +295,33 @@ export default function PostCard({ post }) {
             {formatTimeAgo(post.created_at)}
           </span>
         </div>
+
+        {/* Three Dots: Only for post owner */}
+        {isOwner && (
+          <div className="relative flex-shrink-0" ref={menuRef}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowMenu(v => !v); }}
+              className="p-1.5 rounded-full hover:bg-[#1d9bf0]/10 hover:text-[#1d9bf0] text-[#71767b] transition-colors"
+            >
+              <MoreHorizontal size={18} />
+            </button>
+            {showMenu && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }} />
+                <div className="absolute right-0 top-full mt-1 bg-black border border-[#2f3336] rounded-2xl shadow-[0_8px_28px_rgba(255,255,255,0.15)] overflow-hidden z-40 min-w-[200px] py-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-[15px] font-bold text-[#f4212e] hover:bg-[#f4212e]/10 transition-colors"
+                  >
+                    <Trash2 size={18} />
+                    Delete post
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
         {/* Post Body — no separate title, just content */}
         <div className="text-[#e7e9ea] text-[15px] leading-[20px] mt-0.5 whitespace-pre-wrap break-words">
@@ -336,20 +405,7 @@ export default function PostCard({ post }) {
                 ? "text-[#1d9bf0]"
                 : "hover:text-[#1d9bf0]"
                 }`}
-              onClick={(e) => {
-                stopProp(e);
-                setBookmarked(!bookmarked);
-                toast.success(
-                  bookmarked ? "Removed from Bookmarks" : "Added to Bookmarks",
-                  {
-                    style: {
-                      background: "#16181c",
-                      border: "1px solid #1f2937",
-                      color: "#e7e9ea",
-                    },
-                  },
-                );
-              }}
+              onClick={handleBookmark}
             >
               <Bookmark
                 size={18}
@@ -378,7 +434,34 @@ export default function PostCard({ post }) {
             </button>
           </div>
         </div>
-      </div >
-    </article >
+      </div>
+    </article>
+
+    {/* Delete Confirmation Modal */}
+    {showDeleteConfirm && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)} />
+        <div className="relative bg-black border border-[#2f3336] rounded-2xl p-8 max-w-[320px] w-full shadow-[0_0_30px_rgba(255,255,255,0.1)] text-center">
+          <h2 className="text-[20px] font-extrabold text-[#e7e9ea] mb-2">Delete post?</h2>
+          <p className="text-[#71767b] text-[15px] leading-5 mb-6">
+            This can&#39;t be undone and it will be removed from your profile and the timeline of anyone who follows you.
+          </p>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="w-full py-3 mb-3 rounded-full bg-[#f4212e] text-white font-bold text-[17px] hover:bg-[#cc1a27] transition-colors disabled:opacity-60"
+          >
+            {deleting ? "Deleting..." : "Delete"}
+          </button>
+          <button
+            onClick={() => setShowDeleteConfirm(false)}
+            className="w-full py-3 rounded-full border border-[#536471] text-[#e7e9ea] font-bold text-[17px] hover:bg-white/[0.03] transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

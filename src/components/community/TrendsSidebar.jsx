@@ -1,10 +1,12 @@
-import { BadgeCheck, MoreHorizontal, Search, X } from "lucide-react";
+import { BadgeCheck, MoreHorizontal, Search, X, Users } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getAvatarForUser } from "../../lib/avatar";
 import { communityApi } from "../../lib/communityApi";
 
 export default function TrendsSidebar({ user }) {
+  const navigate = useNavigate();
   const [trends, setTrends] = useState([]);
   const [news, setNews] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
@@ -12,6 +14,7 @@ export default function TrendsSidebar({ user }) {
   const [loading, setLoading] = useState(true);
   const [suggestionLimit, setSuggestionLimit] = useState(10);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [suggestedCommunities, setSuggestedCommunities] = useState([]);
 
   // Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,16 +33,18 @@ export default function TrendsSidebar({ user }) {
       try {
         console.log("📡 [TrendsSidebar] Starting API calls...");
         console.log("📏 [TrendsSidebar] Fetching with limit:", suggestionLimit);
-        const [trendsData, newsData, suggestionsData, followingData] = await Promise.all([
+        const [trendsData, newsData, suggestionsData, followingData, commsData] = await Promise.all([
           communityApi.getTrends(),
           communityApi.getNews(),
           communityApi.getWhoToFollow(user?.id, suggestionLimit),
           user?.id ? communityApi.getFollowing(user.id) : Promise.resolve([]),
+          communityApi.getSuggestedCommunities(user?.id, 3),
         ]);
         setTrends(trendsData || []);
         setNews(newsData || []);
         setSuggestions(suggestionsData || []);
         setFollowing(followingData || []);
+        setSuggestedCommunities(commsData || []);
       } catch (e) {
         console.error("❌ [TrendsSidebar] Failed to load sidebar data", e);
       } finally {
@@ -246,20 +251,7 @@ export default function TrendsSidebar({ user }) {
         )}
       </div>
 
-      {/* Subscribe to Premium */}
-      <div className="rounded-2xl border border-[#2f3336] bg-black mb-4 px-4 py-3 flex flex-col gap-2">
-        <h2 className="text-[20px] font-extrabold text-[#e7e9ea] leading-6 mb-0.5">
-          Subscribe to Premium
-        </h2>
-        <p className="text-[15px] text-[#e7e9ea] leading-5 mb-1.5 font-normal">
-          Subscribe to unlock new features and if eligible, receive a share of ads revenue.
-        </p>
-        <button className="bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-bold text-[15px] py-1.5 px-4 rounded-full w-fit transition-colors">
-          Subscribe
-        </button>
-      </div>
-
-      {/* Today's News (or What's happening) */}
+      {/* Today's News */}
       <div className="rounded-2xl bg-[#16181c] pt-3 mb-4 overflow-hidden border border-[#2f3336]">
         <h2 className="mb-1 px-4 text-[20px] font-extrabold text-[#e7e9ea]">
           What's happening
@@ -419,6 +411,45 @@ export default function TrendsSidebar({ user }) {
               View all ({following.length})
             </div>
           )}
+        </div>
+      )}
+
+
+      {/* Communities to join */}
+      {suggestedCommunities.length > 0 && (
+        <div className="mt-4 bg-[#16181c] rounded-2xl overflow-hidden">
+          <h2 className="px-4 py-3 text-[20px] font-extrabold text-[#e7e9ea]">
+            Communities to join
+          </h2>
+          {suggestedCommunities.map((c) => (
+            <div
+              key={c.id}
+              onClick={() => navigate(`/community/group/${c.id}`)}
+              className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] transition-colors cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#2f3336] flex-shrink-0">
+                {c.avatar_url ? (
+                  <img src={c.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Users size={18} className="text-[#71767b]" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="font-bold text-[#e7e9ea] text-[15px] truncate">{c.name}</p>
+                <p className="text-[#71767b] text-[13px] truncate">
+                  {(c.members_count || 0).toLocaleString()} members
+                </p>
+              </div>
+            </div>
+          ))}
+          <button
+            onClick={() => navigate("/community/communities")}
+            className="w-full cursor-pointer p-4 text-[15px] text-[#1d9bf0] hover:bg-white/[0.03] transition-colors text-left"
+          >
+            Show more
+          </button>
         </div>
       )}
 

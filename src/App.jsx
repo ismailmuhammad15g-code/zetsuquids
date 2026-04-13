@@ -34,8 +34,15 @@ const UserStatsPage = lazy(() => import("./pages/UserStatsPage"));
 const UserWorkspacePage = lazy(() => import("./pages/UserWorkspacePage"));
 const VerifyEmailPage = lazy(() => import("./pages/VerifyEmailPage"));
 const ZetsuGuideAIPage = lazy(() => import("./pages/ZetsuGuideAIPage"));
-const CommunityPage = lazy(() => import("./pages/CommunityPage"));
-const CommunityPlaceholderPage = lazy(() => import("./pages/CommunityPlaceholderPage"));
+const CommunityLayout = lazy(() => import("./components/community/CommunityLayout"));
+const CommunityFeed = lazy(() => import("./pages/CommunityPage"));
+const CommunityExplorePage = lazy(() => import("./pages/community/ExplorePage"));
+const CommunityBookmarksPage = lazy(() => import("./pages/community/BookmarksPage"));
+const CommunityNotificationsPage = lazy(() => import("./pages/community/NotificationsPage"));
+const CommunityMessagesPage = lazy(() => import("./pages/community/MessagesPage"));
+const CommunityCommunitiesPage = lazy(() => import("./pages/community/CommunitiesPage"));
+const CommunityGroupPage = lazy(() => import("./pages/community/GroupPage"));
+
 const PostDetailsPage = lazy(() => import("./pages/PostDetailsPage"));
 const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
@@ -90,20 +97,18 @@ function App() {
                 <Route path="support" element={<SupportPage />} />
                 <Route path="reportbug" element={<ReportBugPage />} />
                 <Route path="faq" element={<FAQPage />} />
-                <Route path="community" element={<CommunityPage />} />
-                <Route
-                  path="community/post/:id"
-                  element={<PostDetailsPage />}
-                />
-                
-                {/* Community Sub-pages */}
-                <Route path="community/explore" element={<CommunityPlaceholderPage title="Explore" />} />
-                <Route path="community/notifications" element={<CommunityPlaceholderPage title="Notifications" />} />
-                <Route path="community/messages" element={<CommunityPlaceholderPage title="Messages" />} />
-                <Route path="community/bookmarks" element={<CommunityPlaceholderPage title="Bookmarks" message="Your saved posts will appear here." />} />
-                <Route path="community/communities" element={<CommunityPlaceholderPage title="Communities" message="Discover and join groups of people who share your interests." />} />
-                <Route path="community/premium" element={<CommunityPlaceholderPage title="Premium" message="Subscribe to unlock new features." />} />
-                
+                {/* Community — all nested under CommunityLayout (sidebars + Post Modal) */}
+                <Route path="community" element={<CommunityLayout />}>
+                  <Route index element={<CommunityFeed />} />
+                  <Route path="post/:id" element={<PostDetailsPage />} />
+                  <Route path="explore" element={<CommunityExplorePage />} />
+                  <Route path="notifications" element={<CommunityNotificationsPage />} />
+                  <Route path="messages" element={<CommunityMessagesPage />} />
+                  <Route path="bookmarks" element={<CommunityBookmarksPage />} />
+                  <Route path="communities" element={<CommunityCommunitiesPage />} />
+                  <Route path="group/:id" element={<CommunityGroupPage />} />
+                </Route>
+
               </Route>
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />

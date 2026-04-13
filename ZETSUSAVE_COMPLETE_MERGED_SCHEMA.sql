@@ -164,7 +164,8 @@ BEGIN
   END IF;
 END $$;
 
--- Add constraint to ensure reserved_credits doesn't exceed credits
+-- Add constraint to ensure reserved_credits doesn't exceed credits (idempotent)
+ALTER TABLE zetsuguide_credits DROP CONSTRAINT IF EXISTS check_reserved_credits;
 ALTER TABLE zetsuguide_credits
 ADD CONSTRAINT check_reserved_credits
 CHECK (reserved_credits >= 0 AND reserved_credits <= credits);
@@ -776,7 +777,8 @@ CREATE TABLE IF NOT EXISTS support_messages (
     read_at TIMESTAMPTZ
 );
 
--- Add constraint
+-- Add constraint (idempotent)
+ALTER TABLE support_messages DROP CONSTRAINT IF EXISTS support_messages_sender_type_check;
 ALTER TABLE support_messages
 ADD CONSTRAINT support_messages_sender_type_check
 CHECK (sender_type IN ('user', 'admin', 'staff'));
@@ -1683,10 +1685,14 @@ CREATE TABLE IF NOT EXISTS posts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Fix: Add group_id to posts for community grouping
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES community_groups(id) ON DELETE CASCADE;
+
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(category);
+CREATE INDEX IF NOT EXISTS idx_posts_group_id ON posts(group_id);
 
 -- Enable RLS
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
@@ -1952,6 +1958,149 @@ GRANT EXECUTE ON FUNCTION decrement_likes TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION cleanup_old_image_urls TO authenticated, anon;
 
 -- ==================================================================================
+-- PART 11: COMMUNITY V2 (BOOKMARKS, NOTIFICATIONS, GROUPS)
+-- ==================================================================================
+
+-- ===== Bookmarks =====
+CREATE TABLE IF NOT EXISTS post_bookmarks (
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    PRIMARY KEY (user_id, post_id)
+);
+
+ALTER TABLE post_bookmarks ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own bookmarks" ON post_bookmarks;
+CREATE POLICY "Users can view own bookmarks" ON post_bookmarks
+    FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can manage own bookmarks" ON post_bookmarks;
+CREATE POLICY "Users can manage own bookmarks" ON post_bookmarks
+    FOR ALL USING (auth.uid() = user_id);
+
+-- ===== Notifications =====
+CREATE TABLE IF NOT EXISTS community_notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, -- Who receives
+    actor_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, -- Who did it
+    type TEXT CHECK (type IN ('like', 'comment', 'follow', 'mention')) NOT NULL,
+    post_id UUID REFERENCES posts(id) ON DELETE CASCADE, -- Optional relation to post
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE community_notifications ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own notifications" ON community_notifications;
+CREATE POLICY "Users can view own notifications" ON community_notifications
+    FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own notifications" ON community_notifications;
+CREATE POLICY "Users can update own notifications" ON community_notifications
+    FOR UPDATE USING (auth.uid() = user_id);
+
+-- Trigger to create notification on post like
+CREATE OR REPLACE FUNCTION notify_post_like() RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.user_id != (SELECT user_id FROM posts WHERE id = NEW.post_id) THEN
+    INSERT INTO community_notifications (user_id, actor_id, type, post_id)
+    VALUES ((SELECT user_id FROM posts WHERE id = NEW.post_id), NEW.user_id, 'like', NEW.post_id);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_notify_post_like ON post_likes;
+CREATE TRIGGER trg_notify_post_like AFTER INSERT ON post_likes
+FOR EACH ROW EXECUTE FUNCTION notify_post_like();
+
+-- Trigger to create notification on post comment
+CREATE OR REPLACE FUNCTION notify_post_comment() RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.user_id != (SELECT user_id FROM posts WHERE id = NEW.post_id) THEN
+    INSERT INTO community_notifications (user_id, actor_id, type, post_id)
+    VALUES ((SELECT user_id FROM posts WHERE id = NEW.post_id), NEW.user_id, 'comment', NEW.post_id);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_notify_post_comment ON post_comments;
+CREATE TRIGGER trg_notify_post_comment AFTER INSERT ON post_comments
+FOR EACH ROW EXECUTE FUNCTION notify_post_comment();
+
+-- ===== Communities (Groups) =====
+CREATE TABLE IF NOT EXISTS community_groups (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL UNIQUE,
+    description TEXT,
+    avatar_url TEXT,
+    banner_url TEXT,
+    creator_id UUID REFERENCES auth.users(id),
+    members_count INT DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Ensure creator_id exists (in case table was created before this column was added)
+ALTER TABLE community_groups ADD COLUMN IF NOT EXISTS creator_id UUID REFERENCES auth.users(id);
+ALTER TABLE community_groups ADD COLUMN IF NOT EXISTS members_count INT DEFAULT 0;
+
+
+-- community_members table
+CREATE TABLE IF NOT EXISTS community_members (
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    group_id UUID REFERENCES community_groups(id) ON DELETE CASCADE,
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    PRIMARY KEY (user_id, group_id)
+);
+
+-- Trigger to update member count
+CREATE OR REPLACE FUNCTION update_community_member_count() RETURNS TRIGGER AS $$
+BEGIN
+  IF (TG_OP = 'INSERT') THEN
+    UPDATE community_groups SET members_count = members_count + 1 WHERE id = NEW.group_id;
+  ELSIF (TG_OP = 'DELETE') THEN
+    UPDATE community_groups SET members_count = GREATEST(0, members_count - 1) WHERE id = OLD.group_id;
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_community_member_count ON community_members;
+CREATE TRIGGER trg_community_member_count
+AFTER INSERT OR DELETE ON community_members
+FOR EACH ROW EXECUTE FUNCTION update_community_member_count();
+
+-- RLS
+ALTER TABLE community_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_members ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view groups" ON community_groups;
+CREATE POLICY "Anyone can view groups" ON community_groups FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Auth users can create groups" ON community_groups;
+CREATE POLICY "Auth users can create groups" ON community_groups FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Creators can delete their own groups" ON community_groups;
+CREATE POLICY "Creators can delete their own groups" ON community_groups FOR DELETE USING (auth.uid() = creator_id);
+
+DROP POLICY IF EXISTS "Anyone can view members" ON community_members;
+CREATE POLICY "Anyone can view members" ON community_members FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can manage own membership" ON community_members;
+CREATE POLICY "Users can manage own membership" ON community_members FOR ALL USING (auth.uid() = user_id);
+
+-- Ensure columns exist in case table was created before this version
+ALTER TABLE community_groups ADD COLUMN IF NOT EXISTS creator_id UUID REFERENCES auth.users(id);
+ALTER TABLE community_groups ADD COLUMN IF NOT EXISTS members_count INT DEFAULT 0;
+
+-- (The seed data is now moved to the bottom DO $$ block to ensure users exist first)
+
+
+
+
+-- ==================================================================================
 -- DEPLOYMENT COMPLETE
 -- ==================================================================================
 -- All tables, functions, triggers, and RLS policies are now configured
@@ -2003,6 +2152,25 @@ BEGIN
   (news_id, 'Péter Magyar''s Tisza Party', 'Péter Magyar''s Tisza Party Wins Hungary Election Supermajority', 'News', 88480, NOW() - INTERVAL '1 day'),
   (news_id, 'U.S. Naval Blockade', 'U.S. Naval Blockade Targets Iranian Oil Exports After Talks Collapse', 'News', 8780, NOW() - INTERVAL '2 days'),
   (news_id, 'Barcelona Channels LeBron', 'Barcelona Channels LeBron''s 2016 Comeback for Atlético UCL Remontada', 'Sports', 3400, NOW() - INTERVAL '2 days');
+
+  -- Insert Community Groups
+  INSERT INTO community_groups (id, name, description, avatar_url, creator_id, members_count) VALUES
+  ('66666666-6666-6666-6666-666666666666', 'Zetsu Developers', 'The hub for all things coding and Zetsu automation.', 'https://ui-avatars.com/api/?name=Zetsu+Devs&background=1d9bf0&color=fff', elon_id, 1250),
+  ('77777777-7777-7777-7777-777777777777', 'Crypto Enthusiasts', 'Discussing latest trends in blockchain and web3.', 'https://ui-avatars.com/api/?name=Crypto&background=fbbf24&color=fff', elon_id, 890),
+  ('88888888-8888-8888-8888-888888888888', 'AI Pioneers', 'Sharing the future of artificial intelligence together.', 'https://ui-avatars.com/api/?name=AI+Pioneers&background=a855f7&color=fff', elon_id, 2340)
+  ON CONFLICT (name) DO UPDATE SET 
+    description = EXCLUDED.description,
+    avatar_url = EXCLUDED.avatar_url,
+    creator_id = EXCLUDED.creator_id,
+    members_count = EXCLUDED.members_count;
+
+  -- Join some users to communities
+  INSERT INTO community_members (user_id, group_id) VALUES
+  (elon_id, '66666666-6666-6666-6666-666666666666'),
+  (sarah_id, '66666666-6666-6666-6666-666666666666'),
+  (james_id, '66666666-6666-6666-6666-666666666666')
+  ON CONFLICT DO NOTHING;
+
 
 EXCEPTION WHEN OTHERS THEN
   -- Fallback if auth.users has strict constraints not met above

@@ -3,13 +3,16 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { getAvatarForUser } from "../../lib/avatar";
 import { communityApi } from "../../lib/communityApi";
+import { uploadImageToImgBB } from "../../lib/imgbb";
 
 const MAX_CHARS = 280;
 
-export default function Composer({ user, onPostCreated, isModal = false }) {
+export default function Composer({ user, onPostCreated, isModal = false, groupId = null, placeholder = "What is happening?!" }) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [tempPreview, setTempPreview] = useState(null);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -36,6 +39,7 @@ export default function Composer({ user, onPostCreated, isModal = false }) {
         content,
         category: "General",
         user_id: user.id,
+        group_id: groupId, // Support posting to a specific community
       });
 
       setContent("");
@@ -68,35 +72,33 @@ export default function Composer({ user, onPostCreated, isModal = false }) {
     }
 
     setUploadingImage(true);
+    setUploadProgress(0);
+    
+    // Create local preview
+    const localUrl = URL.createObjectURL(file);
+    setTempPreview(localUrl);
     
     try {
-      const formData = new FormData();
-      formData.append("image", file);
-      
-      const API_KEY = import.meta.env.VITE_IMGBB_API_KEY;
-      if (!API_KEY) throw new Error("ImgBB API key is missing");
-
-      const res = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY}`, {
-        method: "POST",
-        body: formData,
+      const imageUrl = await uploadImageToImgBB(file, (percent) => {
+        setUploadProgress(percent);
       });
-      const data = await res.json();
       
-      if (data.success) {
-        const imageUrl = data.data.url;
-        setContent(prev => prev + (prev.endsWith("\n") || prev === "" ? "" : "\n\n") + `![Image](${imageUrl})\n`);
-        if (textareaRef.current) {
-          textareaRef.current.style.height = "auto";
-          textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
-        }
-      } else {
-        throw new Error(data.error?.message || "Failed to upload image");
+      setContent(prev => prev + (prev.endsWith("\n") || prev === "" ? "" : "\n\n") + `![Image](${imageUrl})\n`);
+      
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
+        textareaRef.current.focus();
       }
+      
+      toast.success("Image uploaded!");
     } catch (error) {
       console.error(error);
       toast.error("Image upload failed");
     } finally {
       setUploadingImage(false);
+      setUploadProgress(0);
+      setTempPreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -165,25 +167,43 @@ export default function Composer({ user, onPostCreated, isModal = false }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="relative">
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="What is happening?!"
-            className="w-full resize-none border-none bg-transparent text-[20px] text-[#e7e9ea] placeholder-[#71767b] focus:ring-0 focus:outline-none min-h-[56px] scrollbar-none py-3 relative z-10"
-            rows={isModal ? 3 : 1}
-            onInput={(e) => {
-              e.target.style.height = "auto";
-              e.target.style.height = e.target.scrollHeight + "px";
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault();
-                handleSubmit();
-              }
-            }}
-          />
-        </div>
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder={placeholder}
+              className="w-full resize-none border-none bg-transparent text-[20px] text-[#e7e9ea] placeholder-[#71767b] focus:ring-0 focus:outline-none min-h-[56px] scrollbar-none py-3 relative z-10"
+              rows={isModal ? 3 : 1}
+              onInput={(e) => {
+                e.target.style.height = "auto";
+                e.target.style.height = e.target.scrollHeight + "px";
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  handleSubmit();
+                }
+              }}
+            />
+
+            {/* Uploading Overlay */}
+            {uploadingImage && (
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md rounded-xl animate-fade-in border border-[#1d9bf0]/20">
+                {tempPreview && (
+                  <img src={tempPreview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
+                )}
+                <div className="relative flex flex-col items-center">
+                  <div className="w-12 h-12 rounded-full border-4 border-[#1d9bf0]/20 border-t-[#1d9bf0] animate-spin mb-3"></div>
+                  <span className="text-[#e7e9ea] font-bold text-[18px]">
+                    {uploadProgress}%
+                  </span>
+                  <span className="text-[#71767b] text-[13px] font-medium mt-1">
+                    Uploading...
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
 
         {content && (
           <div className="pb-3 border-b border-[#2f3336] mb-3">
