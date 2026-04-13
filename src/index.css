@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --shimmer-base:      #9ca3af;
+    --shimmer-highlight: #f9fafb;
+  }
+  .dark {
+    --shimmer-base:      #4b5563;
+    --shimmer-highlight: #e5e7eb;
+  }
+}
+
 html {
   font-size: 12.5px; /* Slightly increased to ~78% scale */
   scroll-behavior: smooth;
