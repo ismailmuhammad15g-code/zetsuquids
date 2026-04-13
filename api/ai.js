@@ -470,8 +470,8 @@ async function executeSubAgentWorkflow(
   );
   const researchData = researchResult.success
     ? researchResult.sources
-        .map((s) => `[SOURCE: ${s.url}] ${s.content.substring(0, 1000)}`)
-        .join("\n\n")
+      .map((s) => `[SOURCE: ${s.url}] ${s.content.substring(0, 1000)}`)
+      .join("\n\n")
     : "No new external data found (using internal knowledge).";
 
   // STAGE 4: ANALYST
@@ -516,10 +516,10 @@ async function executeDeepReasoning(query, apiKey, apiUrl, model) {
   const researchResult = await deepResearch(query, apiKey, apiUrl);
   const externalData = researchResult.success
     ? researchResult.sources
-        .map(
-          (s) => `SOURCE: ${s.url}\nCONTENT: ${s.content.substring(0, 1500)}`,
-        )
-        .join("\n\n")
+      .map(
+        (s) => `SOURCE: ${s.url}\nCONTENT: ${s.content.substring(0, 1500)}`,
+      )
+      .join("\n\n")
     : "No external data found.";
 
   // STAGE 3: SYNTHESIS
@@ -600,7 +600,7 @@ async function fetchWithExponentialBackoff(url, options, maxRetries = 4) {
       // Retry on timeout, network errors, or "fetch failed" (undici error)
       const isTimeout = error.name === "AbortError" || error.message.toLowerCase().includes("timeout");
       const isNetworkError = error.message === "fetch failed" || error.code === "ETIMEDOUT" || error.code === "ECONNRESET";
-      
+
       if (isTimeout || isNetworkError) {
         const waitTime =
           waitTimes[attempt - 1] || waitTimes[waitTimes.length - 1];
@@ -638,7 +638,7 @@ function toGeminiRequest(messages, model) {
   }
 
   const payload = { contents };
-  
+
   if (systemInstruction) {
     payload.system_instruction = {
       parts: [{ text: systemInstruction }]
@@ -687,7 +687,7 @@ export default async function handler(req, res) {
     if (typeof body === "string") {
       try {
         body = JSON.parse(body);
-      } catch (e) {}
+      } catch (e) { }
     }
 
     const { messages, model, userId, userEmail, skipCreditDeduction } =
@@ -1245,10 +1245,10 @@ Here is the explanation...
 
     // Prepare Gemini Request
     const wantsStream = supportsStreaming && (req.body.stream || !skipCreditDeduction);
-    const endpoint = wantsStream 
-      ? apiUrl.replace(":generateContent", ":streamGenerateContent") 
+    const endpoint = wantsStream
+      ? apiUrl.replace(":generateContent", ":streamGenerateContent")
       : apiUrl;
-    
+
     const geminiPayload = toGeminiRequest(messagesWithSearch, validatedModel);
     geminiPayload.generationConfig = {
       maxOutputTokens: 4000,
@@ -1291,369 +1291,369 @@ Here is the explanation...
     if (!skipCreditDeduction) {
       // Check if user exists in credits table
       const { data: creditData, error: creditError } = await supabase
-      .from("zetsuguide_credits")
-      .select("credits")
-      .eq("user_email", lookupEmail)
-      .maybeSingle();
-
-    if (creditError) {
-      console.error("Error fetching credits:", creditError);
-      // Return details for debugging
-      return res.status(500).json({
-        error: "Failed to verify credits",
-        details: creditError.message,
-        hint: "Please ensure the 'zetsuguide_credits' table exists.",
-      });
-    }
-
-    if (!creditData) {
-      // User doesn't exist in table yet, create them with default credits
-      console.log(
-        `User ${lookupEmail} not found in credits table. Creating default entry...`,
-      );
-      const { data: newCreditData, error: insertError } = await supabase
         .from("zetsuguide_credits")
-        .insert([{ user_email: lookupEmail, credits: 10 }]) // Default 10 credits
         .select("credits")
-        .single();
+        .eq("user_email", lookupEmail)
+        .maybeSingle();
 
-      if (insertError) {
-        console.error("Error creating default credits:", insertError);
+      if (creditError) {
+        console.error("Error fetching credits:", creditError);
+        // Return details for debugging
         return res.status(500).json({
-          error: "Failed to initialize user credits",
-          details: insertError.message,
+          error: "Failed to verify credits",
+          details: creditError.message,
+          hint: "Please ensure the 'zetsuguide_credits' table exists.",
         });
       }
 
-      currentCredits = newCreditData?.credits || 10;
-    } else {
-      currentCredits = creditData.credits;
-    }
+      if (!creditData) {
+        // User doesn't exist in table yet, create them with default credits
+        console.log(
+          `User ${lookupEmail} not found in credits table. Creating default entry...`,
+        );
+        const { data: newCreditData, error: insertError } = await supabase
+          .from("zetsuguide_credits")
+          .insert([{ user_email: lookupEmail, credits: 10 }]) // Default 10 credits
+          .select("credits")
+          .single();
 
-    console.log(`User ${lookupEmail} has ${currentCredits} credits.`);
+        if (insertError) {
+          console.error("Error creating default credits:", insertError);
+          return res.status(500).json({
+            error: "Failed to initialize user credits",
+            details: insertError.message,
+          });
+        }
 
-    if (currentCredits < 1) {
-      return res.status(403).json({
-        error: "Insufficient credits. Please refer friends to earn more!",
-      });
-    }
-
-    console.log("📤 Sending to AI API with REAL STREAMING...");
-
-    if (!skipCreditDeduction) {
-      // Deduct credit BEFORE streaming starts
-      const { error: deductError } = await supabase
-      .from("zetsuguide_credits")
-      .update({
-        credits: currentCredits - 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_email", lookupEmail);
-
-      if (deductError) {
-        console.error("Failed to deduct credit:", deductError);
+        currentCredits = newCreditData?.credits || 10;
       } else {
-        console.log(
-          `Deducted 1 credit for user ${lookupEmail}. New balance: ${currentCredits - 1}`,
-        );
+        currentCredits = creditData.credits;
       }
-    }
 
-    let response;
-    try {
-      console.log("🚀 Sending request to Gemini stream API:", {
-        model: validatedModel,
-        messageCount: messagesWithSearch.length,
-        streaming: true,
-      });
-      response = await fetch(`${endpoint}?alt=sse&key=${apiKey}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(geminiPayload),
-      });
+      console.log(`User ${lookupEmail} has ${currentCredits} credits.`);
 
-      console.log("📥 Received response:", {
-        status: response.status,
-        statusText: response.statusText,
-        contentType: response.headers.get("content-type"),
-        hasBody: !!response.body,
-      });
-    } catch (fetchError) {
-      console.error("❌ API failed:", fetchError);
-      return res.status(504).json({
-        error: "AI service unavailable",
-        details: "The AI service is temporarily unavailable. Please try again.",
-      });
-    }
+      if (currentCredits < 1) {
+        return res.status(403).json({
+          error: "Insufficient credits. Please refer friends to earn more!",
+        });
+      }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ AI API error:", response.status, errorText);
-      return res.status(response.status).json({
-        error: `AI Service Error (${response.status})`,
-        details: "Please try again in a moment.",
-      });
-    }
+      console.log("📤 Sending to AI API with REAL STREAMING...");
 
-    // Streaming support already checked above
-    console.log("Stream Support Check (verified):", {
-      supportsStreaming,
-      resWriteType: typeof res.write,
-      resEndType: typeof res.end,
-      headersSent: res.headersSent,
-    });
+      if (!skipCreditDeduction) {
+        // Deduct credit BEFORE streaming starts
+        const { error: deductError } = await supabase
+          .from("zetsuguide_credits")
+          .update({
+            credits: currentCredits - 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_email", lookupEmail);
 
-    if (supportsStreaming) {
-      // Create a compatible reader for both Web Streams and Node Streams
-      let reader;
+        if (deductError) {
+          console.error("Failed to deduct credit:", deductError);
+        } else {
+          console.log(
+            `Deducted 1 credit for user ${lookupEmail}. New balance: ${currentCredits - 1}`,
+          );
+        }
+      }
 
-      if (response.body && typeof response.body.getReader === "function") {
-        reader = response.body.getReader();
-      } else if (
-        response.body &&
-        typeof response.body[Symbol.asyncIterator] === "function"
-      ) {
-        // Node.js PassThrough/Readable stream
-        const iterator = response.body[Symbol.asyncIterator]();
-        reader = {
-          read: async () => {
-            const { done, value } = await iterator.next();
-            return { done, value };
+      let response;
+      try {
+        console.log("🚀 Sending request to Gemini stream API:", {
+          model: validatedModel,
+          messageCount: messagesWithSearch.length,
+          streaming: true,
+        });
+        response = await fetch(`${endpoint}?alt=sse&key=${apiKey}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        };
-      }
+          body: JSON.stringify(geminiPayload),
+        });
 
-      // Verify we have a valid reader
-      if (!reader) {
-        console.error("❌ AI provider did not return a readable stream!");
-        console.error("Response body type:", typeof response.body);
-
-        // Fallback: try to read as text
-        const text = await response.text();
-        console.log(
-          "Response as text (first 200 chars):",
-          text.substring(0, 200),
-        );
-
-        return res.status(502).json({
-          error: "AI service returned invalid streaming response",
-          details:
-            "The AI provider is not responding with a proper stream format.",
+        console.log("📥 Received response:", {
+          status: response.status,
+          statusText: response.statusText,
+          contentType: response.headers.get("content-type"),
+          hasBody: !!response.body,
+        });
+      } catch (fetchError) {
+        console.error("❌ API failed:", fetchError);
+        return res.status(504).json({
+          error: "AI service unavailable",
+          details: "The AI service is temporarily unavailable. Please try again.",
         });
       }
 
-      // Set up Server-Sent Events (SSE) for real streaming
-      res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache");
-      res.setHeader("Connection", "keep-alive");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ AI API error:", response.status, errorText);
+        return res.status(response.status).json({
+          error: `AI Service Error (${response.status})`,
+          details: "Please try again in a moment.",
+        });
+      }
 
-      console.log("✅ Starting REAL STREAMING to client...");
+      // Streaming support already checked above
+      console.log("Stream Support Check (verified):", {
+        supportsStreaming,
+        resWriteType: typeof res.write,
+        resEndType: typeof res.end,
+        headersSent: res.headersSent,
+      });
 
-      // Send initial metadata
-      res.write(
-        `data: ${JSON.stringify({ type: "start", sources: fetchedSources.map((s) => ({ url: s.url, method: s.method })) })}\n\n`,
-      );
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let totalTokensSent = 0; // Track if we're actually receiving content
-      let chunkCount = 0;
-      let debugFirstChunks = []; // Store first few chunks for debugging
+      if (supportsStreaming) {
+        // Create a compatible reader for both Web Streams and Node Streams
+        let reader;
 
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-
-          if (done) {
-            console.log(
-              "✅ Stream completed - Total tokens sent:",
-              totalTokensSent,
-              "from",
-              chunkCount,
-              "chunks",
-            );
-            if (totalTokensSent === 0) {
-              console.error(
-                "⚠️⚠️ ERROR: Stream completed but NO tokens were extracted!",
-              );
-              console.error("First 3 chunks received:", debugFirstChunks);
-              console.error("Last buffer content:", buffer);
-            }
-            res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
-            res.end();
-            break;
-          }
-
-          chunkCount++;
-          buffer += decoder.decode(value, { stream: true });
-
-          // Save first 3 raw chunks for debugging
-          if (debugFirstChunks.length < 3) {
-            const rawChunk = decoder.decode(value, { stream: true });
-            debugFirstChunks.push({
-              chunkNum: chunkCount,
-              raw: rawChunk.substring(0, 500),
-              bufferLength: buffer.length,
-            });
-            console.log(`📦 Chunk ${chunkCount}:`, rawChunk.substring(0, 300));
-          }
-
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-
-          for (const line of lines) {
-            const trimmedLine = line.trim();
-            if (trimmedLine === "" || trimmedLine === "data: [DONE]") continue;
-
-            let jsonStr = null;
-
-            // Handle various data prefix formats
-            if (line.startsWith("data: ")) {
-              jsonStr = line.slice(6);
-            } else if (line.startsWith("data:")) {
-              jsonStr = line.slice(5);
-            } else {
-              // Try to treat the whole line as JSON (fallback)
-              // Only if it looks like JSON (starts with { and ends with })
-              if (trimmedLine.startsWith("{") && trimmedLine.endsWith("}")) {
-                jsonStr = trimmedLine;
-              }
-            }
-
-            if (jsonStr) {
-              try {
-                const parsed = JSON.parse(jsonStr);
-
-                // Try multiple response format patterns
-                let content = null;
-
-                // Pattern 1: OpenAI streaming format
-                if (parsed.choices?.[0]?.delta?.content) {
-                  content = parsed.choices[0].delta.content;
-                }
-                // Pattern 2: Some APIs return content directly in message
-                else if (parsed.choices?.[0]?.message?.content) {
-                  content = parsed.choices[0].message.content;
-                }
-                // Pattern 3: Direct content field
-                else if (parsed.content) {
-                  content = parsed.content;
-                }
-                // Pattern 4: Text field (some providers)
-                else if (parsed.text) {
-                  content = parsed.text;
-                }
-                // Pattern 5: Gemini streaming format
-                else if (parsed.candidates?.[0]?.content?.parts?.[0]?.text !== undefined) {
-                  content = parsed.candidates[0].content.parts[0].text;
-                }
-
-                // IMPORTANT: Some Gemini chunks only contain thought signatures
-                if (parsed.candidates?.[0]?.content?.parts?.[0]?.thoughtSignature) {
-                   res.write(
-                    `data: ${JSON.stringify({ type: "thinking", content: "" })}\n\n`,
-                  );
-                }
-
-                // CRITICAL FIX: Track thinking/reasoning activity (DeepSeek/Kimi) to keep stream alive
-                if (parsed.choices?.[0]?.delta?.reasoning_content) {
-                  // Send a keep-alive event to prevent frontend from timing out or user thinking it's stuck
-                  res.write(
-                    `data: ${JSON.stringify({ type: "thinking", content: "" })}\n\n`,
-                  );
-                }
-
-                if (content) {
-                  totalTokensSent++;
-
-                  // Send each token immediately to client
-                  res.write(
-                    `data: ${JSON.stringify({ type: "token", content })}\n\n`,
-                  );
-
-                  // Log first successful token extraction for debugging
-                  if (totalTokensSent === 1) {
-                    console.log("✅ First token extracted successfully!");
-                    console.log(
-                      "   Pattern used:",
-                      parsed.choices?.[0]?.delta?.content
-                        ? "delta.content"
-                        : parsed.choices?.[0]?.message?.content
-                          ? "message.content"
-                          : parsed.content
-                            ? "direct content"
-                            : parsed.text
-                              ? "text field"
-                              : "unknown",
-                    );
-                    console.log("   Token:", content.substring(0, 50));
-                  }
-                } else if (chunkCount <= 3) {
-                  // Log first few chunks that have no content
-                  console.log(
-                    "📦 Chunk without content:",
-                    JSON.stringify(parsed),
-                  );
-                }
-              } catch (e) {
-                console.warn(
-                  "Failed to parse AI stream chunk:",
-                  jsonStr.substring(0, 100),
-                  "Error:",
-                  e.message,
-                );
-                // Skip parsing errors
-              }
-            }
-          }
+        if (response.body && typeof response.body.getReader === "function") {
+          reader = response.body.getReader();
+        } else if (
+          response.body &&
+          typeof response.body[Symbol.asyncIterator] === "function"
+        ) {
+          // Node.js PassThrough/Readable stream
+          const iterator = response.body[Symbol.asyncIterator]();
+          reader = {
+            read: async () => {
+              const { done, value } = await iterator.next();
+              return { done, value };
+            },
+          };
         }
-      } catch (streamError) {
-        console.error("❌ Streaming error:", streamError);
-        console.error("Total tokens sent before error:", totalTokensSent);
-        console.error("Total chunks received before error:", chunkCount);
+
+        // Verify we have a valid reader
+        if (!reader) {
+          console.error("❌ AI provider did not return a readable stream!");
+          console.error("Response body type:", typeof response.body);
+
+          // Fallback: try to read as text
+          const text = await response.text();
+          console.log(
+            "Response as text (first 200 chars):",
+            text.substring(0, 200),
+          );
+
+          return res.status(502).json({
+            error: "AI service returned invalid streaming response",
+            details:
+              "The AI provider is not responding with a proper stream format.",
+          });
+        }
+
+        // Set up Server-Sent Events (SSE) for real streaming
+        res.setHeader("Content-Type", "text/event-stream");
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Connection", "keep-alive");
+
+        console.log("✅ Starting REAL STREAMING to client...");
+
+        // Send initial metadata
         res.write(
-          `data: ${JSON.stringify({ type: "error", message: streamError.message })}\n\n`,
+          `data: ${JSON.stringify({ type: "start", sources: fetchedSources.map((s) => ({ url: s.url, method: s.method })) })}\n\n`,
         );
-        res.end();
-      }
-    } else {
-      // Fallback: When streaming is not supported by the environment (e.g. strict Vercel/Netlify functions)
-      console.log(
-        "⚠️ Streaming not supported by environment, falling back to full JSON response...",
-      );
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let totalTokensSent = 0; // Track if we're actually receiving content
+        let chunkCount = 0;
+        let debugFirstChunks = []; // Store first few chunks for debugging
 
-      try {
-        // Read the full response from upstream
-        const json = await response.json();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
 
-        // Extract content based on standard OpenAI format
-        let content = "";
-        let sources = fetchedSources || [];
+            if (done) {
+              console.log(
+                "✅ Stream completed - Total tokens sent:",
+                totalTokensSent,
+                "from",
+                chunkCount,
+                "chunks",
+              );
+              if (totalTokensSent === 0) {
+                console.error(
+                  "⚠️⚠️ ERROR: Stream completed but NO tokens were extracted!",
+                );
+                console.error("First 3 chunks received:", debugFirstChunks);
+                console.error("Last buffer content:", buffer);
+              }
+              res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+              res.end();
+              break;
+            }
 
-        if (json.choices?.[0]?.message?.content) {
-          content = json.choices[0].message.content;
-        } else if (json.content) {
-          content = json.content;
+            chunkCount++;
+            buffer += decoder.decode(value, { stream: true });
+
+            // Save first 3 raw chunks for debugging
+            if (debugFirstChunks.length < 3) {
+              const rawChunk = decoder.decode(value, { stream: true });
+              debugFirstChunks.push({
+                chunkNum: chunkCount,
+                raw: rawChunk.substring(0, 500),
+                bufferLength: buffer.length,
+              });
+              console.log(`📦 Chunk ${chunkCount}:`, rawChunk.substring(0, 300));
+            }
+
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              const trimmedLine = line.trim();
+              if (trimmedLine === "" || trimmedLine === "data: [DONE]") continue;
+
+              let jsonStr = null;
+
+              // Handle various data prefix formats
+              if (line.startsWith("data: ")) {
+                jsonStr = line.slice(6);
+              } else if (line.startsWith("data:")) {
+                jsonStr = line.slice(5);
+              } else {
+                // Try to treat the whole line as JSON (fallback)
+                // Only if it looks like JSON (starts with { and ends with })
+                if (trimmedLine.startsWith("{") && trimmedLine.endsWith("}")) {
+                  jsonStr = trimmedLine;
+                }
+              }
+
+              if (jsonStr) {
+                try {
+                  const parsed = JSON.parse(jsonStr);
+
+                  // Try multiple response format patterns
+                  let content = null;
+
+                  // Pattern 1: OpenAI streaming format
+                  if (parsed.choices?.[0]?.delta?.content) {
+                    content = parsed.choices[0].delta.content;
+                  }
+                  // Pattern 2: Some APIs return content directly in message
+                  else if (parsed.choices?.[0]?.message?.content) {
+                    content = parsed.choices[0].message.content;
+                  }
+                  // Pattern 3: Direct content field
+                  else if (parsed.content) {
+                    content = parsed.content;
+                  }
+                  // Pattern 4: Text field (some providers)
+                  else if (parsed.text) {
+                    content = parsed.text;
+                  }
+                  // Pattern 5: Gemini streaming format
+                  else if (parsed.candidates?.[0]?.content?.parts?.[0]?.text !== undefined) {
+                    content = parsed.candidates[0].content.parts[0].text;
+                  }
+
+                  // IMPORTANT: Some Gemini chunks only contain thought signatures
+                  if (parsed.candidates?.[0]?.content?.parts?.[0]?.thoughtSignature) {
+                    res.write(
+                      `data: ${JSON.stringify({ type: "thinking", content: "" })}\n\n`,
+                    );
+                  }
+
+                  // CRITICAL FIX: Track thinking/reasoning activity (DeepSeek/Kimi) to keep stream alive
+                  if (parsed.choices?.[0]?.delta?.reasoning_content) {
+                    // Send a keep-alive event to prevent frontend from timing out or user thinking it's stuck
+                    res.write(
+                      `data: ${JSON.stringify({ type: "thinking", content: "" })}\n\n`,
+                    );
+                  }
+
+                  if (content) {
+                    totalTokensSent++;
+
+                    // Send each token immediately to client
+                    res.write(
+                      `data: ${JSON.stringify({ type: "token", content })}\n\n`,
+                    );
+
+                    // Log first successful token extraction for debugging
+                    if (totalTokensSent === 1) {
+                      console.log("✅ First token extracted successfully!");
+                      console.log(
+                        "   Pattern used:",
+                        parsed.choices?.[0]?.delta?.content
+                          ? "delta.content"
+                          : parsed.choices?.[0]?.message?.content
+                            ? "message.content"
+                            : parsed.content
+                              ? "direct content"
+                              : parsed.text
+                                ? "text field"
+                                : "unknown",
+                      );
+                      console.log("   Token:", content.substring(0, 50));
+                    }
+                  } else if (chunkCount <= 3) {
+                    // Log first few chunks that have no content
+                    console.log(
+                      "📦 Chunk without content:",
+                      JSON.stringify(parsed),
+                    );
+                  }
+                } catch (e) {
+                  console.warn(
+                    "Failed to parse AI stream chunk:",
+                    jsonStr.substring(0, 100),
+                    "Error:",
+                    e.message,
+                  );
+                  // Skip parsing errors
+                }
+              }
+            }
+          }
+        } catch (streamError) {
+          console.error("❌ Streaming error:", streamError);
+          console.error("Total tokens sent before error:", totalTokensSent);
+          console.error("Total chunks received before error:", chunkCount);
+          res.write(
+            `data: ${JSON.stringify({ type: "error", message: streamError.message })}\n\n`,
+          );
+          res.end();
         }
+      } else {
+        // Fallback: When streaming is not supported by the environment (e.g. strict Vercel/Netlify functions)
+        console.log(
+          "⚠️ Streaming not supported by environment, falling back to full JSON response...",
+        );
 
-        // Return a standard JSON response that the frontend can handle
-        return res.status(200).json({
-          content,
-          sources,
-          publishable: false,
-          suggested_followups: [],
-        });
-      } catch (fallbackError) {
-        console.error("❌ Fallback error:", fallbackError);
-        return res.status(500).json({
-          error: "Failed to process AI response",
-          details: fallbackError.message,
-        });
+        try {
+          // Read the full response from upstream
+          const json = await response.json();
+
+          // Extract content based on standard OpenAI format
+          let content = "";
+          let sources = fetchedSources || [];
+
+          if (json.choices?.[0]?.message?.content) {
+            content = json.choices[0].message.content;
+          } else if (json.content) {
+            content = json.content;
+          }
+
+          // Return a standard JSON response that the frontend can handle
+          return res.status(200).json({
+            content,
+            sources,
+            publishable: false,
+            suggested_followups: [],
+          });
+        } catch (fallbackError) {
+          console.error("❌ Fallback error:", fallbackError);
+          return res.status(500).json({
+            error: "Failed to process AI response",
+            details: fallbackError.message,
+          });
+        }
       }
     }
-  }
-} catch (error) {
+  } catch (error) {
     console.error("❌ General handler error:", error);
     if (!res.headersSent) {
       res
