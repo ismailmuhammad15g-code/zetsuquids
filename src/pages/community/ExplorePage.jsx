@@ -68,7 +68,7 @@ export default function ExplorePage() {
   const hasResults = searchResults.length > 0 || filteredPosts.length > 0;
 
   return (
-    <div className="flex flex-col min-h-screen bg-black">
+    <div className="flex flex-col">
       {/* Search Header */}
       <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-md border-b border-[#2f3336] px-4 py-3">
         <div className="relative group">

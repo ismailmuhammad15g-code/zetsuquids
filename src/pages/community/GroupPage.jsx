@@ -172,7 +172,7 @@ export default function GroupPage() {
   if (!group) return null;
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col">
       {/* Header */}
       <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-md border-b border-[#2f3336] px-4 py-2 flex items-center gap-6">
         <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-white/[0.1] transition-colors">

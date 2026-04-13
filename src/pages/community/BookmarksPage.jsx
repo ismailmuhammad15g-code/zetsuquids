@@ -20,7 +20,7 @@ export default function BookmarksPage() {
   }, [user]);
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col">
       {/* Premium header */}
       <div className="sticky top-0 z-10 bg-black/80 backdrop-blur-md border-b border-[#2f3336] px-4 py-3">
         <h1 className="text-xl font-bold text-[#e7e9ea]">Bookmarks</h1>

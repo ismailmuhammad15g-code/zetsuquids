@@ -14,12 +14,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { toast } from "sonner";
-import TrendsSidebar from "../components/community/TrendsSidebar";
+import { communityApi } from "../lib/communityApi";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvatarForUser } from "../lib/avatar";
-import { communityApi } from "../lib/communityApi";
 
 // --- Components ---
+
 
 const CommentItem = ({ comment }) => {
   const authorProfile = comment.author;
@@ -165,12 +165,9 @@ export default function PostDetailsPage() {
     : "";
 
   return (
-    <div className="min-h-screen bg-black text-[#e7e9ea] flex justify-center font-sans subpixel-antialiased">
-      <div className="flex w-full max-w-[1265px] relative">
-        {/* Main Column */}
-        <main className="flex-1 max-w-[600px] border-x border-[#2f3336] min-h-screen pb-20 md:ml-[88px] xl:ml-0">
-          {/* Header */}
-          <div className="sticky top-0 bg-black/60 backdrop-blur-md z-10 px-4 h-[53px] flex items-center gap-6 border-b border-[#2f3336]">
+    <>
+      {/* Header */}
+      <div className="sticky top-0 bg-black/60 backdrop-blur-md z-10 px-4 h-[53px] flex items-center gap-6 border-b border-[#2f3336]">
             <button
               onClick={() => navigate("/community")}
               className="rounded-full p-2 hover:bg-[#eff3f4]/10 transition-colors -ml-2"
@@ -322,12 +319,7 @@ export default function PostDetailsPage() {
               <CommentItem key={comment.id} comment={comment} />
             ))}
           </div>
-          <div className="h-20" /> {/* Bottom Spacer */}
-        </main>
-
-        {/* Right Sidebar */}
-        <TrendsSidebar user={user} />
-      </div>
-    </div>
+      <div className="h-20" /> {/* Bottom Spacer */}
+    </>
   );
 }

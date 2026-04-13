@@ -75,7 +75,7 @@ export default function NotificationsPage() {
     : notifications;
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col">
       <div className="sticky top-0 z-10 bg-black/80 backdrop-blur-md border-b border-[#2f3336]">
         <div className="px-4 py-3">
           <h1 className="text-xl font-bold text-[#e7e9ea]">Notifications</h1>
