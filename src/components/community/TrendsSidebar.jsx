@@ -101,7 +101,7 @@ export default function TrendsSidebar({ user }) {
       toast.error("Please login to follow users", {
         style: {
           background: "#16181c",
-          border: "1px solid #2f3336",
+          border: "1px solid #1f2937",
           color: "#e7e9ea",
         },
       });
@@ -117,7 +117,7 @@ export default function TrendsSidebar({ user }) {
       toast.success(`Following @${targetName}`, {
         style: {
           background: "#16181c",
-          border: "1px solid #2f3336",
+          border: "1px solid #1f2937",
           color: "#e7e9ea",
         },
       });
@@ -126,7 +126,7 @@ export default function TrendsSidebar({ user }) {
       toast.error("Failed to follow user", {
         style: {
           background: "#16181c",
-          border: "1px solid #2f3336",
+          border: "1px solid #1f2937",
           color: "#f4212e",
         },
       });
@@ -148,7 +148,7 @@ export default function TrendsSidebar({ user }) {
       toast.success(`Unfollowed @${targetName}`, {
         style: {
           background: "#16181c",
-          border: "1px solid #2f3336",
+          border: "1px solid #1f2937",
           color: "#e7e9ea",
         },
       });
@@ -157,7 +157,7 @@ export default function TrendsSidebar({ user }) {
       toast.error("Failed to unfollow user", {
         style: {
           background: "#16181c",
-          border: "1px solid #2f3336",
+          border: "1px solid #1f2937",
           color: "#f4212e",
         },
       });
@@ -166,7 +166,7 @@ export default function TrendsSidebar({ user }) {
 
   // Skeleton loader
   const Skeleton = ({ className }) => (
-    <div className={`animate-pulse bg-[#2f3336] rounded ${className}`} />
+    <div className={`animate-pulse bg-gray-800 rounded ${className}`} />
   );
 
   return (
@@ -200,7 +200,7 @@ export default function TrendsSidebar({ user }) {
 
         {/* Search Results Dropdown */}
         {showSearch && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-black border border-[#2f3336] rounded-2xl shadow-[0_0_15px_rgba(255,255,255,0.1)] overflow-hidden z-50 max-h-[400px] overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-black border border-gray-800 rounded-2xl shadow-[0_0_15px_rgba(255,255,255,0.1)] overflow-hidden z-50 max-h-[400px] overflow-y-auto">
             {searchLoading ? (
               <div className="p-4 text-center text-[#71767b] text-[15px]">
                 Searching...
@@ -319,7 +319,7 @@ export default function TrendsSidebar({ user }) {
             <h2 className="text-[20px] font-extrabold text-[#e7e9ea]">
               Following
             </h2>
-            <span className="text-[13px] text-[#71767b] bg-[#2f3336] px-2 py-0.5 rounded-full">
+            <span className="text-[13px] text-[#71767b] bg-gray-800 px-2 py-0.5 rounded-full">
               {following.length}
             </span>
           </div>

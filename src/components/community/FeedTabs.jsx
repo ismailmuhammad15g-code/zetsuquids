@@ -2,7 +2,7 @@ import { Settings } from "lucide-react";
 
 export default function FeedTabs({ activeTab, setActiveTab }) {
   return (
-    <div className="grid grid-cols-2 border-b border-[#2f3336] bg-black/80 backdrop-blur-md">
+    <div className="grid grid-cols-2 bg-black/60 backdrop-blur-md">
       {["For you", "Following"].map((tab) => (
         <button
           key={tab}
@@ -11,8 +11,9 @@ export default function FeedTabs({ activeTab, setActiveTab }) {
         >
           <div className="relative h-full flex items-center">
             <span
-              className={`font-semibold text-[15px] transition-colors duration-200 ${activeTab === tab ? "text-[#e7e9ea]" : "text-[#71767b]"
-                }`}
+              className={`font-semibold text-[15px] transition-colors duration-200 ${
+                activeTab === tab ? "text-[#e7e9ea]" : "text-[#71767b]"
+              }`}
             >
               {tab}
             </span>

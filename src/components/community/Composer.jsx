@@ -128,7 +128,7 @@ export default function Composer({ user, onPostCreated }) {
   };
 
   return (
-    <div className="flex gap-3 border-b border-[#2f3336] px-4 py-3">
+    <div className="flex gap-3 border-b border-gray-800 px-4 py-3">
       <div className="flex-shrink-0 pt-1">
         <div className="h-10 w-10 overflow-hidden rounded-full bg-gray-800 hover:opacity-90 transition-opacity cursor-pointer">
           <img
@@ -162,7 +162,7 @@ export default function Composer({ user, onPostCreated }) {
         </div>
 
         {content && (
-          <div className="pb-3 border-b border-[#2f3336]/50 mb-3">
+          <div className="pb-3 border-b border-gray-800 mb-3">
             <button className="text-[#1d9bf0] font-bold text-[13px] flex items-center gap-1 hover:bg-[#1d9bf0]/10 px-2 py-0.5 rounded-full transition-colors">
               <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
                 <path d="M12 1.75C6.34 1.75 1.75 6.34 1.75 12S6.34 22.25 12 22.25 22.25 17.66 22.25 12 17.66 1.75 12 1.75zm-.25 10.48L10.5 17.5l-2-1.5 1.25-5.27L7 8.75l5.5-.5L14 3.5l1.5 4.75 5.5.5-2.75 2L19.5 16l-2-1.5-5.75-2.27z" />
@@ -212,7 +212,7 @@ export default function Composer({ user, onPostCreated }) {
             <CircleProgress />
 
             {charCount > 0 && (
-              <div className="w-px h-6 bg-[#2f3336] mr-3" />
+              <div className="w-px h-6 bg-gray-600 mr-3" />
             )}
 
             <button

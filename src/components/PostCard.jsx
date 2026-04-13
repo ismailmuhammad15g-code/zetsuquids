@@ -144,7 +144,7 @@ export default function PostCard({ post }) {
                     borderRadius: "12px",
                     margin: "0",
                     background: "#16181c",
-                    border: "1px solid #2f3336",
+                    border: "1px solid #1f2937",
                     fontSize: "13px",
                   }}
                 />
@@ -152,7 +152,7 @@ export default function PostCard({ post }) {
             ) : (
               <code
                 {...props}
-                className="bg-[#2f3336] text-[#e7e9ea] px-1 py-0.5 rounded text-[13px]"
+                className="bg-gray-800 text-[#e7e9ea] px-1 py-0.5 rounded text-[13px]"
               >
                 {children}
               </code>
@@ -209,7 +209,7 @@ export default function PostCard({ post }) {
   return (
     <article
       onClick={handleCardClick}
-      className="cursor-pointer border-b border-[#2f3336] hover:bg-white/[0.03] transition-colors duration-200 px-4 py-3 flex gap-3"
+      className="cursor-pointer border-b border-gray-800 hover:bg-white/[0.03] transition-colors duration-200 px-4 py-3 flex gap-3"
     >
       {/* Avatar Column */}
       <div className="flex-shrink-0">
@@ -328,7 +328,7 @@ export default function PostCard({ post }) {
                   {
                     style: {
                       background: "#16181c",
-                      border: "1px solid #2f3336",
+                      border: "1px solid #1f2937",
                       color: "#e7e9ea",
                     },
                   },
@@ -350,7 +350,7 @@ export default function PostCard({ post }) {
                 toast.success("Link copied!", {
                   style: {
                     background: "#16181c",
-                    border: "1px solid #2f3336",
+                    border: "1px solid #1f2937",
                     color: "#e7e9ea",
                   },
                 });
