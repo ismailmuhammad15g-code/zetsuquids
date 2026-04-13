@@ -7,34 +7,36 @@ async function generateSearchQueries(query, aiApiKey, aiUrl) {
   try {
     console.log("🧠 Generating research queries for:", query);
 
-    const response = await fetch(aiUrl, {
+    // Convert to Gemini format
+    const contents = [
+      {
+        role: "user",
+        parts: [{ text: `You are a research planner. Generate 3 distinct search queries to gather comprehensive information about the user's request. Return ONLY a JSON array of strings. Example: ["react hooks tutorial", "react useeffect best practices", "react custom hooks examples"]` }]
+      },
+      {
+        role: "user",
+        parts: [{ text: query }]
+      }
+    ];
+
+    const response = await fetch(`${aiUrl}?key=${aiApiKey}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${aiApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "glm-4.5-air:free",
-        messages: [
-          {
-            role: "system",
-            content: `You are a research planner. Generate 3 distinct search queries to gather comprehensive information about the user's request.
-Return ONLY a JSON array of strings. Example: ["react hooks tutorial", "react useeffect best practices", "react custom hooks examples"]`,
-          },
-          {
-            role: "user",
-            content: query,
-          },
-        ],
-        max_tokens: 200,
-        temperature: 0.5,
+        contents,
+        generationConfig: {
+          maxOutputTokens: 200,
+          temperature: 0.5,
+        }
       }),
     });
 
     if (!response.ok) return [query];
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content?.trim();
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
     try {
       // Try to parse JSON array
@@ -595,19 +597,66 @@ async function fetchWithExponentialBackoff(url, options, maxRetries = 4) {
         break;
       }
 
-      // Only retry on timeout/network errors
-      if (error.name === "AbortError" || error.message.includes("timeout")) {
+      // Retry on timeout, network errors, or "fetch failed" (undici error)
+      const isTimeout = error.name === "AbortError" || error.message.toLowerCase().includes("timeout");
+      const isNetworkError = error.message === "fetch failed" || error.code === "ETIMEDOUT" || error.code === "ECONNRESET";
+      
+      if (isTimeout || isNetworkError) {
         const waitTime =
           waitTimes[attempt - 1] || waitTimes[waitTimes.length - 1];
+        console.log(`🔄 Retrying in ${waitTime}ms due to network/timeout error...`);
         await new Promise((r) => setTimeout(r, waitTime));
       } else {
-        // Non-timeout error (e.g. strict CORS), don't retry
+        // For other errors (API usage errors, etc.), don't retry
         break;
       }
     }
   }
 
   throw lastError || new Error("API call failed after retries");
+}
+
+// ============ GEMINI HELPERS ============
+
+/**
+ * Converts OpenAI-style messages to Google Gemini format.
+ * Gemini uses roles "user" and "model". "system" is moved to a prepended instruction.
+ */
+function toGeminiRequest(messages, model) {
+  const contents = [];
+  let systemInstruction = "";
+
+  for (const m of messages) {
+    if (m.role === "system") {
+      systemInstruction += (systemInstruction ? "\n" : "") + m.content;
+    } else {
+      contents.push({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }]
+      });
+    }
+  }
+
+  const payload = { contents };
+  
+  if (systemInstruction) {
+    payload.system_instruction = {
+      parts: [{ text: systemInstruction }]
+    };
+  }
+
+  return payload;
+}
+
+/**
+ * Safely parses a Gemini response or stream chunk.
+ */
+function extractGeminiText(data) {
+  if (Array.isArray(data)) {
+    // Some stream formats return an array of candidates
+    return data.map(chunk => extractGeminiText(chunk)).join("");
+  }
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
 export default async function handler(req, res) {
@@ -1194,72 +1243,20 @@ Here is the explanation...
     const supportsStreaming =
       typeof res.write === "function" && typeof res.end === "function";
 
-    const requestPayload = {
-      model: validatedModel,
-      messages: messagesWithSearch,
-      max_tokens: 4000,
+    // Prepare Gemini Request
+    const wantsStream = supportsStreaming && (req.body.stream || !skipCreditDeduction);
+    const endpoint = wantsStream 
+      ? apiUrl.replace(":generateContent", ":streamGenerateContent") 
+      : apiUrl;
+    
+    const geminiPayload = toGeminiRequest(messagesWithSearch, validatedModel);
+    geminiPayload.generationConfig = {
+      maxOutputTokens: 4000,
       temperature: 0.7,
-      stream: supportsStreaming && !skipCreditDeduction, // Only stream if supported and not skipping credits (which expects JSON)
-      // response_format: { type: "json_object" } // REMOVED: Causing empty responses for simple queries
     };
 
-    // If skipCreditDeduction is true, just proxy to AI API without credit checks
-    if (skipCreditDeduction) {
-      let response;
-      try {
-        response = await fetchWithExponentialBackoff(
-          apiUrl,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(requestPayload),
-          },
-          4,
-        ); // 4 attempts with exponential backoff
-      } catch (fetchError) {
-        console.error("❌ API failed after all retries:", fetchError);
-        return res.status(504).json({
-          error: "AI service unavailable",
-          details:
-            "The AI service is temporarily overwhelmed. Please wait a moment and try again.",
-        });
-      }
-
-      if (!response.ok) {
-        const status = response.status;
-        return res.status(status).json({
-          error: `AI Service Error (${status})`,
-          details: "Please try again in a moment.",
-        });
-      }
-
-      let data;
-      try {
-        data = await response.json();
-      } catch (parseError) {
-        console.error("Failed to parse AI response:", parseError);
-        return res.status(502).json({
-          error: "AI API returned invalid JSON",
-          details: "Please try again.",
-        });
-      }
-
-      const processed = processAIResponse(data);
-
-      return res.status(200).json({
-        ...data,
-        content: processed.content,
-        publishable: processed.publishable,
-        suggested_followups: processed.suggested_followups,
-        sources: fetchedSources.map((s) => ({ url: s.url, method: s.method })),
-      });
-    }
-
-    // Normal flow with credit deduction
-    if (!userId && !userEmail) {
+    // Normal flow with credit deduction handled conditionally below
+    if (!skipCreditDeduction && !userId && !userEmail) {
       return res
         .status(400)
         .json({ error: "User ID or email is required for credit usage." });
@@ -1289,10 +1286,11 @@ Here is the explanation...
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const lookupEmail = userEmail ? userEmail.toLowerCase() : userId;
-    let currentCredits = 0;
+    let currentCredits = 100;
 
-    // Check if user exists in credits table
-    const { data: creditData, error: creditError } = await supabase
+    if (!skipCreditDeduction) {
+      // Check if user exists in credits table
+      const { data: creditData, error: creditError } = await supabase
       .from("zetsuguide_credits")
       .select("credits")
       .eq("user_email", lookupEmail)
@@ -1342,8 +1340,9 @@ Here is the explanation...
 
     console.log("📤 Sending to AI API with REAL STREAMING...");
 
-    // Deduct credit BEFORE streaming starts
-    const { error: deductError } = await supabase
+    if (!skipCreditDeduction) {
+      // Deduct credit BEFORE streaming starts
+      const { error: deductError } = await supabase
       .from("zetsuguide_credits")
       .update({
         credits: currentCredits - 1,
@@ -1351,28 +1350,28 @@ Here is the explanation...
       })
       .eq("user_email", lookupEmail);
 
-    if (deductError) {
-      console.error("Failed to deduct credit:", deductError);
-    } else {
-      console.log(
-        `Deducted 1 credit for user ${lookupEmail}. New balance: ${currentCredits - 1}`,
-      );
+      if (deductError) {
+        console.error("Failed to deduct credit:", deductError);
+      } else {
+        console.log(
+          `Deducted 1 credit for user ${lookupEmail}. New balance: ${currentCredits - 1}`,
+        );
+      }
     }
 
     let response;
     try {
-      console.log("🚀 Sending request to AI API:", {
+      console.log("🚀 Sending request to Gemini stream API:", {
         model: validatedModel,
         messageCount: messagesWithSearch.length,
         streaming: true,
       });
-      response = await fetch(apiUrl, {
+      response = await fetch(`${endpoint}?alt=sse&key=${apiKey}`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(requestPayload),
+        body: JSON.stringify(geminiPayload),
       });
 
       console.log("📥 Received response:", {
@@ -1544,6 +1543,17 @@ Here is the explanation...
                 // Pattern 4: Text field (some providers)
                 else if (parsed.text) {
                   content = parsed.text;
+                }
+                // Pattern 5: Gemini streaming format
+                else if (parsed.candidates?.[0]?.content?.parts?.[0]?.text !== undefined) {
+                  content = parsed.candidates[0].content.parts[0].text;
+                }
+
+                // IMPORTANT: Some Gemini chunks only contain thought signatures
+                if (parsed.candidates?.[0]?.content?.parts?.[0]?.thoughtSignature) {
+                   res.write(
+                    `data: ${JSON.stringify({ type: "thinking", content: "" })}\n\n`,
+                  );
                 }
 
                 // CRITICAL FIX: Track thinking/reasoning activity (DeepSeek/Kimi) to keep stream alive

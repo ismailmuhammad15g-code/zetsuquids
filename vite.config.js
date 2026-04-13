@@ -12,10 +12,9 @@ function apiMiddleware() {
     configureServer(server) {
       // Load environment variables once when server starts
       const env = loadEnv(server.config.mode, process.cwd(), "");
-      const apiKey = env.VITE_AI_API_KEY || env.ROUTEWAY_API_KEY;
-      const apiUrl =
-        env.VITE_AI_API_URL || "https://api.routeway.ai/v1/chat/completions";
-      const apiModel = env.VITE_AI_MODEL || "google/gemini-2.0-flash-exp:free";
+      const apiKey = env.VITE_AI_API_KEY;
+      const apiUrl = env.VITE_AI_API_URL;
+      const apiModel = env.VITE_AI_MODEL || "gemini-flash-latest";
 
       // Supabase config for daily credits
       const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
