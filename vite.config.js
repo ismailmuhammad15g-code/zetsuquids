@@ -549,7 +549,7 @@ function apiMiddleware() {
             process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
             process.env.MAIL_USERNAME = env.MAIL_USERNAME;
             process.env.MAIL_PASSWORD = env.MAIL_PASSWORD;
-            process.env.VITE_APP_URL = "http://localhost:3000"; // Dev URL
+            process.env.VITE_APP_URL = "http://localhost:5173"; // Dev URL
 
             try {
               const { default: usersHandler } = await import("./api/users.js");
