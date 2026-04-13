@@ -82,6 +82,46 @@ export const communityApi = {
     }));
   },
 
+  async getSmartFeed(userId) {
+    if (!isSupabaseConfigured()) return [];
+
+    let query = supabase
+      .from("v_smart_feed") // Use the new smart feed view
+      .select(`
+        *,
+        post_likes(user_id),
+        post_comments(count)
+      `)
+      .order("smart_score", { ascending: false }) // Rank by engagement/decay
+      .limit(50);
+
+    const { data: posts, error } = await query;
+    if (error || !posts || posts.length === 0) return [];
+
+    const userIds = [...new Set(posts.map((p) => p.user_id))];
+    const { data: profiles } = await supabase
+      .from("zetsuguide_user_profiles")
+      .select("*")
+      .in("user_id", userIds);
+
+    const profileMap = {};
+    profiles?.forEach((p) => (profileMap[p.user_id] = p));
+
+    return posts.map((post) => ({
+      ...post,
+      author: profileMap[post.user_id] || {
+        display_name: "Unknown User",
+        username: "unknown",
+        avatar_url: null,
+      },
+      likes_count: post.post_likes?.length || 0,
+      comments_count: post.post_comments?.[0]?.count || 0,
+      has_liked: userId
+        ? post.post_likes?.some((l) => l.user_id === userId)
+        : false,
+    }));
+  },
+
   async createPost(post) {
     if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
 
@@ -585,6 +625,27 @@ export const communityApi = {
     }));
   },
 
+  async getUnreadNotificationCount(userId) {
+    if (!isSupabaseConfigured() || !userId) return 0;
+    const { data, error } = await supabase.rpc("get_unread_notification_count", {
+      p_user_id: userId
+    });
+    if (error) {
+      console.error("Failed to fetch unread count:", error);
+      return 0;
+    }
+    return data || 0;
+  },
+
+  async markNotificationsAsRead(userId) {
+    if (!isSupabaseConfigured() || !userId) return;
+    await supabase
+      .from("community_notifications")
+      .update({ is_read: true })
+      .eq("user_id", userId)
+      .eq("is_read", false);
+  },
+
   async getCommunities() {
     if (!isSupabaseConfigured()) return [];
 
@@ -641,6 +702,82 @@ export const communityApi = {
     if (error) throw error;
     return true;
   },
+
+  async getUserProfile(username) {
+    if (!isSupabaseConfigured() || !username) return null;
+    const { data, error } = await supabase
+      .from("zetsuguide_user_profiles")
+      .select("*")
+      .eq("username", username.toLowerCase())
+      .single();
+    if (error) return null;
+    return data;
+  },
+
+  async updateUserProfile(userId, updates) {
+    if (!isSupabaseConfigured() || !userId) throw new Error("User ID required");
+    const { data, error } = await supabase
+      .from("zetsuguide_user_profiles")
+      .update(updates)
+      .eq("user_id", userId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async getUserPosts(userId) {
+    if (!isSupabaseConfigured() || !userId) return [];
+    
+    // Fetch posts with author profiles (standard enrichment)
+    const { data, error } = await supabase
+      .from("posts")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) return [];
+    
+    // Enrich with profile (could also use join, but we keep it consistent with other methods)
+    const { data: profile } = await supabase
+      .from("zetsuguide_user_profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+
+    return data.map(post => ({
+      ...post,
+      author: profile
+    }));
+  },
+
+
+  async updateCommunity(id, updates) {
+    if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
+    const { data, error } = await supabase
+      .from("community_groups")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async getCommunityMembers(groupId) {
+    if (!isSupabaseConfigured()) return [];
+    const { data, error } = await supabase
+      .from("community_members")
+      .select(`
+        user_id,
+        profiles:zetsuguide_user_profiles(*)
+      `)
+      .eq("group_id", groupId);
+    
+    if (error) return [];
+    return data.map(m => m.profiles).filter(Boolean);
+  },
+
 
   async joinCommunity(groupId, userId) {
     if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
@@ -786,10 +923,119 @@ export const communityApi = {
     const { error } = await supabase
       .from("posts")
       .delete()
-      .eq("id", postId)
-      .eq("user_id", userId);
+      .match({ id: postId, user_id: userId });
 
     if (error) throw error;
     return true;
   },
+
+  // --- Direct Messaging ---
+
+  async getConversations(userId) {
+    if (!isSupabaseConfigured() || !userId) return [];
+    
+    const { data: convos, error: cErr } = await supabase
+      .from('community_conversations')
+      .select('*')
+      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+      .order('last_message_at', { ascending: false });
+      
+    if (cErr || !convos) return [];
+    
+    // Fetch profiles for the other participant
+    const otherUserIds = convos.map(c => c.user1_id === userId ? c.user2_id : c.user1_id);
+    const { data: profiles } = await supabase
+      .from('zetsuguide_user_profiles')
+      .select('*')
+      .in('user_id', otherUserIds);
+      
+    const profileMap = {};
+    profiles?.forEach(p => profileMap[p.user_id] = p);
+    
+    // Get last message for each conversation
+    const convIds = convos.map(c => c.id);
+    let msgMap = {};
+    if (convIds.length > 0) {
+      const { data: lastMessages } = await supabase
+        .from('community_messages')
+        .select('*')
+        .in('conversation_id', convIds)
+        .order('created_at', { ascending: false });
+        
+      lastMessages?.forEach(m => {
+        if (!msgMap[m.conversation_id]) msgMap[m.conversation_id] = m;
+      });
+    }
+
+    return convos.map(c => {
+      const otherId = c.user1_id === userId ? c.user2_id : c.user1_id;
+      return {
+        ...c,
+        otherUser: profileMap[otherId] || { username: 'unknown', display_name: 'Unknown User' },
+        lastMessage: msgMap[c.id] || null
+      };
+    });
+  },
+
+  async getMessages(conversationId) {
+    if (!isSupabaseConfigured() || !conversationId) return [];
+    const { data, error } = await supabase
+      .from('community_messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
+      
+    if (error) {
+      console.error(error);
+      return [];
+    }
+    return data || [];
+  },
+
+  async sendMessage(conversationId, content, senderId) {
+    if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
+    
+    const { data, error } = await supabase
+      .from('community_messages')
+      .insert({ conversation_id: conversationId, sender_id: senderId, content })
+      .select()
+      .single();
+      
+    if (error) throw error;
+    
+    // Update last_message_at to keep conversation at top
+    await supabase
+      .from('community_conversations')
+      .update({ last_message_at: new Date().toISOString() })
+      .eq('id', conversationId);
+      
+    return data;
+  },
+  
+  async createConversation(user1Id, user2Id) {
+    if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
+    // Ensure consistent ordering to prevent duplicates
+    const u1 = user1Id < user2Id ? user1Id : user2Id;
+    const u2 = user1Id < user2Id ? user2Id : user1Id;
+
+    // Check if exists first
+    const { data: existing } = await supabase
+      .from('community_conversations')
+      .select('*')
+      .eq('user1_id', u1)
+      .eq('user2_id', u2)
+      .maybeSingle();
+
+    if (existing) return existing;
+
+    const { data, error } = await supabase
+      .from('community_conversations')
+      .insert({ user1_id: u1, user2_id: u2 })
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
+  },
+
 };

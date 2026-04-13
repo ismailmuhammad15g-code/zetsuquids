@@ -63,6 +63,16 @@ export default function PostCard({ post, onDeleted }) {
     ? `@${authorProfile.username}`
     : `@${(authorProfile?.user_email?.split("@")[0] || "anon").toLowerCase().replace(/\s+/g, "")}`;
 
+  const navigateToProfile = (e) => {
+    e.stopPropagation();
+    if (authorProfile?.username) {
+      navigate(`/community/profile/${authorProfile.username}`);
+    } else {
+      toast.error("Profile not fully set up");
+    }
+  };
+
+
   const authorAvatar =
     authorProfile?.avatar_url || getAvatarForUser(authorProfile?.user_email);
 
@@ -230,10 +240,14 @@ export default function PostCard({ post, onDeleted }) {
                             <span
                               key={`${i}-${j}`}
                               className="text-[#1d9bf0] hover:underline cursor-pointer"
-                              onClick={stopProp}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/community/explore?q=${encodeURIComponent(part)}`);
+                              }}
                             >
                               {part}
                             </span>
+
                           );
                         }
                         return part;
@@ -262,7 +276,7 @@ export default function PostCard({ post, onDeleted }) {
       className="cursor-pointer border-b border-gray-800 hover:bg-white/[0.03] transition-colors duration-200 px-4 py-3 flex gap-3"
     >
       {/* Avatar Column */}
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0" onClick={navigateToProfile}>
         <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-800 hover:opacity-90 transition-opacity">
           <img
             src={authorAvatar}
@@ -272,14 +286,19 @@ export default function PostCard({ post, onDeleted }) {
         </div>
       </div>
 
+
       {/* Content Column */}
       <div className="flex-1 min-w-0">
       {/* Header row with three-dot menu */}
       <div className="flex items-center gap-1 text-[15px] leading-5 justify-between">
         <div className="flex items-center gap-1 overflow-hidden">
-          <span className="font-bold text-[#e7e9ea] hover:underline truncate">
+          <span 
+            className="font-bold text-[#e7e9ea] hover:underline truncate"
+            onClick={navigateToProfile}
+          >
             {authorName}
           </span>
+
           {isVerified && (
             <BadgeCheck
               size={16}

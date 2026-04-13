@@ -18,9 +18,14 @@ export default function CommunityFeed() {
     async (showLoader = true) => {
       if (showLoader) setLoading(true);
       try {
-        let category = "All";
-        if (activeTab === "Following") category = "Following";
-        const data = await communityApi.getPosts(category, user?.id);
+        let data;
+        if (activeTab === "For you") {
+          data = await communityApi.getSmartFeed(user?.id);
+        } else if (activeTab === "Following") {
+          data = await communityApi.getPosts("Following", user?.id);
+        } else {
+          data = await communityApi.getPosts("All", user?.id);
+        }
         setPosts(data || []);
       } catch (error) {
         console.error(error);

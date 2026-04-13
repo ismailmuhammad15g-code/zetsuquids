@@ -402,6 +402,11 @@ CREATE TABLE IF NOT EXISTS zetsuguide_user_profiles (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   user_email TEXT UNIQUE NOT NULL,
+  username TEXT UNIQUE,
+  display_name TEXT,
+  banner_url TEXT,
+  location TEXT,
+  website TEXT,
   account_type TEXT CHECK (account_type in ('individual', 'company')),
   company_size TEXT,
   avatar_url TEXT,
@@ -413,6 +418,39 @@ CREATE TABLE IF NOT EXISTS zetsuguide_user_profiles (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Ensure columns exist for existing tables
+ALTER TABLE zetsuguide_user_profiles ADD COLUMN IF NOT EXISTS username TEXT UNIQUE;
+ALTER TABLE zetsuguide_user_profiles ADD COLUMN IF NOT EXISTS display_name TEXT;
+ALTER TABLE zetsuguide_user_profiles ADD COLUMN IF NOT EXISTS banner_url TEXT;
+ALTER TABLE zetsuguide_user_profiles ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE zetsuguide_user_profiles ADD COLUMN IF NOT EXISTS website TEXT;
+
+-- Migration to ensure all profiles have a username and display_name
+UPDATE zetsuguide_user_profiles
+SET 
+  username = COALESCE(username, LOWER(SPLIT_PART(user_email, '@', 1))),
+  display_name = COALESCE(display_name, INITCAP(SPLIT_PART(user_email, '@', 1)))
+WHERE username IS NULL OR display_name IS NULL;
+
+
+-- Trigger to ensure new profiles always get a default username/display_name
+CREATE OR REPLACE FUNCTION ensure_profile_identity() RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.username IS NULL THEN
+    NEW.username := LOWER(SPLIT_PART(NEW.user_email, '@', 1));
+  END IF;
+  IF NEW.display_name IS NULL THEN
+    NEW.display_name := INITCAP(SPLIT_PART(NEW.user_email, '@', 1));
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_ensure_profile_identity ON zetsuguide_user_profiles;
+CREATE TRIGGER trg_ensure_profile_identity
+BEFORE INSERT ON zetsuguide_user_profiles
+FOR EACH ROW EXECUTE FUNCTION ensure_profile_identity();
 
 -- Enable RLS
 ALTER TABLE zetsuguide_user_profiles ENABLE ROW LEVEL SECURITY;
@@ -2030,6 +2068,29 @@ DROP TRIGGER IF EXISTS trg_notify_post_comment ON post_comments;
 CREATE TRIGGER trg_notify_post_comment AFTER INSERT ON post_comments
 FOR EACH ROW EXECUTE FUNCTION notify_post_comment();
 
+-- function to get unread notification count
+CREATE OR REPLACE FUNCTION get_unread_notification_count(p_user_id UUID)
+RETURNS INT AS $$
+DECLARE
+  unread_count INT;
+BEGIN
+  SELECT COUNT(*) INTO unread_count FROM community_notifications WHERE user_id = p_user_id AND is_read = FALSE;
+  RETURN unread_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- EdgeRank Smart Feed View
+CREATE OR REPLACE VIEW v_smart_feed AS
+SELECT 
+    p.*,
+    ( 
+      (COALESCE((SELECT COUNT(*) FROM post_likes WHERE post_id = p.id), 0) * 2.0 + 
+       COALESCE((SELECT COUNT(*) FROM post_comments WHERE post_id = p.id), 0) * 3.0) / 
+      POWER(EXTRACT(EPOCH FROM (NOW() - p.created_at)) / 3600.0 + 2.0, 1.5) 
+    ) as smart_score
+FROM posts p;
+
+
 -- ===== Communities (Groups) =====
 CREATE TABLE IF NOT EXISTS community_groups (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -2055,6 +2116,16 @@ CREATE TABLE IF NOT EXISTS community_members (
     PRIMARY KEY (user_id, group_id)
 );
 
+-- Function to sync all member counts (run once or as needed)
+CREATE OR REPLACE FUNCTION sync_community_member_counts() RETURNS void AS $$
+BEGIN
+  UPDATE community_groups cg
+  SET members_count = (
+    SELECT count(*) FROM community_members cm WHERE cm.group_id = cg.id
+  );
+END;
+$$ LANGUAGE plpgsql;
+
 -- Trigger to update member count
 CREATE OR REPLACE FUNCTION update_community_member_count() RETURNS TRIGGER AS $$
 BEGIN
@@ -2066,6 +2137,9 @@ BEGIN
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Run sync once to ensure data consistency
+SELECT sync_community_member_counts();
 
 DROP TRIGGER IF EXISTS trg_community_member_count ON community_members;
 CREATE TRIGGER trg_community_member_count
@@ -2176,3 +2250,59 @@ EXCEPTION WHEN OTHERS THEN
   -- Fallback if auth.users has strict constraints not met above
   RAISE NOTICE 'Failed to insert mock data: %', SQLERRM;
 END $$;
+
+-- ===== Direct Messaging =====
+CREATE TABLE IF NOT EXISTS community_conversations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user1_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    user2_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    last_message_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    UNIQUE(user1_id, user2_id)
+);
+
+CREATE TABLE IF NOT EXISTS community_messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    conversation_id UUID REFERENCES community_conversations(id) ON DELETE CASCADE,
+    sender_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE community_conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_messages ENABLE ROW LEVEL SECURITY;
+
+-- RLS: Only participants can view passing conversations
+DROP POLICY IF EXISTS "Users can view own conversations" ON community_conversations;
+CREATE POLICY "Users can view own conversations" ON community_conversations FOR SELECT
+USING (auth.uid() = user1_id OR auth.uid() = user2_id);
+
+DROP POLICY IF EXISTS "Users can insert own conversations" ON community_conversations;
+CREATE POLICY "Users can insert own conversations" ON community_conversations FOR INSERT
+WITH CHECK (auth.uid() = user1_id OR auth.uid() = user2_id);
+
+DROP POLICY IF EXISTS "Users can update own conversations" ON community_conversations;
+CREATE POLICY "Users can update own conversations" ON community_conversations FOR UPDATE
+USING (auth.uid() = user1_id OR auth.uid() = user2_id);
+
+-- RLS: Messages
+DROP POLICY IF EXISTS "Users can view messages in own conversations" ON community_messages;
+CREATE POLICY "Users can view messages in own conversations" ON community_messages FOR SELECT
+USING (EXISTS (
+  SELECT 1 FROM community_conversations c 
+  WHERE c.id = community_messages.conversation_id 
+  AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
+));
+
+DROP POLICY IF EXISTS "Users can insert own messages" ON community_messages;
+CREATE POLICY "Users can insert own messages" ON community_messages FOR INSERT
+WITH CHECK (auth.uid() = sender_id);
+
+DROP POLICY IF EXISTS "Users can update own messages" ON community_messages;
+CREATE POLICY "Users can update own messages" ON community_messages FOR UPDATE
+USING (auth.uid() = sender_id OR EXISTS (
+  SELECT 1 FROM community_conversations c 
+  WHERE c.id = community_messages.conversation_id 
+  AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
+));

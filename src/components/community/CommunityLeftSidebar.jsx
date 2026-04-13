@@ -1,14 +1,29 @@
-import { Bell, Bookmark, Home, Mail, MoreHorizontal, Search, Sparkles, SquareSlash, User, Users, X } from "lucide-react";
-import { useState } from "react";
+import { Bell, Bookmark, Home, Mail, MoreHorizontal, Search, Sparkles, User, Users, X } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { getAvatarForUser } from "../../lib/avatar";
+import { communityApi } from "../../lib/communityApi";
 
 export default function CommunityLeftSidebar({ onPostClick }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [showMenu, setShowMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const checkUnread = async () => {
+      const count = await communityApi.getUnreadNotificationCount(user.id);
+      setUnreadNotifications(count);
+    };
+    checkUnread();
+    
+    // Poll every 30 seconds for new notifications
+    const interval = setInterval(checkUnread, 30000);
+    return () => clearInterval(interval);
+  }, [user, location.pathname]); // Re-check when path changes (e.g. visiting notifications marks them read)
 
   const navItems = [
     { name: "Home", icon: Home, href: "/community" },
@@ -93,12 +108,20 @@ export default function CommunityLeftSidebar({ onPostClick }) {
                   to={item.href}
                   className="flex items-center justify-center xl:justify-start w-fit xl:w-auto p-3 xl:px-4 xl:py-3 rounded-full hover:bg-[#181818] transition-colors group mx-auto xl:mx-0"
                 >
-                  <Icon
-                    size={26}
-                    strokeWidth={isActive ? 2.5 : 2}
-                    className="text-[#e7e9ea]"
-                  />
+                  <div className="relative">
+                    <Icon
+                      size={26}
+                      strokeWidth={isActive ? 2.5 : 2}
+                      className="text-[#e7e9ea]"
+                    />
+                    {item.name === "Notifications" && unreadNotifications > 0 && (
+                      <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-[#1d9bf0] text-white text-[11px] font-bold rounded-full flex items-center justify-center border-2 border-black px-1">
+                        {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                      </div>
+                    )}
+                  </div>
                   <span
+
                     className={`hidden xl:block ml-4 text-[20px] ${
                       Math.abs(isActive - 1) < 0.1 || location.pathname.startsWith(item.href) && item.href !== "/community" ? "font-bold" : "font-normal"
                     } text-[#e7e9ea]`}

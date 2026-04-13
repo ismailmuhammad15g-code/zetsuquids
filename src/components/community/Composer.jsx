@@ -1,5 +1,11 @@
-import { Image as ImageIcon, Loader2 } from "lucide-react";
-import { useRef, useState } from "react";
+import EmojiPicker, { Theme } from "emoji-picker-react";
+import { useRef, useState, useEffect } from "react";
+import { FaRegFaceSmile, FaCalendarCheck } from "react-icons/fa6";
+import { IoLocationOutline } from "react-icons/io5";
+import { RiCalendarScheduleLine } from "react-icons/ri";
+import { RxCross2 } from "react-icons/rx";
+import { TbPhoto } from "react-icons/tb";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getAvatarForUser } from "../../lib/avatar";
 import { communityApi } from "../../lib/communityApi";
@@ -13,13 +19,27 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [tempPreview, setTempPreview] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
+  const emojiRef = useRef(null);
 
   const charCount = content.length;
   const charPercent = Math.min((charCount / MAX_CHARS) * 100, 100);
   const isOverLimit = charCount > MAX_CHARS;
   const charsRemaining = MAX_CHARS - charCount;
+
+  // Global click listener to close emoji picker
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (emojiRef.current && !emojiRef.current.contains(e.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   const handleSubmit = async () => {
     if (!content.trim() || isOverLimit) return;
@@ -39,13 +59,14 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
         content,
         category: "General",
         user_id: user.id,
-        group_id: groupId, // Support posting to a specific community
+        group_id: groupId,
       });
 
       setContent("");
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
+      setShowEmojiPicker(false);
       toast.success("Your post was sent!", {
         style: {
           background: "#16181c",
@@ -66,31 +87,19 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!user) {
-      toast.error("Please login to upload images");
-      return;
-    }
-
     setUploadingImage(true);
     setUploadProgress(0);
-    
-    // Create local preview
     const localUrl = URL.createObjectURL(file);
     setTempPreview(localUrl);
     
     try {
-      const imageUrl = await uploadImageToImgBB(file, (percent) => {
-        setUploadProgress(percent);
-      });
-      
+      const imageUrl = await uploadImageToImgBB(file, (percent) => setUploadProgress(percent));
       setContent(prev => prev + (prev.endsWith("\n") || prev === "" ? "" : "\n\n") + `![Image](${imageUrl})\n`);
-      
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
         textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
         textareaRef.current.focus();
       }
-      
       toast.success("Image uploaded!");
     } catch (error) {
       console.error(error);
@@ -103,16 +112,18 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
     }
   };
 
-  // Circle progress for character count
+  const onEmojiClick = (emojiData) => {
+    setContent(prev => prev + emojiData.emoji);
+    textareaRef.current?.focus();
+  };
+
   const CircleProgress = () => {
     if (charCount < 20) return null;
-
     const size = 30;
     const strokeWidth = 2.5;
     const radius = (size - strokeWidth) / 2;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (charPercent / 100) * circumference;
-
     let strokeColor = "#1d9bf0";
     if (charsRemaining <= 0) strokeColor = "#f4212e";
     else if (charsRemaining <= 20) strokeColor = "#ffd400";
@@ -120,33 +131,11 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
     return (
       <div className="relative flex items-center justify-center mr-3">
         <svg width={size} height={size} className="-rotate-90">
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="#2f3336"
-            strokeWidth={strokeWidth}
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={strokeColor}
-            strokeWidth={strokeWidth}
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            strokeLinecap="round"
-            className="transition-all duration-200"
-          />
+          <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="#2f3336" strokeWidth={strokeWidth} />
+          <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-200" />
         </svg>
         {charsRemaining <= 20 && (
-          <span
-            className={`absolute text-[11px] font-medium ${
-              isOverLimit ? "text-[#f4212e]" : "text-[#71767b]"
-            }`}
-          >
+          <span className={`absolute text-[11px] font-medium ${isOverLimit ? "text-[#f4212e]" : "text-[#71767b]"}`}>
             {charsRemaining}
           </span>
         )}
@@ -155,103 +144,82 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
   };
 
   return (
-    <div className={`flex gap-3 px-4 py-3 ${isModal ? '' : 'border-b border-[#2f3336]'}`}>
+    <div className={`flex gap-3 px-4 py-3 ${isModal ? '' : 'border-b border-[#2f3336]'} ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
       <div className="flex-shrink-0 pt-1">
-        <div className="h-10 w-10 overflow-hidden rounded-full bg-[#2f3336] hover:opacity-90 transition-opacity cursor-pointer">
-          <img
-            src={getAvatarForUser(user?.email)}
-            alt=""
-            className="h-full w-full object-cover"
-          />
+        <div className="h-10 w-10 overflow-hidden rounded-full bg-[#2f3336]">
+          <img src={getAvatarForUser(user?.email)} alt="" className="h-full w-full object-cover" />
         </div>
       </div>
       <div className="flex-1 min-w-0">
         <div className="relative">
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder={placeholder}
-              className="w-full resize-none border-none bg-transparent text-[20px] text-[#e7e9ea] placeholder-[#71767b] focus:ring-0 focus:outline-none min-h-[56px] scrollbar-none py-3 relative z-10"
-              rows={isModal ? 3 : 1}
-              onInput={(e) => {
-                e.target.style.height = "auto";
-                e.target.style.height = e.target.scrollHeight + "px";
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                  e.preventDefault();
-                  handleSubmit();
-                }
-              }}
-            />
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder={placeholder}
+            className="w-full resize-none border-none bg-transparent text-[20px] text-[#e7e9ea] placeholder-[#71767b] focus:ring-0 focus:outline-none min-h-[56px] scrollbar-none py-3"
+            rows={isModal ? 3 : 1}
+            onInput={(e) => {
+              e.target.style.height = "auto";
+              e.target.style.height = e.target.scrollHeight + "px";
+            }}
+          />
+          {uploadingImage && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md rounded-xl border border-[#1d9bf0]/20">
+              {tempPreview && <img src={tempPreview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />}
+              <div className="relative flex flex-col items-center">
+                <div className="w-12 h-12 rounded-full border-4 border-[#1d9bf0]/20 border-t-[#1d9bf0] animate-spin mb-2"></div>
+                <span className="text-[#e7e9ea] font-bold text-lg">{uploadProgress}%</span>
+              </div>
+            </div>
+          )}
+        </div>
 
-            {/* Uploading Overlay */}
-            {uploadingImage && (
-              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md rounded-xl animate-fade-in border border-[#1d9bf0]/20">
-                {tempPreview && (
-                  <img src={tempPreview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
-                )}
-                <div className="relative flex flex-col items-center">
-                  <div className="w-12 h-12 rounded-full border-4 border-[#1d9bf0]/20 border-t-[#1d9bf0] animate-spin mb-3"></div>
-                  <span className="text-[#e7e9ea] font-bold text-[18px]">
-                    {uploadProgress}%
-                  </span>
-                  <span className="text-[#71767b] text-[13px] font-medium mt-1">
-                    Uploading...
-                  </span>
-                </div>
+        <div className="flex items-center justify-between mt-4 pb-2">
+          <div className="flex gap-1 -ml-2 text-[#1d9bf0] relative" ref={emojiRef}>
+            <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded-full p-2 hover:bg-[#1d9bf0]/10 transition-colors"
+              title="Media"
+            >
+              <TbPhoto size={20} />
+            </button>
+            <button
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="rounded-full p-2 hover:bg-[#1d9bf0]/10 transition-colors"
+              title="Emoji"
+            >
+              <FaRegFaceSmile size={20} />
+            </button>
+            <button className="rounded-full p-2 hover:bg-[#1d9bf0]/10 transition-colors opacity-60"><IoLocationOutline size={20} /></button>
+            <button className="rounded-full p-2 hover:bg-[#1d9bf0]/10 transition-colors opacity-60"><RiCalendarScheduleLine size={20} /></button>
+
+            {showEmojiPicker && (
+              <div className="absolute z-[100] top-12 left-0 shadow-2xl">
+                <EmojiPicker
+                  theme={Theme.DARK}
+                  onEmojiClick={onEmojiClick}
+                  lazyLoadEmojis={true}
+                  searchDisabled={false}
+                  skinTonesDisabled={true}
+                  previewConfig={{ showPreview: false }}
+                  width={320}
+                  height={400}
+                />
               </div>
             )}
           </div>
 
-        {content && (
-          <div className="pb-3 border-b border-[#2f3336] mb-3">
-            <button className="text-[#1d9bf0] font-bold text-[13px] flex items-center gap-1 hover:bg-[#1d9bf0]/10 px-2 py-0.5 rounded-full transition-colors">
-              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
-                <path d="M12 1.75C6.34 1.75 1.75 6.34 1.75 12S6.34 22.25 12 22.25 22.25 17.66 22.25 12 17.66 1.75 12 1.75zm-.25 10.48L10.5 17.5l-2-1.5 1.25-5.27L7 8.75l5.5-.5L14 3.5l1.5 4.75 5.5.5-2.75 2L19.5 16l-2-1.5-5.75-2.27z" />
-              </svg>
-              Everyone can reply
-            </button>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between mt-2">
-          <div className="flex gap-0 -ml-2 text-[#1d9bf0]">
-            <input 
-              type="file" 
-              accept="image/*" 
-              className="hidden" 
-              ref={fileInputRef}
-              onChange={handleImageUpload}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingImage}
-              className="rounded-full p-2 hover:bg-[#1d9bf0]/10 transition-colors disabled:opacity-50"
-              title="Media"
-            >
-              {uploadingImage ? <Loader2 size={20} className="animate-spin" /> : <ImageIcon size={20} />}
-            </button>
-          </div>
-
           <div className="flex items-center">
             <CircleProgress />
-
-            {charCount > 0 && (
-              <div className="w-px h-6 bg-[#2f3336] mr-3" />
-            )}
-
+            {charCount > 0 && <div className="w-px h-6 bg-[#2f3336] mr-3" />}
             <button
               onClick={handleSubmit}
-              disabled={!content.trim() || loading || isOverLimit}
-              className="rounded-full bg-[#1d9bf0] px-5 py-1.5 font-bold text-[15px] text-white transition-all hover:bg-[#1a8cd8] disabled:bg-[#1d9bf0]/50 disabled:cursor-not-allowed disabled:text-white/50 active:scale-95"
+              disabled={(!content.trim() && !tempPreview) || loading || isOverLimit}
+              className="rounded-full bg-[#1d9bf0] px-5 py-1.5 font-bold text-[15px] text-white transition-all hover:bg-[#1a8cd8] disabled:opacity-50 active:scale-95"
             >
-              {loading ? (
-                <Loader2 className="animate-spin" size={18} />
-              ) : (
-                "Post"
-              )}
+              {loading ? <Loader2 className="animate-spin" size={18} /> : "Post"}
             </button>
           </div>
         </div>

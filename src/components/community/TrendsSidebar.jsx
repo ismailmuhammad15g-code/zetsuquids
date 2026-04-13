@@ -345,9 +345,12 @@ export default function TrendsSidebar({ user }) {
         )}
 
         {trends.length > 0 && (
-          <div className="cursor-pointer p-4 text-[15px] text-[#1d9bf0] hover:bg-white/[0.03] transition-colors">
+          <button 
+            onClick={() => navigate("/community/explore")}
+            className="w-full text-left cursor-pointer p-4 text-[15px] text-[#1d9bf0] hover:bg-white/[0.03] transition-colors"
+          >
             Show more
-          </div>
+          </button>
         )}
       </div>
 
@@ -524,16 +527,12 @@ export default function TrendsSidebar({ user }) {
           ))
         )}
 
-        {suggestions.length >= suggestionLimit && suggestionLimit < 50 && (
+        {suggestions.length > 0 && (
           <button
-            onClick={() => {
-              setLoadingMore(true);
-              setSuggestionLimit(50);
-            }}
-            disabled={loadingMore}
-            className="w-full cursor-pointer p-4 text-[15px] text-[#1d9bf0] hover:bg-white/[0.03] transition-colors disabled:opacity-50 text-left"
+            onClick={() => navigate("/community/explore")}
+            className="w-full cursor-pointer p-4 text-[15px] text-[#1d9bf0] hover:bg-white/[0.03] transition-colors text-left"
           >
-            {loadingMore ? "Loading more..." : "Show more"}
+            Show more
           </button>
         )}
       </div>

@@ -54,11 +54,21 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
+    
+    let isMounted = true;
     communityApi.getNotifications(user.id).then(n => {
-      setNotifications(n || []);
-      setLoading(false);
+      if (isMounted) {
+        setNotifications(n || []);
+        setLoading(false);
+      }
     });
+
+    // Automatically mark all notifications as read when the page is visited
+    communityApi.markNotificationsAsRead(user.id).catch(err => console.error("Failed to mark read:", err));
+    
+    return () => { isMounted = false; };
   }, [user]);
+
 
   const filtered = activeTab === "Mentions"
     ? notifications.filter(n => n.type === "mention")

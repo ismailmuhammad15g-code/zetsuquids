@@ -42,6 +42,8 @@ const CommunityNotificationsPage = lazy(() => import("./pages/community/Notifica
 const CommunityMessagesPage = lazy(() => import("./pages/community/MessagesPage"));
 const CommunityCommunitiesPage = lazy(() => import("./pages/community/CommunitiesPage"));
 const CommunityGroupPage = lazy(() => import("./pages/community/GroupPage"));
+const CommunityProfilePage = lazy(() => import("./pages/community/ProfilePage"));
+
 
 const PostDetailsPage = lazy(() => import("./pages/PostDetailsPage"));
 const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
@@ -107,7 +109,9 @@ function App() {
                   <Route path="bookmarks" element={<CommunityBookmarksPage />} />
                   <Route path="communities" element={<CommunityCommunitiesPage />} />
                   <Route path="group/:id" element={<CommunityGroupPage />} />
+                  <Route path="profile/:username" element={<CommunityProfilePage />} />
                 </Route>
+
 
               </Route>
               <Route path="/auth" element={<AuthPage />} />
