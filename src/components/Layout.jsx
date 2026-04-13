@@ -256,11 +256,6 @@ export default function Layout() {
       label: "ZetsuGuide AI",
       icon: <Bot size={18} className="translate-y-[1px]" />,
       href: "/zetsuguide-ai",
-      extra: (
-        <span className="absolute -top-3 -right-6 px-1.5 py-0.5 text-[10px] font-bold bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-full animate-pulse shadow-sm pointer-events-none">
-          NEW
-        </span>
-      ),
     },
   ];
 
@@ -403,9 +398,6 @@ export default function Layout() {
                               <Bot size={18} />
                               <div className="flex-1 flex items-center justify-between">
                                 <span>ZetsuGuide AI</span>
-                                <span className="text-[10px] font-bold bg-gradient-to-r from-pink-500 to-violet-500 text-white px-1.5 py-0.5 rounded-full">
-                                  NEW
-                                </span>
                               </div>
                             </Link>
                             <Link
@@ -515,9 +507,7 @@ export default function Layout() {
                         }
                       />
                       <span className="flex-1">ZetsuGuide AI</span>
-                      <span className="px-2 py-0.5 text-xs font-bold bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-full animate-pulse">
-                        NEW
-                      </span>
+                      <span className="flex-1">ZetsuGuide AI</span>
                     </Link>
                   </nav>
 

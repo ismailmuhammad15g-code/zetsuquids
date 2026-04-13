@@ -15,7 +15,8 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase, adminGuidesApi } from '../lib/api'
+import { supabase, adminGuidesApi, adsApi } from '../lib/api'
+import { Megaphone, Trash2, Plus, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react'
 import { supportApi } from '../lib/supportApi'
 
 // Import staff profile animations
@@ -39,7 +40,7 @@ export default function StaffConsole() {
     const [loading, setLoading] = useState(true)
     const [selectedProfile, setSelectedProfile] = useState(null)
     const [showProfileSelector, setShowProfileSelector] = useState(true)
-    const [activeTab, setActiveTab] = useState('support') // 'support' or 'guides'
+    const [activeTab, setActiveTab] = useState('support') // 'support', 'guides', or 'ads'
 
     // Guide Reviews State
     const [pendingGuides, setPendingGuides] = useState([])
@@ -54,6 +55,13 @@ export default function StaffConsole() {
     const [loadingMessages, setLoadingMessages] = useState(false)
     const [replyText, setReplyText] = useState('')
     const [sendingReply, setSendingReply] = useState(false)
+    
+    // Ads Management State
+    const [ads, setAds] = useState([])
+    const [loadingAds, setLoadingAds] = useState(false)
+    const [showAdModal, setShowAdModal] = useState(false)
+    const [creatingAd, setCreatingAd] = useState(false)
+    const [newAd, setNewAd] = useState({ title: '', text: '', link_url: '', image_url: '' })
     const messagesEndRef = useRef(null)
     const activeChannelRef = useRef(null)
     const lastTypingTimeRef = useRef(0)
@@ -78,6 +86,7 @@ export default function StaffConsole() {
             }
             loadConversations()
             loadPendingGuides() // Load guides on init
+            loadAds() // Load ads on init
         } else {
             sessionStorage.removeItem('staffAuthenticated')
             sessionStorage.removeItem('staffLoginTime')
@@ -250,6 +259,51 @@ export default function StaffConsole() {
             console.error('Error loading pending guides:', error)
         }
         setLoadingGuides(false)
+    }
+
+    const loadAds = async () => {
+        setLoadingAds(true)
+        try {
+            const data = await adsApi.getAllAds()
+            setAds(data || [])
+        } catch (error) {
+            console.error('Error loading ads:', error)
+        }
+        setLoadingAds(false)
+    }
+
+    const handleCreateAd = async (e) => {
+        e.preventDefault()
+        if (!newAd.title || !newAd.text) return
+        
+        setCreatingAd(true)
+        try {
+            await adsApi.createAd({
+                ...newAd,
+                is_active: true
+            })
+            setNewAd({ title: '', text: '', link_url: '', image_url: '' })
+            setShowAdModal(false)
+            loadAds()
+        } catch (error) {
+            alert('فشل إنشاء الإعلان: ' + error.message)
+        }
+        setCreatingAd(false)
+    }
+
+    const handleToggleAd = async (adId, currentStatus) => {
+        const success = await adsApi.toggleAdStatus(adId, !currentStatus)
+        if (success) {
+            setAds(prev => prev.map(a => a.id === adId ? { ...a, is_active: !currentStatus } : a))
+        }
+    }
+
+    const handleDeleteAd = async (adId) => {
+        if (!confirm('هل أنت متأكد من حذف هذا الإعلان نهائياً؟')) return
+        const success = await adsApi.deleteAd(adId)
+        if (success) {
+            setAds(prev => prev.filter(a => a.id !== adId))
+        }
     }
 
     // Approve guide
@@ -467,6 +521,14 @@ export default function StaffConsole() {
                     <span>مراجعة الأدلة</span>
                     {pendingGuides.length > 0 && <span className="count-badge">{pendingGuides.length}</span>}
                 </button>
+                <button
+                    className={`tab-btn ${activeTab === 'ads' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('ads')}
+                >
+                    <Megaphone size={18} />
+                    <span>الاعلانات</span>
+                    {ads.some(a => a.is_active) && <span className="tab-badge" style={{ backgroundColor: '#10b981' }} />}
+                </button>
             </div>
 
             {/* Main Content */}
@@ -657,7 +719,7 @@ export default function StaffConsole() {
                             </div>
                         )}
                     </section>
-                ) : (
+                ) : activeTab === 'guides' ? (
                     <section className="guides-section">
                         <div className="section-header">
                             <BookOpen size={20} />
@@ -732,8 +794,175 @@ export default function StaffConsole() {
                             </div>
                         )}
                     </section>
+                ) : (
+                    <section className="ads-section">
+                        <div className="section-header">
+                            <Megaphone size={20} />
+                            <h2>نظام الإعلانات</h2>
+                            <span className="conv-count">{ads.length}</span>
+                            <div className="header-actions" style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+                                <button
+                                    className="add-ad-btn"
+                                    onClick={() => setShowAdModal(true)}
+                                    style={{ 
+                                        display: 'flex', alignItems: 'center', gap: '6px', 
+                                        backgroundColor: '#10b981', color: 'white', 
+                                        padding: '6px 14px', borderRadius: '8px', fontWeight: 'bold' 
+                                    }}
+                                >
+                                    <Plus size={16} />
+                                    إعلان جديد
+                                </button>
+                                <button
+                                    className="refresh-btn"
+                                    onClick={loadAds}
+                                    disabled={loadingAds}
+                                >
+                                    <RefreshCw size={16} className={loadingAds ? 'spin' : ''} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {loadingAds ? (
+                            <div className="loading-state">
+                                <RefreshCw className="spin" size={24} />
+                                <p>جاري التحميل...</p>
+                            </div>
+                        ) : ads.length === 0 ? (
+                            <div className="empty-state">
+                                <Megaphone size={48} />
+                                <p>لا توجد إعلانات بعد. ابدأ بإضافة إعلانك الأول!</p>
+                            </div>
+                        ) : (
+                            <div className="ads-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', padding: '20px' }}>
+                                {ads.map(ad => (
+                                    <div key={ad.id} className="ad-card" style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                                        {ad.image_url && (
+                                            <div className="ad-image" style={{ height: '140px', overflow: 'hidden' }}>
+                                                <img src={ad.image_url} alt={ad.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            </div>
+                                        )}
+                                        <div className="ad-body" style={{ padding: '16px', flex: 1 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
+                                                <h3 style={{ fontSize: '18px', fontWeight: 'bold' }}>{ad.title}</h3>
+                                                <span 
+                                                    style={{ 
+                                                        fontSize: '10px', padding: '2px 8px', borderRadius: 'full', 
+                                                        backgroundColor: ad.is_active ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.1)',
+                                                        color: ad.is_active ? '#10b981' : '#888',
+                                                        border: `1px solid ${ad.is_active ? '#10b981' : '#444'}`
+                                                    }}
+                                                >
+                                                    {ad.is_active ? 'نشط' : 'غير نشط'}
+                                                </span>
+                                            </div>
+                                            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', marginBottom: '16px', lineClamp: '3', display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                                {ad.text}
+                                            </p>
+                                            {ad.link_url && (
+                                                <div style={{ fontSize: '12px', color: '#1d9bf0', marginBottom: '16px', wordBreak: 'break-all' }}>
+                                                    🔗 {ad.link_url}
+                                                </div>
+                                            )}
+                                            <div className="ad-actions" style={{ marginTop: 'auto', display: 'flex', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
+                                                <button
+                                                    onClick={() => handleToggleAd(ad.id, ad.is_active)}
+                                                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)' }}
+                                                >
+                                                    {ad.is_active ? <ToggleRight size={18} className="text-[#10b981]" /> : <ToggleLeft size={18} />}
+                                                    {ad.is_active ? 'تعطيل' : 'تفعيل'}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteAd(ad.id)}
+                                                    style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </section>
                 )}
             </main>
+
+            {/* Create Ad Modal */}
+            {showAdModal && (
+                <div className="profile-selector-overlay" style={{ zIndex: 200 }}>
+                    <div className="profile-selector-modal" style={{ maxWidth: '500px', textAlign: 'right' }}>
+                        <h2 style={{ marginBottom: '10px' }}>إنشاء إعلان جديد</h2>
+                        <p style={{ marginBottom: '20px' }}>أدخل تفاصيل الإعلان ليظهر في الشريط العلوي للموقع</p>
+                        
+                        <form onSubmit={handleCreateAd} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <label style={{ fontSize: '14px', color: '#888' }}>عنوان الإعلان (مثلاً: New!)</label>
+                                <input 
+                                    type="text" 
+                                    value={newAd.title} 
+                                    onChange={e => setNewAd({...newAd, title: e.target.value})}
+                                    placeholder="مثلاً: جديد!"
+                                    style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}
+                                    dir="rtl"
+                                    required
+                                />
+                            </div>
+                            
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <label style={{ fontSize: '14px', color: '#888' }}>نص الإعلان</label>
+                                <textarea 
+                                    value={newAd.text} 
+                                    onChange={e => setNewAd({...newAd, text: e.target.value})}
+                                    placeholder="اكتب وصف الإعلان هنا..."
+                                    style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white', minHeight: '80px' }}
+                                    dir="rtl"
+                                    required
+                                />
+                            </div>
+                            
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <label style={{ fontSize: '14px', color: '#888' }}>الرابط (اختياري)</label>
+                                <input 
+                                    type="text" 
+                                    value={newAd.link_url} 
+                                    onChange={e => setNewAd({...newAd, link_url: e.target.value})}
+                                    placeholder="مثلاً: /community"
+                                    style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}
+                                />
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <label style={{ fontSize: '14px', color: '#888' }}>رابط الصورة (اختياري)</label>
+                                <input 
+                                    type="text" 
+                                    value={newAd.image_url} 
+                                    onChange={e => setNewAd({...newAd, image_url: e.target.value})}
+                                    placeholder="https://..."
+                                    style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}
+                                />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                <button 
+                                    type="submit" 
+                                    disabled={creatingAd}
+                                    style={{ flex: 1, backgroundColor: '#1d9bf0', color: 'white', padding: '12px', borderRadius: '12px', fontWeight: 'bold' }}
+                                >
+                                    {creatingAd ? <RefreshCw className="spin" size={20} /> : 'نشر الإعلان'}
+                                </button>
+                                <button 
+                                    type="button" 
+                                    onClick={() => setShowAdModal(false)}
+                                    style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', padding: '12px', borderRadius: '12px' }}
+                                >
+                                    إلغاء
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             <style>{`
                 .staff-console {

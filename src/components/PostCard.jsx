@@ -1,4 +1,4 @@
-import { differenceInSeconds, differenceInMinutes, differenceInHours, differenceInDays } from "date-fns";
+import { differenceInSeconds, differenceInMinutes, differenceInHours, differenceInDays, formatDistanceToNow } from "date-fns";
 import {
   BadgeCheck,
   BarChart3,
@@ -9,6 +9,7 @@ import {
   Repeat2,
   Share,
   Trash2,
+  CheckCircle2
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -19,6 +20,7 @@ import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvatarForUser } from "../lib/avatar";
 import { communityApi } from "../lib/communityApi";
+import { supabase } from "../lib/supabase";
 
 export default function PostCard({ post, onDeleted }) {
   const { user } = useAuth();
@@ -31,6 +33,12 @@ export default function PostCard({ post, onDeleted }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const menuRef = useRef(null);
+
+  // Poll State
+  const poll = post.community_polls?.[0];
+  const [votedOptionId, setVotedOptionId] = useState(null);
+  const [localPollData, setLocalPollData] = useState(poll);
+  const [voting, setVoting] = useState(false);
 
   const isOwner = user?.id === post.user_id;
 
@@ -53,6 +61,23 @@ export default function PostCard({ post, onDeleted }) {
       mounted = false;
     };
   }, [user, post.id, post.has_liked]);
+
+  // Check if user has voted
+  useEffect(() => {
+    if (!poll || !user) return;
+    
+    async function checkVote() {
+      const { data } = await supabase
+        .from("community_poll_votes")
+        .select("option_id")
+        .eq("poll_id", poll.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      if (data) setVotedOptionId(data.option_id);
+    }
+    checkVote();
+  }, [poll, user]);
 
   const authorProfile = post.author || post.author_profile;
   const authorName =
@@ -165,6 +190,33 @@ export default function PostCard({ post, onDeleted }) {
     }
   };
 
+  const handleVote = async (e, optionId) => {
+    e.stopPropagation();
+    if (!user) {
+      toast.error("Please login to vote");
+      return;
+    }
+    if (votedOptionId || voting) return;
+
+    setVoting(true);
+    try {
+      await communityApi.castVote(localPollData.id, optionId, user.id);
+      setVotedOptionId(optionId);
+      
+      // Update local counts
+      const updatedOptions = localPollData.community_poll_options.map(opt => 
+        opt.id === optionId ? { ...opt, votes_count: opt.votes_count + 1 } : opt
+      );
+      setLocalPollData({ ...localPollData, community_poll_options: updatedOptions });
+      toast.success("Vote cast!");
+    } catch (err) {
+      toast.error("Voting failed");
+      console.error(err);
+    } finally {
+      setVoting(false);
+    }
+  };
+
   const formatCount = (num) => {
     if (!num || num === 0) return "";
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
@@ -269,6 +321,59 @@ export default function PostCard({ post, onDeleted }) {
     );
   };
 
+  const renderPoll = () => {
+    if (!localPollData) return null;
+
+    const totalVotes = localPollData.community_poll_options.reduce((acc, opt) => acc + opt.votes_count, 0);
+    const isExpired = new Date(localPollData.ends_at) < new Date();
+    const showResults = votedOptionId || isExpired;
+
+    return (
+      <div className="mt-3 space-y-2 select-none" onClick={stopProp}>
+        {localPollData.community_poll_options.map((option) => {
+          const percentage = totalVotes > 0 ? Math.round((option.votes_count / totalVotes) * 100) : 0;
+          const isUserVote = votedOptionId === option.id;
+
+          return (
+            <div key={option.id} className="relative group">
+              {showResults ? (
+                <div className="relative h-9 flex items-center px-3 rounded-lg overflow-hidden border border-[#2f3336]">
+                  {/* Progress Bar Background */}
+                  <div 
+                    className={`absolute left-0 top-0 bottom-0 ${isUserVote ? 'bg-[#1d9bf0]/30' : 'bg-[#2f3336]'}`} 
+                    style={{ width: `${percentage}%`, transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}
+                  />
+                  <div className="relative flex justify-between w-full font-medium text-[14px]">
+                    <div className="flex items-center gap-2">
+                       <span className={isUserVote ? 'text-[#e7e9ea] font-bold' : 'text-[#71767b]'}>{option.text}</span>
+                       {isUserVote && <CheckCircle2 size={14} className="text-[#1d9bf0]" />}
+                    </div>
+                    <span className="text-[#e7e9ea]">{percentage}%</span>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => handleVote(e, option.id)}
+                  disabled={voting}
+                  className="w-full h-9 flex items-center justify-center rounded-full border border-[#1d9bf0] text-[#1d9bf0] font-bold text-[14px] hover:bg-[#1d9bf0]/10 transition-colors disabled:opacity-50"
+                >
+                  {option.text}
+                </button>
+              )}
+            </div>
+          );
+        })}
+        <div className="flex gap-2 text-[14px] text-[#71767b] pt-1">
+          <span>{totalVotes.toLocaleString()} votes</span>
+          <span>·</span>
+          <span>
+            {isExpired ? "Final results" : `${formatDistanceToNow(new Date(localPollData.ends_at))} left`}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
     <article
@@ -346,6 +451,9 @@ export default function PostCard({ post, onDeleted }) {
         <div className="text-[#e7e9ea] text-[15px] leading-[20px] mt-0.5 whitespace-pre-wrap break-words">
           {renderContent()}
         </div>
+
+        {/* Poll Rendering */}
+        {renderPoll()}
 
         {/* Action Bar */}
         <div className="flex justify-between items-center mt-3 max-w-[425px] text-[#71767b] -ml-2">

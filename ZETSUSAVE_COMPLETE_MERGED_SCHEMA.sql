@@ -2306,3 +2306,94 @@ USING (auth.uid() = sender_id OR EXISTS (
   WHERE c.id = community_messages.conversation_id 
   AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
 ));
+
+-- إنشاء جدول الإعلانات
+CREATE TABLE IF NOT EXISTS public.zetsuguide_ads (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT NOT NULL,
+    text TEXT NOT NULL,
+    link_url TEXT,
+    image_url TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- تفعيل سياسات الأمان
+ALTER TABLE public.zetsuguide_ads ENABLE ROW LEVEL SECURITY;
+
+-- السماح للجميع برؤية الإعلانات المفعلة
+CREATE POLICY "Anyone can view active ads" 
+ON public.zetsuguide_ads FOR SELECT 
+USING (is_active = true);
+
+-- منح صلاحيات كاملة للمسؤولين
+CREATE POLICY "Admin full access to ads" 
+ON public.zetsuguide_ads FOR ALL 
+USING (true);
+
+
+-- ==========================================
+-- Community Polls System
+-- ==========================================
+
+-- Table for the poll itself
+CREATE TABLE IF NOT EXISTS public.community_polls (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE,
+    question TEXT,
+    ends_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Table for poll options
+CREATE TABLE IF NOT EXISTS public.community_poll_options (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    poll_id UUID REFERENCES public.community_polls(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    votes_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Table to track individual votes (prevents double voting)
+CREATE TABLE IF NOT EXISTS public.community_poll_votes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    poll_id UUID REFERENCES public.community_polls(id) ON DELETE CASCADE,
+    option_id UUID REFERENCES public.community_poll_options(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(poll_id, user_id)
+);
+
+-- Enable RLS
+ALTER TABLE public.community_polls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.community_poll_options ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.community_poll_votes ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+CREATE POLICY "Anyone can view polls" ON public.community_polls FOR SELECT USING (true);
+CREATE POLICY "Anyone can view poll options" ON public.community_poll_options FOR SELECT USING (true);
+CREATE POLICY "Users can view their own votes" ON public.community_poll_votes FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create polls" ON public.community_polls FOR INSERT WITH CHECK (true);
+CREATE POLICY "Users can create options" ON public.community_poll_options FOR INSERT WITH CHECK (true);
+CREATE POLICY "Users can cast votes" ON public.community_poll_votes FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Function to cast a vote safely (increments count + records vote)
+-- This avoids race conditions and ensures integrity
+CREATE OR REPLACE FUNCTION public.cast_community_vote(
+    p_poll_id UUID,
+    p_option_id UUID,
+    p_user_id UUID
+) RETURNS VOID AS $$
+BEGIN
+    -- 1. Insert the vote record (will fail if UNIQUE constraint is violated)
+    INSERT INTO public.community_poll_votes (poll_id, option_id, user_id)
+    VALUES (p_poll_id, p_option_id, p_user_id);
+
+    -- 2. Increment the votes_count in options table
+    UPDATE public.community_poll_options
+    SET votes_count = votes_count + 1
+    WHERE id = p_option_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+

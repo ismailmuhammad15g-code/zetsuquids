@@ -537,6 +537,88 @@ export const guidesApi = {
   },
 };
 
+// Ads API
+export const adsApi = {
+  async getActiveAd() {
+    if (!isSupabaseConfigured()) return null;
+    try {
+      const { data, error } = await supabase
+        .from("zetsuguide_ads")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error("Error fetching active ad:", err);
+      return null;
+    }
+  },
+
+  async getAllAds() {
+    if (!isSupabaseConfigured()) return [];
+    try {
+      const { data, error } = await supabase
+        .from("zetsuguide_ads")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.error("Error fetching all ads:", err);
+      return [];
+    }
+  },
+
+  async createAd(adData) {
+    if (!isSupabaseConfigured()) return null;
+    try {
+      const { data, error } = await supabase
+        .from("zetsuguide_ads")
+        .insert([adData])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error("Error creating ad:", err);
+      throw err;
+    }
+  },
+
+  async toggleAdStatus(id, isActive) {
+    if (!isSupabaseConfigured()) return false;
+    try {
+      const { error } = await supabase
+        .from("zetsuguide_ads")
+        .update({ is_active: isActive })
+        .eq("id", id);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error("Error toggling ad status:", err);
+      return false;
+    }
+  },
+
+  async deleteAd(id) {
+    if (!isSupabaseConfigured()) return false;
+    try {
+      const { error } = await supabase
+        .from("zetsuguide_ads")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error("Error deleting ad:", err);
+      return false;
+    }
+  }
+};
+
 // Sample data for testing
 const sampleGuides = [
   {

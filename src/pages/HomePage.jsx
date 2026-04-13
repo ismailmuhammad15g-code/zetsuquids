@@ -22,13 +22,14 @@ import { Spotlight } from "../components/ui/spotlight";
 import { StickyBanner } from "../components/ui/sticky-banner";
 import { useAuth } from "../contexts/AuthContext";
 import { useGuides } from "../hooks/useGuides";
-import { guidesApi, initializeSampleData } from "../lib/api";
+import { guidesApi, initializeSampleData, adsApi } from "../lib/api";
 import { cn } from "../lib/utils";
 
 export default function HomePage() {
   const { openAddModal } = useOutletContext();
   const { user } = useAuth();
   const [showGallery, setShowGallery] = useState(false);
+  const [activeAd, setActiveAd] = useState(null);
 
   // Use the cached hook
   const { data: allGuides = [], isLoading: loading } = useGuides();
@@ -46,6 +47,9 @@ export default function HomePage() {
 
     // Check for sample data in background
     initializeSampleData().catch(console.error);
+
+    // Fetch active ad
+    adsApi.getActiveAd().then(setActiveAd).catch(console.error);
   }, [user]);
 
   async function handleSync() {
@@ -72,30 +76,32 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* Sticky Banner */}
-      <StickyBanner className="bg-black border-b border-white/10">
-        <p className="mx-0 max-w-[90%] text-white/90 text-sm">
-          <span className="inline-flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+      {activeAd && (
+        <StickyBanner className="bg-black border-b border-white/10">
+          <p className="mx-0 max-w-[90%] text-white/90 text-sm">
+            <span className="inline-flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+              </span>
+              <span>
+                <strong className="font-semibold text-white">
+                  {activeAd.title}
+                </strong>{" "}
+                - {activeAd.text}
+              </span>
+              {activeAd.link_url && (
+                <Link
+                  to={activeAd.link_url}
+                  className="ml-2 px-3 py-1 bg-white text-black text-xs font-medium rounded-full hover:bg-gray-200 transition-all"
+                >
+                  Try it →
+                </Link>
+              )}
             </span>
-            <span>
-              New!{" "}
-              <strong className="font-semibold text-white">
-                ZetsuGuide AI
-              </strong>{" "}
-              - Your intelligent Guide assistant
-            </span>
-            <Link
-              to="/zetsuguide-ai"
-              className="ml-2 px-3 py-1 bg-white text-black text-xs font-medium rounded-full hover:bg-gray-200 transition-all"
-            >
-              Try it →
-            </Link>
-          </span>
-        </p>
-      </StickyBanner>
+          </p>
+        </StickyBanner>
+      )}
 
       {/* Hero Section with Spotlight and Meteors */}
       <section className="relative overflow-hidden border-b-2 border-black bg-black/[0.96]">

@@ -15,7 +15,11 @@ export const communityApi = {
         `
         *,
         post_likes (user_id),
-        post_comments (count)
+        post_comments (count),
+        community_polls (
+          *,
+          community_poll_options (*)
+        )
       `,
       )
       .order("created_at", { ascending: false })
@@ -90,7 +94,11 @@ export const communityApi = {
       .select(`
         *,
         post_likes(user_id),
-        post_comments(count)
+        post_comments(count),
+        community_polls (
+          *,
+          community_poll_options (*)
+        )
       `)
       .order("smart_score", { ascending: false }) // Rank by engagement/decay
       .limit(50);
@@ -232,7 +240,11 @@ export const communityApi = {
         `
         *,
         post_likes (count),
-        post_comments (count)
+        post_comments (count),
+        community_polls (
+          *,
+          community_poll_options (*)
+        )
       `,
       )
       .eq("id", id)
@@ -558,7 +570,11 @@ export const communityApi = {
       .select(`
         *,
         post_likes(user_id),
-        post_comments(count)
+        post_comments(count),
+        community_polls (
+          *,
+          community_poll_options (*)
+        )
       `)
       .in("id", postIds);
 
@@ -1038,4 +1054,46 @@ export const communityApi = {
     return data;
   },
 
+  async castVote(pollId, optionId, userId) {
+    if (!isSupabaseConfigured() || !userId) throw new Error("Must be logged in to vote");
+
+    const { error } = await supabase.rpc("cast_community_vote", {
+      p_poll_id: pollId,
+      p_option_id: optionId,
+      p_user_id: userId,
+    });
+
+    if (error) throw error;
+    return true;
+  },
+
+  async createPoll(postId, pollData) {
+    if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
+
+    const { data: poll, error: pollError } = await supabase
+      .from("community_polls")
+      .insert([
+        {
+          post_id: postId,
+          question: pollData.question,
+          ends_at: new Date(Date.now() + pollData.durationDays * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      ])
+      .select()
+      .single();
+
+    if (pollError) throw pollError;
+
+    const options = pollData.options.map((opt) => ({
+      poll_id: poll.id,
+      text: opt,
+    }));
+
+    const { error: optError } = await supabase
+      .from("community_poll_options")
+      .insert(options);
+
+    if (optError) throw optError;
+    return poll;
+  },
 };
