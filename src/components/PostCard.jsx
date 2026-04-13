@@ -277,7 +277,21 @@ export default function PostCard({ post }) {
             </span>
           </button>
 
-
+          {/* Repost (Repeat) */}
+          <button
+            className="group flex items-center gap-1 transition-colors hover:text-[#00ba7c]"
+            onClick={(e) => {
+              e.stopPropagation();
+              toast("Reposted!");
+            }}
+          >
+            <div className="p-2 rounded-full group-hover:bg-[#00ba7c]/10 transition-all duration-200">
+              <Repeat2 size={18.75} strokeWidth={2} />
+            </div>
+            <span className="text-[13px] min-w-[1ch]">
+               {formatCount(Math.floor(likes / 4))}
+            </span>
+          </button>
 
           {/* Like */}
           <button
@@ -297,6 +311,19 @@ export default function PostCard({ post }) {
             </div>
             <span className="text-[13px] min-w-[1ch]">
               {formatCount(likes)}
+            </span>
+          </button>
+
+          {/* Views */}
+          <button
+            className="group flex items-center gap-1 transition-colors hover:text-[#1d9bf0]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 transition-all duration-200">
+              <BarChart3 size={18.75} strokeWidth={2} />
+            </div>
+            <span className="text-[13px] min-w-[1ch]">
+              {formatCount(viewCount)}
             </span>
           </button>
 

@@ -1957,3 +1957,54 @@ GRANT EXECUTE ON FUNCTION cleanup_old_image_urls TO authenticated, anon;
 -- All tables, functions, triggers, and RLS policies are now configured
 -- Ready for production deployment to a new Supabase account
 -- ==================================================================================
+
+-- ==================================================================================
+-- SEED DATA (MOCK CONTENT REPLACEMENT)
+-- ==================================================================================
+-- Inserting mock UI data required by the community feed to prevent JS fallbacks
+-- Ensure auth constraints are bypassed for demonstration where necessary.
+
+DO $$ 
+DECLARE
+  elon_id UUID := '11111111-1111-1111-1111-111111111111';
+  sarah_id UUID := '22222222-2222-2222-2222-222222222222';
+  james_id UUID := '33333333-3333-3333-3333-333333333333';
+  design_id UUID := '44444444-4444-4444-4444-444444444444';
+  news_id UUID := '55555555-5555-5555-5555-555555555555';
+BEGIN
+  -- Insert into auth.users if possible, otherwise rely on a test helper
+  -- We use INSERT ... ON CONFLICT DO NOTHING to avoid breaking if users exist
+  INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES 
+  (elon_id, 'elon@x.com', '{"full_name":"Elon Musk"}'),
+  (sarah_id, 'sarah@domain.com', '{"full_name":"Sarah Developer"}'),
+  (james_id, 'james@domain.com', '{"full_name":"James Coder"}'),
+  (design_id, 'uiux@domain.com', '{"full_name":"UI/UX Master"}'),
+  (news_id, 'news@x.com', '{"full_name":"X News"}')
+  ON CONFLICT (id) DO NOTHING;
+
+  -- Insert profiles
+  INSERT INTO zetsuguide_user_profiles (user_id, user_email, bio, avatar_url, followers_count, following_count) VALUES
+  (elon_id, 'elon@x.com', 'Chief Twit', 'https://pbs.twimg.com/profile_images/1780044485541699584/p78MCn3B_400x400.jpg', 180000000, 150),
+  (sarah_id, 'sarah@domain.com', 'React Dev', 'https://i.pravatar.cc/150?u=sarah', 1500, 300),
+  (james_id, 'james@domain.com', 'Wandering logic', 'https://i.pravatar.cc/150?u=james', 800, 250),
+  (design_id, 'uiux@domain.com', 'Making things pop', 'https://i.pravatar.cc/150?u=design', 25000, 10),
+  (news_id, 'news@x.com', 'Official News', 'https://ui-avatars.com/api/?name=News', 5000, 0)
+  ON CONFLICT (user_email) DO NOTHING;
+
+  -- Insert Posts for Feed
+  INSERT INTO posts (user_id, title, content, category, likes_count, created_at) VALUES 
+  (elon_id, 'Starship', 'Starship\n\n![Image](https://pbs.twimg.com/media/GK9bKxVW0AAPoJ2?format=jpg&name=large)', 'General', 452000, NOW() - INTERVAL '1 hour'),
+  (sarah_id, 'Just shipped', 'Just shipped the new AI image generator for the marketplace! 🔥 The speed improvements using Cloudflare Workers are insane. What do you guys think? #buildinpublic #reactjs', 'General', 342, NOW() - INTERVAL '30 minutes'),
+  (james_id, 'Refactoring', 'Refactoring a 5-year-old React codebase today. Wish me luck... 😅\n\n```typescript\n// The horror begins\ninterface UnknownProp { \n  [key: string]: any \n}\n```', 'General', 156, NOW() - INTERVAL '2 hours'),
+  (design_id, 'Dark mode', 'Dark mode isn''t just a theme, it''s a lifestyle. 🌙 #webdesign #uiux', 'General', 1204, NOW() - INTERVAL '5 hours');
+
+  -- Insert Posts for News
+  INSERT INTO posts (user_id, title, content, category, likes_count, created_at) VALUES 
+  (news_id, 'Péter Magyar''s Tisza Party', 'Péter Magyar''s Tisza Party Wins Hungary Election Supermajority', 'News', 88480, NOW() - INTERVAL '1 day'),
+  (news_id, 'U.S. Naval Blockade', 'U.S. Naval Blockade Targets Iranian Oil Exports After Talks Collapse', 'News', 8780, NOW() - INTERVAL '2 days'),
+  (news_id, 'Barcelona Channels LeBron', 'Barcelona Channels LeBron''s 2016 Comeback for Atlético UCL Remontada', 'Sports', 3400, NOW() - INTERVAL '2 days');
+
+EXCEPTION WHEN OTHERS THEN
+  -- Fallback if auth.users has strict constraints not met above
+  RAISE NOTICE 'Failed to insert mock data: %', SQLERRM;
+END $$;

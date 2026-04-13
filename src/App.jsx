@@ -35,6 +35,7 @@ const UserWorkspacePage = lazy(() => import("./pages/UserWorkspacePage"));
 const VerifyEmailPage = lazy(() => import("./pages/VerifyEmailPage"));
 const ZetsuGuideAIPage = lazy(() => import("./pages/ZetsuGuideAIPage"));
 const CommunityPage = lazy(() => import("./pages/CommunityPage"));
+const CommunityPlaceholderPage = lazy(() => import("./pages/CommunityPlaceholderPage"));
 const PostDetailsPage = lazy(() => import("./pages/PostDetailsPage"));
 const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
@@ -91,9 +92,18 @@ function App() {
                 <Route path="faq" element={<FAQPage />} />
                 <Route path="community" element={<CommunityPage />} />
                 <Route
-                  path="/community/post/:id"
+                  path="community/post/:id"
                   element={<PostDetailsPage />}
                 />
+                
+                {/* Community Sub-pages */}
+                <Route path="community/explore" element={<CommunityPlaceholderPage title="Explore" />} />
+                <Route path="community/notifications" element={<CommunityPlaceholderPage title="Notifications" />} />
+                <Route path="community/messages" element={<CommunityPlaceholderPage title="Messages" />} />
+                <Route path="community/bookmarks" element={<CommunityPlaceholderPage title="Bookmarks" message="Your saved posts will appear here." />} />
+                <Route path="community/communities" element={<CommunityPlaceholderPage title="Communities" message="Discover and join groups of people who share your interests." />} />
+                <Route path="community/premium" element={<CommunityPlaceholderPage title="Premium" message="Subscribe to unlock new features." />} />
+                
               </Route>
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />

@@ -1,19 +1,28 @@
-import { Bot, Home, Mail, Search, Sparkles, User } from "lucide-react";
+import { Bell, Bookmark, Home, Mail, MoreHorizontal, Search, Sparkles, SquareSlash, User, Users, X } from "lucide-react";
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { getAvatarForUser } from "../../lib/avatar";
 
 export default function CommunityLeftSidebar({ onPostClick }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
+  const [showMenu, setShowMenu] = useState(false);
 
   const navItems = [
     { name: "Home", icon: Home, href: "/community" },
+    { name: "Explore", icon: Search, href: "/community/explore" },
+    { name: "Notifications", icon: Bell, href: "/community/notifications" },
+    { name: "Messages", icon: Mail, href: "/community/messages" },
+    { name: "Bookmarks", icon: Bookmark, href: "/community/bookmarks" },
+    { name: "Communities", icon: Users, href: "/community/communities" },
+    { name: "Premium", icon: X, href: "/community/premium" },
     {
       name: "Profile",
       icon: User,
       href: user ? `/@${(user?.user_metadata?.full_name || user?.email?.split("@")[0] || "user").toLowerCase()}/workspace` : "/auth",
     },
+    { name: "More", icon: MoreHorizontal, href: "#" },
   ];
 
   return (
@@ -72,8 +81,33 @@ export default function CommunityLeftSidebar({ onPostClick }) {
 
           {/* User Profile Mini */}
           {user && (
-            <div className="mt-auto mb-4 w-full flex justify-center xl:justify-start">
-              <div className="flex items-center gap-3 p-3 rounded-full hover:bg-[#181818] transition-colors cursor-pointer w-fit xl:w-[250px]">
+            <div className="mt-auto mb-4 w-full flex justify-center xl:justify-start relative">
+              
+              {/* User Menu Popup */}
+              {showMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                  <div className="absolute bottom-full mb-2 bg-black border border-[#2f3336] rounded-2xl shadow-[0_0_15px_rgba(255,255,255,0.2)] w-max min-w-[260px] overflow-hidden z-50 py-3 left-1/2 -translate-x-1/2 xl:left-0 xl:translate-x-0">
+                    <button className="w-full text-left px-4 py-3 hover:bg-white/[0.03] text-[#e7e9ea] font-bold text-[15px] transition-colors">
+                      Add an existing account
+                    </button>
+                    <button 
+                      onClick={() => {
+                        logout();
+                        setShowMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-white/[0.03] text-[#e7e9ea] font-bold text-[15px] transition-colors"
+                    >
+                      Log out @{user.email?.split("@")[0]}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              <div 
+                onClick={() => setShowMenu(!showMenu)}
+                className="flex items-center gap-3 p-3 rounded-full hover:bg-[#181818] transition-colors cursor-pointer w-fit xl:w-[250px]"
+              >
                 <img
                   src={getAvatarForUser(user.email)}
                   alt="Avatar"

@@ -44,56 +44,7 @@ export const communityApi = {
       return [];
     }
 
-    const MOCK_POSTS = [
-      {
-        id: "mock1",
-        content: "Just shipped the new AI image generator for the marketplace! 🔥 The speed improvements using Cloudflare Workers are insane. What do you guys think? #buildinpublic #reactjs",
-        created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-        user_id: "mock-user-1",
-        author: {
-          display_name: "Sarah Developer",
-          username: "sarahdev",
-          avatar_url: "https://i.pravatar.cc/150?u=sarah",
-          is_verified: true
-        },
-        likes_count: 342,
-        comments_count: 28,
-        has_liked: false
-      },
-      {
-        id: "mock2",
-        content: "Refactoring a 5-year-old React codebase today. Wish me luck... 😅\n\n```typescript\n// The horror begins\ninterface UnknownProp { \n  [key: string]: any \n}\n```",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-        user_id: "mock-user-2",
-        author: {
-          display_name: "James Coder",
-          username: "james_codes",
-          avatar_url: "https://i.pravatar.cc/150?u=james",
-          is_verified: false
-        },
-        likes_count: 156,
-        comments_count: 45,
-        has_liked: true
-      },
-      {
-        id: "mock3",
-        content: "Dark mode isn't just a theme, it's a lifestyle. 🌙 #webdesign #uiux",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-        user_id: "mock-user-3",
-        author: {
-          display_name: "UI/UX Master",
-          username: "design_guru",
-          avatar_url: "https://i.pravatar.cc/150?u=design",
-          is_verified: true
-        },
-        likes_count: 1204,
-        comments_count: 89,
-        has_liked: false
-      }
-    ];
-
     if (!posts || posts.length === 0) {
-      if (category === "All" || category === "For you") return MOCK_POSTS;
       return [];
     }
 
@@ -449,6 +400,31 @@ export const communityApi = {
       return [];
     }
     return data || [];
+  },
+
+  async getNews(limit = 4) {
+    if (!isSupabaseConfigured()) return [];
+
+    const { data, error } = await supabase
+      .from("posts")
+      .select("id, title, category, created_at, posts_count:likes_count, content")
+      .eq("category", "News")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("Error fetching news:", error);
+      return [];
+    }
+    
+    return data?.map(item => ({
+      id: item.id,
+      title: item.content.split('\n')[0].slice(0, 80),
+      category: item.category || 'News',
+      posts_count: (item.posts_count * 10).toLocaleString() + 'K',
+      source_image: "https://ui-avatars.com/api/?name=" + (item.category || "News"),
+      created_at: item.created_at
+    })) || [];
   },
 
   async followUser(followerId, followingId) {

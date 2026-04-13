@@ -6,6 +6,7 @@ import { communityApi } from "../../lib/communityApi";
 
 export default function TrendsSidebar({ user }) {
   const [trends, setTrends] = useState([]);
+  const [news, setNews] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [following, setFollowing] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,21 +30,14 @@ export default function TrendsSidebar({ user }) {
       try {
         console.log("📡 [TrendsSidebar] Starting API calls...");
         console.log("📏 [TrendsSidebar] Fetching with limit:", suggestionLimit);
-        const [trendsData, suggestionsData, followingData] = await Promise.all([
+        const [trendsData, newsData, suggestionsData, followingData] = await Promise.all([
           communityApi.getTrends(),
+          communityApi.getNews(),
           communityApi.getWhoToFollow(user?.id, suggestionLimit),
           user?.id ? communityApi.getFollowing(user.id) : Promise.resolve([]),
         ]);
-        console.log("📊 [TrendsSidebar] Trends received:", trendsData);
-        console.log("👥 [TrendsSidebar] Suggestions received:", suggestionsData);
-        console.log("📝 [TrendsSidebar] Suggestion usernames:", suggestionsData?.map(u => ({
-          username: u.username,
-          email: u.user_email,
-          display_name: u.display_name,
-          user_id: u.user_id
-        })));
-        console.log("💙 [TrendsSidebar] Following received:", followingData);
         setTrends(trendsData || []);
+        setNews(newsData || []);
         setSuggestions(suggestionsData || []);
         setFollowing(followingData || []);
       } catch (e) {
@@ -252,8 +246,61 @@ export default function TrendsSidebar({ user }) {
         )}
       </div>
 
-      {/* Trends Box */}
-      <div className="rounded-2xl bg-[#16181c] pt-3 mb-4 overflow-hidden">
+      {/* Subscribe to Premium */}
+      <div className="rounded-2xl border border-[#2f3336] bg-black mb-4 px-4 py-3 flex flex-col gap-2">
+        <h2 className="text-[20px] font-extrabold text-[#e7e9ea] leading-6 mb-0.5">
+          Subscribe to Premium
+        </h2>
+        <p className="text-[15px] text-[#e7e9ea] leading-5 mb-1.5 font-normal">
+          Subscribe to unlock new features and if eligible, receive a share of ads revenue.
+        </p>
+        <button className="bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-bold text-[15px] py-1.5 px-4 rounded-full w-fit transition-colors">
+          Subscribe
+        </button>
+      </div>
+
+      {/* Today's News (or What's happening) */}
+      <div className="rounded-2xl bg-[#16181c] pt-3 mb-4 overflow-hidden border border-[#2f3336]">
+        <h2 className="mb-1 px-4 text-[20px] font-extrabold text-[#e7e9ea]">
+          What's happening
+        </h2>
+
+        {loading ? (
+          <div className="px-4 py-3 space-y-4">
+            {[1, 2].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : news && news.length > 0 ? (
+          news.map((item, idx) => (
+            <div
+              key={item.id}
+              className="cursor-pointer px-4 py-3 hover:bg-white/[0.03] transition-colors relative group"
+            >
+              <div className="flex justify-between items-start text-[13px] text-[#71767b]">
+                <div className="font-bold text-[#e7e9ea] text-[15px] leading-5 w-full pr-6">
+                  {item.title}
+                </div>
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-3">
+                  <MoreHorizontal size={16} className="text-[#71767b] hover:text-[#1d9bf0] transition-colors" />
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-[13px] text-[#71767b] mt-1">
+                {item.source_image && (
+                  <img src={item.source_image} alt="" className="w-4 h-4 rounded-full" />
+                )}
+                <span>1 day ago</span>
+                <span>· {item.category} ·</span>
+                <span>{item.posts_count} posts</span>
+              </div>
+            </div>
+          ))
+        ) : null}
+
+        {/* Existing Trends */}
         <h2 className="mb-1 px-4 text-[20px] font-extrabold text-[#e7e9ea]">
           Trends for you
         </h2>
@@ -429,7 +476,7 @@ export default function TrendsSidebar({ user }) {
                     />
                   )}
                 </div>
-                <div className="text-[#71767b] text-[13px] truncate">
+                <div className="text-[#71767b] text-[15px] truncate">
                   @{u.username}
                 </div>
               </div>
@@ -438,7 +485,7 @@ export default function TrendsSidebar({ user }) {
                   e.stopPropagation();
                   handleFollow(u.user_id, u.username);
                 }}
-                className="rounded-full bg-[#eff3f4] px-4 py-1.5 text-sm font-bold text-black hover:bg-[#d7dbdc] transition-colors flex-shrink-0"
+                className="rounded-full bg-[#eff3f4] px-4 py-1.5 text-[14px] font-bold text-black hover:bg-[#d7dbdc] transition-colors flex-shrink-0"
               >
                 Follow
               </button>
