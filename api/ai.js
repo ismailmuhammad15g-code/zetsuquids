@@ -1652,7 +1652,8 @@ Here is the explanation...
         });
       }
     }
-  } catch (error) {
+  }
+} catch (error) {
     console.error("❌ General handler error:", error);
     if (!res.headersSent) {
       res
