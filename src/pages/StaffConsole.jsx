@@ -847,7 +847,7 @@ export default function StaffConsole() {
                                                 <h3 style={{ fontSize: '18px', fontWeight: 'bold' }}>{ad.title}</h3>
                                                 <span 
                                                     style={{ 
-                                                        fontSize: '10px', padding: '2px 8px', borderRadius: 'full', 
+                                                        fontSize: '10px', padding: '2px 8px', borderRadius: '9999px', 
                                                         backgroundColor: ad.is_active ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.1)',
                                                         color: ad.is_active ? '#10b981' : '#888',
                                                         border: `1px solid ${ad.is_active ? '#10b981' : '#444'}`

@@ -1,0 +1,72 @@
+.modern-nav-container {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+  padding: 4px;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  gap: 4px;
+  position: relative;
+}
+
+.dark .modern-nav-container {
+  background: rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.modern-nav-item {
+  position: relative;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  white-space: nowrap;
+  transition: color 0.3s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.modern-nav-item:hover {
+  color: #000;
+}
+
+.dark .modern-nav-item {
+  color: #999;
+}
+
+.dark .modern-nav-item:hover {
+  color: #fff;
+}
+
+.modern-nav-item.active {
+  color: #fff;
+}
+
+.dark .modern-nav-item.active {
+  color: #000;
+}
+
+.modern-nav-pill {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  border-radius: 9999px;
+  z-index: 0;
+}
+
+.dark .modern-nav-pill {
+  background: #fff;
+}
+
+.modern-nav-item span,
+.modern-nav-item svg {
+  position: relative;
+  z-index: 1;
+}

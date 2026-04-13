@@ -1055,45 +1055,78 @@ export const communityApi = {
   },
 
   async castVote(pollId, optionId, userId) {
-    if (!isSupabaseConfigured() || !userId) throw new Error("Must be logged in to vote");
+    if (!isSupabaseConfigured() || !userId) {
+      console.error("castVote: User not logged in or Supabase not configured");
+      throw new Error("Must be logged in to vote");
+    }
 
-    const { error } = await supabase.rpc("cast_community_vote", {
-      p_poll_id: pollId,
-      p_option_id: optionId,
-      p_user_id: userId,
-    });
+    try {
+      const { error } = await supabase.rpc("cast_community_vote", {
+        p_poll_id: pollId,
+        p_option_id: optionId,
+        p_user_id: userId,
+      });
 
-    if (error) throw error;
-    return true;
+      if (error) {
+        console.error("castVote RPC Error:", error);
+        throw error;
+      }
+      return true;
+    } catch (err) {
+      console.error("castVote Exception:", err);
+      throw err;
+    }
   },
 
   async createPoll(postId, pollData) {
-    if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
+    if (!isSupabaseConfigured()) {
+      console.error("createPoll: Supabase not configured");
+      throw new Error("Supabase not configured");
+    }
 
-    const { data: poll, error: pollError } = await supabase
-      .from("community_polls")
-      .insert([
-        {
-          post_id: postId,
-          question: pollData.question,
-          ends_at: new Date(Date.now() + pollData.durationDays * 24 * 60 * 60 * 1000).toISOString(),
-        },
-      ])
-      .select()
-      .single();
+    if (!pollData.question || !pollData.options || pollData.options.length < 2) {
+      throw new Error("Invalid poll data: Question and at least 2 options required");
+    }
 
-    if (pollError) throw pollError;
+    try {
+      const duration = parseInt(pollData.durationDays) || 1;
+      const { data: poll, error: pollError } = await supabase
+        .from("community_polls")
+        .insert([
+          {
+            post_id: postId,
+            question: pollData.question,
+            ends_at: new Date(Date.now() + duration * 24 * 60 * 60 * 1000).toISOString(),
+          },
+        ])
+        .select()
+        .single();
 
-    const options = pollData.options.map((opt) => ({
-      poll_id: poll.id,
-      text: opt,
-    }));
+      if (pollError) {
+        console.error("createPoll Error:", pollError);
+        throw pollError;
+      }
 
-    const { error: optError } = await supabase
-      .from("community_poll_options")
-      .insert(options);
+      const options = pollData.options.map((opt) => ({
+        poll_id: poll.id,
+        text: opt,
+      }));
 
-    if (optError) throw optError;
-    return poll;
+      const { error: optError } = await supabase
+        .from("community_poll_options")
+        .insert(options);
+
+      if (optError) {
+        console.error("createPoll Options Error:", optError);
+        // Attempt to cleanup the orphan poll? (Database CASCADE handles this if we delete the poll)
+        await supabase.from("community_polls").delete().eq("id", poll.id);
+        throw optError;
+      }
+      
+      return poll;
+    } catch (err) {
+      console.error("createPoll Exception:", err);
+      throw err;
+    }
   },
 };

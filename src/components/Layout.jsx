@@ -25,7 +25,7 @@ import ApprovedBugModal from "./ApprovedBugModal";
 import CookieConsent from "./CookieConsent";
 import GlobalLoader from "./GlobalLoader";
 import ClickSpark from "./react-bits/ClickSpark";
-import GooeyNav from "./react-bits/GooeyNav";
+import ModernNav from "./ModernNav";
 import ReferralBonusNotification from "./ReferralBonusNotification";
 import ReferralSuccessModal from "./ReferralSuccessModal";
 import SearchModal from "./SearchModal";
@@ -288,7 +288,7 @@ export default function Layout() {
 
               {/* Desktop Nav */}
               <div className="hidden md:block">
-                <GooeyNav items={navItems} />
+                <ModernNav items={navItems} />
               </div>
 
               {/* Actions */}

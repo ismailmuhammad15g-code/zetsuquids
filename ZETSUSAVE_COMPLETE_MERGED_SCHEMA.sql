@@ -2299,6 +2299,131 @@ DROP POLICY IF EXISTS "Users can insert own messages" ON community_messages;
 CREATE POLICY "Users can insert own messages" ON community_messages FOR INSERT
 WITH CHECK (auth.uid() = sender_id);
 
+ALTER TABLE community_groups ADD COLUMN IF NOT EXISTS creator_id UUID REFERENCES auth.users(id);
+ALTER TABLE community_groups ADD COLUMN IF NOT EXISTS members_count INT DEFAULT 0;
+
+
+-- community_members table
+CREATE TABLE IF NOT EXISTS community_members (
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    group_id UUID REFERENCES community_groups(id) ON DELETE CASCADE,
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    PRIMARY KEY (user_id, group_id)
+);
+
+-- Function to sync all member counts (run once or as needed)
+CREATE OR REPLACE FUNCTION sync_community_member_counts() RETURNS void AS $$
+BEGIN
+  UPDATE community_groups cg
+  SET members_count = (
+    SELECT count(*) FROM community_members cm WHERE cm.group_id = cg.id
+  );
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to update member count
+CREATE OR REPLACE FUNCTION update_community_member_count() RETURNS TRIGGER AS $$
+BEGIN
+  IF (TG_OP = 'INSERT') THEN
+    UPDATE community_groups SET members_count = members_count + 1 WHERE id = NEW.group_id;
+  ELSIF (TG_OP = 'DELETE') THEN
+    UPDATE community_groups SET members_count = GREATEST(0, members_count - 1) WHERE id = OLD.group_id;
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Run sync once to ensure data consistency
+SELECT sync_community_member_counts();
+
+DROP TRIGGER IF EXISTS trg_community_member_count ON community_members;
+CREATE TRIGGER trg_community_member_count
+AFTER INSERT OR DELETE ON community_members
+FOR EACH ROW EXECUTE FUNCTION update_community_member_count();
+
+-- RLS
+ALTER TABLE community_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_members ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view groups" ON community_groups;
+CREATE POLICY "Anyone can view groups" ON community_groups FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Auth users can create groups" ON community_groups;
+CREATE POLICY "Auth users can create groups" ON community_groups FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Creators can delete their own groups" ON community_groups;
+CREATE POLICY "Creators can delete their own groups" ON community_groups FOR DELETE USING (auth.uid() = creator_id);
+
+DROP POLICY IF EXISTS "Anyone can view members" ON community_members;
+CREATE POLICY "Anyone can view members" ON community_members FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can manage own membership" ON community_members;
+CREATE POLICY "Users can manage own membership" ON community_members FOR ALL USING (auth.uid() = user_id);
+
+-- Ensure columns exist in case table was created before this version
+ALTER TABLE community_groups ADD COLUMN IF NOT EXISTS creator_id UUID REFERENCES auth.users(id);
+ALTER TABLE community_groups ADD COLUMN IF NOT EXISTS members_count INT DEFAULT 0;
+
+-- (The seed data is now moved to the bottom DO $$ block to ensure users exist first)
+
+
+
+
+-- ==================================================================================
+-- DEPLOYMENT COMPLETE
+-- ==================================================================================
+-- All tables, functions, triggers, and RLS policies are now configured
+-- Ready for production deployment to a new Supabase account
+-- ==================================================================================
+
+-- ===== Direct Messaging =====
+CREATE TABLE IF NOT EXISTS community_conversations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user1_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    user2_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    last_message_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    UNIQUE(user1_id, user2_id)
+);
+
+CREATE TABLE IF NOT EXISTS community_messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    conversation_id UUID REFERENCES community_conversations(id) ON DELETE CASCADE,
+    sender_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE community_conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_messages ENABLE ROW LEVEL SECURITY;
+
+-- RLS: Only participants can view passing conversations
+DROP POLICY IF EXISTS "Users can view own conversations" ON community_conversations;
+CREATE POLICY "Users can view own conversations" ON community_conversations FOR SELECT
+USING (auth.uid() = user1_id OR auth.uid() = user2_id);
+
+DROP POLICY IF EXISTS "Users can insert own conversations" ON community_conversations;
+CREATE POLICY "Users can insert own conversations" ON community_conversations FOR INSERT
+WITH CHECK (auth.uid() = user1_id OR auth.uid() = user2_id);
+
+DROP POLICY IF EXISTS "Users can update own conversations" ON community_conversations;
+CREATE POLICY "Users can update own conversations" ON community_conversations FOR UPDATE
+USING (auth.uid() = user1_id OR auth.uid() = user2_id);
+
+-- RLS: Messages
+DROP POLICY IF EXISTS "Users can view messages in own conversations" ON community_messages;
+CREATE POLICY "Users can view messages in own conversations" ON community_messages FOR SELECT
+USING (EXISTS (
+  SELECT 1 FROM community_conversations c 
+  WHERE c.id = community_messages.conversation_id 
+  AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
+));
+
+DROP POLICY IF EXISTS "Users can insert own messages" ON community_messages;
+CREATE POLICY "Users can insert own messages" ON community_messages FOR INSERT
+WITH CHECK (auth.uid() = sender_id);
+
 DROP POLICY IF EXISTS "Users can update own messages" ON community_messages;
 CREATE POLICY "Users can update own messages" ON community_messages FOR UPDATE
 USING (auth.uid() = sender_id OR EXISTS (
@@ -2321,6 +2446,10 @@ CREATE TABLE IF NOT EXISTS public.zetsuguide_ads (
 -- تفعيل سياسات الأمان
 ALTER TABLE public.zetsuguide_ads ENABLE ROW LEVEL SECURITY;
 
+-- حذف السياسات القديمة إن وجدت لتجنب الأخطاء
+DROP POLICY IF EXISTS "Anyone can view active ads" ON public.zetsuguide_ads;
+DROP POLICY IF EXISTS "Admin full access to ads" ON public.zetsuguide_ads;
+
 -- السماح للجميع برؤية الإعلانات المفعلة
 CREATE POLICY "Anyone can view active ads" 
 ON public.zetsuguide_ads FOR SELECT 
@@ -2339,7 +2468,7 @@ USING (true);
 -- Table for the poll itself
 CREATE TABLE IF NOT EXISTS public.community_polls (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE,
+    post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE UNIQUE,
     question TEXT,
     ends_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now()
@@ -2369,6 +2498,14 @@ ALTER TABLE public.community_polls ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.community_poll_options ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.community_poll_votes ENABLE ROW LEVEL SECURITY;
 
+-- حذف السياسات القديمة للاستطلاعات
+DROP POLICY IF EXISTS "Anyone can view polls" ON public.community_polls;
+DROP POLICY IF EXISTS "Anyone can view poll options" ON public.community_poll_options;
+DROP POLICY IF EXISTS "Users can view their own votes" ON public.community_poll_votes;
+DROP POLICY IF EXISTS "Users can create polls" ON public.community_polls;
+DROP POLICY IF EXISTS "Users can create options" ON public.community_poll_options;
+DROP POLICY IF EXISTS "Users can cast votes" ON public.community_poll_votes;
+
 -- Policies
 CREATE POLICY "Anyone can view polls" ON public.community_polls FOR SELECT USING (true);
 CREATE POLICY "Anyone can view poll options" ON public.community_poll_options FOR SELECT USING (true);
@@ -2379,7 +2516,7 @@ CREATE POLICY "Users can create options" ON public.community_poll_options FOR IN
 CREATE POLICY "Users can cast votes" ON public.community_poll_votes FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Function to cast a vote safely (increments count + records vote)
--- This avoids race conditions and ensures integrity
+DROP FUNCTION IF EXISTS public.cast_community_vote(UUID, UUID, UUID);
 CREATE OR REPLACE FUNCTION public.cast_community_vote(
     p_poll_id UUID,
     p_option_id UUID,
@@ -2397,3 +2534,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- ==========================================
+-- Smart Feed View
+-- ==========================================
+-- This view ranks posts based on engagement and time decay
+CREATE OR REPLACE VIEW public.v_smart_feed AS
+SELECT 
+    p.*,
+    (
+        COALESCE((SELECT count(*) FROM post_likes l WHERE l.post_id = p.id), 0) * 10 +
+        COALESCE((SELECT count(*) FROM post_comments c WHERE c.post_id = p.id), 0) * 5
+    ) / (POW(EXTRACT(EPOCH FROM (now() - p.created_at)) / 3600 + 2, 1.5)) as smart_score
+FROM public.posts p;
+
+-- Allow authenticated users to browse the smart feed
+ALTER VIEW public.v_smart_feed OWNER TO postgres;
+GRANT SELECT ON public.v_smart_feed TO authenticated;
+GRANT SELECT ON public.v_smart_feed TO anon;
