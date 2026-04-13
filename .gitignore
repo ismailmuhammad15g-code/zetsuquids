@@ -1,40 +1,27 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+```
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
+dist/
+build/
+target/
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Environment variables
+# Dependencies
+node_modules/
+.venv/
+venv/
 .env
 .env.local
-.env.production
+.env.*
 
-# OS files
-Thumbs.db
-.DS_Store
+# Logs and temp files
+*.log
+*.tmp
+*.swp
 
-# Netlify
-.netlify/
-
-# Guides folder
-public/guides/*.html
+# Editors
+.vscode/
+.idea/
+```

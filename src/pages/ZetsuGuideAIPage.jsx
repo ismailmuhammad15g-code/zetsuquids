@@ -938,6 +938,7 @@ export default function ZetsuGuideAIPage() {
   const [isImageGenEnabled, setIsImageGenEnabled] = useState(false); // NEW: Dynamic Image Generation
   const [isDemoVideoVisible, setIsDemoVideoVisible] = useState(true); // State for demo video visibility
   const [isEnhancing, setIsEnhancing] = useState(false); // State for prompt enhancer
+  const [thinkingContent, setThinkingContent] = useState(""); // NEW: Real-time thinking content from AI
   const [credits, setCredits] = useState(5);
   const [totalReferrals, setTotalReferrals] = useState(0);
   const [referralEarnings, setReferralEarnings] = useState(0);
@@ -2594,6 +2595,10 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                     if (window._activeStreams?.has(streamId)) {
                       window._activeStreams.get(streamId).sources = apiSources;
                     }
+                  } else if (event.type === "thinking" && event.content) {
+                    // Display real-time thinking content from AI
+                    setThinkingContent((prev) => prev + event.content);
+                    console.log("🧠 AI Thinking:", event.content.substring(0, 100));
                   } else if (event.type === "token" && event.content) {
                     streamedContent += event.content;
 
@@ -5075,6 +5080,24 @@ Do NOT wrap your response in JSON. Just return the markdown content directly.`;
                       /* SUB-AGENT MODE - Simple Text Display */
                       <div className="flex items-center gap-3">
                         <span className="text-gray-300">{subAgentStatus}</span>
+                        <div className="zetsu-ai-thinking-dots">
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                        </div>
+                      </div>
+                    ) : thinkingContent.trim() ? (
+                      /* REAL THINKING MODE - Show actual AI reasoning like v0.dev */
+                      <div className="zetsu-real-thinking-container">
+                        <div className="zetsu-real-thinking-header">
+                          <BrainCircuit size={16} className="thinking-icon-pulse" />
+                          <span className="zetsu-real-thinking-title">AI Reasoning Process</span>
+                        </div>
+                        <div className="zetsu-real-thinking-content">
+                          <div className="zetsu-real-thinking-text">
+                            {thinkingContent}
+                          </div>
+                        </div>
                         <div className="zetsu-ai-thinking-dots">
                           <span></span>
                           <span></span>

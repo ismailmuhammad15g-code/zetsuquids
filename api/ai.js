@@ -1546,12 +1546,15 @@ Here is the explanation...
                   content = parsed.text;
                 }
 
-                // CRITICAL FIX: Track thinking/reasoning activity (DeepSeek/Kimi) to keep stream alive
-                if (parsed.choices?.[0]?.delta?.reasoning_content) {
-                  // Send a keep-alive event to prevent frontend from timing out or user thinking it's stuck
-                  res.write(
-                    `data: ${JSON.stringify({ type: "thinking", content: "" })}\n\n`,
-                  );
+                // CRITICAL FIX: Track thinking/reasoning activity (DeepSeek/Kimi) and stream it to frontend
+                if (parsed.choices?.[0]?.delta?.reasoning_content || parsed.choices?.[0]?.delta?.thinking) {
+                  const thinkingContent = parsed.choices[0].delta.reasoning_content || parsed.choices[0].delta.thinking;
+                  // Send real thinking content to frontend for display
+                  if (thinkingContent && thinkingContent.trim()) {
+                    res.write(
+                      `data: ${JSON.stringify({ type: "thinking", content: thinkingContent })}\n\n`,
+                    );
+                  }
                 }
 
                 if (content) {
