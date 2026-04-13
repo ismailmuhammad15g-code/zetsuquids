@@ -167,6 +167,15 @@ export default function PostCard({ post }) {
               rel="noopener noreferrer"
             />
           ),
+          img: ({ node, ...props }) => (
+            <div className="mt-3 overflow-hidden rounded-2xl border border-[#2f3336]">
+              <img
+                {...props}
+                onClick={stopProp}
+                className="w-full max-h-[500px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
+              />
+            </div>
+          ),
           p: ({ node, children, ...props }) => {
             // Process text children to highlight hashtags
             const processChildren = (children) => {
@@ -268,16 +277,7 @@ export default function PostCard({ post }) {
             </span>
           </button>
 
-          {/* Repost */}
-          <button
-            className="group flex items-center gap-1 transition-colors hover:text-[#00ba7c]"
-            onClick={stopProp}
-          >
-            <div className="p-2 rounded-full group-hover:bg-[#00ba7c]/10 transition-all duration-200">
-              <Repeat2 size={18.75} strokeWidth={2} />
-            </div>
-            <span className="text-[13px] min-w-[1ch]"></span>
-          </button>
+
 
           {/* Like */}
           <button
@@ -300,18 +300,7 @@ export default function PostCard({ post }) {
             </span>
           </button>
 
-          {/* Views */}
-          <button
-            className="group flex items-center gap-1 transition-colors hover:text-[#1d9bf0]"
-            onClick={stopProp}
-          >
-            <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 transition-all duration-200">
-              <BarChart3 size={18.75} strokeWidth={2} />
-            </div>
-            <span className="text-[13px] min-w-[1ch]">
-              {formatCount(viewCount)}
-            </span>
-          </button>
+
 
           {/* Bookmark + Share */}
           <div className="flex items-center">

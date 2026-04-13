@@ -200,7 +200,7 @@ export default function TrendsSidebar({ user }) {
 
         {/* Search Results Dropdown */}
         {showSearch && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-black border border-gray-800 rounded-2xl shadow-[0_0_15px_rgba(255,255,255,0.1)] overflow-hidden z-50 max-h-[400px] overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-black border border-[#2f3336] rounded-2xl shadow-[0_0_15px_rgba(255,255,255,0.1)] overflow-hidden z-50 max-h-[400px] overflow-y-auto">
             {searchLoading ? (
               <div className="p-4 text-center text-[#71767b] text-[15px]">
                 Searching...

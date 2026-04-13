@@ -4,6 +4,7 @@ import PostCard from "../components/PostCard";
 import CommunityLeftSidebar from "../components/community/CommunityLeftSidebar";
 import Composer from "../components/community/Composer";
 import FeedTabs from "../components/community/FeedTabs";
+import PostModal from "../components/community/PostModal";
 import TrendsSidebar from "../components/community/TrendsSidebar";
 import { useAuth } from "../contexts/AuthContext";
 import { communityApi } from "../lib/communityApi";
@@ -14,6 +15,7 @@ export default function CommunityPage() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 
   const fetchPosts = useCallback(
     async (showLoader = true) => {
@@ -50,10 +52,21 @@ export default function CommunityPage() {
 
   return (
     <div className="min-h-screen bg-black text-[#e7e9ea] flex justify-center font-sans subpixel-antialiased">
+      {/* Post Modal */}
+      <PostModal 
+        isOpen={isPostModalOpen} 
+        onClose={() => setIsPostModalOpen(false)} 
+        user={user}
+        onPostCreated={() => {
+          setIsPostModalOpen(false);
+          fetchPosts(false);
+        }}
+      />
+
       {/* Container: LeftNav + Feed + RightNav */}
       <div className="flex w-full max-w-[1265px] relative justify-center xl:justify-start">
         {/* Left Sidebar (Desktop only) / Bottom Tab Bar (Mobile only) */}
-        <CommunityLeftSidebar />
+        <CommunityLeftSidebar onPostClick={() => setIsPostModalOpen(true)} />
 
         {/* Main Feed Section */}
         <main className="w-full sm:max-w-[600px] border-x border-gray-800 min-h-[200vh] pb-[80px] sm:pb-0 shrink-0">
