@@ -1,44 +1,43 @@
-import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { 
-  ArrowLeft, 
-  Users, 
-  Calendar, 
-  ShieldCheck, 
-  Globe, 
-  Settings, 
-  Trash2, 
+import {
   AlertTriangle,
-  Lock,
+  ArrowLeft,
+  Calendar,
   Camera,
-  X,
-  Check,
-  UserPlus
+  Globe,
+  Loader2,
+  Lock,
+  Settings,
+  ShieldCheck,
+  Trash2,
+  Users,
+  X
 } from "lucide-react";
-import { communityApi } from "../../lib/communityApi";
-import { uploadImageToImgBB } from "../../lib/imgbb";
-import { useAuth } from "../../contexts/AuthContext";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import PostCard from "../../components/PostCard";
 import Composer from "../../components/community/Composer";
+import { useAuth } from "../../contexts/AuthContext";
+import { communityApi } from "../../lib/communityApi";
+import { uploadImageToImgBB } from "../../lib/imgbb";
 
 export default function GroupPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  
+
   const [group, setGroup] = useState(null);
   const [posts, setPosts] = useState([]);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [joined, setJoined] = useState(false);
   const [activeTab, setActiveTab] = useState("Posts");
-  
+
   // Modals
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
-  
+
   // Edit States
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
@@ -78,13 +77,13 @@ export default function GroupPage() {
       setPosts(groupPosts || []);
       setJoined(joinedIds.includes(id));
       setMembers(memberList || []);
-      
+
       // Prep edit fields
       setEditName(g.name);
       setEditDesc(g.description || "");
       setEditAvatar(g.avatar_url || "");
       setEditBanner(g.banner_url || "");
-      
+
     } catch (e) {
       console.error(e);
       toast.error("Failed to load community details");
@@ -102,7 +101,7 @@ export default function GroupPage() {
       toast.error("Please login to join");
       return;
     }
-    
+
     try {
       if (joined) {
         await communityApi.leaveCommunity(id, user.id);
@@ -148,7 +147,7 @@ export default function GroupPage() {
       toast.error("Please type the community name correctly to confirm");
       return;
     }
-    
+
     setIsDeleting(true);
     try {
       await communityApi.deleteCommunity(id);
@@ -184,7 +183,7 @@ export default function GroupPage() {
         </div>
         <div className="flex gap-1">
           {isAdmin && (
-            <button 
+            <button
               onClick={() => setShowDeleteModal(true)}
               className="p-2 rounded-full hover:bg-red-500/10 text-red-500 transition-colors"
               title="Delete Community"
@@ -210,16 +209,16 @@ export default function GroupPage() {
         <div className="px-4 pb-4">
           <div className="relative flex justify-between items-start">
             <div className="absolute -top-12 sm:-top-16 left-0 w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-black bg-[#2f3336] overflow-hidden">
-              <img 
-                src={group.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(group.name)}&background=random&color=fff`} 
-                alt="" 
+              <img
+                src={group.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(group.name)}&background=random&color=fff`}
+                alt=""
                 className="w-full h-full object-cover"
               />
             </div>
-            
+
             <div className="ml-auto pt-3 flex gap-2">
               {isAdmin && (
-                <button 
+                <button
                   onClick={() => setShowEditModal(true)}
                   className="p-2 rounded-full border border-[#536471] hover:bg-white/[0.05] transition-colors"
                   title="Settings"
@@ -230,7 +229,7 @@ export default function GroupPage() {
               <button
                 onClick={handleJoinToggle}
                 className={`rounded-full px-5 py-2 font-bold text-[15px] transition-all ${
-                  joined 
+                  joined
                     ? "border border-[#536471] text-[#e7e9ea] hover:border-red-500 hover:text-red-500"
                     : "bg-[#eff3f4] text-black hover:bg-[#d7dbdc]"
                 }`}
@@ -252,7 +251,7 @@ export default function GroupPage() {
             )}
 
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
-              <button 
+              <button
                 onClick={() => setShowMembersModal(true)}
                 className="flex items-center gap-1 text-[#71767b] text-[15px] hover:underline"
               >
@@ -276,12 +275,12 @@ export default function GroupPage() {
       {/* Tabs */}
       <div className="border-b border-[#2f3336] flex">
         {["Posts", "Media", "Rules"].map(tab => (
-          <button 
+          <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`flex-1 py-4 text-[15px] font-bold transition-colors ${
-              activeTab === tab 
-                ? "text-[#e7e9ea] border-b-4 border-[#1d9bf0]" 
+              activeTab === tab
+                ? "text-[#e7e9ea] border-b-4 border-[#1d9bf0]"
                 : "text-[#71767b] hover:bg-white/[0.03]"
             }`}
           >
@@ -295,10 +294,10 @@ export default function GroupPage() {
         {activeTab === "Posts" && (
           <>
             <div className="border-b border-[#2f3336]">
-              <Composer 
-                user={user} 
-                onPostCreated={fetchGroupData} 
-                groupId={id} 
+              <Composer
+                user={user}
+                onPostCreated={fetchGroupData}
+                groupId={id}
                 placeholder={`Post to ${group.name}...`}
               />
             </div>
@@ -352,18 +351,20 @@ export default function GroupPage() {
                 </button>
                 <h2 className="text-xl font-bold text-[#e7e9ea]">Edit Community</h2>
               </div>
-              <button 
+              <button
                 onClick={handleUpdateCommunity}
                 disabled={isUpdating || uploadingIcon || uploadingBanner || !editName.trim()}
-                className="bg-[#eff3f4] text-black px-4 py-1.5 rounded-full font-bold text-[15px] hover:bg-[#d7dbdc] transition-colors"
+                className="bg-[#eff3f4] text-black px-4 py-1.5 rounded-full font-bold text-[15px] hover:bg-[#d7dbdc] transition-colors flex items-center gap-2 justify-center"
               >
-                {isUpdating ? <Loader2 size={18} className="animate-spin" /> : "Save"}
+                {isUpdating && <Loader2 size={18} className="animate-spin" />}
+                {!isUpdating && "Save"}
+                {isUpdating && "Saving..."}
               </button>
             </div>
 
             <div className="relative">
               {/* Banner Edit */}
-              <div 
+              <div
                 className="w-full h-40 bg-[#333639] relative group cursor-pointer"
                 onClick={() => bannerInputRef.current?.click()}
               >
@@ -375,18 +376,18 @@ export default function GroupPage() {
                     <div className="bg-black/50 p-3 rounded-full"><Camera size={24} className="text-white" /></div>
                   )}
                 </div>
-                <input type="file" ref={bannerInputRef} className="hidden" accept="image/*" 
+                <input type="file" ref={bannerInputRef} className="hidden" accept="image/*"
                   onChange={async (e) => {
                     const f = e.target.files?.[0]; if (!f) return;
                     setUploadingBanner(true);
                     try { const url = await uploadImageToImgBB(f, p => setBannerProgress(p)); setEditBanner(url); } catch(err) { toast.error("Fail"); }
                     finally { setUploadingBanner(false); }
-                  }} 
+                  }}
                 />
               </div>
               {/* Icon Edit */}
               <div className="px-4 relative -mt-10 mb-10">
-                <div 
+                <div
                   className="w-24 h-24 rounded-full bg-black border-4 border-black relative group cursor-pointer overflow-hidden"
                   onClick={() => iconInputRef.current?.click()}
                 >
@@ -398,13 +399,13 @@ export default function GroupPage() {
                       <Camera size={20} className="text-white" />
                     )}
                   </div>
-                  <input type="file" ref={iconInputRef} className="hidden" accept="image/*" 
+                  <input type="file" ref={iconInputRef} className="hidden" accept="image/*"
                     onChange={async (e) => {
                       const f = e.target.files?.[0]; if (!f) return;
                       setUploadingIcon(true);
                       try { const url = await uploadImageToImgBB(f, p => setIconProgress(p)); setEditAvatar(url); } catch(err) { toast.error("Fail"); }
                       finally { setUploadingIcon(false); }
-                    }} 
+                    }}
                   />
                 </div>
               </div>
@@ -437,7 +438,7 @@ export default function GroupPage() {
                 <div className="p-8 text-center text-[#71767b]">No members found.</div>
               ) : (
                 members.map(m => (
-                  <div key={m.user_id} className="flex items-center gap-3 p-4 hover:bg-white/[0.03] transition-colors cursor-pointer" 
+                  <div key={m.user_id} className="flex items-center gap-3 p-4 hover:bg-white/[0.03] transition-colors cursor-pointer"
                     onClick={() => { setShowMembersModal(false); navigate(`/profile/${m.username || m.user_id}`); }}>
                     <img src={m.avatar_url || `https://ui-avatars.com/api/?name=${m.display_name}&background=random`} alt="" className="w-10 h-10 rounded-full" />
                     <div className="flex-1 overflow-hidden">

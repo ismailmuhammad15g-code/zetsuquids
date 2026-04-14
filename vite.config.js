@@ -581,9 +581,11 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: "127.0.0.1",
     strictPort: true,
     open: true,
     hmr: {
+      host: "127.0.0.1",
       port: 3000,
     },
   },

@@ -1,28 +1,32 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, Link } from "react-router-dom";
 import {
-  Send,
-  Bot,
-  Zap,
   ArrowRight,
-  RefreshCw,
+  Bot,
   BrainCircuit,
   Bug,
-  Settings2,
-  Copy,
   Check,
-  SquarePen,
-  Sparkles,
   ChevronLeft,
-  History,
-  Trash2,
+  Copy,
   PanelLeft,
   PanelLeftClose,
+  RefreshCw,
+  Send,
+  Settings2,
+  Sparkles,
+  SquarePen,
+  Trash2,
+  Zap
 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import mermaid from "mermaid";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { Reasoning, ReasoningContent, ReasoningTrigger } from "../components/ai-elements/reasoning";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
-import { toast } from "sonner";
-import { Reasoning, ReasoningTrigger, ReasoningContent } from "../components/ai-elements/reasoning";
 
 // ─── Inline Styles (scoped to this page only) ────────────────────────────────
 const styles = `
@@ -222,6 +226,8 @@ const styles = `
   /* ─── Main content ─── */
   .zg-main {
     flex: 1;
+    height: 100vh; /* Force exact viewport height */
+    position: relative;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -265,14 +271,14 @@ const styles = `
   .zg-chat-canvas {
     flex: 1;
     overflow-y: auto;
-    padding: 0 0 16px;
+    padding: 0;
     scrollbar-width: thin;
     scrollbar-color: #e5e7eb transparent;
   }
   .zg-messages-inner {
     max-width: 720px;
     margin: 0 auto;
-    padding: 24px 20px;
+    padding: 24px 20px 0;
     display: flex;
     flex-direction: column;
     gap: 0;
@@ -480,39 +486,42 @@ const styles = `
 
   /* ─── Input Area ─── */
   .zg-input-area {
-    background: #fff;
-    border-top: 1px solid #e5e7eb;
-    padding: 14px 20px 18px;
+    background: #f9fafb; /* Solid background matches chat exactly */
+    padding: 0 0 16px;
     flex-shrink: 0;
+    z-index: 10;
   }
   .zg-input-shell {
-    max-width: 720px;
+    max-width: 860px;
     margin: 0 auto;
+    padding: 0 20px;
   }
   .zg-input-box {
     background: #fff;
-    border: 1.5px solid #e5e7eb;
-    border-radius: 14px;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    transition: all 0.2s ease;
     overflow: hidden;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
   }
   .zg-input-box:focus-within {
-    border-color: #9ca3af;
-    box-shadow: 0 0 0 3px rgba(156,163,175,0.15);
+    border-color: #d1d5db;
+    box-shadow: 0 6px 25px rgba(0,0,0,0.08);
   }
   .zg-textarea {
     width: 100%;
     border: none;
     outline: none;
     resize: none;
-    font-size: 14.5px;
+    font-size: 15px;
     color: #111;
     background: transparent;
-    padding: 13px 16px 4px;
+    padding: 16px 20px 4px;
     font-family: inherit;
-    line-height: 1.55;
-    max-height: 180px;
+    line-height: 1.5;
+    max-height: 250px;
     overflow-y: auto;
     scrollbar-width: none;
   }
@@ -521,53 +530,53 @@ const styles = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px 10px;
+    padding: 6px 14px 10px;
   }
   .zg-toggle-group {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
   .zg-toggle {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 5px 10px;
-    border-radius: 8px;
-    border: 1.5px solid #e5e7eb;
-    background: #fff;
-    font-size: 12px;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 100px;
+    border: 1px solid #f3f4f6;
+    background: #f9fafb;
+    font-size: 12.5px;
     font-weight: 600;
-    color: #6b7280;
+    color: #4b5563;
     cursor: pointer;
     transition: all 0.15s;
   }
-  .zg-toggle:hover { border-color: #9ca3af; color: #374151; }
+  .zg-toggle:hover { background: #e5e7eb; color: #111; border-color: #e5e7eb; }
   .zg-toggle.active {
-    border-color: #111;
     background: #111;
     color: #fff;
+    border-color: #111;
   }
   .zg-send-btn {
     width: 36px;
     height: 36px;
     background: #111;
     border: none;
-    border-radius: 9px;
+    border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
-    transition: all 0.15s;
+    transition: all 0.2s ease;
     flex-shrink: 0;
   }
-  .zg-send-btn:hover { background: #374151; }
-  .zg-send-btn:disabled { background: #d1d5db; cursor: not-allowed; }
+  .zg-send-btn:hover { background: #374151; transform: scale(1.05); }
+  .zg-send-btn:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; transform: none; }
   .zg-disclaimer {
-    max-width: 720px;
-    margin: 10px auto 0;
-    font-size: 11.5px;
+    max-width: 860px;
+    margin: 8px auto 0;
+    font-size: 11px;
     color: #9ca3af;
     text-align: center;
   }
@@ -687,6 +696,7 @@ const styles = `
     .zg-topbar { padding: 0 12px; }
     .zg-messages-inner { padding: 16px 12px; }
     .zg-input-area { padding: 10px 12px 16px; }
+    .zg-input-shell { padding: 0; }
     .zg-empty { padding: 40px 16px 24px; }
     .zg-empty-title { font-size: 22px; }
     .zg-suggestions-grid { grid-template-columns: 1fr; }
@@ -831,71 +841,81 @@ function formatDate(dateStr) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+// ─── Mermaid ─────────────────────────────────────────────────────────────────
+function MermaidChart({ chart }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (containerRef.current && chart) {
+      try {
+        containerRef.current.innerHTML = chart;
+        mermaid.init(undefined, containerRef.current);
+      } catch (err) {
+        console.error("Mermaid format error:", err);
+      }
+    }
+  }, [chart]);
+
+  return (
+    <div
+      className="mermaid bg-white border border-gray-200 rounded-xl p-4 my-4 flex justify-center text-[13px]"
+      ref={containerRef}
+      dir="ltr"
+    />
+  );
+}
+
 // ─── MessageContent ──────────────────────────────────────────────────────────
 function MessageContent({ text, isError }) {
   if (!text) return null;
-  // Simple markdown-ish renderer
-  const lines = text.split("\n");
-  const elements = [];
-  let codeBlock = false;
-  let codeLines = [];
-  let codeLang = "";
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (line.startsWith("```")) {
-      if (!codeBlock) {
-        codeBlock = true;
-        codeLang = line.slice(3).trim();
-        codeLines = [];
-      } else {
-        codeBlock = false;
-        elements.push(
-          <pre key={`code-${i}`}>
-            <code>{codeLines.join("\n")}</code>
-          </pre>
-        );
-        codeLines = [];
-      }
-      continue;
-    }
-    if (codeBlock) {
-      codeLines.push(line);
-      continue;
-    }
-    if (line.startsWith("# ")) {
-      elements.push(<h2 key={i} style={{ fontWeight: 700, fontSize: 17, margin: "14px 0 6px", color: "#111", letterSpacing: -0.3 }}>{line.slice(2)}</h2>);
-    } else if (line.startsWith("## ")) {
-      elements.push(<h3 key={i} style={{ fontWeight: 700, fontSize: 15, margin: "12px 0 5px", color: "#111" }}>{line.slice(3)}</h3>);
-    } else if (line.startsWith("**") && line.endsWith("**")) {
-      elements.push(<p key={i} style={{ margin: "3px 0", fontWeight: 600 }}>{line.slice(2, -2)}</p>);
-    } else if (line.startsWith("- ") || line.startsWith("• ")) {
-      elements.push(
-        <div key={i} style={{ display: "flex", gap: 8, margin: "2px 0" }}>
-          <span style={{ color: "#9ca3af", marginTop: 2 }}>•</span>
-          <span>{renderInline(line.slice(2))}</span>
-        </div>
-      );
-    } else if (line.trim() === "") {
-      elements.push(<div key={i} style={{ height: 6 }} />);
-    } else {
-      elements.push(<p key={i} style={{ margin: "2px 0", lineHeight: 1.65 }}>{renderInline(line)}</p>);
-    }
-  }
+  return (
+    <div className={`zg-ai-content prose prose-sm max-w-none ${isError ? "text-red-600" : "text-gray-800"}`} dir="auto">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          code({ node, inline, className, children, ...props }) {
+            const match = /language-(\w+)/.exec(className || "");
+            const lang = match ? match[1] : "";
 
-  return <div className="zg-ai-content" dir="auto" style={{ color: isError ? "#b91c1c" : "#374151" }}>{elements}</div>;
-}
+            if (!inline && lang === "mermaid") {
+              return <MermaidChart chart={String(children).replace(/\n$/, "")} />;
+            }
 
-function renderInline(text) {
-  // Bold **text**
-  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**"))
-      return <strong key={i}>{part.slice(2, -2)}</strong>;
-    if (part.startsWith("`") && part.endsWith("`"))
-      return <code key={i}>{part.slice(1, -1)}</code>;
-    return part;
-  });
+            return !inline ? (
+              <div className="my-4 rounded-xl overflow-hidden" dir="ltr">
+                <SyntaxHighlighter
+                  {...props}
+                  children={String(children).replace(/\n$/, "")}
+                  style={vscDarkPlus}
+                  language={lang || "javascript"}
+                  PreTag="div"
+                  customStyle={{ margin: 0, padding: "16px", fontSize: "13px", background: "#111" }}
+                />
+              </div>
+            ) : (
+              <code {...props} className="bg-gray-100/80 border border-gray-200 text-gray-800 px-[5px] py-[2px] rounded-[5px] text-[13px] font-mono mx-0.5" dir="ltr">
+                {children}
+              </code>
+            );
+          },
+          h1: ({ node, ...props }) => <h1 className="text-xl font-extrabold mt-8 mb-4 text-gray-900 tracking-tight" {...props} />,
+          h2: ({ node, ...props }) => <h2 className="text-lg font-bold mt-7 mb-3 text-gray-900 tracking-tight" {...props} />,
+          h3: ({ node, ...props }) => <h3 className="text-base font-bold mt-6 mb-2 text-gray-900 tracking-tight" {...props} />,
+          h4: ({ node, ...props }) => <h4 className="text-[15px] font-bold mt-5 mb-2 text-gray-900" {...props} />,
+          p: ({ node, ...props }) => <p className="my-2.5 leading-relaxed text-[14.5px] text-gray-700" {...props} />,
+          ul: ({ node, ...props }) => <ul className="list-disc list-inside my-4 space-y-1.5 text-[14.5px] text-gray-700" {...props} />,
+          ol: ({ node, ...props }) => <ol className="list-decimal list-inside my-4 space-y-1.5 text-[14.5px] text-gray-700" {...props} />,
+          li: ({ node, ...props }) => <li className="pl-1" {...props} />,
+          a: ({ node, ...props }) => <a className="text-blue-600 hover:text-blue-800 hover:underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
+          strong: ({ node, ...props }) => <strong className="font-semibold text-gray-900" {...props} />,
+          blockquote: ({ node, ...props }) => <blockquote className="border-r-4 border-gray-300 pr-4 mr-0 my-4 italic text-gray-600 bg-gray-50 p-3 rounded-l-lg" {...props} />,
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
 }
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
@@ -966,7 +986,7 @@ export default function ZetsuGuideAIPage() {
         .eq("user_email", user.email.toLowerCase())
         .order("updated_at", { ascending: false });
       setConversations(data || []);
-    } catch {}
+    } catch { }
     setIsLoadingHistory(false);
   }
 
@@ -992,26 +1012,26 @@ export default function ZetsuGuideAIPage() {
     // Agent phase labels → shown inside Reasoning component
     const phases = isDeepReasoning
       ? [
-          "Initializing deep reasoning pipeline",
-          "Decomposing problem into sub-tasks",
-          "Brainstorming solution strategies",
-          "Deep reasoning — evaluating logic chains",
-          "Verifying consistency of conclusions",
-          "Formatting final response",
-        ]
+        "Thinking...",
+        "Searching guides...",
+        "Deep reasoning...",
+        "Evaluating logic chains...",
+        "Verifying conclusions...",
+        "Generating response...",
+      ]
       : isSubAgent
-      ? [
-          "Delegating task to specialist sub-agents",
-          "Sub-agent #1: Gathering context",
-          "Sub-agent #2: Analyzing requirements",
-          "Sub-agent #3: Drafting response",
-          "Consolidating agent outputs",
-          "Formatting final response",
+        ? [
+          "Thinking...",
+          "Searching guides...",
+          "Delegating to sub-agents...",
+          "Analyzing requirements...",
+          "Consolidating outputs...",
+          "Generating response...",
         ]
-      : [
-          "Analyzing your question",
-          "Searching knowledge base",
-          "Formulating response",
+        : [
+          "Thinking...",
+          "Searching guides...",
+          "Generating response...",
         ];
 
     const startTime = Date.now();
@@ -1028,12 +1048,43 @@ export default function ZetsuGuideAIPage() {
     }, 1400);
 
     try {
+      // ── Smart Search: Fetch guides from Supabase for AI context ──
+      let guidesContext = "";
+      try {
+        const { data: guides } = await supabase
+          .from("guides")
+          .select("id, title, slug, markdown, keywords, created_at")
+          .eq("status", "approved")
+          .order("created_at", { ascending: false })
+          .limit(50);
+
+        if (guides && guides.length > 0) {
+          guidesContext = guides.map(g =>
+            `## ${g.title}\nSlug: ${g.slug}\nKeywords: ${(g.keywords || []).join(", ")}\nContent: ${(g.markdown || "").substring(0, 500)}\nLink: /guide/${g.slug}`
+          ).join("\n\n---\n\n");
+        }
+      } catch (err) {
+        console.warn("Failed to fetch guides for AI context:", err);
+      }
+
+      // Build messages payload with guides context injected as system message
+      const contextSystemMessage = guidesContext
+        ? {
+            role: "system",
+            content: `You are ZetsuGuide AI, a technical expert for the ZetsuGuide platform. Here is our knowledge base of guides:\n\n${guidesContext}\n\nINSTRUCTIONS:\n- If the user's question can be answered from the guides above, cite it with details and include the source link at the bottom formatted as: **📖 Source:** [Guide Title](/guide/slug)\n- If the answer is NOT in the guides, answer from your general AI knowledge professionally, but mention that it's from general knowledge.\n- Always respond in clean Markdown format.`
+          }
+        : null;
+
+      const messagesPayload = contextSystemMessage
+        ? [contextSystemMessage, ...newMessages.slice(-8)]
+        : newMessages.slice(-8);
+
       const response = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "google/gemini-2.0-flash-exp:free",
-          messages: newMessages.slice(-8),
+          messages: messagesPayload,
           userEmail: user?.email,
           userId: user?.id,
           isDeepReasoning,
@@ -1051,38 +1102,62 @@ export default function ZetsuGuideAIPage() {
         throw new Error("The AI service is temporarily unavailable. Please try again.");
       }
 
-      // Read SSE stream
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let aiContent = "";
-      
-      // Initialize an empty AI message to stream into
-      setMessages((prev) => [...prev, { role: "assistant", content: "", timestamp: new Date().toISOString() }]);
+      // Check Content-Type to determine if response is streaming or JSON
+      const contentType = response.headers.get("Content-Type") || "";
+      const isStreaming = contentType.includes("text/event-stream");
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
-        
-        for (const line of lines) {
-          if (line.startsWith("data: ") && line !== "data: [DONE]") {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.type === "token" || data.type === "content") {
-                aiContent += data.content;
-                // Update the last message in state with the new content
-                setMessages((prev) => {
-                  const newMsgs = [...prev];
-                  newMsgs[newMsgs.length - 1].content = aiContent;
-                  return newMsgs;
-                });
+      let aiContent = "";
+
+      if (isStreaming) {
+        // Handle SSE streaming response
+        console.log("📊 Receiving STREAMING response from AI...");
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        // Initialize an empty AI message to stream into
+        setMessages((prev) => [...prev, { role: "assistant", content: "", timestamp: new Date().toISOString() }]);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (line.startsWith("data: ") && line !== "data: [DONE]") {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.type === "token" || data.type === "content") {
+                  aiContent += data.content;
+                  // Update the last message in state with the new content
+                  setMessages((prev) => {
+                    const newMsgs = [...prev];
+                    newMsgs[newMsgs.length - 1].content = aiContent;
+                    return newMsgs;
+                  });
+                }
+              } catch (e) {
+                // Ignore parse errors on partial chunks
               }
-            } catch (e) {
-              // Ignore parse errors on partial chunks
             }
           }
+        }
+      } else {
+        // Handle regular JSON response (non-streaming)
+        console.log("📦 Receiving JSON response from AI...");
+
+        try {
+          const jsonResponse = await response.json();
+          aiContent = jsonResponse.content || jsonResponse.message || "I received your message but couldn't generate a response. Please try again.";
+
+          // Add the response as a complete message
+          setMessages((prev) => [...prev, { role: "assistant", content: aiContent, timestamp: new Date().toISOString() }]);
+        } catch (jsonError) {
+          console.error("Failed to parse JSON response:", jsonError);
+          aiContent = "I received your message but couldn't parse the response. Please try again.";
+          setMessages((prev) => [...prev, { role: "assistant", content: aiContent, timestamp: new Date().toISOString() }]);
         }
       }
 
@@ -1098,8 +1173,12 @@ export default function ZetsuGuideAIPage() {
       const duration = Math.round((Date.now() - startTime) / 1000);
       setReasoningDuration(duration);
 
-      // We need finalMessages for saveConversation
-      const finalMessages = [...newMessages, { role: "assistant", content: aiContent, timestamp: new Date().toISOString() }];
+      // Prepare final messages for saving
+      // Note: For streaming, we already added an empty message. For non-streaming, we already added the complete message.
+      // In both cases, the latest message already contains the AI content
+      const finalMessages = messages.length > 0 && messages[messages.length - 1].role === "assistant"
+        ? messages  // Use current messages state which already has the AI response
+        : [...newMessages, { role: "assistant", content: aiContent, timestamp: new Date().toISOString() }];  // Fallback
 
       // Deduct credit
       const newCredits = Math.max(0, (credits ?? 5) - 1);
@@ -1141,7 +1220,7 @@ export default function ZetsuGuideAIPage() {
           .eq("id", currentConvId);
       }
       loadConversations();
-    } catch {}
+    } catch { }
   }
 
   const startNewChat = () => {
@@ -1231,9 +1310,6 @@ export default function ZetsuGuideAIPage() {
               ZetsuGuide
               <span className="zg-logo-badge">AI</span>
             </Link>
-            <button className="zg-icon-btn" onClick={() => setShowSidebar(false)} title="Close sidebar">
-              <ChevronLeft size={16} />
-            </button>
           </div>
 
           <div style={{ padding: "0 12px" }}>

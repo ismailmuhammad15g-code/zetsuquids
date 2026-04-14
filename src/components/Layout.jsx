@@ -13,7 +13,7 @@ import {
     Users,
     X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useLoading } from "../contexts/LoadingContext";
@@ -22,7 +22,7 @@ import { supabase } from "../lib/supabase";
 import AccountSetupModal from "./AccountSetupModal";
 import AddGuideModal from "./AddGuideModal";
 import ApprovedBugModal from "./ApprovedBugModal";
-import CookieConsent from "./CookieConsent";
+const CookieConsent = lazy(() => import("./CookieConsent").catch(() => import("./AdBlockFallback")));
 import GlobalLoader from "./GlobalLoader";
 import ClickSpark from "./react-bits/ClickSpark";
 import ModernNav from "./ModernNav";
@@ -751,7 +751,9 @@ export default function Layout() {
         <SubscriptionRenewAd />
 
         {/* Cookie Consent */}
-        <CookieConsent />
+        <Suspense fallback={null}>
+          <CookieConsent />
+        </Suspense>
       </div>
     </ClickSpark>
   );

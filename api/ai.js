@@ -1243,8 +1243,11 @@ Here is the explanation...
     const supportsStreaming =
       typeof res.write === "function" && typeof res.end === "function";
 
-    // Prepare Gemini Request
-    const wantsStream = supportsStreaming && (req.body.stream || !skipCreditDeduction);
+    // Determine if we want streaming (explicitly requested OR credit deduction requires it)
+    // But only if streaming is actually supported in this environment
+    const userRequestsStream = req.body.stream === true;
+    const wantsStream = supportsStreaming && userRequestsStream;
+
     const endpoint = wantsStream
       ? apiUrl.replace(":generateContent", ":streamGenerateContent")
       : apiUrl;
@@ -1288,6 +1291,7 @@ Here is the explanation...
     const lookupEmail = userEmail ? userEmail.toLowerCase() : userId;
     let currentCredits = 100;
 
+    // Handle credit deduction ONLY if not skipping
     if (!skipCreditDeduction) {
       // Check if user exists in credits table
       const { data: creditData, error: creditError } = await supabase
@@ -1338,41 +1342,70 @@ Here is the explanation...
         });
       }
 
-      console.log("📤 Sending to AI API with REAL STREAMING...");
+      // Deduct credit BEFORE streaming starts
+      const { error: deductError } = await supabase
+        .from("zetsuguide_credits")
+        .update({
+          credits: currentCredits - 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_email", lookupEmail);
 
-      if (!skipCreditDeduction) {
-        // Deduct credit BEFORE streaming starts
-        const { error: deductError } = await supabase
-          .from("zetsuguide_credits")
-          .update({
-            credits: currentCredits - 1,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("user_email", lookupEmail);
-
-        if (deductError) {
-          console.error("Failed to deduct credit:", deductError);
-        } else {
-          console.log(
-            `Deducted 1 credit for user ${lookupEmail}. New balance: ${currentCredits - 1}`,
-          );
-        }
+      if (deductError) {
+        console.error("Failed to deduct credit:", deductError);
+      } else {
+        console.log(
+          `Deducted 1 credit for user ${lookupEmail}. New balance: ${currentCredits - 1}`,
+        );
       }
+    }
 
-      let response;
+    // ═══════════════════════════════════════════════════════
+    // MAIN AI REQUEST FLOW (for all cases)
+    // ═══════════════════════════════════════════════════════
+
+    let response;
       try {
-        console.log("🚀 Sending request to Gemini stream API:", {
-          model: validatedModel,
-          messageCount: messagesWithSearch.length,
-          streaming: true,
-        });
-        response = await fetch(`${endpoint}?alt=sse&key=${apiKey}`, {
+        // Determine request parameters based on whether we want streaming
+        let fetchUrl = endpoint;
+
+        // Always add API key to URL for Gemini
+        // But first check if endpoint already has query params
+        const hasQueryParams = endpoint.includes("?");
+        if (!endpoint.includes("key=")) {
+          fetchUrl = hasQueryParams
+            ? `${endpoint}&key=${apiKey}`
+            : `${endpoint}?key=${apiKey}`;
+        }
+
+        // For streaming, add the alt=sse parameter
+        if (wantsStream && endpoint.includes("generateContent")) {
+          const hasParams = fetchUrl.includes("?");
+          fetchUrl = hasParams
+            ? `${fetchUrl}&alt=sse`
+            : `${fetchUrl}?alt=sse`;
+          console.log("🚀 Sending request to Gemini STREAMING API:", {
+            model: validatedModel,
+            messageCount: messagesWithSearch.length,
+            streaming: true,
+          });
+        } else {
+          console.log("🚀 Sending request to AI API (non-streaming):", {
+            model: validatedModel,
+            messageCount: messagesWithSearch.length,
+            streaming: false,
+          });
+        }
+
+        const fetchOptions = {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(geminiPayload),
-        });
+        };
+
+        response = await fetch(fetchUrl, fetchOptions);
 
         console.log("📥 Received response:", {
           status: response.status,
@@ -1397,15 +1430,15 @@ Here is the explanation...
         });
       }
 
-      // Streaming support already checked above
-      console.log("Stream Support Check (verified):", {
+      // Branch based on whether streaming is actually happening
+      console.log("Response Processing:", {
+        wantsStream,
         supportsStreaming,
         resWriteType: typeof res.write,
         resEndType: typeof res.end,
-        headersSent: res.headersSent,
       });
 
-      if (supportsStreaming) {
+      if (wantsStream && supportsStreaming) {
         // Create a compatible reader for both Web Streams and Node Streams
         let reader;
 
@@ -1499,114 +1532,100 @@ Here is the explanation...
               console.log(`📦 Chunk ${chunkCount}:`, rawChunk.substring(0, 300));
             }
 
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
+            // Use a smarter JSON parsing approach that handles multi-line objects
+            // Extract complete JSON objects regardless of how they're split across lines/chunks
+            let jsonStartIdx = 0;
+            let braceCount = 0;
+            let inString = false;
+            let escapeNext = false;
 
-            for (const line of lines) {
-              const trimmedLine = line.trim();
-              if (trimmedLine === "" || trimmedLine === "data: [DONE]") continue;
+            for (let i = 0; i < buffer.length; i++) {
+              const char = buffer[i];
 
-              let jsonStr = null;
-
-              // Handle various data prefix formats
-              if (line.startsWith("data: ")) {
-                jsonStr = line.slice(6);
-              } else if (line.startsWith("data:")) {
-                jsonStr = line.slice(5);
-              } else {
-                // Try to treat the whole line as JSON (fallback)
-                // Only if it looks like JSON (starts with { and ends with })
-                if (trimmedLine.startsWith("{") && trimmedLine.endsWith("}")) {
-                  jsonStr = trimmedLine;
-                }
+              // Handle string escaping
+              if (escapeNext) {
+                escapeNext = false;
+                continue;
               }
 
-              if (jsonStr) {
-                try {
-                  const parsed = JSON.parse(jsonStr);
+              if (char === "\\") {
+                escapeNext = true;
+                continue;
+              }
 
-                  // Try multiple response format patterns
-                  let content = null;
+              // Track if we're inside a string (JSON strings can contain { or })
+              if (char === '"') {
+                inString = !inString;
+                continue;
+              }
 
-                  // Pattern 1: OpenAI streaming format
-                  if (parsed.choices?.[0]?.delta?.content) {
-                    content = parsed.choices[0].delta.content;
-                  }
-                  // Pattern 2: Some APIs return content directly in message
-                  else if (parsed.choices?.[0]?.message?.content) {
-                    content = parsed.choices[0].message.content;
-                  }
-                  // Pattern 3: Direct content field
-                  else if (parsed.content) {
-                    content = parsed.content;
-                  }
-                  // Pattern 4: Text field (some providers)
-                  else if (parsed.text) {
-                    content = parsed.text;
-                  }
-                  // Pattern 5: Gemini streaming format
-                  else if (parsed.candidates?.[0]?.content?.parts?.[0]?.text !== undefined) {
-                    content = parsed.candidates[0].content.parts[0].text;
-                  }
+              // Only count braces outside of strings
+              if (!inString) {
+                if (char === "{") braceCount++;
+                if (char === "}") braceCount--;
 
-                  // IMPORTANT: Some Gemini chunks only contain thought signatures
-                  if (parsed.candidates?.[0]?.content?.parts?.[0]?.thoughtSignature) {
-                    res.write(
-                      `data: ${JSON.stringify({ type: "thinking", content: "" })}\n\n`,
-                    );
+                // When we've closed all braces, we have a complete JSON object
+                if (braceCount === 0 && i > jsonStartIdx) {
+                  const jsonStr = buffer.substring(jsonStartIdx, i + 1);
+                  jsonStartIdx = i + 1;
+
+                  // Skip empty objects and SSE markers
+                  const trimmed = jsonStr.trim();
+                  if (trimmed === "" || trimmed === "," || trimmed === "[" || trimmed === "]") continue;
+
+                  // Handle SSE format with "data: " prefix
+                  let jsonStrToParse = trimmed;
+                  if (trimmed.startsWith("data:")) {
+                    jsonStrToParse = trimmed.startsWith("data: ")
+                      ? trimmed.slice(6)
+                      : trimmed.slice(5);
                   }
 
-                  // CRITICAL FIX: Track thinking/reasoning activity (DeepSeek/Kimi) to keep stream alive
-                  if (parsed.choices?.[0]?.delta?.reasoning_content) {
-                    // Send a keep-alive event to prevent frontend from timing out or user thinking it's stuck
-                    res.write(
-                      `data: ${JSON.stringify({ type: "thinking", content: "" })}\n\n`,
-                    );
-                  }
+                  try {
+                    const jsonObj = JSON.parse(jsonStrToParse);
 
-                  if (content) {
-                    totalTokensSent++;
+                    // Extract text from Gemini format
+                    let content = null;
 
-                    // Send each token immediately to client
-                    res.write(
-                      `data: ${JSON.stringify({ type: "token", content })}\n\n`,
-                    );
-
-                    // Log first successful token extraction for debugging
-                    if (totalTokensSent === 1) {
-                      console.log("✅ First token extracted successfully!");
-                      console.log(
-                        "   Pattern used:",
-                        parsed.choices?.[0]?.delta?.content
-                          ? "delta.content"
-                          : parsed.choices?.[0]?.message?.content
-                            ? "message.content"
-                            : parsed.content
-                              ? "direct content"
-                              : parsed.text
-                                ? "text field"
-                                : "unknown",
-                      );
-                      console.log("   Token:", content.substring(0, 50));
+                    // Gemini format: candidates[0].content.parts[0].text
+                    if (jsonObj.candidates?.[0]?.content?.parts?.[0]?.text) {
+                      content = jsonObj.candidates[0].content.parts[0].text;
                     }
-                  } else if (chunkCount <= 3) {
-                    // Log first few chunks that have no content
-                    console.log(
-                      "📦 Chunk without content:",
-                      JSON.stringify(parsed),
-                    );
+                    // Fallback formats
+                    else if (jsonObj.choices?.[0]?.delta?.content) {
+                      content = jsonObj.choices[0].delta.content;
+                    } else if (jsonObj.choices?.[0]?.message?.content) {
+                      content = jsonObj.choices[0].message.content;
+                    } else if (jsonObj.content) {
+                      content = jsonObj.content;
+                    } else if (jsonObj.text) {
+                      content = jsonObj.text;
+                    }
+
+                    if (content) {
+                      totalTokensSent++;
+                      res.write(
+                        `data: ${JSON.stringify({ type: "token", content })}\n\n`,
+                      );
+
+                      if (totalTokensSent === 1) {
+                        console.log("✅ First token extracted successfully from Gemini!");
+                        console.log("   Content:", content.substring(0, 50));
+                      }
+                    } else if (chunkCount <= 3) {
+                      console.log("📦 Chunk without extractable content:", jsonStrToParse.substring(0, 200));
+                    }
+                  } catch (e) {
+                    if (chunkCount <= 3) {
+                      console.warn("⚠️ Failed to parse JSON object:", jsonStrToParse.substring(0, 100));
+                    }
                   }
-                } catch (e) {
-                  console.warn(
-                    "Failed to parse AI stream chunk:",
-                    jsonStr.substring(0, 100),
-                    "Error:",
-                    e.message,
-                  );
-                  // Skip parsing errors
                 }
               }
             }
+
+            // Keep unparsed portion of buffer for next iteration
+            buffer = buffer.substring(jsonStartIdx);
           }
         } catch (streamError) {
           console.error("❌ Streaming error:", streamError);
@@ -1652,13 +1671,12 @@ Here is the explanation...
           });
         }
       }
-    }
-  } catch (error) {
-    console.error("❌ General handler error:", error);
-    if (!res.headersSent) {
-      res
-        .status(500)
-        .json({ error: "Internal Server Error", details: error.message });
+    } catch (error) {
+      console.error("❌ General handler error:", error);
+      if (!res.headersSent) {
+        res
+          .status(500)
+          .json({ error: "Internal Server Error", details: error.message });
+      }
     }
   }
-}
