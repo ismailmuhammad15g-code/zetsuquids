@@ -263,16 +263,16 @@ export default function TrendsSidebar({ user }) {
                 >
                   <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-800 flex-shrink-0">
                     <img
-                      src={u?.avatar_url || getAvatarForUser(u?.user_email || u?.email || \"\")}
-                      alt={u?.username || \"User\"}
+                      src={u?.avatar_url || getAvatarForUser(u?.user_email || u?.email || "")}
+                      alt={u?.username || "User"}
                       className="w-full h-full object-cover"
-                      onError={(e) => { e.target.src = getAvatarForUser(\"\"); }}
+                      onError={(e) => { e.target.src = getAvatarForUser(""); }}
                     />
                   </div>
                   <div className="flex-1 overflow-hidden">
                     <div className="flex items-center gap-1">
-                      <span className="font-bold text-[#e7e9ea] truncate text-[15px]\">
-                        {u?.display_name || u?.username || \"Unknown User\"}
+                      <span className="font-bold text-[#e7e9ea] truncate text-[15px]">
+                        {u?.display_name || u?.username || "Unknown User"}
                       </span>
                       {u?.is_verified && (
                         <BadgeCheck
@@ -285,7 +285,7 @@ export default function TrendsSidebar({ user }) {
                       )}
                     </div>
                     <div className="text-[#71767b] text-[13px] truncate">
-                      @{u?.username || \"user\"}
+                      @{u?.username || "user"}
                     </div>
                   </div>
                 </div>
@@ -559,13 +559,13 @@ export default function TrendsSidebar({ user }) {
                   )}
                 </div>
                 <div className="text-[#71767b] text-[15px] truncate">
-                  @{u?.username || \"user\"}
+                  @{u?.username || "user"}
                 </div>
               </div>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleFollow(u?.user_id || u?.id, u?.username || \"User\");
+                  handleFollow(u?.user_id || u?.id, u?.username || "User");
                 }}
                 className="rounded-full bg-[#eff3f4] px-4 py-1.5 text-[14px] font-bold text-black hover:bg-[#d7dbdc] transition-colors flex-shrink-0"
               >
