@@ -419,16 +419,16 @@ export default function TrendsSidebar({ user }) {
             >
               <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-800 flex-shrink-0">
                 <img
-                  src={u?.avatar_url || getAvatarForUser(u?.user_email || u?.email || \"\")}
-                  alt={u?.username || \"User\"}
+                  src={u?.avatar_url || getAvatarForUser(u?.user_email || u?.email || "")}
+                  alt={u?.username || "User"}
                   className="w-full h-full object-cover"
-                  onError={(e) => { e.target.src = getAvatarForUser(\"\"); }}
+                  onError={(e) => { e.target.src = getAvatarForUser(""); }}
                 />
               </div>
               <div className="flex-1 overflow-hidden">
                 <div className="flex items-center gap-1">
-                  <span className="font-bold text-[#e7e9ea] hover:underline truncate text-[15px]\">
-                    {u?.display_name || u?.username || \"Unknown User\"}
+                  <span className="font-bold text-[#e7e9ea] hover:underline truncate text-[15px]">
+                    {u?.display_name || u?.username || "Unknown User"}
                   </span>
                   {u?.is_verified && (
                     <BadgeCheck
