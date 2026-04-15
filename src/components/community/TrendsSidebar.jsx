@@ -40,11 +40,11 @@ export default function TrendsSidebar({ user }) {
           user?.id ? communityApi.getFollowing(user.id) : Promise.resolve([]),
           communityApi.getSuggestedCommunities(user?.id, 3),
         ]);
-        console.log(\"🎯 [TrendsSidebar] Trends:\", trendsData);
-        console.log(\"📰 [TrendsSidebar] News:\", newsData);
-        console.log(\"👥 [TrendsSidebar] Suggestions:\", suggestionsData);
-        console.log(\"⭐ [TrendsSidebar] Following:\", followingData);
-        console.log(\"🏘️  [TrendsSidebar] Communities:\", commsData);
+        console.log("🎯 [TrendsSidebar] Trends:", trendsData);
+        console.log("📰 [TrendsSidebar] News:", newsData);
+        console.log("👥 [TrendsSidebar] Suggestions:", suggestionsData);
+        console.log("⭐ [TrendsSidebar] Following:", followingData);
+        console.log("🏘️  [TrendsSidebar] Communities:", commsData);
         
         setTrends(Array.isArray(trendsData) ? trendsData : []);
         setNews(Array.isArray(newsData) ? newsData : []);
