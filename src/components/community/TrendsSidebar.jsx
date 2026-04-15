@@ -40,11 +40,17 @@ export default function TrendsSidebar({ user }) {
           user?.id ? communityApi.getFollowing(user.id) : Promise.resolve([]),
           communityApi.getSuggestedCommunities(user?.id, 3),
         ]);
-        setTrends(trendsData || []);
-        setNews(newsData || []);
-        setSuggestions(suggestionsData || []);
-        setFollowing(followingData || []);
-        setSuggestedCommunities(commsData || []);
+        console.log(\"🎯 [TrendsSidebar] Trends:\", trendsData);
+        console.log(\"📰 [TrendsSidebar] News:\", newsData);
+        console.log(\"👥 [TrendsSidebar] Suggestions:\", suggestionsData);
+        console.log(\"⭐ [TrendsSidebar] Following:\", followingData);
+        console.log(\"🏘️  [TrendsSidebar] Communities:\", commsData);
+        
+        setTrends(Array.isArray(trendsData) ? trendsData : []);
+        setNews(Array.isArray(newsData) ? newsData : []);
+        setSuggestions(Array.isArray(suggestionsData) ? suggestionsData : []);
+        setFollowing(Array.isArray(followingData) ? followingData : []);
+        setSuggestedCommunities(Array.isArray(commsData) ? commsData : []);
       } catch (e) {
         console.error("❌ [TrendsSidebar] Failed to load sidebar data", e);
       } finally {
@@ -96,7 +102,7 @@ export default function TrendsSidebar({ user }) {
   );
 
   const handleFollow = async (targetId, targetName) => {
-    if (!user) {
+    if (!user?.id) {
       toast.error("Please login to follow users", {
         style: {
           background: "#16181c",
@@ -107,8 +113,9 @@ export default function TrendsSidebar({ user }) {
       return;
     }
     
-    if (!targetId || !user.id) {
-      console.error("❌ Invalid follow request - targetId:", targetId, "userId:", user.id);
+    const safeTargetId = targetId || null;
+    if (!safeTargetId) {
+      console.error("❌ Invalid follow request - targetId is missing");
       toast.error("Unable to follow user - invalid data", {
         style: {
           background: "#16181c",
@@ -120,9 +127,9 @@ export default function TrendsSidebar({ user }) {
     }
     
     try {
-      await communityApi.followUser(user.id, targetId);
+      await communityApi.followUser(user.id, safeTargetId);
       // Remove from suggestions
-      setSuggestions((prev) => prev.filter((u) => u.user_id !== targetId));
+      setSuggestions((prev) => prev.filter((u) => (u.user_id || u.id) !== safeTargetId));
       // Refresh following list
       const followingData = await communityApi.getFollowing(user.id);
       setFollowing(followingData || []);
@@ -146,8 +153,8 @@ export default function TrendsSidebar({ user }) {
   };
 
   const handleUnfollow = async (targetId, targetName) => {
-    if (!user) {
-      toast.error("Please login to follow users", {
+    if (!user?.id) {
+      toast.error("Please login to manage follows", {
         style: {
           background: "#16181c",
           border: "1px solid #1f2937",
@@ -157,9 +164,10 @@ export default function TrendsSidebar({ user }) {
       return;
     }
     
-    if (!targetId || !user.id) {
-      console.error("❌ Invalid follow request - targetId:", targetId, "userId:", user.id);
-      toast.error("Unable to follow user - invalid data", {
+    const safeTargetId = targetId || null;
+    if (!safeTargetId) {
+      console.error("❌ Invalid unfollow request - targetId is missing");
+      toast.error("Unable to unfollow user - invalid data", {
         style: {
           background: "#16181c",
           border: "1px solid #1f2937",
@@ -170,15 +178,15 @@ export default function TrendsSidebar({ user }) {
     }
     
     try {
-      await communityApi.unfollowUser(user.id, targetId);
+      await communityApi.unfollowUser(user.id, safeTargetId);
       // Remove from following list
-      setFollowing((prev) => prev.filter((u) => u.user_id !== targetId));
+      setFollowing((prev) => prev.filter((u) => (u.user_id || u.id) !== safeTargetId));
       // Refresh suggestions to potentially show them again
       const suggestionsData = await communityApi.getWhoToFollow(
         user.id,
         suggestionLimit
       );
-      setSuggestions(suggestionsData || []);
+      setSuggestions(Array.isArray(suggestionsData) ? suggestionsData : []);
       toast.success(`Unfollowed @${targetName}`, {
         style: {
           background: "#16181c",
@@ -255,17 +263,18 @@ export default function TrendsSidebar({ user }) {
                 >
                   <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-800 flex-shrink-0">
                     <img
-                      src={u.avatar_url || getAvatarForUser(u.user_email)}
-                      alt={u.username}
+                      src={u?.avatar_url || getAvatarForUser(u?.user_email || u?.email || \"\")}
+                      alt={u?.username || \"User\"}
                       className="w-full h-full object-cover"
+                      onError={(e) => { e.target.src = getAvatarForUser(\"\"); }}
                     />
                   </div>
                   <div className="flex-1 overflow-hidden">
                     <div className="flex items-center gap-1">
-                      <span className="font-bold text-[#e7e9ea] truncate text-[15px]">
-                        {u.display_name || u.username}
+                      <span className="font-bold text-[#e7e9ea] truncate text-[15px]\">
+                        {u?.display_name || u?.username || \"Unknown User\"}
                       </span>
-                      {u.is_verified && (
+                      {u?.is_verified && (
                         <BadgeCheck
                           size={16}
                           className="text-[#1d9bf0] flex-shrink-0"
@@ -276,7 +285,7 @@ export default function TrendsSidebar({ user }) {
                       )}
                     </div>
                     <div className="text-[#71767b] text-[13px] truncate">
-                      @{u.username}
+                      @{u?.username || \"user\"}
                     </div>
                   </div>
                 </div>
@@ -401,24 +410,27 @@ export default function TrendsSidebar({ user }) {
             </span>
           </div>
 
-          {following.slice(0, 5).map((u) => (
+          {following.slice(0, 5).map((u) => {
+            const userId = u.user_id || u.id;
+            return (
             <div
-              key={u.user_id}
+              key={userId}
               className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] cursor-pointer transition-colors"
             >
               <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-800 flex-shrink-0">
                 <img
-                  src={u.avatar_url || getAvatarForUser(u.user_email)}
-                  alt={u.username}
+                  src={u?.avatar_url || getAvatarForUser(u?.user_email || u?.email || \"\")}
+                  alt={u?.username || \"User\"}
                   className="w-full h-full object-cover"
+                  onError={(e) => { e.target.src = getAvatarForUser(\"\"); }}
                 />
               </div>
               <div className="flex-1 overflow-hidden">
                 <div className="flex items-center gap-1">
-                  <span className="font-bold text-[#e7e9ea] hover:underline truncate text-[15px]">
-                    {u.display_name || u.username}
+                  <span className="font-bold text-[#e7e9ea] hover:underline truncate text-[15px]\">
+                    {u?.display_name || u?.username || \"Unknown User\"}
                   </span>
-                  {u.is_verified && (
+                  {u?.is_verified && (
                     <BadgeCheck
                       size={16}
                       className="text-[#1d9bf0] flex-shrink-0"
@@ -435,14 +447,15 @@ export default function TrendsSidebar({ user }) {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleUnfollow(u.user_id, u.username);
+                  handleUnfollow(userId, u.username);
                 }}
                 className="rounded-full border border-[#536471] px-4 py-1.5 text-sm font-bold text-[#eff3f4] hover:bg-[#f4212e]/10 hover:border-[#f4212e]/50 hover:text-[#f4212e] transition-colors flex-shrink-0"
               >
                 Following
               </button>
             </div>
-          ))}
+            );
+          })}
 
           {following.length > 5 && (
             <div className="cursor-pointer p-4 text-[15px] text-[#1d9bf0] hover:bg-white/[0.03] transition-colors">
@@ -535,7 +548,7 @@ export default function TrendsSidebar({ user }) {
                   <span className="font-bold text-[#e7e9ea] hover:underline truncate text-[15px]">
                     {u.display_name || u.username}
                   </span>
-                  {u.is_verified && (
+                  {u?.is_verified && (
                     <BadgeCheck
                       size={16}
                       className="text-[#1d9bf0] flex-shrink-0"
@@ -546,20 +559,18 @@ export default function TrendsSidebar({ user }) {
                   )}
                 </div>
                 <div className="text-[#71767b] text-[15px] truncate">
-                  @{u.username}
+                  @{u?.username || \"user\"}
                 </div>
               </div>
-              {u.user_id && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleFollow(u.user_id, u.username);
-                  }}
-                  className="rounded-full bg-[#eff3f4] px-4 py-1.5 text-[14px] font-bold text-black hover:bg-[#d7dbdc] transition-colors flex-shrink-0"
-                >
-                  Follow
-                </button>
-              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleFollow(u?.user_id || u?.id, u?.username || \"User\");
+                }}
+                className="rounded-full bg-[#eff3f4] px-4 py-1.5 text-[14px] font-bold text-black hover:bg-[#d7dbdc] transition-colors flex-shrink-0"
+              >
+                Follow
+              </button>
             </div>
           ))
         )}
