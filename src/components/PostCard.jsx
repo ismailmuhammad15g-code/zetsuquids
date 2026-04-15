@@ -270,50 +270,71 @@ export default function PostCard({ post, onDeleted }) {
             />
           ),
           img: ({ node, ...props }) => (
-            <div className="mt-3 overflow-hidden rounded-2xl border border-[#2f3336]">
+            <figure className="mt-3 mb-3 overflow-hidden rounded-2xl border border-[#2f3336]">
               <img
                 {...props}
                 onClick={stopProp}
                 className="w-full max-h-[500px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
               />
-            </div>
+            </figure>
           ),
           p: ({ node, children, ...props }) => {
-            // Process text children to highlight hashtags
-            const processChildren = (children) => {
-              return Array.isArray(children)
-                ? children.map((child, i) => {
-                  if (typeof child === "string") {
-                    return child
-                      .split(/(#[A-Za-z0-9_\u0600-\u06FF]{2,30})/g)
-                      .map((part, j) => {
-                        if (part.match(/^#[A-Za-z0-9_\u0600-\u06FF]{2,30}$/)) {
-                          return (
-                            <span
-                              key={`${i}-${j}`}
-                              className="text-[#1d9bf0] hover:underline cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/community/explore?q=${encodeURIComponent(part)}`);
-                              }}
-                            >
-                              {part}
-                            </span>
+            // Separate text children from non-text elements (like images)
+            const textChildren = [];
+            const nonTextElements = [];
 
-                          );
-                        }
-                        return part;
-                      });
-                  }
-                  return child;
-                })
-                : children;
+            const flattenChildren = (items) => {
+              return Array.isArray(items)
+                ? items.flat()
+                : [items];
+            };
+
+            flattenChildren(children).forEach((child, idx) => {
+              // Check if child is a React element (JSX)
+              if (child && typeof child === "object" && child.type) {
+                nonTextElements.push(child);
+              } else {
+                textChildren.push(child);
+              }
+            });
+
+            // Process text children to highlight hashtags
+            const processTextChildren = (items) => {
+              return items.map((child, i) => {
+                if (typeof child === "string") {
+                  return child
+                    .split(/(#[A-Za-z0-9_\u0600-\u06FF]{2,30})/g)
+                    .map((part, j) => {
+                      if (part.match(/^#[A-Za-z0-9_\u0600-\u06FF]{2,30}$/)) {
+                        return (
+                          <span
+                            key={`${i}-${j}`}
+                            className="text-[#1d9bf0] hover:underline cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/community/explore?q=${encodeURIComponent(part)}`);
+                            }}
+                          >
+                            {part}
+                          </span>
+                        );
+                      }
+                      return part;
+                    });
+                }
+                return child;
+              });
             };
 
             return (
-              <p className="mb-1 last:mb-0" {...props}>
-                {processChildren(children)}
-              </p>
+              <>
+                {textChildren.length > 0 && (
+                  <p className="mb-1" {...props}>
+                    {processTextChildren(textChildren)}
+                  </p>
+                )}
+                {nonTextElements}
+              </>
             );
           },
         }}

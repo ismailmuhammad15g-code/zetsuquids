@@ -101,11 +101,24 @@ export default function TrendsSidebar({ user }) {
         style: {
           background: "#16181c",
           border: "1px solid #1f2937",
-          color: "#e7e9ea",
+          color: "#f4212e",
         },
       });
       return;
     }
+    
+    if (!targetId || !user.id) {
+      console.error("❌ Invalid follow request - targetId:", targetId, "userId:", user.id);
+      toast.error("Unable to follow user - invalid data", {
+        style: {
+          background: "#16181c",
+          border: "1px solid #1f2937",
+          color: "#f4212e",
+        },
+      });
+      return;
+    }
+    
     try {
       await communityApi.followUser(user.id, targetId);
       // Remove from suggestions
@@ -133,7 +146,29 @@ export default function TrendsSidebar({ user }) {
   };
 
   const handleUnfollow = async (targetId, targetName) => {
-    if (!user) return;
+    if (!user) {
+      toast.error("Please login to follow users", {
+        style: {
+          background: "#16181c",
+          border: "1px solid #1f2937",
+          color: "#f4212e",
+        },
+      });
+      return;
+    }
+    
+    if (!targetId || !user.id) {
+      console.error("❌ Invalid follow request - targetId:", targetId, "userId:", user.id);
+      toast.error("Unable to follow user - invalid data", {
+        style: {
+          background: "#16181c",
+          border: "1px solid #1f2937",
+          color: "#f4212e",
+        },
+      });
+      return;
+    }
+    
     try {
       await communityApi.unfollowUser(user.id, targetId);
       // Remove from following list
@@ -514,15 +549,17 @@ export default function TrendsSidebar({ user }) {
                   @{u.username}
                 </div>
               </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleFollow(u.user_id, u.username);
-                }}
-                className="rounded-full bg-[#eff3f4] px-4 py-1.5 text-[14px] font-bold text-black hover:bg-[#d7dbdc] transition-colors flex-shrink-0"
-              >
-                Follow
-              </button>
+              {u.user_id && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleFollow(u.user_id, u.username);
+                  }}
+                  className="rounded-full bg-[#eff3f4] px-4 py-1.5 text-[14px] font-bold text-black hover:bg-[#d7dbdc] transition-colors flex-shrink-0"
+                >
+                  Follow
+                </button>
+              )}
             </div>
           ))
         )}
