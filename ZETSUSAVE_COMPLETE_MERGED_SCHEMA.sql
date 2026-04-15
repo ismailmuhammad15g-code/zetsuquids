@@ -1727,6 +1727,8 @@ CREATE TABLE IF NOT EXISTS posts (
 -- Fix: Add group_id to posts for community grouping
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES community_groups(id) ON DELETE CASCADE;
 
+-- views_count is already defined in CREATE TABLE above, no need to add it again here
+
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id);
