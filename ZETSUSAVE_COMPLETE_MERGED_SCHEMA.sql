@@ -428,7 +428,7 @@ ALTER TABLE zetsuguide_user_profiles ADD COLUMN IF NOT EXISTS website TEXT;
 
 -- Migration to ensure all profiles have a username and display_name
 UPDATE zetsuguide_user_profiles
-SET 
+SET
   username = COALESCE(username, LOWER(SPLIT_PART(user_email, '@', 1))),
   display_name = COALESCE(display_name, INITCAP(SPLIT_PART(user_email, '@', 1)))
 WHERE username IS NULL OR display_name IS NULL;
@@ -1720,6 +1720,7 @@ CREATE TABLE IF NOT EXISTS posts (
     content TEXT NOT NULL,
     category TEXT CHECK (category IN ('Help', 'Showcase', 'General')) DEFAULT 'General',
     likes_count INT DEFAULT 0,
+    views_count INT DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -2080,17 +2081,6 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- EdgeRank Smart Feed View
-CREATE OR REPLACE VIEW v_smart_feed AS
-SELECT 
-    p.*,
-    ( 
-      (COALESCE((SELECT COUNT(*) FROM post_likes WHERE post_id = p.id), 0) * 2.0 + 
-       COALESCE((SELECT COUNT(*) FROM post_comments WHERE post_id = p.id), 0) * 3.0) / 
-      POWER(EXTRACT(EPOCH FROM (NOW() - p.created_at)) / 3600.0 + 2.0, 1.5) 
-    ) as smart_score
-FROM posts p;
-
-
 -- ===== Communities (Groups) =====
 CREATE TABLE IF NOT EXISTS community_groups (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -2187,7 +2177,7 @@ ALTER TABLE community_groups ADD COLUMN IF NOT EXISTS members_count INT DEFAULT 
 -- Inserting mock UI data required by the community feed to prevent JS fallbacks
 -- Ensure auth constraints are bypassed for demonstration where necessary.
 
-DO $$ 
+DO $$
 DECLARE
   elon_id UUID := '11111111-1111-1111-1111-111111111111';
   sarah_id UUID := '22222222-2222-2222-2222-222222222222';
@@ -2197,7 +2187,7 @@ DECLARE
 BEGIN
   -- Insert into auth.users if possible, otherwise rely on a test helper
   -- We use INSERT ... ON CONFLICT DO NOTHING to avoid breaking if users exist
-  INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES 
+  INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES
   (elon_id, 'elon@x.com', '{"full_name":"Elon Musk"}'),
   (sarah_id, 'sarah@domain.com', '{"full_name":"Sarah Developer"}'),
   (james_id, 'james@domain.com', '{"full_name":"James Coder"}'),
@@ -2215,14 +2205,14 @@ BEGIN
   ON CONFLICT (user_email) DO NOTHING;
 
   -- Insert Posts for Feed
-  INSERT INTO posts (user_id, title, content, category, likes_count, created_at) VALUES 
+  INSERT INTO posts (user_id, title, content, category, likes_count, created_at) VALUES
   (elon_id, 'Starship', 'Starship\n\n![Image](https://pbs.twimg.com/media/GK9bKxVW0AAPoJ2?format=jpg&name=large)', 'General', 452000, NOW() - INTERVAL '1 hour'),
   (sarah_id, 'Just shipped', 'Just shipped the new AI image generator for the marketplace! 🔥 The speed improvements using Cloudflare Workers are insane. What do you guys think? #buildinpublic #reactjs', 'General', 342, NOW() - INTERVAL '30 minutes'),
   (james_id, 'Refactoring', 'Refactoring a 5-year-old React codebase today. Wish me luck... 😅\n\n```typescript\n// The horror begins\ninterface UnknownProp { \n  [key: string]: any \n}\n```', 'General', 156, NOW() - INTERVAL '2 hours'),
   (design_id, 'Dark mode', 'Dark mode isn''t just a theme, it''s a lifestyle. 🌙 #webdesign #uiux', 'General', 1204, NOW() - INTERVAL '5 hours');
 
   -- Insert Posts for News
-  INSERT INTO posts (user_id, title, content, category, likes_count, created_at) VALUES 
+  INSERT INTO posts (user_id, title, content, category, likes_count, created_at) VALUES
   (news_id, 'Péter Magyar''s Tisza Party', 'Péter Magyar''s Tisza Party Wins Hungary Election Supermajority', 'News', 88480, NOW() - INTERVAL '1 day'),
   (news_id, 'U.S. Naval Blockade', 'U.S. Naval Blockade Targets Iranian Oil Exports After Talks Collapse', 'News', 8780, NOW() - INTERVAL '2 days'),
   (news_id, 'Barcelona Channels LeBron', 'Barcelona Channels LeBron''s 2016 Comeback for Atlético UCL Remontada', 'Sports', 3400, NOW() - INTERVAL '2 days');
@@ -2232,7 +2222,7 @@ BEGIN
   ('66666666-6666-6666-6666-666666666666', 'Zetsu Developers', 'The hub for all things coding and Zetsu automation.', 'https://ui-avatars.com/api/?name=Zetsu+Devs&background=1d9bf0&color=fff', elon_id, 1250),
   ('77777777-7777-7777-7777-777777777777', 'Crypto Enthusiasts', 'Discussing latest trends in blockchain and web3.', 'https://ui-avatars.com/api/?name=Crypto&background=fbbf24&color=fff', elon_id, 890),
   ('88888888-8888-8888-8888-888888888888', 'AI Pioneers', 'Sharing the future of artificial intelligence together.', 'https://ui-avatars.com/api/?name=AI+Pioneers&background=a855f7&color=fff', elon_id, 2340)
-  ON CONFLICT (name) DO UPDATE SET 
+  ON CONFLICT (name) DO UPDATE SET
     description = EXCLUDED.description,
     avatar_url = EXCLUDED.avatar_url,
     creator_id = EXCLUDED.creator_id,
@@ -2290,8 +2280,8 @@ USING (auth.uid() = user1_id OR auth.uid() = user2_id);
 DROP POLICY IF EXISTS "Users can view messages in own conversations" ON community_messages;
 CREATE POLICY "Users can view messages in own conversations" ON community_messages FOR SELECT
 USING (EXISTS (
-  SELECT 1 FROM community_conversations c 
-  WHERE c.id = community_messages.conversation_id 
+  SELECT 1 FROM community_conversations c
+  WHERE c.id = community_messages.conversation_id
   AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
 ));
 
@@ -2415,8 +2405,8 @@ USING (auth.uid() = user1_id OR auth.uid() = user2_id);
 DROP POLICY IF EXISTS "Users can view messages in own conversations" ON community_messages;
 CREATE POLICY "Users can view messages in own conversations" ON community_messages FOR SELECT
 USING (EXISTS (
-  SELECT 1 FROM community_conversations c 
-  WHERE c.id = community_messages.conversation_id 
+  SELECT 1 FROM community_conversations c
+  WHERE c.id = community_messages.conversation_id
   AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
 ));
 
@@ -2427,8 +2417,8 @@ WITH CHECK (auth.uid() = sender_id);
 DROP POLICY IF EXISTS "Users can update own messages" ON community_messages;
 CREATE POLICY "Users can update own messages" ON community_messages FOR UPDATE
 USING (auth.uid() = sender_id OR EXISTS (
-  SELECT 1 FROM community_conversations c 
-  WHERE c.id = community_messages.conversation_id 
+  SELECT 1 FROM community_conversations c
+  WHERE c.id = community_messages.conversation_id
   AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
 ));
 
@@ -2451,13 +2441,13 @@ DROP POLICY IF EXISTS "Anyone can view active ads" ON public.zetsuguide_ads;
 DROP POLICY IF EXISTS "Admin full access to ads" ON public.zetsuguide_ads;
 
 -- السماح للجميع برؤية الإعلانات المفعلة
-CREATE POLICY "Anyone can view active ads" 
-ON public.zetsuguide_ads FOR SELECT 
+CREATE POLICY "Anyone can view active ads"
+ON public.zetsuguide_ads FOR SELECT
 USING (is_active = true);
 
 -- منح صلاحيات كاملة للمسؤولين
-CREATE POLICY "Admin full access to ads" 
-ON public.zetsuguide_ads FOR ALL 
+CREATE POLICY "Admin full access to ads"
+ON public.zetsuguide_ads FOR ALL
 USING (true);
 
 
@@ -2539,7 +2529,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ==========================================
 -- This view ranks posts based on engagement and time decay
 CREATE OR REPLACE VIEW public.v_smart_feed AS
-SELECT 
+SELECT
     p.*,
     (
         COALESCE((SELECT count(*) FROM post_likes l WHERE l.post_id = p.id), 0) * 10 +
@@ -2551,3 +2541,62 @@ FROM public.posts p;
 ALTER VIEW public.v_smart_feed OWNER TO postgres;
 GRANT SELECT ON public.v_smart_feed TO authenticated;
 GRANT SELECT ON public.v_smart_feed TO anon;
+
+-- ==================================================================================
+-- PART 12: COMMUNITY FOLLOWS (User-to-User Follow System)
+-- ==================================================================================
+
+-- Create community_follows table if it doesn't exist
+CREATE TABLE IF NOT EXISTS community_follows (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  follower_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  following_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(follower_id, following_id),
+  CONSTRAINT check_not_self_follow CHECK (follower_id != following_id)
+);
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_community_follows_follower ON community_follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_community_follows_following ON community_follows(following_id);
+CREATE INDEX IF NOT EXISTS idx_community_follows_created_at ON community_follows(created_at DESC);
+
+-- Enable RLS on community_follows
+ALTER TABLE community_follows ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for community_follows
+-- Policy 1: Anyone can view follow relationships
+DROP POLICY IF EXISTS "Anyone can view follows" ON community_follows;
+CREATE POLICY "Anyone can view follows" ON community_follows
+    FOR SELECT USING (true);
+
+-- Policy 2: Authenticated users can insert (create new follow) if they are the follower
+DROP POLICY IF EXISTS "Users can follow others" ON community_follows;
+CREATE POLICY "Users can follow others" ON community_follows
+    FOR INSERT WITH CHECK (
+        auth.role() = 'authenticated'
+        AND auth.uid() = follower_id
+        AND follower_id != following_id
+    );
+
+-- Policy 3: Allow upsert operation (update by auth user as follower)
+DROP POLICY IF EXISTS "Users can upsert follows" ON community_follows;
+CREATE POLICY "Users can upsert follows" ON community_follows
+    FOR UPDATE USING (
+        auth.role() = 'authenticated'
+        AND auth.uid() = follower_id
+    ) WITH CHECK (
+        auth.role() = 'authenticated'
+        AND auth.uid() = follower_id
+    );
+
+-- Policy 4: Only followers can delete (unfollow)
+DROP POLICY IF EXISTS "Users can unfollow" ON community_follows;
+CREATE POLICY "Users can unfollow" ON community_follows
+    FOR DELETE USING (
+        auth.role() = 'authenticated'
+        AND auth.uid() = follower_id
+    );
+
+-- LEGACY: Prevent direct updates (old policy - removed in favor of upsert support)
+-- DROP POLICY IF EXISTS "Prevent direct updates on follows" ON community_follows;

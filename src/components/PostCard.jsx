@@ -1,15 +1,14 @@
-import { differenceInSeconds, differenceInMinutes, differenceInHours, differenceInDays, formatDistanceToNow } from "date-fns";
+import { differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, formatDistanceToNow } from "date-fns";
 import {
   BadgeCheck,
   BarChart3,
   Bookmark,
+  CheckCircle2,
   Heart,
   MessageSquare,
   MoreHorizontal,
-  Repeat2,
   Share,
-  Trash2,
-  CheckCircle2
+  Trash2
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -65,7 +64,7 @@ export default function PostCard({ post, onDeleted }) {
   // Check if user has voted
   useEffect(() => {
     if (!poll || !user) return;
-    
+
     async function checkVote() {
       const { data } = await supabase
         .from("community_poll_votes")
@@ -73,7 +72,7 @@ export default function PostCard({ post, onDeleted }) {
         .eq("poll_id", poll.id)
         .eq("user_id", user.id)
         .maybeSingle();
-      
+
       if (data) setVotedOptionId(data.option_id);
     }
     checkVote();
@@ -117,18 +116,15 @@ export default function PostCard({ post, onDeleted }) {
     return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  // Generate plausible view count based on engagement
+  // Views count from database or fallback to engagement-based calculation
   const viewCount = useMemo(() => {
-    const base = (likes + repliesCount) * 12 + 3;
-    // Use post id hash for deterministic randomness
-    let hash = 0;
-    const id = post.id?.toString() || "0";
-    for (let i = 0; i < id.length; i++) {
-      hash = ((hash << 5) - hash) + id.charCodeAt(i);
-      hash |= 0;
+    // If post has views_count from database, use it
+    if (post.views_count !== undefined && post.views_count !== null) {
+      return post.views_count;
     }
-    return base + (Math.abs(hash) % 50);
-  }, [likes, repliesCount, post.id]);
+    // Otherwise, return 0 (don't show fake numbers)
+    return 0;
+  }, [post.views_count]);
 
   const handleLike = async (e) => {
     e.stopPropagation();
@@ -202,9 +198,9 @@ export default function PostCard({ post, onDeleted }) {
     try {
       await communityApi.castVote(localPollData.id, optionId, user.id);
       setVotedOptionId(optionId);
-      
+
       // Update local counts
-      const updatedOptions = localPollData.community_poll_options.map(opt => 
+      const updatedOptions = localPollData.community_poll_options.map(opt =>
         opt.id === optionId ? { ...opt, votes_count: opt.votes_count + 1 } : opt
       );
       setLocalPollData({ ...localPollData, community_poll_options: updatedOptions });
@@ -360,14 +356,14 @@ export default function PostCard({ post, onDeleted }) {
               {showResults ? (
                 <div className="relative h-9 flex items-center px-3 rounded-lg overflow-hidden border border-[#2f3336]">
                   {/* Progress Bar Background */}
-                  <div 
-                    className={`absolute left-0 top-0 bottom-0 ${isUserVote ? 'bg-[#1d9bf0]/30' : 'bg-[#2f3336]'}`} 
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 ${isUserVote ? 'bg-[#1d9bf0]/30' : 'bg-[#2f3336]'}`}
                     style={{ width: `${percentage}%`, transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}
                   />
                   <div className="relative flex justify-between w-full font-medium text-[14px]">
                     <div className="flex items-center gap-2">
-                       <span className={isUserVote ? 'text-[#e7e9ea] font-bold' : 'text-[#71767b]'}>{option.text}</span>
-                       {isUserVote && <CheckCircle2 size={14} className="text-[#1d9bf0]" />}
+                      <span className={isUserVote ? 'text-[#e7e9ea] font-bold' : 'text-[#71767b]'}>{option.text}</span>
+                      {isUserVote && <CheckCircle2 size={14} className="text-[#1d9bf0]" />}
                     </div>
                     <span className="text-[#e7e9ea]">{percentage}%</span>
                   </div>
@@ -397,219 +393,205 @@ export default function PostCard({ post, onDeleted }) {
 
   return (
     <>
-    <article
-      onClick={handleCardClick}
-      className="cursor-pointer border-b border-gray-800 hover:bg-white/[0.03] transition-colors duration-200 px-4 py-3 flex gap-3"
-    >
-      {/* Avatar Column */}
-      <div className="flex-shrink-0" onClick={navigateToProfile}>
-        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-800 hover:opacity-90 transition-opacity">
-          <img
-            src={authorAvatar}
-            alt={authorName}
-            className="w-full h-full object-cover"
-          />
-        </div>
-      </div>
-
-
-      {/* Content Column */}
-      <div className="flex-1 min-w-0">
-      {/* Header row with three-dot menu */}
-      <div className="flex items-center gap-1 text-[15px] leading-5 justify-between">
-        <div className="flex items-center gap-1 overflow-hidden">
-          <span 
-            className="font-bold text-[#e7e9ea] hover:underline truncate"
-            onClick={navigateToProfile}
-          >
-            {authorName}
-          </span>
-
-          {isVerified && (
-            <BadgeCheck
-              size={16}
-              className="text-[#1d9bf0] flex-shrink-0"
-              fill="#1d9bf0"
-              stroke="black"
-              strokeWidth={2}
+      <article
+        onClick={handleCardClick}
+        className="cursor-pointer border-b border-gray-800 hover:bg-white/[0.03] transition-colors duration-200 px-4 py-3 flex gap-3"
+      >
+        {/* Avatar Column */}
+        <div className="flex-shrink-0" onClick={navigateToProfile}>
+          <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-800 hover:opacity-90 transition-opacity">
+            <img
+              src={authorAvatar}
+              alt={authorName}
+              className="w-full h-full object-cover"
             />
-          )}
-          <span className="text-[#71767b] truncate">{authorHandle}</span>
-          <span className="text-[#71767b]">·</span>
-          <span className="text-[#71767b] hover:underline whitespace-nowrap text-[15px]">
-            {formatTimeAgo(post.created_at)}
-          </span>
+          </div>
         </div>
 
-        {/* Three Dots: Only for post owner */}
-        {isOwner && (
-          <div className="relative flex-shrink-0" ref={menuRef}>
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowMenu(v => !v); }}
-              className="p-1.5 rounded-full hover:bg-[#1d9bf0]/10 hover:text-[#1d9bf0] text-[#71767b] transition-colors"
-            >
-              <MoreHorizontal size={18} />
-            </button>
-            {showMenu && (
-              <>
-                <div className="fixed inset-0 z-30" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }} />
-                <div className="absolute right-0 top-full mt-1 bg-black border border-[#2f3336] rounded-2xl shadow-[0_8px_28px_rgba(255,255,255,0.15)] overflow-hidden z-40 min-w-[200px] py-2">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-[15px] font-bold text-[#f4212e] hover:bg-[#f4212e]/10 transition-colors"
-                  >
-                    <Trash2 size={18} />
-                    Delete post
-                  </button>
-                </div>
-              </>
+
+        {/* Content Column */}
+        <div className="flex-1 min-w-0">
+          {/* Header row with three-dot menu */}
+          <div className="flex items-center gap-1 text-[15px] leading-5 justify-between">
+            <div className="flex items-center gap-1 overflow-hidden">
+              <span
+                className="font-bold text-[#e7e9ea] hover:underline truncate"
+                onClick={navigateToProfile}
+              >
+                {authorName}
+              </span>
+
+              {isVerified && (
+                <BadgeCheck
+                  size={16}
+                  className="text-[#1d9bf0] flex-shrink-0"
+                  fill="#1d9bf0"
+                  stroke="black"
+                  strokeWidth={2}
+                />
+              )}
+              <span className="text-[#71767b] truncate">{authorHandle}</span>
+              <span className="text-[#71767b]">·</span>
+              <span className="text-[#71767b] hover:underline whitespace-nowrap text-[15px]">
+                {formatTimeAgo(post.created_at)}
+              </span>
+            </div>
+
+            {/* Three Dots: Only for post owner */}
+            {isOwner && (
+              <div className="relative flex-shrink-0" ref={menuRef}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowMenu(v => !v); }}
+                  className="p-1.5 rounded-full hover:bg-[#1d9bf0]/10 hover:text-[#1d9bf0] text-[#71767b] transition-colors"
+                >
+                  <MoreHorizontal size={18} />
+                </button>
+                {showMenu && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }} />
+                    <div className="absolute right-0 top-full mt-1 bg-black border border-[#2f3336] rounded-2xl shadow-[0_8px_28px_rgba(255,255,255,0.15)] overflow-hidden z-40 min-w-[200px] py-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-[15px] font-bold text-[#f4212e] hover:bg-[#f4212e]/10 transition-colors"
+                      >
+                        <Trash2 size={18} />
+                        Delete post
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
 
-        {/* Post Body — no separate title, just content */}
-        <div className="text-[#e7e9ea] text-[15px] leading-[20px] mt-0.5 whitespace-pre-wrap break-words">
-          {renderContent()}
-        </div>
+          {/* Post Body — no separate title, just content */}
+          <div className="text-[#e7e9ea] text-[15px] leading-[20px] mt-0.5 whitespace-pre-wrap break-words">
+            {renderContent()}
+          </div>
 
-        {/* Poll Rendering */}
-        {renderPoll()}
+          {/* Poll Rendering */}
+          {renderPoll()}
 
-        {/* Action Bar */}
-        <div className="flex justify-between items-center mt-3 max-w-[425px] text-[#71767b] -ml-2">
-          {/* Reply */}
-          <button
-            className="group flex items-center gap-1 transition-colors hover:text-[#1d9bf0]"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/community/post/${post.id}`);
-            }}
-          >
-            <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 transition-all duration-200">
-              <MessageSquare size={18.75} strokeWidth={2} />
-            </div>
-            <span className="text-[13px] min-w-[1ch]">
-              {formatCount(repliesCount)}
-            </span>
-          </button>
-
-          {/* Repost (Repeat) */}
-          <button
-            className="group flex items-center gap-1 transition-colors hover:text-[#00ba7c]"
-            onClick={(e) => {
-              e.stopPropagation();
-              toast("Reposted!");
-            }}
-          >
-            <div className="p-2 rounded-full group-hover:bg-[#00ba7c]/10 transition-all duration-200">
-              <Repeat2 size={18.75} strokeWidth={2} />
-            </div>
-            <span className="text-[13px] min-w-[1ch]">
-               {formatCount(Math.floor(likes / 4))}
-            </span>
-          </button>
-
-          {/* Like */}
-          <button
-            className={`group flex items-center gap-1 transition-colors ${liked ? "text-[#f91880]" : "hover:text-[#f91880]"
-              }`}
-            onClick={handleLike}
-          >
-            <div
-              className={`p-2 rounded-full group-hover:bg-[#f91880]/10 transition-all duration-200 ${liked ? "animate-like-pop" : ""
-                }`}
-            >
-              <Heart
-                size={18.75}
-                strokeWidth={2}
-                fill={liked ? "#f91880" : "none"}
-              />
-            </div>
-            <span className="text-[13px] min-w-[1ch]">
-              {formatCount(likes)}
-            </span>
-          </button>
-
-          {/* Views */}
-          <button
-            className="group flex items-center gap-1 transition-colors hover:text-[#1d9bf0]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 transition-all duration-200">
-              <BarChart3 size={18.75} strokeWidth={2} />
-            </div>
-            <span className="text-[13px] min-w-[1ch]">
-              {formatCount(viewCount)}
-            </span>
-          </button>
-
-
-
-          {/* Bookmark + Share */}
-          <div className="flex items-center">
+          {/* Action Bar */}
+          <div className="flex justify-between items-center mt-3 max-w-[425px] text-[#71767b] -ml-2">
+            {/* Reply */}
             <button
-              className={`group transition-colors p-2 rounded-full ${bookmarked
-                ? "text-[#1d9bf0]"
-                : "hover:text-[#1d9bf0]"
-                }`}
-              onClick={handleBookmark}
-            >
-              <Bookmark
-                size={18}
-                fill={bookmarked ? "currentColor" : "none"}
-              />
-            </button>
-            <button
-              className="group transition-colors hover:text-[#1d9bf0] p-2 rounded-full group-hover:bg-[#1d9bf0]/10"
+              className="group flex items-center gap-1 transition-colors hover:text-[#1d9bf0]"
               onClick={(e) => {
-                stopProp(e);
-                navigator.clipboard.writeText(
-                  window.location.origin + `/community/post/${post.id}`,
-                );
-                toast.success("Link copied!", {
-                  style: {
-                    background: "#16181c",
-                    border: "1px solid #1f2937",
-                    color: "#e7e9ea",
-                  },
-                });
+                e.stopPropagation();
+                navigate(`/community/post/${post.id}`);
               }}
             >
               <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 transition-all duration-200">
-                <Share size={18.75} strokeWidth={2} />
+                <MessageSquare size={18.75} strokeWidth={2} />
               </div>
+              <span className="text-[13px] min-w-[1ch]">
+                {formatCount(repliesCount)}
+              </span>
+            </button>
+
+
+
+            {/* Like */}
+            <button
+              className={`group flex items-center gap-1 transition-colors ${liked ? "text-[#f91880]" : "hover:text-[#f91880]"
+                }`}
+              onClick={handleLike}
+            >
+              <div
+                className={`p-2 rounded-full group-hover:bg-[#f91880]/10 transition-all duration-200 ${liked ? "animate-like-pop" : ""
+                  }`}
+              >
+                <Heart
+                  size={18.75}
+                  strokeWidth={2}
+                  fill={liked ? "#f91880" : "none"}
+                />
+              </div>
+              <span className="text-[13px] min-w-[1ch]">
+                {formatCount(likes)}
+              </span>
+            </button>
+
+            {/* Views */}
+            <button
+              className="group flex items-center gap-1 transition-colors hover:text-[#1d9bf0]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 transition-all duration-200">
+                <BarChart3 size={18.75} strokeWidth={2} />
+              </div>
+              <span className="text-[13px] min-w-[1ch]">
+                {formatCount(viewCount)}
+              </span>
+            </button>
+
+
+
+            {/* Bookmark + Share */}
+            <div className="flex items-center">
+              <button
+                className={`group transition-colors p-2 rounded-full ${bookmarked
+                  ? "text-[#1d9bf0]"
+                  : "hover:text-[#1d9bf0]"
+                  }`}
+                onClick={handleBookmark}
+              >
+                <Bookmark
+                  size={18}
+                  fill={bookmarked ? "currentColor" : "none"}
+                />
+              </button>
+              <button
+                className="group transition-colors hover:text-[#1d9bf0] p-2 rounded-full group-hover:bg-[#1d9bf0]/10"
+                onClick={(e) => {
+                  stopProp(e);
+                  navigator.clipboard.writeText(
+                    window.location.origin + `/community/post/${post.id}`,
+                  );
+                  toast.success("Link copied!", {
+                    style: {
+                      background: "#16181c",
+                      border: "1px solid #1f2937",
+                      color: "#e7e9ea",
+                    },
+                  });
+                }}
+              >
+                <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 transition-all duration-200">
+                  <Share size={18.75} strokeWidth={2} />
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)} />
+          <div className="relative bg-black border border-[#2f3336] rounded-2xl p-8 max-w-[320px] w-full shadow-[0_0_30px_rgba(255,255,255,0.1)] text-center">
+            <h2 className="text-[20px] font-extrabold text-[#e7e9ea] mb-2">Delete post?</h2>
+            <p className="text-[#71767b] text-[15px] leading-5 mb-6">
+              This can&#39;t be undone and it will be removed from your profile and the timeline of anyone who follows you.
+            </p>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="w-full py-3 mb-3 rounded-full bg-[#f4212e] text-white font-bold text-[17px] hover:bg-[#cc1a27] transition-colors disabled:opacity-60"
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="w-full py-3 rounded-full border border-[#536471] text-[#e7e9ea] font-bold text-[17px] hover:bg-white/[0.03] transition-colors"
+            >
+              Cancel
             </button>
           </div>
         </div>
-      </div>
-    </article>
-
-    {/* Delete Confirmation Modal */}
-    {showDeleteConfirm && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)} />
-        <div className="relative bg-black border border-[#2f3336] rounded-2xl p-8 max-w-[320px] w-full shadow-[0_0_30px_rgba(255,255,255,0.1)] text-center">
-          <h2 className="text-[20px] font-extrabold text-[#e7e9ea] mb-2">Delete post?</h2>
-          <p className="text-[#71767b] text-[15px] leading-5 mb-6">
-            This can&#39;t be undone and it will be removed from your profile and the timeline of anyone who follows you.
-          </p>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="w-full py-3 mb-3 rounded-full bg-[#f4212e] text-white font-bold text-[17px] hover:bg-[#cc1a27] transition-colors disabled:opacity-60"
-          >
-            {deleting ? "Deleting..." : "Delete"}
-          </button>
-          <button
-            onClick={() => setShowDeleteConfirm(false)}
-            className="w-full py-3 rounded-full border border-[#536471] text-[#e7e9ea] font-bold text-[17px] hover:bg-white/[0.03] transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    )}
+      )}
     </>
   );
 }

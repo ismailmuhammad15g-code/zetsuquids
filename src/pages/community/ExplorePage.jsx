@@ -1,14 +1,14 @@
-import { useState, useEffect } from "react";
+import { Flame, Hash, Loader2, Search, TrendingUp, Users, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, TrendingUp, Hash, X, Flame, Users, Loader2, ChevronRight } from "lucide-react";
-import { communityApi } from "../../lib/communityApi";
 import PostCard from "../../components/PostCard";
 import { useAuth } from "../../contexts/AuthContext";
+import { communityApi } from "../../lib/communityApi";
 
 export default function ExplorePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  
+
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [trends, setTrends] = useState([]);
@@ -58,10 +58,10 @@ export default function ExplorePage() {
 
   const filteredPosts = query.trim()
     ? posts.filter(p =>
-        p.content?.toLowerCase().includes(query.toLowerCase()) ||
-        p.author?.display_name?.toLowerCase().includes(query.toLowerCase()) ||
-        p.author?.username?.toLowerCase().includes(query.toLowerCase())
-      )
+      p.content?.toLowerCase().includes(query.toLowerCase()) ||
+      p.author?.display_name?.toLowerCase().includes(query.toLowerCase()) ||
+      p.author?.username?.toLowerCase().includes(query.toLowerCase())
+    )
     : [];
 
   const isSearching = query.trim().length > 0;
@@ -96,7 +96,7 @@ export default function ExplorePage() {
         <div className="flex flex-col">
           {searching ? (
             <div className="flex justify-center py-12">
-               <Loader2 className="animate-spin text-[#1d9bf0]" size={24} />
+              <Loader2 className="animate-spin text-[#1d9bf0]" size={24} />
             </div>
           ) : !hasResults ? (
             <div className="flex flex-col items-center justify-center py-20 text-center px-8">
@@ -113,8 +113,8 @@ export default function ExplorePage() {
                 <div className="border-b border-[#2f3336]">
                   <h2 className="px-4 py-3 text-[19px] font-extrabold text-[#e7e9ea]">People</h2>
                   {searchResults.map(u => (
-                    <div 
-                      key={u.user_id} 
+                    <div
+                      key={u.user_id}
                       onClick={() => navigate(`/community/profile/${u.username}`)}
                       className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] cursor-pointer transition-colors border-b border-[#2f3336] last:border-0"
                     >
@@ -154,13 +154,13 @@ export default function ExplorePage() {
           {/* Trending Section */}
           <div className="px-4 py-4 border-b border-[#2f3336]">
             <div className="flex items-center gap-2 mb-4">
-               <Flame size={20} className="text-[#f91880]" />
-               <h2 className="text-[20px] font-extrabold text-[#e7e9ea]">Trends for you</h2>
+              <Flame size={20} className="text-[#f91880]" />
+              <h2 className="text-[20px] font-extrabold text-[#e7e9ea]">Trends for you</h2>
             </div>
-            
+
             {loading ? (
               <div className="space-y-4">
-                {[1,2,3].map(i => (
+                {[1, 2, 3].map(i => (
                   <div key={i} className="animate-pulse space-y-1">
                     <div className="h-2.5 bg-[#2f3336] rounded w-20" />
                     <div className="h-4 bg-[#2f3336] rounded w-1/2" />
@@ -169,9 +169,9 @@ export default function ExplorePage() {
               </div>
             ) : trends.length > 0 ? (
               <div className="space-y-4">
-                {trends.slice(0, 5).map((t) => (
-                  <div 
-                    key={t.unique_id} 
+                {trends.slice(0, 5).map((t, idx) => (
+                  <div
+                    key={t.id || t.unique_id || `trend-${idx}`}
                     onClick={() => setQuery("#" + t.tag)}
                     className="group cursor-pointer flex justify-between items-center"
                   >
@@ -181,7 +181,7 @@ export default function ExplorePage() {
                       <p className="text-[#71767b] text-[13px]">{t.posts_count || 0} posts</p>
                     </div>
                     <div className="p-2 rounded-full hover:bg-[#1d9bf0]/10 text-[#71767b]">
-                       <Hash size={18} />
+                      <Hash size={18} />
                     </div>
                   </div>
                 ))}
@@ -189,7 +189,7 @@ export default function ExplorePage() {
               </div>
             ) : (
               <div className="py-4 text-center border border-dashed border-[#2f3336] rounded-xl">
-                 <p className="text-[#71767b] text-[15px]">The algorithm is gathering trends...</p>
+                <p className="text-[#71767b] text-[15px]">The algorithm is gathering trends...</p>
               </div>
             )}
           </div>
@@ -202,20 +202,20 @@ export default function ExplorePage() {
 
           {loading ? (
             <div className="divide-y divide-[#2f3336]">
-               {[1,2].map(i => (
-                 <div key={i} className="flex gap-3 px-4 py-3 animate-pulse">
-                   <div className="w-10 h-10 rounded-full bg-[#2f3336] shrink-0" />
-                   <div className="flex-1 space-y-2">
-                     <div className="h-4 bg-[#2f3336] rounded w-1/4" />
-                     <div className="h-4 bg-[#2f3336] rounded w-full" />
-                   </div>
-                 </div>
-               ))}
+              {[1, 2].map(i => (
+                <div key={i} className="flex gap-3 px-4 py-3 animate-pulse">
+                  <div className="w-10 h-10 rounded-full bg-[#2f3336] shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-[#2f3336] rounded w-1/4" />
+                    <div className="h-4 bg-[#2f3336] rounded w-full" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : posts.length === 0 ? (
             <div className="p-12 text-center">
-               <Users size={48} className="mx-auto text-[#2f3336] mb-4" />
-               <p className="text-[#71767b]">No current activity in the community.</p>
+              <Users size={48} className="mx-auto text-[#2f3336] mb-4" />
+              <p className="text-[#71767b]">No current activity in the community.</p>
             </div>
           ) : (
             posts.slice(0, 5).map(post => (

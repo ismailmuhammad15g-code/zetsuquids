@@ -82,38 +82,55 @@ export default async function handler(req, res) {
     const targetUserId = targetProfile.user_id;
 
     if (action === "follow") {
-      // Check if already following
-      const { data: existing } = await supabase
-        .from("user_follows")
-        .select("id")
-        .eq("follower_id", user.id)
-        .eq("following_id", targetUserId)
-        .maybeSingle();
-
-      if (existing) {
-        return res.status(400).json({ error: "Already following this user" });
-      }
-
-      // Insert follow relationship
+      // Upsert follow relationship to handle race conditions and duplicates
       const { error: followError } = await supabase
         .from("user_follows")
-        .insert([
+        .upsert(
           {
             follower_id: user.id,
             following_id: targetUserId,
             follower_email: currentUserEmail,
             following_email: targetUserEmail,
           },
-        ]);
+          { onConflict: "follower_id,following_id" }
+        );
 
       if (followError) {
-        console.error("Follow error:", followError);
-        return res
-          .status(500)
-          .json({
+        console.error("Follow upsert error:", followError);
+        if (!followError.message?.includes("duplicate")) {
+          return res.status(500).json({
             error: "Failed to follow user",
             details: followError.message,
           });
+        }
+      }
+
+      const { data: countData } = await supabase.rpc(
+        "get_followers_count_by_email",
+        { target_email: targetUserEmail },
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Successfully followed user",
+        isFollowing: true,
+        followersCount: countData || 0,
+      });
+        }
+      }
+
+      const { data: countData } = await supabase.rpc(
+        "get_followers_count_by_email",
+        { target_email: targetUserEmail },
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Successfully followed user",
+        isFollowing: true,
+        followersCount: countData || 0,
+      });
+        }
       }
 
       // Get updated follower count

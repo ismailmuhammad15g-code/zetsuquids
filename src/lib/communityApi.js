@@ -46,7 +46,7 @@ export const communityApi = {
       } else if (category !== "All" && category !== "For you") {
         query = query.eq("category", category);
       }
-      
+
       // Filter out group posts from main feeds to keep them exclusive to the group page
       query = query.is("group_id", null);
     }
@@ -252,6 +252,16 @@ export const communityApi = {
 
     if (error) throw error;
 
+    // Increment views count asynchronously (don't block the response)
+    if (data?.id) {
+      supabase
+        .from("posts")
+        .update({ views_count: (data.views_count || 0) + 1 })
+        .eq("id", data.id)
+        .then(() => console.log("📊 View count incremented"))
+        .catch((err) => console.error("Failed to increment view count:", err));
+    }
+
     const { data: profile } = await supabase
       .from("zetsuguide_user_profiles")
       .select("*")
@@ -371,30 +381,16 @@ export const communityApi = {
   async getWhoToFollow(userId = null, limit = 3) {
     if (!isSupabaseConfigured()) return [];
 
-    // If user is logged in, use RPC to exclude already-followed users
-    if (userId) {
-      const { data, error } = await supabase.rpc("get_suggested_users", {
-        limit_count: limit,
-      });
-
-      if (!error && data && data.length > 0) {
-        return data;
-      }
-
-      // RPC failed or returned empty, use smart fallback
-      console.warn("RPC get_suggested_users failed, using fallback:", error);
-    }
-
-    // Fallback: Get real registered users, excluding those already followed
-    // Prioritize users who have created posts (showing they're active)
+    // Start with all profiles
     let query = supabase
       .from("zetsuguide_user_profiles")
       .select("*");
 
     console.log("🔍 [getWhoToFollow] Current userId:", userId);
 
-    // If user is logged in, exclude users they already follow
+    // If user is logged in, exclude self and already-followed users
     if (userId) {
+      // Get already followed users
       const { data: followedUsers } = await supabase
         .from("community_follows")
         .select("following_id")
@@ -402,17 +398,38 @@ export const communityApi = {
 
       console.log("👥 [getWhoToFollow] Already following:", followedUsers);
 
+      // Build exclude list: always include self
+      const excludeIds = [userId];
+
       if (followedUsers && followedUsers.length > 0) {
-        const followedIds = followedUsers.map((f) => f.following_id);
-        // Also exclude self
-        followedIds.push(userId);
-        query = query.not("user_id", "in", `(${followedIds.join(",")})`);
-        console.log("🚫 [getWhoToFollow] Excluding user IDs:", followedIds);
-      } else {
-        // Just exclude self
-        query = query.neq("user_id", userId);
-        console.log("🚫 [getWhoToFollow] Excluding only self:", userId);
+        followedUsers.forEach((f) => excludeIds.push(f.following_id));
       }
+
+      console.log("🚫 [getWhoToFollow] Excluding user IDs:", excludeIds);
+
+      // Filter out excluded users in JavaScript after fetching
+      // This is more reliable than Supabase's NOT IN filter for UUIDs
+      let allProfiles = await supabase
+        .from("zetsuguide_user_profiles")
+        .select("*");
+
+      if (!allProfiles.error && allProfiles.data) {
+        query = allProfiles.data.filter((p) => !excludeIds.includes(p.user_id));
+      }
+    } else {
+      // No user logged in, fetch all profiles
+      const { data } = await query;
+      query = data || [];
+    }
+
+    // If query is already an array (filtered above), work with it directly
+    let allProfiles = Array.isArray(query) ? query : null;
+
+    if (!allProfiles) {
+      const { data } = await supabase
+        .from("zetsuguide_user_profiles")
+        .select("*");
+      allProfiles = data || [];
     }
 
     // Try to get users with activity first (those who have posted)
@@ -429,51 +446,35 @@ export const communityApi = {
       const activeUserIds = [...new Set(activeUsers.map((p) => p.user_id))];
 
       // Remove self from active users if present
-      if (userId && activeUserIds.includes(userId)) {
-        activeUserIds.splice(activeUserIds.indexOf(userId), 1);
+      if (userId) {
+        const idx = activeUserIds.indexOf(userId);
+        if (idx > -1) activeUserIds.splice(idx, 1);
       }
 
-      if (activeUserIds.length > 0) {
-        const { data: activeSuggestions } = await query
-          .in("user_id", activeUserIds)
-          .limit(limit);
-        prioritizedUsers = activeSuggestions || [];
-        console.log("⭐ [getWhoToFollow] Prioritized active users:", prioritizedUsers);
-      }
+      // Filter profiles to only those in activeUserIds
+      prioritizedUsers = allProfiles.filter((p) => activeUserIds.includes(p.user_id));
+      console.log("⭐ [getWhoToFollow] Prioritized active users:", prioritizedUsers);
     }
 
     // If we got enough active users, return them
     if (prioritizedUsers.length >= limit) {
-      console.log("✅ [getWhoToFollow] Returning active users:", prioritizedUsers);
+      console.log("✅ [getWhoToFollow] Returning active users:", prioritizedUsers.slice(0, limit));
       return prioritizedUsers.slice(0, limit);
     }
 
-    // Otherwise, get more users sorted by creation date (newest first)
-    const remaining = limit - prioritizedUsers.length;
-    const { data: fallback, error: fallbackError } = await query
-      .order("created_at", { ascending: false })
-      .limit(remaining + 5);
-
-    console.log("📋 [getWhoToFollow] Fallback query result:", fallback);
-
-    if (fallbackError) {
-      console.error("❌ [getWhoToFollow] Fallback query failed:", fallbackError);
-      return prioritizedUsers;
-    }
-
-    // Combine and deduplicate
+    // Otherwise, combine active users with remaining profiles
     const combined = [...prioritizedUsers];
     const existingIds = new Set(combined.map((u) => u.user_id));
 
-    for (const user of fallback || []) {
-      if (!existingIds.has(user.user_id)) {
-        combined.push(user);
-        existingIds.add(user.user_id);
+    for (const profile of allProfiles) {
+      if (!existingIds.has(profile.user_id)) {
+        combined.push(profile);
+        existingIds.add(profile.user_id);
         if (combined.length >= limit) break;
       }
     }
 
-    console.log("✅ [getWhoToFollow] Final combined suggestions:", combined);
+    console.log("✅ [getWhoToFollow] Final combined suggestions:", combined.slice(0, limit));
     return combined.slice(0, limit);
   },
 
@@ -519,7 +520,7 @@ export const communityApi = {
       console.error("Error fetching news:", error);
       return [];
     }
-    
+
     return data?.map(item => ({
       id: item.id,
       title: item.content.split('\n')[0].slice(0, 80),
@@ -744,7 +745,7 @@ export const communityApi = {
 
   async getUserPosts(userId) {
     if (!isSupabaseConfigured() || !userId) return [];
-    
+
     // Fetch posts with author profiles (standard enrichment)
     const { data, error } = await supabase
       .from("posts")
@@ -753,7 +754,7 @@ export const communityApi = {
       .order("created_at", { ascending: false });
 
     if (error) return [];
-    
+
     // Enrich with profile (could also use join, but we keep it consistent with other methods)
     const { data: profile } = await supabase
       .from("zetsuguide_user_profiles")
@@ -789,7 +790,7 @@ export const communityApi = {
         profiles:zetsuguide_user_profiles(*)
       `)
       .eq("group_id", groupId);
-    
+
     if (error) return [];
     return data.map(m => m.profiles).filter(Boolean);
   },
@@ -853,10 +854,37 @@ export const communityApi = {
   },
 
   async followUser(followerId, followingId) {
+    // Validate IDs
+    if (!followerId || !followingId) {
+      throw new Error("Follower ID and Following ID are required");
+    }
+
+    // Prevent self-follow
+    if (followerId === followingId) {
+      throw new Error("Cannot follow yourself");
+    }
+
+    // Check if already following
+    const { data: existing } = await supabase
+      .from("community_follows")
+      .select("id")
+      .eq("follower_id", followerId)
+      .eq("following_id", followingId)
+      .maybeSingle();
+
+    // If already following, just return success (idempotent)
+    if (existing) {
+      return;
+    }
+
     const { error } = await supabase
       .from("community_follows")
       .insert([{ follower_id: followerId, following_id: followingId }]);
-    if (error) throw error;
+
+    if (error) {
+      console.error("Follow error:", error);
+      throw error;
+    }
   },
 
   async unfollowUser(followerId, followingId) {
@@ -949,25 +977,25 @@ export const communityApi = {
 
   async getConversations(userId) {
     if (!isSupabaseConfigured() || !userId) return [];
-    
+
     const { data: convos, error: cErr } = await supabase
       .from('community_conversations')
       .select('*')
       .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
       .order('last_message_at', { ascending: false });
-      
+
     if (cErr || !convos) return [];
-    
+
     // Fetch profiles for the other participant
     const otherUserIds = convos.map(c => c.user1_id === userId ? c.user2_id : c.user1_id);
     const { data: profiles } = await supabase
       .from('zetsuguide_user_profiles')
       .select('*')
       .in('user_id', otherUserIds);
-      
+
     const profileMap = {};
     profiles?.forEach(p => profileMap[p.user_id] = p);
-    
+
     // Get last message for each conversation
     const convIds = convos.map(c => c.id);
     let msgMap = {};
@@ -977,7 +1005,7 @@ export const communityApi = {
         .select('*')
         .in('conversation_id', convIds)
         .order('created_at', { ascending: false });
-        
+
       lastMessages?.forEach(m => {
         if (!msgMap[m.conversation_id]) msgMap[m.conversation_id] = m;
       });
@@ -1000,7 +1028,7 @@ export const communityApi = {
       .select('*')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true });
-      
+
     if (error) {
       console.error(error);
       return [];
@@ -1010,24 +1038,24 @@ export const communityApi = {
 
   async sendMessage(conversationId, content, senderId) {
     if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
-    
+
     const { data, error } = await supabase
       .from('community_messages')
       .insert({ conversation_id: conversationId, sender_id: senderId, content })
       .select()
       .single();
-      
+
     if (error) throw error;
-    
+
     // Update last_message_at to keep conversation at top
     await supabase
       .from('community_conversations')
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId);
-      
+
     return data;
   },
-  
+
   async createConversation(user1Id, user2Id) {
     if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
     // Ensure consistent ordering to prevent duplicates
@@ -1049,7 +1077,7 @@ export const communityApi = {
       .insert({ user1_id: u1, user2_id: u2 })
       .select()
       .single();
-      
+
     if (error) throw error;
     return data;
   },
@@ -1122,7 +1150,7 @@ export const communityApi = {
         await supabase.from("community_polls").delete().eq("id", poll.id);
         throw optError;
       }
-      
+
       return poll;
     } catch (err) {
       console.error("createPoll Exception:", err);
