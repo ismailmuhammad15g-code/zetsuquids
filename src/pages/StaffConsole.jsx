@@ -61,7 +61,7 @@ export default function StaffConsole() {
     const [loadingAds, setLoadingAds] = useState(false)
     const [showAdModal, setShowAdModal] = useState(false)
     const [creatingAd, setCreatingAd] = useState(false)
-    const [newAd, setNewAd] = useState({ title: '', text: '', link_url: '', image_url: '' })
+    const [newAd, setNewAd] = useState({ title: '', text: '', link_url: '', image_url: '', button_text: '' })
     const messagesEndRef = useRef(null)
     const activeChannelRef = useRef(null)
     const lastTypingTimeRef = useRef(0)
@@ -282,7 +282,7 @@ export default function StaffConsole() {
                 ...newAd,
                 is_active: true
             })
-            setNewAd({ title: '', text: '', link_url: '', image_url: '' })
+            setNewAd({ title: '', text: '', link_url: '', image_url: '', button_text: '' })
             setShowAdModal(false)
             loadAds()
         } catch (error) {
@@ -940,6 +940,18 @@ export default function StaffConsole() {
                                     onChange={e => setNewAd({...newAd, image_url: e.target.value})}
                                     placeholder="https://..."
                                     style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}
+                                />
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <label style={{ fontSize: '14px', color: '#888' }}>نص الزر (اختياري)</label>
+                                <input 
+                                    type="text" 
+                                    value={newAd.button_text || ''} 
+                                    onChange={e => setNewAd({...newAd, button_text: e.target.value})}
+                                    placeholder="مثلاً: اكتشف المزيد"
+                                    style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}
+                                    dir="rtl"
                                 />
                             </div>
 

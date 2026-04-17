@@ -90,14 +90,14 @@ export default function HomePage() {
                 </strong>{" "}
                 - {activeAd.text}
               </span>
-              {activeAd.link_url && (
-                <Link
-                  to={activeAd.link_url}
-                  className="ml-2 px-3 py-1 bg-white text-black text-xs font-medium rounded-full hover:bg-gray-200 transition-all"
-                >
-                  Try it →
-                </Link>
-              )}
+{activeAd.link_url && (
+                  <Link
+                    to={activeAd.link_url}
+                    className="ml-2 px-3 py-1 bg-white text-black text-xs font-medium rounded-full hover:bg-gray-200 transition-all"
+                  >
+                    {activeAd.button_text || "Try it →"}
+                  </Link>
+                )}
             </span>
           </p>
         </StickyBanner>
