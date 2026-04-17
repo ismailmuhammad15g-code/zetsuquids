@@ -4,7 +4,6 @@ import {
   BrainCircuit,
   Bug,
   Check,
-  ChevronLeft,
   Copy,
   PanelLeft,
   PanelLeftClose,
@@ -16,15 +15,14 @@ import {
   Trash2,
   Zap
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import mermaid from "mermaid";
+import { useCallback, useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import { Link, useNavigate } from "react-router-dom";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { Reasoning, ReasoningContent, ReasoningTrigger } from "../components/ai-elements/reasoning";
+import remarkGfm from "remark-gfm";
+import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
 
@@ -865,9 +863,19 @@ function MermaidChart({ chart }) {
   );
 }
 
+// ─── Clean Text (Remove thinking tags) ──────────────────────────────────────
+function cleanThinkingTags(text) {
+  if (!text) return "";
+  // Remove <thinking>...</thinking> completely
+  return text.replace(/<thinking>[\s\S]*?<\/thinking>/g, "").trim();
+}
+
 // ─── MessageContent ──────────────────────────────────────────────────────────
 function MessageContent({ text, isError }) {
   if (!text) return null;
+
+  const cleanedText = cleanThinkingTags(text);
+  if (!cleanedText && !isError) return null;
 
   return (
     <div className={`zg-ai-content prose prose-sm max-w-none ${isError ? "text-red-600" : "text-gray-800"}`} dir="auto">
@@ -912,7 +920,7 @@ function MessageContent({ text, isError }) {
           blockquote: ({ node, ...props }) => <blockquote className="border-r-4 border-gray-300 pr-4 mr-0 my-4 italic text-gray-600 bg-gray-50 p-3 rounded-l-lg" {...props} />,
         }}
       >
-        {text}
+        {cleanedText}
       </ReactMarkdown>
     </div>
   );
@@ -929,6 +937,8 @@ export default function ZetsuGuideAIPage() {
   const [thinkingLabel, setThinkingLabel] = useState("Thinking");
   const [reasoningSteps, setReasoningSteps] = useState([]);
   const [reasoningDuration, setReasoningDuration] = useState(undefined);
+  const [thinkingContent, setThinkingContent] = useState("");
+  const [finalResponseContent, setFinalResponseContent] = useState("");
   const [credits, setCredits] = useState(null);
   const [creditsLoading, setCreditsLoading] = useState(true);
   const [conversations, setConversations] = useState([]);
@@ -1008,44 +1018,10 @@ export default function ZetsuGuideAIPage() {
     setIsThinking(true);
     setReasoningSteps([]);
     setReasoningDuration(undefined);
-
-    // Agent phase labels → shown inside Reasoning component
-    const phases = isDeepReasoning
-      ? [
-        "Thinking...",
-        "Searching guides...",
-        "Deep reasoning...",
-        "Evaluating logic chains...",
-        "Verifying conclusions...",
-        "Generating response...",
-      ]
-      : isSubAgent
-        ? [
-          "Thinking...",
-          "Searching guides...",
-          "Delegating to sub-agents...",
-          "Analyzing requirements...",
-          "Consolidating outputs...",
-          "Generating response...",
-        ]
-        : [
-          "Thinking...",
-          "Searching guides...",
-          "Generating response...",
-        ];
+    setThinkingContent("");
+    setFinalResponseContent("");
 
     const startTime = Date.now();
-    let pi = 0;
-    setThinkingLabel(phases[0]);
-    setReasoningSteps([phases[0]]);
-    const phaseTimer = setInterval(() => {
-      pi = Math.min(pi + 1, phases.length - 1);
-      setThinkingLabel(phases[pi]);
-      setReasoningSteps(prev => {
-        if (prev.includes(phases[pi])) return prev;
-        return [...prev, phases[pi]];
-      });
-    }, 1400);
 
     try {
       // ── Smart Search: Fetch guides from Supabase for AI context ──
@@ -1070,32 +1046,80 @@ export default function ZetsuGuideAIPage() {
       // Build messages payload with guides context injected as system message
       const contextSystemMessage = guidesContext
         ? {
-            role: "system",
-            content: `You are ZetsuGuide AI, a technical expert for the ZetsuGuide platform. Here is our knowledge base of guides:\n\n${guidesContext}\n\nINSTRUCTIONS:\n- If the user's question can be answered from the guides above, cite it with details and include the source link at the bottom formatted as: **📖 Source:** [Guide Title](/guide/slug)\n- If the answer is NOT in the guides, answer from your general AI knowledge professionally, but mention that it's from general knowledge.\n- Always respond in clean Markdown format.`
-          }
-        : null;
+          role: "system",
+          content: `You are ZetsuGuide AI, a technical expert for the ZetsuGuide platform.
 
-      const messagesPayload = contextSystemMessage
-        ? [contextSystemMessage, ...newMessages.slice(-8)]
-        : newMessages.slice(-8);
+KNOWLEDGE BASE:
+${guidesContext}
+
+🧠 DEEP THINKING INSTRUCTIONS:
+- BEFORE answering, ALWAYS put your deep thinking process inside <thinking> and </thinking> tags
+- Your thinking should be DETAILED and take time (200-500 words minimum)
+- Think about:
+  * What is the user really asking?
+  * What context do they need?
+  * Which guides from our knowledge base are relevant?
+  * What's the best structure for explaining this?
+  * What examples would help?
+- Make the user AWARE you're thinking by showing the full reasoning process
+
+📝 RESPONSE INSTRUCTIONS:
+- AFTER </thinking>, give a concise, professional answer
+- If the answer is in our guides, cite it: **📖 Guide:** [Title](/guide/slug)
+- Keep response under 500 words
+- Use Markdown for formatting
+- Be friendly and professional`
+        }
+        : {
+          role: "system",
+          content: `You are ZetsuGuide AI, a technical expert assistant.
+
+🧠 DEEP THINKING INSTRUCTIONS:
+- BEFORE answering, ALWAYS put your deep thinking process inside <thinking> and </thinking> tags
+- Your thinking should be DETAILED and thorough (200-500 words minimum)
+- Think about:
+  * What is the user asking exactly?
+  * What knowledge do they need?
+  * What's the best way to explain this?
+  * What examples or analogies would help?
+  * Are there important nuances to cover?
+- Make the user SEE your thinking process
+
+📝 RESPONSE INSTRUCTIONS:
+- AFTER </thinking>, give a clear, professional answer
+- Keep response under 500 words
+- Use Markdown for formatting
+- Be friendly, helpful, and professional`
+        };
+
+      const messagesPayload = [contextSystemMessage, ...newMessages.slice(-8)];
+
+      // If it's the first message, ask for brief response
+      const isFirstMessage = messages.length === 0;
+      const bodyPayload = {
+        model: "google/gemini-2.0-flash-exp:free",
+        messages: isFirstMessage
+          ? [
+            contextSystemMessage,
+            {
+              role: "user",
+              content: `${query}\n\n(Note: This is the first message. After thinking, give a SHORT and friendly greeting response - max 100 words. Be welcoming but don't give long explanations yet.)`
+            }
+          ]
+          : messagesPayload,
+        userEmail: user?.email,
+        userId: user?.id,
+        isDeepReasoning,
+        isSubAgentMode: isSubAgent,
+        skipCreditDeduction: true,
+        stream: true,
+      };
 
       const response = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-2.0-flash-exp:free",
-          messages: messagesPayload,
-          userEmail: user?.email,
-          userId: user?.id,
-          isDeepReasoning,
-          isSubAgentMode: isSubAgent,
-          skipCreditDeduction: true,
-          // Explicitly request streaming
-          stream: true,
-        }),
+        body: JSON.stringify(bodyPayload),
       });
-
-      clearInterval(phaseTimer);
 
       if (!response.ok) {
         const errText = await response.text();
@@ -1107,6 +1131,7 @@ export default function ZetsuGuideAIPage() {
       const isStreaming = contentType.includes("text/event-stream");
 
       let aiContent = "";
+      let rawContent = ""; // لتخزين النص الخام كاملاً
 
       if (isStreaming) {
         // Handle SSE streaming response
@@ -1130,11 +1155,47 @@ export default function ZetsuGuideAIPage() {
               try {
                 const data = JSON.parse(line.slice(6));
                 if (data.type === "token" || data.type === "content") {
-                  aiContent += data.content;
-                  // Update the last message in state with the new content
+                  const content = data.content;
+                  aiContent += content;
+                  rawContent += content;
+
+                  // 🔍 Parse thinking tags from raw content
+                  const thinkingStart = rawContent.indexOf('<thinking>');
+                  const thinkingEnd = rawContent.indexOf('</thinking>');
+
+                  let newIsThinking = false;
+
+                  if (thinkingStart !== -1) {
+                    // Found opening tag
+                    newIsThinking = true; // 🧠 نحن في مرحلة التفكير
+
+                    if (thinkingEnd === -1) {
+                      // Still receiving thinking content
+                      setThinkingContent(rawContent.substring(thinkingStart + '<thinking>'.length));
+                      setFinalResponseContent("");
+                      setIsThinking(true); // ابقِ التفكير مرئي
+                    } else {
+                      // Found closing tag - ended thinking
+                      setThinkingContent(rawContent.substring(thinkingStart + '<thinking>'.length, thinkingEnd));
+                      setFinalResponseContent(rawContent.substring(thinkingEnd + '</thinking>'.length));
+                      newIsThinking = false; // انتهى التفكير
+                      setIsThinking(false); // أخفِ التفكير
+                    }
+                  } else {
+                    // No thinking tags found
+                    setThinkingContent("");
+                    setFinalResponseContent(rawContent);
+                    setIsThinking(false);
+                  }
+
+                  // Update the last message with FINAL response only (without thinking tags)
+                  const displayContent = thinkingStart !== -1 && thinkingEnd !== -1
+                    ? rawContent.substring(thinkingEnd + '</thinking>'.length)
+                    : (thinkingStart === -1 ? aiContent : "");
+
                   setMessages((prev) => {
                     const newMsgs = [...prev];
-                    newMsgs[newMsgs.length - 1].content = aiContent;
+                    newMsgs[newMsgs.length - 1].content = displayContent;
                     return newMsgs;
                   });
                 }
@@ -1151,6 +1212,26 @@ export default function ZetsuGuideAIPage() {
         try {
           const jsonResponse = await response.json();
           aiContent = jsonResponse.content || jsonResponse.message || "I received your message but couldn't generate a response. Please try again.";
+          rawContent = aiContent;
+
+          // Parse thinking from JSON response
+          const thinkingStart = aiContent.indexOf('<thinking>');
+          const thinkingEnd = aiContent.indexOf('</thinking>');
+
+          if (thinkingStart !== -1) {
+            if (thinkingEnd !== -1) {
+              setThinkingContent(aiContent.substring(thinkingStart + '<thinking>'.length, thinkingEnd));
+              setFinalResponseContent(aiContent.substring(thinkingEnd + '</thinking>'.length));
+              aiContent = aiContent.substring(thinkingEnd + '</thinking>'.length);
+            } else {
+              setThinkingContent(aiContent.substring(thinkingStart + '<thinking>'.length));
+              setFinalResponseContent("");
+              aiContent = "";
+            }
+          } else {
+            setThinkingContent("");
+            setFinalResponseContent(aiContent);
+          }
 
           // Add the response as a complete message
           setMessages((prev) => [...prev, { role: "assistant", content: aiContent, timestamp: new Date().toISOString() }]);
@@ -1192,7 +1273,6 @@ export default function ZetsuGuideAIPage() {
       await saveConversation(finalMessages);
 
     } catch (err) {
-      clearInterval(phaseTimer);
       const errMsg = { role: "assistant", content: err.message, isError: true, timestamp: new Date().toISOString() };
       setMessages(prev => [...prev, errMsg]);
       toast.error(err.message);
@@ -1228,6 +1308,8 @@ export default function ZetsuGuideAIPage() {
     setCurrentConvId(null);
     setReasoningSteps([]);
     setReasoningDuration(undefined);
+    setThinkingContent("");
+    setFinalResponseContent("");
     if (textareaRef.current) textareaRef.current.focus();
   };
 
@@ -1479,39 +1561,44 @@ export default function ZetsuGuideAIPage() {
                   </div>
                 ))}
 
-                {(isThinking || reasoningSteps.length > 0) && (
+                {isThinking && (
                   <div className="zg-msg-row zg-msg-ai">
                     <div className="zg-ai-row">
                       <div className="zg-ai-avatar"><Bot size={16} /></div>
                       <div className="zg-ai-body">
-                        <div className="zg-ai-name">ZetsuGuide AI</div>
-                        <Reasoning
-                          isStreaming={isThinking}
-                          duration={reasoningDuration}
-                          className="mt-1 mb-2"
-                        >
-                          <ReasoningTrigger
-                            getThinkingMessage={(streaming, secs) =>
-                              streaming ? "Thinking..." : `Thought for ${secs}s`
-                            }
-                          />
-                          <ReasoningContent className="border-l-2 border-gray-200 dark:border-gray-700 ml-2 mt-1">
-                            {reasoningSteps.length > 0 ? (
-                              reasoningSteps.map((step, i) => (
-                                <div key={i} className="text-gray-600 dark:text-gray-300 text-[13px] leading-relaxed mb-1 relative pl-3 flex items-start">
-                                  <span className="absolute left-[-15px] top-1.5 w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                                  {step}
-                                </div>
-                              ))
-                            ) : (
-                              <div className="text-gray-500 italic text-[13px]">Processing details...</div>
-                            )}
-                          </ReasoningContent>
-                        </Reasoning>
+                        <div style={{
+                          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          borderRadius: "10px",
+                          padding: "12px 16px",
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          width: "fit-content",
+                          boxShadow: "0 2px 8px rgba(102, 126, 234, 0.2)",
+                          fontSize: "13px",
+                          fontWeight: "500"
+                        }}>
+                          <div style={{
+                            width: "6px",
+                            height: "6px",
+                            borderRadius: "50%",
+                            background: "#fff",
+                            animation: "pulse 1.2s ease-in-out infinite"
+                          }} />
+                          🧠 Thinking...
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
+
+                <style>{`
+                  @keyframes pulse {
+                    0%, 100% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.3; transform: scale(1.2); }
+                  }
+                `}</style>
                 <div ref={messagesEndRef} />
               </div>
             )}
