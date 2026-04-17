@@ -7,11 +7,13 @@ export default function ReferralBonusNotification() {
   const { user } = useAuth();
   const [notification, setNotification] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
     if (!user?.email) return;
 
-    // Subscribe to new referral notifications
+    setIsSubscribed(false);
+
     const channel = supabase
       .channel(`referral-notifications:${user.email}`)
       .on(
@@ -26,25 +28,27 @@ export default function ReferralBonusNotification() {
           console.log("New referral bonus:", payload.new);
           setNotification(payload.new);
           setShowModal(true);
-          // Auto-close after 5 seconds
           setTimeout(() => setShowModal(false), 5000);
         },
       )
       .subscribe((status, error) => {
         if (status === "SUBSCRIBED") {
-          // Connection healthy
-        } else if (status === "TIMED_OUT" || status === "CLOSED") {
-          console.debug(
-            "Realtime subscription paused (network unstable):",
-            status,
-          );
+          setIsSubscribed(true);
+        } else if (status === "TIMED_OUT") {
+          console.debug("Realtime subscription timed out:", status);
+        } else if (status === "CHANNEL_ERROR") {
+          console.debug("Realtime subscription error - table may not exist or RLS blocked:", error?.message);
+          setIsSubscribed(false);
+        } else if (status === "CLOSED") {
+          console.debug("Realtime subscription closed:", status);
+          setIsSubscribed(false);
         } else {
-          console.log("Referral subscription status:", status, error);
+          console.debug("Referral subscription status:", status, error?.message);
         }
       });
 
     return () => {
-      supabase.removeChannel(channel).catch(() => { });
+      supabase.removeChannel(channel).catch(() => {});
     };
   }, [user?.email]);
 

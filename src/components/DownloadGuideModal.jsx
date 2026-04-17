@@ -36,8 +36,17 @@ export default function DownloadGuideModal({ guide, authorName, onClose }) {
       setProgress(30);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Server error: ${response.status} - ${errorText}`);
+        const contentType = response.headers.get("content-type");
+        let errorMsg = `Server error: ${response.status}`;
+        
+        if (contentType && contentType.includes("application/json")) {
+          try {
+            const errorData = JSON.parse(await response.text());
+            errorMsg = errorData.error || errorMsg;
+          } catch {}
+        }
+        
+        throw new Error(errorMsg);
       }
 
       setProgress(50);
@@ -73,7 +82,15 @@ export default function DownloadGuideModal({ guide, authorName, onClose }) {
       }, 1500);
     } catch (err) {
       console.error("PDF Download Error:", err);
-      setError(err.message || "Failed to download PDF");
+      let errorMessage = err.message || "Failed to download PDF";
+      
+      if (err.message.includes("LMARG")) {
+        errorMessage = "Server error generating PDF. Please try again.";
+      } else if (err.message.includes("not defined")) {
+        errorMessage = "Server configuration error. Please try again.";
+      }
+      
+      setError(errorMessage);
       setCurrentStep("Error occurred");
     } finally {
       setDownloading(false);

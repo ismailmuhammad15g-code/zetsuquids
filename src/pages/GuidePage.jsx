@@ -466,20 +466,22 @@ export default function GuidePage() {
       // Fetch author avatar
       if (guideData.user_email) {
         try {
-          const { data: profileData } = await supabase
+          const { data: profileData, error: profileError } = await supabase
             .from("zetsuguide_user_profiles")
             .select("avatar_url")
-            .eq("user_email", guideData.user_email)
-            .maybeSingle();
+            .eq("user_email", guideData.user_email);
+
+          if (profileError) {
+            console.debug("[GuidePage] Profile fetch error:", profileError.message);
+          }
 
           const avatarUrl = getAvatarForUser(
             guideData.user_email,
-            profileData?.avatar_url,
+            profileData?.[0]?.avatar_url,
           );
           setAuthorAvatar(avatarUrl);
         } catch (err) {
-          console.error("Error fetching author avatar:", err);
-          // Fallback to deterministic avatar
+          console.debug("Error fetching author avatar:", err.message);
           setAuthorAvatar(getAvatarForUser(guideData.user_email, null));
         }
       }
