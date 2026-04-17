@@ -31,6 +31,7 @@ import ReferralSuccessModal from "./ReferralSuccessModal";
 import SearchModal from "./SearchModal";
 import SubscriptionRenewAd from "./SubscriptionRenewAd";
 import { TopLoader } from "./TopLoader";
+import TourCursor from "./TourCursor";
 
 export default function Layout() {
   const location = useLocation();
@@ -754,6 +755,9 @@ export default function Layout() {
         <Suspense fallback={null}>
           <CookieConsent />
         </Suspense>
+
+        {/* Tour Cursor */}
+        <TourCursor />
       </div>
     </ClickSpark>
   );
