@@ -5,8 +5,21 @@
       "destination": "/api/sitemap"
     },
     {
+      "source": "/api/generate-pdf",
+      "destination": "/api/generate-pdf.py"
+    },
+    {
+      "source": "/api/health",
+      "destination": "/api/generate-pdf.py"
+    },
+    {
       "source": "/((?!assets/|auth/|social/|avatars/|.*\\..*).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/generate-pdf.py": {
+      "runtime": "python3.11"
+    }
+  }
 }

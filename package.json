@@ -29,7 +29,6 @@
     "emoji-picker-react": "^4.18.0",
     "framer-motion": "^12.34.0",
     "gsap": "^3.14.2",
-    "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
     "jwt-decode": "^4.0.0",
     "lottie-react": "^2.4.1",
