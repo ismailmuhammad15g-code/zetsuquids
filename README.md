@@ -53,3 +53,6 @@ A modern, minimalist full-stack application for developers to save and organize 
 #### 1. Install dependencies
 ```bash
 npm install
+to run pdf download server just run:
+cd D:\new\zetsuquids\api
+python generate-pdf.py

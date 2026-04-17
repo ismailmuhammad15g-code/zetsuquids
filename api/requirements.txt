@@ -1,5 +1,7 @@
 fpdf2>=2.7.0
 flask>=3.0.0
 flask-cors>=4.0.0
+arabic-reshaper==3.0.0
+python-bidi==0.4.2
 
 # NOTE: fpdf2 package is imported as 'from fpdf import FPDF' NOT 'from fpdf2 import FPDF'
