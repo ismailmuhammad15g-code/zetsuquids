@@ -23,6 +23,7 @@ export default function UserWorkspacePage() {
   const [selectedAvatar, setSelectedAvatar] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [toast, setToast] = useState(null);
+  const [userExists, setUserExists] = useState(true);
 
   // Check if this is the current user's workspace
   const isOwnWorkspace =
@@ -35,9 +36,34 @@ export default function UserWorkspacePage() {
   async function loadUserWorkspace() {
     setLoading(true);
     setError(null);
+    setUserExists(true);
 
     try {
       console.log("Loading workspace for username:", username);
+
+      // First, check if user exists in zetsuguide_user_profiles
+      const { data: existingProfile } = await supabase
+        .from("zetsuguide_user_profiles")
+        .select("user_id, user_email")
+        .or(`user_email.ilike.%${username}%,username.ilike.${username}`)
+        .maybeSingle();
+
+      if (!existingProfile) {
+        // User doesn't exist in profiles - check if they have guides
+        // Try to find guides with this username
+        const { data: guidesWithUsername } = await supabase
+          .from("guides")
+          .select("user_email, author_name")
+          .ilike("author_name", `%${username}%`)
+          .limit(1);
+
+        if (!guidesWithUsername || guidesWithUsername.length === 0) {
+          setUserExists(false);
+          setError(null); // Clear generic error - we'll show user not found banner
+          setLoading(false);
+          return;
+        }
+      }
 
       // PRIORITY: Fetch ONLY from Supabase (authoritative source)
       // Ignore localStorage to prevent inconsistencies
@@ -231,6 +257,37 @@ export default function UserWorkspacePage() {
             className="animate-spin text-gray-400 mx-auto mb-4"
           />
           <p className="text-gray-500">Loading workspace...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!userExists) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+        {/* User Not Found Banner */}
+        <div className="bg-red-50 border-b-2 border-red-200">
+          <div className="max-w-6xl mx-auto px-4 py-6">
+            <div className="flex items-center justify-center gap-3 text-red-600">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span className="font-medium text-lg">Account not found</span>
+            </div>
+            <p className="text-center text-gray-600 mt-2">
+              The user "<strong>@{username}</strong>" does not exist or has been removed.
+            </p>
+          </div>
+        </div>
+
+        {/* Return to guides button */}
+        <div className="flex justify-center py-12">
+          <a
+            href="/guides"
+            className="px-6 py-3 bg-black text-white font-medium hover:bg-gray-800 transition-colors"
+          >
+            Browse All Guides
+          </a>
         </div>
       </div>
     );

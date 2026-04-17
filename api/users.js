@@ -16,18 +16,100 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   if (req.method === "OPTIONS") return res.status(200).end();
 
   const { type } = req.query;
 
+  if (type === "follow_user") {
+    return await handleFollowUser(req, res);
+  }
+
   if (type === "register" || !type) {
-    // Default to register if no type for backward comp if needed, but safer to be explicit
     return await handleRegister(req, res);
   }
 
   return res.status(400).json({ error: "Invalid user type" });
+}
+
+async function handleFollowUser(req, res) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: "Authorization required" });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const { targetUserEmail, action } = req.body;
+
+    if (!targetUserEmail || !action) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Get target user's profile
+    const { data: targetProfile } = await supabase
+      .from("zetsuguide_user_profiles")
+      .select("user_id")
+      .eq("user_email", targetUserEmail)
+      .single();
+
+    if (!targetProfile) {
+      return res.status(404).json({ error: "Target user not found" });
+    }
+
+    let result;
+
+    if (action === "follow") {
+      // Check if already following
+      const { data: existing } = await supabase
+        .from("user_follows")
+        .select("id")
+        .eq("follower_id", user.id)
+        .eq("following_id", targetProfile.user_id)
+        .maybeSingle();
+
+      if (!existing) {
+        const { error: insertError } = await supabase
+          .from("user_follows")
+          .insert({
+            follower_id: user.id,
+            following_id: targetProfile.user_id,
+          });
+
+        if (insertError && !insertError.message.includes("duplicate")) {
+          return res.status(400).json({ error: insertError.message });
+        }
+      }
+    } else if (action === "unfollow") {
+      await supabase
+        .from("user_follows")
+        .delete()
+        .eq("follower_id", user.id)
+        .eq("following_id", targetProfile.user_id);
+    }
+
+    // Get updated followers count
+    const { data: countData } = await supabase.rpc(
+      "get_followers_count_by_email",
+      { target_email: targetUserEmail },
+    );
+
+    return res.status(200).json({
+      success: true,
+      isFollowing: action === "follow",
+      followersCount: countData || 0,
+    });
+  } catch (error) {
+    console.error("Follow error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
 }
 
 async function handleRegister(req, res) {

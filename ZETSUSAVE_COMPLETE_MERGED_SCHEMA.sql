@@ -1994,6 +1994,18 @@ GRANT EXECUTE ON FUNCTION get_followers_count TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION get_followers_count_by_email TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION get_following_count_by_email TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION recalculate_follower_counts TO authenticated, anon;
+
+-- Grants for zetsuguide_user_profiles table
+GRANT SELECT ON TABLE zetsuguide_user_profiles TO authenticated, anon;
+GRANT INSERT ON TABLE zetsuguide_user_profiles TO authenticated;
+GRANT UPDATE ON TABLE zetsuguide_user_profiles TO authenticated;
+
+-- Grants for user_follows table
+GRANT SELECT ON TABLE user_follows TO authenticated, anon;
+GRANT INSERT ON TABLE user_follows TO authenticated;
+GRANT UPDATE ON TABLE user_follows TO authenticated;
+GRANT DELETE ON TABLE user_follows TO authenticated;
+
 GRANT EXECUTE ON FUNCTION increment_likes TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION decrement_likes TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION cleanup_old_image_urls TO authenticated, anon;

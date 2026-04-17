@@ -1,4 +1,4 @@
-import { Loader2, UserCheck, UserPlus } from "lucide-react";
+import { Loader2, UserCheck, UserPlus, UserX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
@@ -17,58 +17,88 @@ export default function FollowButton({
   const [followersCount, setFollowersCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [userExists, setUserExists] = useState(true);
   const buttonRef = useRef(null);
 
   // Check if current user is following the target user
   useEffect(() => {
-    checkFollowStatus();
-    loadFollowersCount();
-  }, [targetUserEmail, user]);
+    checkUserExists();
+  }, [targetUserEmail]);
 
-  async function checkFollowStatus() {
-    if (!user || !targetUserEmail) {
-      setChecking(false);
-      return;
-    }
-
-    // Don't show follow button for own profile
-    if (user.email === targetUserEmail) {
+  async function checkUserExists() {
+    if (!targetUserEmail) {
+      setUserExists(false);
       setChecking(false);
       return;
     }
 
     try {
-      setChecking(true);
+      const { data: targetProfile, error: profileError } = await supabase
+        .from("zetsuguide_user_profiles")
+        .select("user_id")
+        .eq("user_email", targetUserEmail)
+        .maybeSingle();
 
+      if (profileError) {
+        console.debug("Profile check skipped:", profileError.message);
+        setUserExists(false);
+      } else if (!targetProfile || !targetProfile.user_id) {
+        setUserExists(false);
+      } else {
+        setUserExists(true);
+      }
+    } catch (error) {
+      setUserExists(false);
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  // Check follow status after confirming user exists
+  useEffect(() => {
+    if (userExists && user) {
+      checkFollowStatus();
+      loadFollowersCount();
+    }
+  }, [targetUserEmail, user, userExists]);
+
+  async function checkFollowStatus() {
+    if (!user || !targetUserEmail || !userExists) {
+      return;
+    }
+
+    // Don't show follow button for own profile
+    if (user.email === targetUserEmail) {
+      return;
+    }
+
+    try {
       // Get target user's ID
       const { data: targetProfile } = await supabase
         .from("zetsuguide_user_profiles")
         .select("user_id")
         .eq("user_email", targetUserEmail)
-        .single();
+        .maybeSingle();
 
       if (!targetProfile || !targetProfile.user_id) {
-        setChecking(false);
         return;
       }
 
       // Check if following
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("user_follows")
         .select("id")
         .eq("follower_id", user.id)
         .eq("following_id", targetProfile.user_id)
         .maybeSingle();
 
-      if (!error && data) {
+      if (data) {
         setIsFollowing(true);
       } else {
         setIsFollowing(false);
       }
     } catch (error) {
-      console.error("Error checking follow status:", error);
-    } finally {
-      setChecking(false);
+      console.debug("Follow status check skipped");
     }
   }
 
@@ -85,13 +115,17 @@ export default function FollowButton({
         setFollowersCount(data);
       }
     } catch (error) {
-      console.error("Error loading followers count:", error);
+      console.debug("Followers count skipped");
     }
   }
 
   async function handleFollowToggle() {
     if (!user) {
       toast.error("Please sign in to follow users");
+      return;
+    }
+
+    if (!userExists) {
       return;
     }
 
@@ -103,69 +137,101 @@ export default function FollowButton({
     setLoading(true);
 
     try {
-      const action = isFollowing ? "unfollow" : "follow";
+      // Get target user's profile
+      const { data: targetProfile } = await supabase
+        .from("zetsuguide_user_profiles")
+        .select("user_id")
+        .eq("user_email", targetUserEmail)
+        .maybeSingle();
 
-      // Get session token
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        toast.error("Please sign in to continue");
+      if (!targetProfile) {
+        toast.error("User not found");
         setLoading(false);
         return;
       }
 
-      const response = await fetch("/api/follow_user", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          targetUserEmail,
-          action,
-        }),
-      });
+      const action = isFollowing ? "unfollow" : "follow";
 
-      const result = await response.json();
+      if (action === "follow") {
+        // Check if already following
+        const { data: existing } = await supabase
+          .from("user_follows")
+          .select("id")
+          .eq("follower_id", user.id)
+          .eq("following_id", targetProfile.user_id)
+          .maybeSingle();
 
-      if (response.ok && result.success) {
-        setIsFollowing(result.isFollowing);
-        setFollowersCount(result.followersCount || 0);
+        if (!existing) {
+          const { error: insertError } = await supabase
+            .from("user_follows")
+            .insert({
+              follower_id: user.id,
+              following_id: targetProfile.user_id,
+              follower_email: user.email,
+              following_email: targetUserEmail,
+            });
 
-        if (result.isFollowing) {
-          toast.success(`Following ${targetUserName || "user"}!`);
-          // Record interaction for recommendations
-          recordFollowInteraction();
-
-          // Trigger confetti from the button position (safe dynamic import)
-          try {
-            const confettiMod = await import("canvas-confetti");
-            const confetti = confettiMod.default || confettiMod;
-            if (buttonRef.current && confetti) {
-              const rect = buttonRef.current.getBoundingClientRect();
-              const x = (rect.left + rect.width / 2) / window.innerWidth;
-              const y = (rect.top + rect.height / 2) / window.innerHeight;
-
-              confetti({ particleCount: 100, spread: 70, origin: { x, y } });
-            }
-          } catch (err) {
-            // Don't surface confetti failures to user
-            console.debug("Confetti failed:", err?.message || err);
+          if (insertError && !insertError.message.includes("duplicate")) {
+            throw insertError;
           }
-        } else {
-          toast.success(`Unfollowed ${targetUserName || "user"}`);
         }
       } else {
-        toast.error(result.error || "Failed to update follow status");
+        // Unfollow
+        await supabase
+          .from("user_follows")
+          .delete()
+          .eq("follower_id", user.id)
+          .eq("following_id", targetProfile.user_id);
+      }
+
+      // Update local state
+      setIsFollowing(action === "follow");
+
+      // Get updated followers count
+      const { data: countData } = await supabase.rpc(
+        "get_followers_count_by_email",
+        { target_email: targetUserEmail },
+      );
+      setFollowersCount(countData || 0);
+
+      if (action === "follow") {
+        toast.success(`Following ${targetUserName || "user"}!`);
+        recordFollowInteraction();
+
+        // Trigger confetti
+        try {
+          const confettiMod = await import("canvas-confetti");
+          const confetti = confettiMod.default || confettiMod;
+          if (buttonRef.current && confetti) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            const x = (rect.left + rect.width / 2) / window.innerWidth;
+            const y = (rect.top + rect.height / 2) / window.innerHeight;
+            confetti({ particleCount: 100, spread: 70, origin: { x, y } });
+          }
+        } catch (err) {
+          console.debug("Confetti failed:", err?.message || err);
+        }
+      } else {
+        toast.success(`Unfollowed ${targetUserName || "user"}`);
       }
     } catch (error) {
-      console.error("Follow error:", error);
+      console.debug("Follow action error:", error.message);
       toast.error("Failed to update follow status");
     } finally {
       setLoading(false);
     }
+  }
+
+  // User doesn't exist - show message and no button
+  if (!userExists) {
+    return (
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <UserX size={16} />
+          <span>Account not found</span>
+        </div>
+      </div>
+    );
   }
 
   // Don't show button if it's the user's own profile
