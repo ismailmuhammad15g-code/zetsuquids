@@ -702,109 +702,128 @@ const styles = `
   }
 
 
-  /* ─── Reasoning Component ─── */
+  /* ─── Reasoning (Thinking) Component ─── */
   .zg-reasoning {
-    width: 100%;
-    border: 1px solid #e5e7eb;
+    margin-bottom: 12px;
     border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background: #fbfcfd;
     overflow: hidden;
+    transition: all 0.2s ease;
+  }
+  .zg-reasoning:hover {
+    border-color: #d1d5db;
+    background: #f8fafc;
+  }
+  .zg-reasoning.open {
+    border-color: #e5e7eb;
     background: #fff;
-    margin-bottom: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
   }
   .zg-reasoning-trigger {
     width: 100%;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     padding: 10px 14px;
     background: transparent;
     border: none;
     cursor: pointer;
     text-align: left;
-    transition: background 0.12s;
     user-select: none;
+    transition: background 0.1s ease;
   }
-  .zg-reasoning-trigger:hover { background: #f9fafb; }
-  .zg-reasoning-pulse {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #6b7280;
-    flex-shrink: 0;
-    animation: none;
+  .zg-reasoning-trigger:hover {
+    background: rgba(0,0,0,0.02);
   }
-  .zg-reasoning-pulse.streaming {
-    background: #111;
-    animation: reasoningPulse 1.2s ease-in-out infinite;
+  .zg-reasoning-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    transition: color 0.2s;
   }
-  @keyframes reasoningPulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.4; transform: scale(0.75); }
+  .zg-reasoning.open .zg-reasoning-icon {
+    color: #111;
   }
   .zg-reasoning-trigger-text {
+    flex: 1;
     font-size: 13px;
     font-weight: 600;
-    color: #374151;
-    flex: 1;
+    color: #4b5563;
+    letter-spacing: -0.1px;
+    transition: color 0.2s;
   }
-  .zg-reasoning-trigger-text.streaming { color: #111; }
+  .zg-reasoning.open .zg-reasoning-trigger-text {
+    color: #111;
+  }
   .zg-reasoning-duration {
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 500;
     color: #9ca3af;
+    background: #f3f4f6;
+    padding: 1px 6px;
+    border-radius: 100px;
     font-variant-numeric: tabular-nums;
   }
   .zg-reasoning-chevron {
     color: #9ca3af;
-    transition: transform 0.2s ease;
-    flex-shrink: 0;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  .zg-reasoning-chevron.open { transform: rotate(180deg); }
+  .zg-reasoning-chevron.open {
+    transform: rotate(180deg);
+    color: #6b7280;
+  }
   .zg-reasoning-body {
     overflow: hidden;
     max-height: 0;
-    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
   }
   .zg-reasoning-body.open {
-    max-height: 400px;
+    max-height: 1000px;
+    opacity: 1;
   }
   .zg-reasoning-content {
-    padding: 0 14px 12px;
+    padding: 12px 16px 16px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: #4b5563;
     border-top: 1px solid #f3f4f6;
-    margin: 0 14px;
+    white-space: pre-wrap;
+    font-family: inherit;
+    border-left: 2px solid #e5e7eb;
+    margin: 0 14px 14px;
+    background: #fdfdfd;
+    border-radius: 0 0 8px 8px;
   }
-  .zg-reasoning-steps {
-    padding-top: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  .zg-reasoning-content p {
+    margin-bottom: 8px;
   }
-  .zg-reasoning-step {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    font-size: 13px;
-    color: #6b7280;
-    line-height: 1.5;
-    animation: stepFadeIn 0.3s ease;
+  .zg-reasoning-content p:last-child {
+    margin-bottom: 0;
   }
-  @keyframes stepFadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
+  
+  /* Streaming state */
+  .zg-reasoning.streaming {
+    border-color: #d1d5db;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.03);
   }
-  .zg-reasoning-step-dot {
-    width: 5px;
-    height: 5px;
+  .zg-reasoning-pulse {
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
-    background: #d1d5db;
-    flex-shrink: 0;
-    margin-top: 6px;
+    background: #111;
+    animation: reasoningPulse 1.2s ease-in-out infinite;
   }
-  .zg-reasoning-step:last-child .zg-reasoning-step-dot {
-    background: #6b7280;
+  @keyframes reasoningPulse {
+    0%, 100% { opacity: 1; transform: scale(1.1); }
+    50% { opacity: 0.3; transform: scale(0.8); }
   }
+
 `;
-// (Removed legacy Reasoning component inline styles and code)
+
+// ─── Components & Helpers ───────────────────────────────────────────────────
 
 function ChevronDownIcon({ isOpen }) {
   return (
@@ -821,7 +840,13 @@ function ChevronDownIcon({ isOpen }) {
   );
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+function MessageSquareIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
 
 function getInitials(email) {
   if (!email) return "U";
@@ -839,10 +864,8 @@ function formatDate(dateStr) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-// ─── Mermaid ─────────────────────────────────────────────────────────────────
 function MermaidChart({ chart }) {
   const containerRef = useRef(null);
-
   useEffect(() => {
     if (containerRef.current && chart) {
       try {
@@ -853,7 +876,6 @@ function MermaidChart({ chart }) {
       }
     }
   }, [chart]);
-
   return (
     <div
       className="mermaid bg-white border border-gray-200 rounded-xl p-4 my-4 flex justify-center text-[13px]"
@@ -863,66 +885,199 @@ function MermaidChart({ chart }) {
   );
 }
 
-// ─── Clean Text (Remove thinking tags) ──────────────────────────────────────
-function cleanThinkingTags(text) {
-  if (!text) return "";
-  // Remove <thinking>...</thinking> completely
-  return text.replace(/<thinking>[\s\S]*?<\/thinking>/g, "").trim();
+function parseThoughtAndResponse(text) {
+  if (!text) return { thought: "", response: "" };
+
+  const textLower = text.toLowerCase();
+  const thinkingStart = textLower.indexOf("<thinking>");
+  const thinkingEnd = textLower.indexOf("</thinking>");
+
+  // Case 1: Both tags found (normal case)
+  if (thinkingStart !== -1 && thinkingEnd !== -1) {
+    const thought = text.substring(thinkingStart + 10, thinkingEnd).trim();
+    const response = text.substring(thinkingEnd + 11).trim();
+    return { thought, response, isStreaming: false };
+  }
+
+  // Case 2: Only closing tag found - content before it is thinking!
+  if (thinkingStart === -1 && thinkingEnd !== -1) {
+    const thought = text.substring(0, thinkingEnd).trim();
+    const response = text.substring(thinkingEnd + 11).trim();
+    return { thought, response, isStreaming: false };
+  }
+
+  // Case 3: Only opening tag (streaming)
+  if (thinkingStart !== -1 && thinkingEnd === -1) {
+    const thoughtContent = text.substring(thinkingStart + 10);
+    const responseBefore = text.substring(0, thinkingStart);
+    return { 
+      thought: thoughtContent, 
+      response: responseBefore, 
+      isStreaming: true 
+    };
+  }
+
+  // Case 4: No tags at all
+  return { thought: "", response: text };
 }
 
-// ─── MessageContent ──────────────────────────────────────────────────────────
-function MessageContent({ text, isError }) {
-  if (!text) return null;
-
-  const cleanedText = cleanThinkingTags(text);
-  if (!cleanedText && !isError) return null;
+function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true }) {
+  const [isOpen, setIsOpen] = useState(isInitialOpen);
+  
+  useEffect(() => {
+    if (isStreaming) setIsOpen(true);
+  }, [isStreaming]);
 
   return (
-    <div className={`zg-ai-content prose prose-sm max-w-none ${isError ? "text-red-600" : "text-gray-800"}`} dir="auto">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          code({ node, inline, className, children, ...props }) {
-            const match = /language-(\w+)/.exec(className || "");
-            const lang = match ? match[1] : "";
-
-            if (!inline && lang === "mermaid") {
-              return <MermaidChart chart={String(children).replace(/\n$/, "")} />;
-            }
-
-            return !inline ? (
-              <div className="my-4 rounded-xl overflow-hidden" dir="ltr">
-                <SyntaxHighlighter
-                  {...props}
-                  children={String(children).replace(/\n$/, "")}
-                  style={vscDarkPlus}
-                  language={lang || "javascript"}
-                  PreTag="div"
-                  customStyle={{ margin: 0, padding: "16px", fontSize: "13px", background: "#111" }}
-                />
-              </div>
-            ) : (
-              <code {...props} className="bg-gray-100/80 border border-gray-200 text-gray-800 px-[5px] py-[2px] rounded-[5px] text-[13px] font-mono mx-0.5" dir="ltr">
-                {children}
-              </code>
-            );
-          },
-          h1: ({ node, ...props }) => <h1 className="text-xl font-extrabold mt-8 mb-4 text-gray-900 tracking-tight" {...props} />,
-          h2: ({ node, ...props }) => <h2 className="text-lg font-bold mt-7 mb-3 text-gray-900 tracking-tight" {...props} />,
-          h3: ({ node, ...props }) => <h3 className="text-base font-bold mt-6 mb-2 text-gray-900 tracking-tight" {...props} />,
-          h4: ({ node, ...props }) => <h4 className="text-[15px] font-bold mt-5 mb-2 text-gray-900" {...props} />,
-          p: ({ node, ...props }) => <p className="my-2.5 leading-relaxed text-[14.5px] text-gray-700" {...props} />,
-          ul: ({ node, ...props }) => <ul className="list-disc list-inside my-4 space-y-1.5 text-[14.5px] text-gray-700" {...props} />,
-          ol: ({ node, ...props }) => <ol className="list-decimal list-inside my-4 space-y-1.5 text-[14.5px] text-gray-700" {...props} />,
-          li: ({ node, ...props }) => <li className="pl-1" {...props} />,
-          a: ({ node, ...props }) => <a className="text-blue-600 hover:text-blue-800 hover:underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
-          strong: ({ node, ...props }) => <strong className="font-semibold text-gray-900" {...props} />,
-          blockquote: ({ node, ...props }) => <blockquote className="border-r-4 border-gray-300 pr-4 mr-0 my-4 italic text-gray-600 bg-gray-50 p-3 rounded-l-lg" {...props} />,
-        }}
+    <div className={`zg-reasoning ${isOpen ? "open" : ""} ${isStreaming ? "streaming" : ""}`} style={{ marginBottom: "16px", border: "1px solid #e5e7eb", borderRadius: "12px" }}>
+      <button 
+        className="zg-reasoning-trigger" 
+        onClick={() => setIsOpen(!isOpen)}
+        title={isOpen ? "Hide thinking process" : "Show thinking process"}
+        style={{ background: "#f9fafb", width: "100%", textAlign: "left" }}
       >
-        {cleanedText}
-      </ReactMarkdown>
+        <div className="zg-reasoning-icon">
+          {isStreaming ? (
+            <div className="zg-reasoning-pulse" style={{ background: "#111" }} />
+          ) : (
+            <BrainCircuit size={15} style={{ color: "#111" }} />
+          )}
+        </div>
+        <span className="zg-reasoning-trigger-text" style={{ color: "#111", fontWeight: 600 }}>
+          {isStreaming ? "🧠 Thinking..." : "💭 Thought Process"}
+        </span>
+        {duration && !isStreaming && (
+          <span className="zg-reasoning-duration">{duration}s</span>
+        )}
+        <ChevronDownIcon isOpen={isOpen} />
+      </button>
+      <div className={`zg-reasoning-body ${isOpen ? "open" : ""}`} style={{ maxHeight: isOpen ? "500px" : "0", overflow: "hidden", transition: "max-height 0.3s ease" }}>
+        <div className="zg-reasoning-content" dir="ltr" style={{ 
+          padding: "12px 16px", 
+          background: "#fff",
+          fontSize: "13px",
+          lineHeight: "1.6",
+          color: "#4b5563",
+          borderTop: "1px solid #f3f4f6"
+        }}>
+          {thought ? (
+            <pre style={{ 
+              whiteSpace: "pre-wrap", 
+              wordBreak: "break-word", 
+              margin: 0, 
+              fontFamily: "inherit",
+              background: "#f9fafb",
+              padding: "8px",
+              borderRadius: "6px"
+            }}>{thought}</pre>
+          ) : (
+            <span style={{ color: "#9ca3af", fontStyle: "italic" }}>
+              {isStreaming ? "Generating thoughts..." : "No thinking process recorded"}
+            </span>
+          )}
+          {isStreaming && <span className="zg-reasoning-pulse" style={{ display: 'inline-block', marginLeft: '4px', background: "#111" }} />}
+        </div>
+      </div>
     </div>
+  );
+}
+
+function MessageContent({ text, isError, isThinking }) {
+  // If the AI is expected to think but hasn't sent text yet, show a placeholder
+  if (isThinking && !text) {
+    return (
+      <div className="zg-ai-content prose prose-sm max-w-none" dir="auto">
+        <ReasoningBlock thought="" isStreaming={true} isInitialOpen={true} />
+      </div>
+    );
+  }
+
+  if (!text) return null;
+
+  const { thought, response, isStreaming } = parseThoughtAndResponse(text);
+  
+  const hasThinkingStart = text.toLowerCase().includes("<thinking>");
+  const hasThinkingEnd = text.toLowerCase().includes("</thinking>");
+  const hasThinkingTag = hasThinkingStart || hasThinkingEnd;
+  
+  const showThought = hasThinkingTag || thought !== "" || isStreaming || isThinking;
+
+  return (
+    <div className={`zg-ai-content prose prose-sm max-w-none ${isError ? "text-red-600" : ""}`} dir="auto">
+      {showThought && (
+        <ReasoningBlock 
+          thought={thought} 
+          isStreaming={isStreaming} 
+          isInitialOpen={true} 
+        />
+      )}
+      
+      {response && (
+        <FilteredMarkdown content={response} />
+      )}
+      {isError && <ReactMarkdown>{text}</ReactMarkdown>}
+    </div>
+  );
+}
+
+// Custom component to filter thinking tags from rendered markdown
+function FilteredMarkdown({ content }) {
+  // Aggressive cleaning of thinking tags from content
+  let cleanContent = content;
+  
+  // Remove all thinking tag patterns (case insensitive, global)
+  cleanContent = cleanContent.replace(/<thinking>[\s\S]*?<\/thinking>/gi, "");
+  cleanContent = cleanContent.replace(/<thinking>[\s\S]*?$/gi, "");
+  cleanContent = cleanContent.replace(/^[\s\S]*?<thinking>/gi, "");
+  cleanContent = cleanContent.replace(/<\/thinking>[\s\S]*/gi, "");
+  
+  // Also handle any remaining angle bracket patterns that look like thinking
+  cleanContent = cleanContent.replace(/<think[\s\S]*?>/gi, "");
+  cleanContent = cleanContent.replace(/<\/think[\s\S]*?>/gi, "");
+  
+  cleanContent = cleanContent.trim();
+  
+  if (!cleanContent) return null;
+  
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        code({ node, inline, className, children, ...props }) {
+          const match = /language-(\w+)/.exec(className || "");
+          const lang = match ? match[1] : "";
+          if (!inline && lang === "mermaid") {
+            return <MermaidChart chart={String(children).replace(/\n$/, "")} />;
+          }
+          return !inline ? (
+            <div className="my-4 rounded-xl overflow-hidden" dir="ltr">
+              <SyntaxHighlighter
+                {...props}
+                children={String(children).replace(/\n$/, "")}
+                style={vscDarkPlus}
+                language={lang || "javascript"}
+                PreTag="div"
+                customStyle={{ margin: 0, padding: "16px", fontSize: "13px", background: "#111" }}
+              />
+            </div>
+          ) : (
+            <code {...props} className="bg-gray-100/80 border border-gray-200 text-gray-800 px-[5px] py-[2px] rounded-[5px] text-[13px] font-mono mx-0.5" dir="ltr">
+              {children}
+            </code>
+          );
+        },
+        h1: (p) => <h1 className="text-xl font-extrabold mt-8 mb-4 text-gray-900 tracking-tight" {...p} />,
+        h2: (p) => <h2 className="text-lg font-bold mt-7 mb-3 text-gray-900 tracking-tight" {...p} />,
+        h3: (p) => <h3 className="text-base font-bold mt-6 mb-2 text-gray-900 tracking-tight" {...p} />,
+        p: (p) => <p className="my-2.5 leading-relaxed text-[14.5px] text-gray-700" {...p} />,
+        ul: (p) => <ul className="list-disc list-inside my-4 space-y-1.5 text-[14.5px] text-gray-700" {...p} />,
+        ol: (p) => <ol className="list-decimal list-inside my-4 space-y-1.5 text-[14.5px] text-gray-700" {...p} />,
+        a: (p) => <a className="text-blue-600 hover:text-blue-800 hover:underline font-medium" target="_blank" rel="noopener noreferrer" {...p} />,
+        blockquote: (p) => <blockquote className="border-r-4 border-gray-300 pr-4 mr-0 my-4 italic text-gray-600 bg-gray-50 p-3 rounded-l-lg" {...p} />,
+      }}
+    >
+      {cleanContent}
+    </ReactMarkdown>
   );
 }
 
@@ -948,6 +1103,11 @@ export default function ZetsuGuideAIPage() {
   const [isDeepReasoning, setIsDeepReasoning] = useState(false);
   const [isSubAgent, setIsSubAgent] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState(null);
+  const [showApiSettings, setShowApiSettings] = useState(false);
+  const [customApiKey, setCustomApiKey] = useState("");
+  const [customModel, setCustomModel] = useState("google/gemini-2.0-flash-exp:free");
+  const [apiKeyError, setApiKeyError] = useState("");
+  const [apiKeySuccess, setApiKeySuccess] = useState(false);
 
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -1011,7 +1171,9 @@ export default function ZetsuGuideAIPage() {
 
     const query = input.trim();
     const userMsg = { role: "user", content: query, timestamp: new Date().toISOString() };
-    const newMessages = [...messages, userMsg];
+    const assistantMsg = { role: "assistant", content: "", timestamp: new Date().toISOString() };
+    const newMessages = [...messages, userMsg, assistantMsg];
+    
     setMessages(newMessages);
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
@@ -1053,29 +1215,31 @@ KNOWLEDGE BASE:
 ${guidesContext}
 
 🧠 DEEP THINKING INSTRUCTIONS:
-- BEFORE answering, ALWAYS put your deep thinking process inside <thinking> and </thinking> tags
-- Your thinking should be DETAILED and take time (200-500 words minimum)
+- START your response IMMEDIATELY with the <thinking> tag. NEVER omit it.
+- Your thinking should be DETAILED and thorough (200-500 words minimum)
 - Think about:
   * What is the user really asking?
   * What context do they need?
   * Which guides from our knowledge base are relevant?
   * What's the best structure for explaining this?
   * What examples would help?
-- Make the user AWARE you're thinking by showing the full reasoning process
+- Make the user AWARE you're thinking by showing the full reasoning process inside the tags
 
 📝 RESPONSE INSTRUCTIONS:
 - AFTER </thinking>, give a concise, professional answer
 - If the answer is in our guides, cite it: **📖 Guide:** [Title](/guide/slug)
 - Keep response under 500 words
 - Use Markdown for formatting
-- Be friendly and professional`
+- Be friendly and professional
+
+⚠️ CRITICAL: You MUST use <thinking>...</thinking> tags. Your response will be REJECTED if you don't wrap your thinking process in these exact tags. Start with <thinking> and end with </thinking>.`
         }
         : {
           role: "system",
           content: `You are ZetsuGuide AI, a technical expert assistant.
 
 🧠 DEEP THINKING INSTRUCTIONS:
-- BEFORE answering, ALWAYS put your deep thinking process inside <thinking> and </thinking> tags
+- START your response IMMEDIATELY with the <thinking> tag. NEVER omit it.
 - Your thinking should be DETAILED and thorough (200-500 words minimum)
 - Think about:
   * What is the user asking exactly?
@@ -1083,21 +1247,24 @@ ${guidesContext}
   * What's the best way to explain this?
   * What examples or analogies would help?
   * Are there important nuances to cover?
-- Make the user SEE your thinking process
+- Make the user SEE your thinking process inside the tags
 
 📝 RESPONSE INSTRUCTIONS:
 - AFTER </thinking>, give a clear, professional answer
 - Keep response under 500 words
 - Use Markdown for formatting
-- Be friendly, helpful, and professional`
+- Be friendly, helpful, and professional
+
+⚠️ CRITICAL: You MUST use <thinking>...</thinking> tags. Your response will be REJECTED if you don't wrap your thinking process in these exact tags. Start with <thinking> and end with </thinking>.`
         };
 
       const messagesPayload = [contextSystemMessage, ...newMessages.slice(-8)];
 
       // If it's the first message, ask for brief response
       const isFirstMessage = messages.length === 0;
+      const modelToUse = customModel || "google/gemini-2.0-flash-exp:free";
       const bodyPayload = {
-        model: "google/gemini-2.0-flash-exp:free",
+        model: modelToUse,
         messages: isFirstMessage
           ? [
             contextSystemMessage,
@@ -1113,6 +1280,7 @@ ${guidesContext}
         isSubAgentMode: isSubAgent,
         skipCreditDeduction: true,
         stream: true,
+        ...(customApiKey && { apiKey: customApiKey }),
       };
 
       const response = await fetch("/api/ai", {
@@ -1123,7 +1291,18 @@ ${guidesContext}
 
       if (!response.ok) {
         const errText = await response.text();
-        throw new Error("The AI service is temporarily unavailable. Please try again.");
+        let errorMessage = "The AI service is temporarily unavailable. Please try again.";
+        
+        try {
+          const errorData = JSON.parse(errText);
+          if (errorData.error?.message?.includes("503") || errorData.error?.message?.includes("unavailable")) {
+            errorMessage = "⚠️ The AI service is currently unavailable (503 Service Unavailable).\n\nThis usually means the server is busy or the model is at capacity.\n\n💡 Try using your own API key:\n1. Click the ⚙️ settings icon in the top right\n2. Enter your API key\n3. Select a different model if needed\n4. Try again";
+          }
+        } catch (e) {
+          // Not JSON, use default message
+        }
+        
+        throw new Error(errorMessage);
       }
 
       // Check Content-Type to determine if response is streaming or JSON
@@ -1137,11 +1316,9 @@ ${guidesContext}
         // Handle SSE streaming response
         console.log("📊 Receiving STREAMING response from AI...");
 
+        // Streaming reader setup
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-
-        // Initialize an empty AI message to stream into
-        setMessages((prev) => [...prev, { role: "assistant", content: "", timestamp: new Date().toISOString() }]);
 
         while (true) {
           const { done, value } = await reader.read();
@@ -1156,46 +1333,11 @@ ${guidesContext}
                 const data = JSON.parse(line.slice(6));
                 if (data.type === "token" || data.type === "content") {
                   const content = data.content;
-                  aiContent += content;
                   rawContent += content;
-
-                  // 🔍 Parse thinking tags from raw content
-                  const thinkingStart = rawContent.indexOf('<thinking>');
-                  const thinkingEnd = rawContent.indexOf('</thinking>');
-
-                  let newIsThinking = false;
-
-                  if (thinkingStart !== -1) {
-                    // Found opening tag
-                    newIsThinking = true; // 🧠 نحن في مرحلة التفكير
-
-                    if (thinkingEnd === -1) {
-                      // Still receiving thinking content
-                      setThinkingContent(rawContent.substring(thinkingStart + '<thinking>'.length));
-                      setFinalResponseContent("");
-                      setIsThinking(true); // ابقِ التفكير مرئي
-                    } else {
-                      // Found closing tag - ended thinking
-                      setThinkingContent(rawContent.substring(thinkingStart + '<thinking>'.length, thinkingEnd));
-                      setFinalResponseContent(rawContent.substring(thinkingEnd + '</thinking>'.length));
-                      newIsThinking = false; // انتهى التفكير
-                      setIsThinking(false); // أخفِ التفكير
-                    }
-                  } else {
-                    // No thinking tags found
-                    setThinkingContent("");
-                    setFinalResponseContent(rawContent);
-                    setIsThinking(false);
-                  }
-
-                  // Update the last message with FINAL response only (without thinking tags)
-                  const displayContent = thinkingStart !== -1 && thinkingEnd !== -1
-                    ? rawContent.substring(thinkingEnd + '</thinking>'.length)
-                    : (thinkingStart === -1 ? aiContent : "");
 
                   setMessages((prev) => {
                     const newMsgs = [...prev];
-                    newMsgs[newMsgs.length - 1].content = displayContent;
+                    newMsgs[newMsgs.length - 1].content = rawContent;
                     return newMsgs;
                   });
                 }
@@ -1214,35 +1356,25 @@ ${guidesContext}
           aiContent = jsonResponse.content || jsonResponse.message || "I received your message but couldn't generate a response. Please try again.";
           rawContent = aiContent;
 
-          // Parse thinking from JSON response
-          const thinkingStart = aiContent.indexOf('<thinking>');
-          const thinkingEnd = aiContent.indexOf('</thinking>');
-
-          if (thinkingStart !== -1) {
-            if (thinkingEnd !== -1) {
-              setThinkingContent(aiContent.substring(thinkingStart + '<thinking>'.length, thinkingEnd));
-              setFinalResponseContent(aiContent.substring(thinkingEnd + '</thinking>'.length));
-              aiContent = aiContent.substring(thinkingEnd + '</thinking>'.length);
-            } else {
-              setThinkingContent(aiContent.substring(thinkingStart + '<thinking>'.length));
-              setFinalResponseContent("");
-              aiContent = "";
-            }
-          } else {
-            setThinkingContent("");
-            setFinalResponseContent(aiContent);
-          }
-
-          // Add the response as a complete message
-          setMessages((prev) => [...prev, { role: "assistant", content: aiContent, timestamp: new Date().toISOString() }]);
+          // Update the already added assistant message
+          setMessages((prev) => {
+            const newMsgs = [...prev];
+            newMsgs[newMsgs.length - 1].content = rawContent;
+            return newMsgs;
+          });
         } catch (jsonError) {
           console.error("Failed to parse JSON response:", jsonError);
           aiContent = "I received your message but couldn't parse the response. Please try again.";
-          setMessages((prev) => [...prev, { role: "assistant", content: aiContent, timestamp: new Date().toISOString() }]);
+          // Update the already added assistant message
+          setMessages((prev) => {
+            const newMsgs = [...prev];
+            newMsgs[newMsgs.length - 1].content = aiContent;
+            return newMsgs;
+          });
         }
       }
 
-      if (!aiContent) {
+      if (!rawContent && !aiContent) {
         aiContent = "I received your message but couldn't generate a response. Please try again.";
         setMessages((prev) => {
           const newMsgs = [...prev];
@@ -1250,6 +1382,8 @@ ${guidesContext}
           return newMsgs;
         });
       }
+
+      const finalAiContent = rawContent || aiContent;
 
       const duration = Math.round((Date.now() - startTime) / 1000);
       setReasoningDuration(duration);
@@ -1259,7 +1393,7 @@ ${guidesContext}
       // In both cases, the latest message already contains the AI content
       const finalMessages = messages.length > 0 && messages[messages.length - 1].role === "assistant"
         ? messages  // Use current messages state which already has the AI response
-        : [...newMessages, { role: "assistant", content: aiContent, timestamp: new Date().toISOString() }];  // Fallback
+        : [...newMessages, { role: "assistant", content: finalAiContent, timestamp: new Date().toISOString() }];  // Fallback
 
       // Deduct credit
       const newCredits = Math.max(0, (credits ?? 5) - 1);
@@ -1273,8 +1407,15 @@ ${guidesContext}
       await saveConversation(finalMessages);
 
     } catch (err) {
-      const errMsg = { role: "assistant", content: err.message, isError: true, timestamp: new Date().toISOString() };
-      setMessages(prev => [...prev, errMsg]);
+      setMessages(prev => {
+        const newMsgs = [...prev];
+        const lastMsg = newMsgs[newMsgs.length - 1];
+        if (lastMsg && lastMsg.role === "assistant") {
+          lastMsg.content = err.message;
+          lastMsg.isError = true;
+        }
+        return newMsgs;
+      });
       toast.error(err.message);
     } finally {
       setIsThinking(false);
@@ -1470,7 +1611,76 @@ ${guidesContext}
             <button className="zg-icon-btn" onClick={startNewChat} title="New chat">
               <SquarePen size={16} />
             </button>
+            <button 
+              className="zg-icon-btn" 
+              onClick={() => setShowApiSettings(!showApiSettings)}
+              title="API Settings"
+              style={{ color: showApiSettings ? "#111" : "#6b7280" }}
+            >
+              <Settings2 size={16} />
+            </button>
           </div>
+
+          {/* API Settings Panel */}
+          {showApiSettings && (
+            <div style={{
+              padding: "16px 20px",
+              borderBottom: "1px solid #e5e7eb",
+              background: "#fafafa"
+            }}>
+              <div style={{ maxWidth: "720px", margin: "0 auto" }}>
+                <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "12px", color: "#111" }}>
+                  API Settings
+                </h3>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "12px" }}>
+                  <input
+                    type="password"
+                    placeholder="Enter your API Key (optional)"
+                    value={customApiKey}
+                    onChange={(e) => { setCustomApiKey(e.target.value); setApiKeyError(""); setApiKeySuccess(false); }}
+                    style={{
+                      flex: 1,
+                      minWidth: "200px",
+                      padding: "10px 12px",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontSize: "13px"
+                    }}
+                  />
+                  <select
+                    value={customModel}
+                    onChange={(e) => setCustomModel(e.target.value)}
+                    style={{
+                      padding: "10px 12px",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontSize: "13px",
+                      background: "#fff",
+                      minWidth: "180px"
+                    }}
+                  >
+                    <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
+                    <option value="google/gemini-1.5-flash">Gemini 1.5 Flash</option>
+                    <option value="google/gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    <option value="openai/gpt-4o">GPT-4o</option>
+                    <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                    <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                    <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B</option>
+                    <option value="mistralai/mixtral-8x7b-instruct">Mixtral 8x7B</option>
+                  </select>
+                </div>
+                {apiKeyError && (
+                  <div style={{ color: "#ef4444", fontSize: "12px", marginBottom: "8px" }}>{apiKeyError}</div>
+                )}
+                {apiKeySuccess && (
+                  <div style={{ color: "#10b981", fontSize: "12px", marginBottom: "8px" }}>API Key saved successfully!</div>
+                )}
+                <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                  💡 If the default API is unavailable, enter your own API key. Your key will be used instead of the default.
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Chat Canvas */}
           <div className="zg-chat-canvas">
@@ -1524,7 +1734,7 @@ ${guidesContext}
                         <div className="zg-ai-avatar"><Bot size={16} /></div>
                         <div className="zg-ai-body">
                           <div className="zg-ai-name">ZetsuGuide AI</div>
-                          <MessageContent text={msg.content} isError={msg.isError} />
+                          <MessageContent text={msg.content} isError={msg.isError} isThinking={idx === messages.length - 1 && isThinking} />
                           {msg.isError && (
                             <div className="zg-error-actions">
                               <button className="zg-retry-btn" onClick={retryLastMessage}>
@@ -1561,37 +1771,7 @@ ${guidesContext}
                   </div>
                 ))}
 
-                {isThinking && (
-                  <div className="zg-msg-row zg-msg-ai">
-                    <div className="zg-ai-row">
-                      <div className="zg-ai-avatar"><Bot size={16} /></div>
-                      <div className="zg-ai-body">
-                        <div style={{
-                          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                          borderRadius: "10px",
-                          padding: "12px 16px",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "10px",
-                          width: "fit-content",
-                          boxShadow: "0 2px 8px rgba(102, 126, 234, 0.2)",
-                          fontSize: "13px",
-                          fontWeight: "500"
-                        }}>
-                          <div style={{
-                            width: "6px",
-                            height: "6px",
-                            borderRadius: "50%",
-                            background: "#fff",
-                            animation: "pulse 1.2s ease-in-out infinite"
-                          }} />
-                          🧠 Thinking...
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* Thinking indicator handled inside MessageContent via parseThoughtAndResponse */}
 
                 <style>{`
                   @keyframes pulse {
@@ -1675,11 +1855,3 @@ ${guidesContext}
   );
 }
 
-// Small inline icon to avoid extra import
-function MessageSquareIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
-  );
-}
