@@ -39,7 +39,7 @@ import FollowButton from "../components/FollowButton";
 import { GuideAIChat } from "../components/GuideAIChat";
 import GuideComments from "../components/GuideComments";
 import GuideHistoryModal from "../components/GuideHistoryModal";
-import GuideInlineComments from "../components/GuideInlineComment";
+import GuideInlineComments, { FigmaCommentInline } from "../components/GuideInlineComment";
 import GuideRating from "../components/GuideRating";
 import GuideRecommendations from "../components/GuideRecommendations";
 import { GuideSummarizer } from "../components/GuideSummarizer";
@@ -152,6 +152,7 @@ export default function GuidePage() {
   const [isFocusMode, setIsFocusMode] = useState(false); // Focus Mode
   const { isDarkMode, toggleTheme } = useTheme(); // Dark Mode
   const [searchQuery, setSearchQuery] = useState("");
+  const [inlineComments, setInlineComments] = useState([]);
   const [debouncedSearch, setDebouncedSearch] = useState(""); // Debounced search for performance
   const [viewsCount, setViewsCount] = useState(0);
   const [hasRecordedView, setHasRecordedView] = useState(false);
@@ -464,6 +465,23 @@ export default function GuidePage() {
 
       setGuide(guideData);
 
+      // Fetch inline comments for text highlighting
+      if (guideData.id) {
+        try {
+          const { data: commentsData } = await supabase
+            .from('guide_inline_comments')
+            .select('*')
+            .eq('guide_id', guideData.id);
+          
+          if (commentsData) {
+            setInlineComments(commentsData);
+            console.log('[GuidePage] Loaded inline comments:', commentsData.length);
+          }
+        } catch (e) {
+          console.debug('[GuidePage] Inline comments fetch error:', e);
+        }
+      }
+
       // Fetch author avatar
       if (guideData.user_email) {
         try {
@@ -742,7 +760,44 @@ export default function GuidePage() {
     );
   }
 
-  // Render content based on processed data
+  // Pure CSS approach: Find and wrap text with inline comments
+  function renderContentWithComments() {
+    if (!processedContent) return null;
+
+    if (processedContent.type === "html") {
+      return (
+        <iframe
+          srcDoc={processedContent.content}
+          className="w-full min-h-[700px] border-2 border-black bg-white"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
+          title={guide.title}
+          style={{ display: "block" }}
+        />
+      );
+    }
+
+    let html = contentWithAnchors || processedContent.content;
+
+    // Inject inline comments using Pure CSS - wrap matching text in span with FigmaComment
+    inlineComments.forEach(comment => {
+      if (!comment.selected_text) return;
+      const escaped = comment.selected_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(${escaped})`, 'gi');
+      
+      const commentHtml = `<span class="relative bg-yellow-200/50 inline-block group" data-comment-id="${comment.id}">$1<FigmaCommentPlaceholder /></span>`;
+      html = html.replace(regex, commentHtml);
+    });
+
+    return (
+      <div
+        ref={contentRef}
+        className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    );
+  }
+
+  // Legacy render - without injection (works)
   function renderContent() {
     if (!processedContent) return null;
 
@@ -758,14 +813,11 @@ export default function GuidePage() {
       );
     }
 
-    const htmlToRender = contentWithAnchors || processedContent.content;
-
-    // For now, use simple rendering (inline comments are handled separately via absolute positioning)
     return (
       <div
         ref={contentRef}
         className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800"
-        dangerouslySetInnerHTML={{ __html: htmlToRender }}
+        dangerouslySetInnerHTML={{ __html: contentWithAnchors || processedContent.content }}
       />
     );
   }
@@ -1487,8 +1539,10 @@ export default function GuidePage() {
           )}
         </div>
 
-        {/* Content */}
-        <div ref={contentRef} className="guide-content relative">{renderContent()}</div>
+        {/* Content with Pure CSS inline comments (Gutter) */}
+        <div ref={contentRef} className="guide-content relative pl-16 md:pl-20 overflow-visible">
+          {inlineComments.length > 0 ? renderContentWithComments() : renderContent()}
+        </div>
 
         {/* Inline Comments on Text */}
         <GuideInlineComments guideId={guide.id} contentRef={contentRef} />
