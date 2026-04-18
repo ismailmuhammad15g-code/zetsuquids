@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { X, Send, MessageSquare, User, Clock } from 'lucide-react';
 import { toast } from 'sonner';
@@ -40,50 +41,67 @@ const CLOSED_SIZE = 32;
 
 export function FigmaCommentInline({ message, authorName, timestamp, avatarUrl, selectedText, id }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const shouldReduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    const handleOpen = (e) => {
+      if (e.detail === String(id)) {
+        setIsExpanded(true);
+      } else {
+        setIsExpanded(false);
+      }
+    };
+    
+    const handleCloseAll = (e) => {
+      // Don't close if clicking inside the comment or on the related text
+      if (!e.target.closest('.figma-comment-container') && !e.target.closest(`[data-comment-id="${id}"]`)) {
+        setIsExpanded(false);
+      }
+    };
+
+    window.addEventListener('open-inline-comment', handleOpen);
+    document.addEventListener('click', handleCloseAll);
+    
+    return () => {
+      window.removeEventListener('open-inline-comment', handleOpen);
+      document.removeEventListener('click', handleCloseAll);
+    };
+  }, [id]);
 
   const author = authorName || 'User';
   const time = timestamp || 'Just now';
   const msg = message || '';
 
   return (
-    <span className="relative inline-block group align-middle">
-      <motion.div
-        className="absolute cursor-pointer overflow-hidden rounded-2xl rounded-bl-none bg-white shadow-lg border border-gray-200 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{
-          left: '-52px',
-          top: '-4px',
-          width: '180px',
-          minHeight: '32px',
-          zIndex: 50,
-        }}
-        animate={shouldReduceMotion ? {} : { opacity: isExpanded ? 1 : 0 }}
-        onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
-      >
-        <div className="absolute" style={{ left: 4, top: 4, zIndex: 10 }}>
-          <AvatarImg src={avatarUrl || getAvatarForUser(null)} alt={author} size="w-6 h-6" />
+    <div
+      className={`figma-comment-container absolute top-0 left-0 cursor-pointer bg-white shadow-[0_4px_16px_rgba(0,0,0,0.15)] border border-gray-200 pointer-events-auto transition-all duration-300 z-[99999] origin-top-left ${
+        isExpanded 
+          ? 'w-[260px] rounded-2xl rounded-tl-none p-3.5 opacity-100 scale-100' 
+          : 'w-7 h-7 rounded-full rounded-tl-none opacity-90 hover:opacity-100 hover:scale-110 hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] scale-100'
+      }`}
+      onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsExpanded(!isExpanded); }}
+    >
+      {!isExpanded ? (
+        <div className="w-full h-full flex items-center justify-center overflow-hidden rounded-full rounded-tl-none bg-white">
+          <AvatarImg src={avatarUrl || getAvatarForUser(null)} alt={author} size="w-full h-full" />
         </div>
-        
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 flex flex-col gap-1 p-3 pl-11 bg-white"
-              style={{ width: '180px' }}
-            >
-              <div className="flex items-center gap-1">
-                <span className="font-semibold text-[11px] text-neutral-900">{author}</span>
-                <span className="font-medium text-[11px] text-neutral-500">{time}</span>
-              </div>
-              <p className="text-[11px] text-neutral-900">{msg}</p>
-              {selectedText && <p className="text-[9px] text-neutral-500 italic">"{selectedText}"</p>}
-            </motion.div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2.5">
+            <AvatarImg src={avatarUrl || getAvatarForUser(null)} alt={author} size="w-8 h-8" />
+            <div className="flex flex-col">
+              <span className="font-bold text-[13px] text-neutral-900 leading-none">{author}</span>
+              <span className="font-medium text-[11px] text-neutral-500 leading-none mt-1">{time}</span>
+            </div>
+          </div>
+          <p className="text-[14px] text-neutral-800 leading-relaxed break-words">{msg}</p>
+          {selectedText && (
+            <div className="pl-2 border-l-[3px] border-yellow-400 bg-yellow-50/80 p-2 rounded-r mt-1">
+               <p className="text-[12px] text-neutral-700 italic leading-snug line-clamp-3">"{selectedText}"</p>
+            </div>
           )}
-        </AnimatePresence>
-      </motion.div>
-    </span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -97,6 +115,7 @@ export default function GuideInlineComments({ guideId, commentCount, onCommentCo
   const [commentInput, setCommentInput] = useState('');
   const [selectionCoords, setSelectionCoords] = useState(null);
   const [showAllComments, setShowAllComments] = useState(false);
+  const [forceRender, setForceRender] = useState(0);
   
   console.log('[GuideInlineComments] Loaded comments:', comments.length);
   
@@ -106,11 +125,26 @@ export default function GuideInlineComments({ guideId, commentCount, onCommentCo
     try {
       const { data, error } = await supabase
         .from('guide_inline_comments')
-        .select('*')
+        .select('*, zetsuguide_user_profiles!guide_inline_comments_user_id_fkey(username, display_name, avatar_url, user_email)')
         .eq('guide_id', guideId)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        // Fallback for schema difference
+        if (error.code === 'PGRST200') {
+           const { data: fallbackData, error: fallbackError } = await supabase
+             .from('guide_inline_comments')
+             .select('*')
+             .eq('guide_id', guideId)
+             .order('created_at', { ascending: false });
+           if (!fallbackError) {
+             setComments(fallbackData || []);
+             onCommentCountChange?.(fallbackData?.length || 0);
+             return;
+           }
+        }
+        throw error;
+      }
       
       console.log('[GuideInlineComments] Fetched:', data?.length);
       setComments(data || []);
@@ -124,7 +158,45 @@ export default function GuideInlineComments({ guideId, commentCount, onCommentCo
     fetchComments();
   }, [fetchComments]);
   
+  // Set up portals after a short delay to ensure HTML is rendered
   useEffect(() => {
+    // Only attempt if there are comments
+    if (comments.length === 0) return;
+    
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts++;
+      let allFound = true;
+      let foundCount = 0;
+      comments.forEach(comment => {
+        if (!document.getElementById(`comment-ghost-${comment.id}`)) {
+          allFound = false;
+        } else {
+          foundCount++;
+        }
+      });
+      
+      if ((allFound || attempts > 5) && foundCount > 0) {
+        // Force a re-render to attach portals
+        setForceRender(prev => prev + 1);
+        clearInterval(timer);
+      }
+    }, 500);
+    
+    // Safety cleanup
+    setTimeout(() => clearInterval(timer), 5000);
+    return () => clearInterval(timer);
+  }, [comments, guideId]);
+  
+  useEffect(() => {
+    const handleDocumentClick = (e) => {
+      const commentEl = e.target.closest('[data-comment-id]');
+      if (commentEl) {
+        const id = commentEl.getAttribute('data-comment-id');
+        window.dispatchEvent(new CustomEvent('open-inline-comment', { detail: id }));
+      }
+    };
+    
     const handleRightClick = (e) => {
       const selection = window.getSelection();
       const text = selection.toString().trim();
@@ -141,8 +213,12 @@ export default function GuideInlineComments({ guideId, commentCount, onCommentCo
       }
     };
     
+    document.addEventListener('click', handleDocumentClick);
     document.addEventListener('contextmenu', handleRightClick);
-    return () => document.removeEventListener('contextmenu', handleRightClick);
+    return () => {
+      document.removeEventListener('click', handleDocumentClick);
+      document.removeEventListener('contextmenu', handleRightClick);
+    };
   }, []);
   
   const handleAddCommentClick = () => {
@@ -244,7 +320,34 @@ export default function GuideInlineComments({ guideId, commentCount, onCommentCo
         )}
       </AnimatePresence>
       
-      {/* Comments List - Pure CSS injection happens via GuideInlineComment with content rendering */}
+      {/* Comments Portals */}
+      {comments.map(comment => {
+        const el = document.getElementById(`comment-ghost-${comment.id}`);
+        if (!el) return null;
+        
+        let authorName = 'User';
+        let avatarUrl = null;
+        if (comment.zetsuguide_user_profiles) {
+          authorName = comment.zetsuguide_user_profiles.display_name || comment.zetsuguide_user_profiles.username;
+          avatarUrl = comment.zetsuguide_user_profiles.avatar_url;
+        }
+
+        // Return portal into the span
+        return createPortal(
+          <div className="absolute -left-[38px] top-[2px] z-[99999] pointer-events-auto">
+            <FigmaCommentInline 
+              key={`comment-${comment.id}-${forceRender}`}
+              id={comment.id}
+              message={comment.comment}
+              authorName={authorName}
+              timestamp={formatTime(comment.created_at)}
+              avatarUrl={avatarUrl}
+              selectedText={comment.selected_text}
+            />
+          </div>,
+          el
+        );
+      })}
     </div>
   );
 }

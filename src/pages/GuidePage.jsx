@@ -784,7 +784,7 @@ export default function GuidePage() {
       const escaped = comment.selected_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`(${escaped})`, 'gi');
       
-      const commentHtml = `<span class="relative bg-yellow-200/50 inline-block group" data-comment-id="${comment.id}">$1<FigmaCommentPlaceholder /></span>`;
+      const commentHtml = `<span id="comment-ghost-${comment.id}" class="relative bg-yellow-200/60 rounded px-0.5 cursor-pointer transition-colors hover:bg-yellow-300/80 inline" data-comment-id="${comment.id}">$1</span>`;
       html = html.replace(regex, commentHtml);
     });
 
