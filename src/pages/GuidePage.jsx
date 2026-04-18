@@ -39,6 +39,7 @@ import FollowButton from "../components/FollowButton";
 import { GuideAIChat } from "../components/GuideAIChat";
 import GuideComments from "../components/GuideComments";
 import GuideHistoryModal from "../components/GuideHistoryModal";
+import GuideInlineComments from "../components/GuideInlineComment";
 import GuideRating from "../components/GuideRating";
 import GuideRecommendations from "../components/GuideRecommendations";
 import { GuideSummarizer } from "../components/GuideSummarizer";
@@ -696,6 +697,51 @@ export default function GuidePage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  // Parse HTML and inject inline comments
+  function parseContentWithInlineComments(htmlContent, inlineComments, profilesData) {
+    if (!htmlContent || !inlineComments?.length) {
+      return (
+        <div
+          className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800"
+          dangerouslySetInnerHTML={{ __html: htmlContent }}
+        />
+      );
+    }
+
+    let processedHtml = htmlContent;
+
+    inlineComments.forEach((comment) => {
+      const selectedText = comment.selected_text;
+      if (!selectedText) return;
+
+      const escapedText = selectedText
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+        .replace(/\n/g, "\\n");
+
+      const regex = new RegExp(`(${escapedText})`, "gi");
+
+      const profile = profilesData?.[comment.user_id];
+      const authorName = profile?.display_name || profile?.username || "User";
+      const avatarUrl = profile?.avatar_url || getAvatarForUser(null);
+
+      const commentHtml = `
+        <span class="relative bg-yellow-100/60 rounded px-1 group cursor-pointer" data-comment-id="${comment.id}">
+          $1
+        </span>
+      `;
+
+      processedHtml = processedHtml.replace(regex, commentHtml);
+    });
+
+    return (
+      <div
+        ref={contentRef}
+        className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800"
+        dangerouslySetInnerHTML={{ __html: processedHtml }}
+      />
+    );
+  }
+
   // Render content based on processed data
   function renderContent() {
     if (!processedContent) return null;
@@ -714,8 +760,10 @@ export default function GuidePage() {
 
     const htmlToRender = contentWithAnchors || processedContent.content;
 
+    // For now, use simple rendering (inline comments are handled separately via absolute positioning)
     return (
       <div
+        ref={contentRef}
         className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800"
         dangerouslySetInnerHTML={{ __html: htmlToRender }}
       />
@@ -1440,7 +1488,10 @@ export default function GuidePage() {
         </div>
 
         {/* Content */}
-        <div className="guide-content">{renderContent()}</div>
+        <div ref={contentRef} className="guide-content relative">{renderContent()}</div>
+
+        {/* Inline Comments on Text */}
+        <GuideInlineComments guideId={guide.id} contentRef={contentRef} />
 
         {/* Comments Section */}
         <GuideComments guideId={guide.id} onCommentPosted={recordComment} />

@@ -218,14 +218,12 @@ CREATE OR REPLACE FUNCTION generate_referral_code(p_email TEXT)
 RETURNS TEXT AS $$
 DECLARE
   new_code TEXT;
-  code_exists BOOLEAN;
 BEGIN
   LOOP
     new_code := UPPER(SUBSTRING(MD5(p_email || NOW()::TEXT || RANDOM()::TEXT) FROM 1 FOR 8));
-    SELECT EXISTS(
-      SELECT 1 FROM zetsuguide_credits WHERE referral_code = new_code
-    ) INTO code_exists;
-    EXIT WHEN NOT code_exists;
+    IF (SELECT COUNT(*) FROM zetsuguide_credits WHERE referral_code = new_code) = 0 THEN
+      EXIT;
+    END IF;
   END LOOP;
   RETURN new_code;
 END;
@@ -260,44 +258,34 @@ CREATE OR REPLACE FUNCTION process_referral(
   p_referral_code TEXT
 )
 RETURNS TABLE(success BOOLEAN, message TEXT) AS $$
-DECLARE
-  referrer_email_found TEXT;
-  already_referred BOOLEAN;
 BEGIN
-  SELECT EXISTS(
-    SELECT 1 FROM zetsuguide_referrals WHERE referred_email = p_new_user_email
-  ) INTO already_referred;
-
-  IF already_referred THEN
+  IF (SELECT COUNT(*) FROM zetsuguide_referrals WHERE referred_email = p_new_user_email) > 0 THEN
     RETURN QUERY SELECT false, 'User has already been referred by someone'::TEXT;
     RETURN;
   END IF;
 
-  SELECT user_email INTO referrer_email_found
-  FROM zetsuguide_credits
-  WHERE referral_code = p_referral_code;
-
-  IF referrer_email_found IS NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM zetsuguide_credits WHERE referral_code = p_referral_code) THEN
     RETURN QUERY SELECT false, 'Invalid referral code'::TEXT;
     RETURN;
   END IF;
 
-  IF referrer_email_found = p_new_user_email THEN
+  IF (SELECT user_email FROM zetsuguide_credits WHERE referral_code = p_referral_code) = p_new_user_email THEN
     RETURN QUERY SELECT false, 'Cannot use your own referral code'::TEXT;
     RETURN;
   END IF;
 
   INSERT INTO zetsuguide_referrals (referrer_email, referred_email, credits_awarded, verified)
-  VALUES (referrer_email_found, p_new_user_email, 5, true);
+  SELECT user_email, p_new_user_email, 5, true
+  FROM zetsuguide_credits WHERE referral_code = p_referral_code;
 
   UPDATE zetsuguide_credits
   SET credits = credits + 5,
       total_referrals = total_referrals + 1,
       updated_at = NOW()
-  WHERE user_email = referrer_email_found;
+  WHERE referral_code = p_referral_code;
 
   UPDATE zetsuguide_credits
-  SET referred_by = referrer_email_found
+  SET referred_by = (SELECT user_email FROM zetsuguide_credits WHERE referral_code = p_referral_code)
   WHERE user_email = p_new_user_email;
 
   RETURN QUERY SELECT true, 'Referral processed successfully! 5 credits awarded.'::TEXT;
@@ -307,25 +295,19 @@ $$ LANGUAGE plpgsql;
 -- Function to use credit
 CREATE OR REPLACE FUNCTION use_zetsuguide_credit(p_email TEXT)
 RETURNS TABLE(success BOOLEAN, remaining_credits INTEGER) AS $$
-DECLARE
-  current_credits INTEGER;
 BEGIN
   INSERT INTO zetsuguide_credits (user_email, credits, referral_code)
   VALUES (p_email, 5, generate_referral_code(p_email))
   ON CONFLICT (user_email) DO NOTHING;
 
-  SELECT credits INTO current_credits
-  FROM zetsuguide_credits
-  WHERE user_email = p_email;
-
-  IF current_credits > 0 THEN
+  IF (SELECT credits FROM zetsuguide_credits WHERE user_email = p_email) > 0 THEN
     UPDATE zetsuguide_credits
     SET credits = credits - 1,
         total_used = total_used + 1,
         updated_at = NOW()
     WHERE user_email = p_email;
 
-    RETURN QUERY SELECT true, current_credits - 1;
+    RETURN QUERY SELECT true, (SELECT credits FROM zetsuguide_credits WHERE user_email = p_email);
   ELSE
     RETURN QUERY SELECT false, 0;
   END IF;
@@ -356,25 +338,13 @@ CREATE OR REPLACE FUNCTION claim_missing_referral_bonus(
   p_referral_code TEXT
 )
 RETURNS TABLE(success BOOLEAN, message TEXT) AS $$
-DECLARE
-  referrer_email_found TEXT;
-  current_credits INTEGER;
-  already_referred BOOLEAN;
 BEGIN
-  SELECT (referred_by IS NOT NULL) INTO already_referred
-  FROM zetsuguide_credits
-  WHERE user_email = p_user_email;
-
-  IF already_referred THEN
+  IF (SELECT referred_by IS NOT NULL FROM zetsuguide_credits WHERE user_email = p_user_email) THEN
     RETURN QUERY SELECT false, 'User already has a referrer set via SQL.'::TEXT;
     RETURN;
   END IF;
 
-  SELECT user_email INTO referrer_email_found
-  FROM zetsuguide_credits
-  WHERE referral_code = p_referral_code;
-
-  IF referrer_email_found IS NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM zetsuguide_credits WHERE referral_code = p_referral_code) THEN
     RETURN QUERY SELECT false, 'Invalid referral code.'::TEXT;
     RETURN;
   END IF;
@@ -382,10 +352,11 @@ BEGIN
   UPDATE zetsuguide_credits
   SET credits = credits + 5,
       total_referrals = total_referrals + 1
-  WHERE user_email = referrer_email_found;
+  WHERE referral_code = p_referral_code;
 
   INSERT INTO zetsuguide_referrals (referrer_email, referred_email, credits_awarded, verified)
-  VALUES (referrer_email_found, p_user_email, 5, true)
+  SELECT user_email, p_user_email, 5, true
+  FROM zetsuguide_credits WHERE referral_code = p_referral_code
   ON CONFLICT (referred_email) DO NOTHING;
 
   UPDATE zetsuguide_credits
@@ -1025,6 +996,46 @@ CREATE POLICY "Users can delete their own ratings"
 -- Create indexes
 CREATE INDEX IF NOT EXISTS guide_ratings_guide_id_idx ON guide_ratings(guide_id);
 CREATE INDEX IF NOT EXISTS guide_ratings_user_id_idx ON guide_ratings(user_id);
+
+-- ===== SECTION: inline-comments.sql - Inline Comments on Guide Text =====
+CREATE TABLE IF NOT EXISTS guide_inline_comments (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    guide_id BIGINT NOT NULL REFERENCES guides(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    selected_text TEXT NOT NULL,
+    comment TEXT NOT NULL,
+    position_json JSONB DEFAULT '{"left":0,"top":0}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE guide_inline_comments ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+DROP POLICY IF EXISTS "Anyone can view inline comments" ON guide_inline_comments;
+CREATE POLICY "Anyone can view inline comments"
+    ON guide_inline_comments FOR SELECT
+    USING (true);
+
+DROP POLICY IF EXISTS "Users can create inline comments" ON guide_inline_comments;
+CREATE POLICY "Users can create inline comments"
+    ON guide_inline_comments FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their inline comments" ON guide_inline_comments;
+CREATE POLICY "Users can update their inline comments"
+    ON guide_inline_comments FOR UPDATE
+    USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete their inline comments" ON guide_inline_comments;
+CREATE POLICY "Users can delete their inline comments"
+    ON guide_inline_comments FOR DELETE
+    USING (auth.uid() = user_id);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_inline_comments_guide_id ON guide_inline_comments(guide_id);
+CREATE INDEX IF NOT EXISTS idx_inline_comments_user_id ON guide_inline_comments(user_id);
 
 -- ==================================================================================
 -- PART 5: CHAT AND CHATBOT

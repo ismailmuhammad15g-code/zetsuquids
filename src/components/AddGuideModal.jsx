@@ -1,17 +1,20 @@
 import {
     Activity,
+    AlertTriangle,
     Anchor,
-    // new / different icons to remove visual duplication
     BadgeCheck,
     Bold,
     BookOpen,
     ChevronDown,
+    Clock,
     Code,
     Coins,
+    Download,
     Eye,
     FileCode,
     FileImage,
     FileText,
+    GitMerge,
     Hash,
     Heading1,
     Heading2,
@@ -19,6 +22,7 @@ import {
     Image as ImageIcon,
     Italic,
     Keyboard,
+    Key,
     LayoutTemplate,
     Link as LinkIcon,
     List,
@@ -40,6 +44,7 @@ import {
     X,
     Zap
 } from "lucide-react";
+import { Hash as HashIcon } from "lucide-react";
 import { marked } from "marked";
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -53,6 +58,32 @@ import { uploadImageToImgBB } from "../lib/imgbb";
 import { sanitizeContent } from "../lib/utils";
 import QuizBuilderModal from "./quiz/QuizBuilderModal";
 import QuizComponent from "./quiz/QuizComponent";
+import {
+  LinkModalForm,
+  TableModalForm,
+  VideoModalForm,
+  CalloutModalForm,
+  CodeModalForm,
+  FigureModalForm,
+  DetailsModalForm,
+  QuoteModalForm,
+  BadgeModalForm,
+  KbdModalForm,
+  CTAModalForm,
+  CitationModalForm,
+  AnchorModalForm,
+  FootnoteModalForm,
+  StepsModalForm,
+  TimelineModalForm,
+  ComparisonModalForm,
+  AlertModalForm,
+  TabsModalForm,
+  DefinitionModalForm,
+  CodeDiffModalForm,
+  FAQModalForm,
+  VersionModalForm,
+  KeyValueModalForm,
+} from "./AddGuideModals";
 
 // Configure marked renderer for quiz support
 const quizRenderer = {
@@ -124,6 +155,36 @@ export default function AddGuideModal({ onClose }) {
   const [showQuizBuilder, setShowQuizBuilder] = useState(false);
   const [showMoreTools, setShowMoreTools] = useState(false); // overflow menu for less-used tools
   const textareaRef = useRef(null);
+
+  // Interactive Modal States
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [showCalloutModal, setShowCalloutModal] = useState(false);
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [showFigureModal, setShowFigureModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showFootnoteModal, setShowFootnoteModal] = useState(false);
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
+  const [showKbdModal, setShowKbdModal] = useState(false);
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [showColumnsModal, setShowColumnsModal] = useState(false);
+  const [showAnchorModal, setShowAnchorModal] = useState(false);
+  const [showCitationModal, setShowCitationModal] = useState(false);
+  const [showCTAModal, setShowCTAModal] = useState(false);
+
+  // New Advanced Tool States
+  const [showStepsModal, setShowStepsModal] = useState(false);
+  const [showTimelineModal, setShowTimelineModal] = useState(false);
+  const [showComparisonModal, setShowComparisonModal] = useState(false);
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [showTabsModal, setShowTabsModal] = useState(false);
+  const [showDefinitionModal, setShowDefinitionModal] = useState(false);
+  const [showCodeDiffModal, setShowCodeDiffModal] = useState(false);
+  const [showFAQModal, setShowFAQModal] = useState(false);
+  const [showVersionModal, setShowVersionModal] = useState(false);
+  const [showKeyValueModal, setShowKeyValueModal] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -541,218 +602,138 @@ export default function AddGuideModal({ onClose }) {
       case "task-list":
         insertText("\n- [ ] Task item\n");
         break;
-      case "table":
-        insertText(
-          "\n| Column 1 | Column 2 |\n| --- | --- |\n| Value 1 | Value 2 |\n",
-        );
-        break;
+
       case "link":
-        insertText("[Link Text](url)");
+        setShowLinkModal(true);
         break;
+
       case "code":
-        insertText("\n```javascript\nconsole.log('Code');\n```\n");
+        setShowCodeModal(true);
         break;
+
       case "quote":
-        insertText("\n> Quote\n");
+        setShowQuoteModal(true);
         break;
+
       case "list":
         insertText("\n- List item\n");
         break;
+
       case "ordered-list":
         insertText("\n1. List item\n");
         break;
 
-      // Improved highlight: insert HTML <mark> so preview renders correctly
       case "highlight":
         wrapSelection("<mark>", "</mark>", "Highlighted text");
         break;
 
-      // Video embed (YouTube / Vimeo)
-      case "youtube": {
-        const url = window.prompt("Paste YouTube/Vimeo URL to embed:", "");
-        if (!url) return;
-        let embed = url;
-        const ytMatch = url.match(
-          /(?:v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{6,11})/,
-        );
-        if (ytMatch) {
-          embed = `https://www.youtube.com/embed/${ytMatch[1]}`;
-        } else {
-          const vMatch = url.match(/vimeo\.com\/(\d+)/);
-          if (vMatch) embed = `https://player.vimeo.com/video/${vMatch[1]}`;
-        }
-        const html = `\n<div class="embed-responsive">\n  <iframe src="${embed}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>\n</div>\n`;
-        insertText(html);
+      case "table":
+        setShowTableModal(true);
         break;
-      }
 
-      case "callout": {
-        const type =
-          window.prompt("Callout type (info/warn/success)", "info") || "info";
-        const label =
-          type === "warn"
-            ? "Warning:"
-            : type === "success"
-              ? "Success:"
-              : "Info:";
-        const html = `\n<div class="callout callout-${type}"><strong>${label}</strong> Your message here...</div>\n`;
-        insertText(html);
+      case "youtube":
+        setShowVideoModal(true);
         break;
-      }
+
+      case "callout":
+        setShowCalloutModal(true);
+        break;
 
       case "details":
-        insertText(
-          "\n<details>\n  <summary>Summary</summary>\n  Collapsible content...\n</details>\n",
-        );
+        setShowDetailsModal(true);
         break;
 
-      case "footnote": {
-        // Determine next available footnote number and insert a helpful placeholder
-        const content = formData.content || "";
-        const markers = Array.from(content.matchAll(/\[\^(\d+)\]/g)).map((m) =>
-          parseInt(m[1], 10),
-        );
-        const defs = Array.from(content.matchAll(/^\[\^(\d+)\]:/gm)).map((m) =>
-          parseInt(m[1], 10),
-        );
-        const maxExisting = Math.max(
-          0,
-          ...markers.concat(defs).filter(Boolean),
-        );
-        const n = maxExisting + 1;
-        insertText(`[^${n}]`);
-        const placeholder = `[^${n}]: Example — concise source or explanation (مثال: https://example.com)`;
-        setFormData((prev) => ({
-          ...prev,
-          content: prev.content + `\n\n${placeholder}`,
-        }));
+      case "footnote":
+        setShowFootnoteModal(true);
         break;
-      }
 
-      case "toc": {
-        // If the document already has headings, insert an auto-generated Markdown TOC.
-        const mdContent = String(formData.content || "");
-        const matches = Array.from(mdContent.matchAll(/^#{1,6}\s+(.*)$/gim));
-        if (matches.length > 0) {
-          const slugify = (s) =>
-            String(s || "")
-              .toLowerCase()
-              .trim()
-              .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
-              .replace(/^-|-$/g, "");
-          const list = matches
-            .map((m) => {
-              const text = m[1].trim();
-              const level = (m[0].match(/^#+/) || ["#"])[0].length;
-              const indent = "  ".repeat(Math.max(0, level - 1));
-              return `${indent}- [${text}](#${slugify(text)}` + ")";
-            })
-            .join("\n");
-
-          insertText(`<!-- TOC (auto-generated) -->\n\n${list}\n\n`);
-        } else {
-          insertText(
-            `<!-- TOC placeholder: add headings (e.g. # Section) -->\n\n- [Section Title](#section-title)\n\n`,
-          );
-        }
+      case "toc":
+        setShowTocModal(true);
         break;
-      }
 
-      // New helpful tools (examples + usable HTML/MD so preview renders)
-      case "figure": {
-        const url = window.prompt(
-          "Image URL:",
-          "https://via.placeholder.com/640x360",
-        );
-        if (!url) return;
-        const caption = window.prompt("Caption (optional):", "Figure caption");
-        const html = `\n<figure>\n  <img src="${url}" alt="${(caption || "").replace(/\"/g, "\'")}"/>\n  <figcaption>${caption || ""}</figcaption>\n</figure>\n`;
-        insertText(html);
+      case "figure":
+        setShowFigureModal(true);
         break;
-      }
 
-      case "badge": {
-        const text = window.prompt("Badge text:", "Beta");
-        if (!text) return;
-        insertText(`<span class="badge">${text}</span>`);
+      case "badge":
+        setShowBadgeModal(true);
         break;
-      }
 
-      case "kbd": {
-        const keys = window.prompt("Keys (e.g. Ctrl+S):", "Ctrl+S");
-        if (!keys) return;
-        const parts = keys
-          .split("+")
-          .map((s) => s.trim())
-          .filter(Boolean);
-        insertText(parts.map((p) => `<kbd>${p}</kbd>`).join(" + "));
+      case "kbd":
+        setShowKbdModal(true);
         break;
-      }
 
-      case "pull-quote": {
-        insertText(
-          `<blockquote class="pull-quote"><p>Pull-quote text — short and striking.</p><footer>— Author</footer></blockquote>`,
-        );
+      case "pull-quote":
+        setShowQuoteModal(true);
         break;
-      }
 
-      case "columns": {
-        insertText(
-          `<div class="columns-2">\n  <div>Left column content...</div>\n  <div>Right column content...</div>\n</div>\n`,
-        );
+      case "columns":
+        setShowColumnsModal(true);
         break;
-      }
 
-      case "anchor": {
-        const id = window.prompt(
-          "Anchor id (no spaces):",
-          slugValue || "anchor-name",
-        );
-        if (!id) return;
-        insertText(`<a id="${id}"></a>`);
+      case "anchor":
+        setShowAnchorModal(true);
         break;
-      }
 
-      case "mermaid": {
-        insertText("\n```mermaid\nflowchart LR\n  A-->B\n```");
+      case "mermaid":
+        insertText("\n```mermaid\nflowchart LR\n  A[Start] --> B[End]\n```\n");
         break;
-      }
 
-      case "emoji": {
-        const e = window.prompt("Emoji (or text):", "✅") || "✅";
-        insertText(e);
+      case "emoji":
+        insertText("✅");
         break;
-      }
 
-      // New tools: CTA, Citation, Run
-      case "cta": {
-        const label = window.prompt("Button text:", "Get started");
-        if (!label) return;
-        const url = window.prompt("URL:", "https://example.com") || "#";
-        const html = `\n<div class="cta"><a href="${url}" class="btn-cta">${label}</a></div>\n`;
-        insertText(html);
+      case "cta":
+        setShowCTAModal(true);
         break;
-      }
 
-      case "citation": {
-        const cite = window.prompt("Citation (Author, Year):", "Doe, 2024");
-        const src = window.prompt("Source URL (optional):", "");
-        if (!cite) return;
-        const html = src
-          ? `\n<blockquote class="citation">${cite} — <a href="${src}">source</a></blockquote>\n`
-          : `\n<blockquote class="citation">${cite}</blockquote>\n`;
-        insertText(html);
+case "citation":
+        setShowCitationModal(true);
         break;
-      }
 
-      case "run": {
-        insertText(
-          "\n```bash\n# Run: replace with your command\nnpm run start\n```\n",
-        );
+      case "run":
+        insertText("\n```bash\n# Run this command in your terminal\nnpm run start\n```\n");
         break;
-      }
 
-      default:
+      // Advanced Guide Creator Tools
+      case "steps":
+        setShowStepsModal(true);
+        break;
+
+      case "timeline":
+        setShowTimelineModal(true);
+        break;
+
+      case "comparison":
+        setShowComparisonModal(true);
+        break;
+
+      case "alert":
+        setShowAlertModal(true);
+        break;
+
+      case "tabs":
+        setShowTabsModal(true);
+        break;
+
+      case "definition":
+        setShowDefinitionModal(true);
+        break;
+
+      case "code-diff":
+        setShowCodeDiffModal(true);
+        break;
+
+      case "faq":
+        setShowFAQModal(true);
+        break;
+
+      case "version":
+        setShowVersionModal(true);
+        break;
+
+case "key-value":
+        setShowKeyValueModal(true);
         break;
     }
   };
@@ -1165,6 +1146,464 @@ export default function AddGuideModal({ onClose }) {
         />
       )}
 
+      {/* Interactive Link Modal */}
+      {showLinkModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowLinkModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Insert Link</h3>
+              <button onClick={() => setShowLinkModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <LinkModalForm
+              onInsert={(linkText, url) => {
+                insertText(`[${linkText}](${url})`);
+                setShowLinkModal(false);
+                toast.success("Link inserted!");
+              }}
+              onClose={() => setShowLinkModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Table Modal */}
+      {showTableModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowTableModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Insert Table</h3>
+              <button onClick={() => setShowTableModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <TableModalForm
+              onInsert={(rows, cols) => {
+                let table = "\n|";
+                for (let i = 0; i < cols; i++) table += ` Column ${i + 1} |`;
+                table += "\n|";
+                for (let i = 0; i < cols; i++) table += " --- |";
+                for (let r = 0; r < rows; r++) {
+                  table += "\n|";
+                  for (let c = 0; c < cols; c++) table += ` Cell ${r + 1},${c + 1} |`;
+                }
+                table += "\n";
+                insertText(table);
+                setShowTableModal(false);
+                toast.success("Table inserted!");
+              }}
+              onClose={() => setShowTableModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Video Modal */}
+      {showVideoModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowVideoModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Embed Video</h3>
+              <button onClick={() => setShowVideoModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <VideoModalForm
+              onInsert={(embedCode) => {
+                insertText(embedCode);
+                setShowVideoModal(false);
+                toast.success("Video inserted!");
+              }}
+              onClose={() => setShowVideoModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Callout Modal */}
+      {showCalloutModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowCalloutModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Insert Callout</h3>
+              <button onClick={() => setShowCalloutModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <CalloutModalForm
+              onInsert={(type, message) => {
+                const labels = { info: "Info:", warn: "Warning:", success: "Success:" };
+                insertText(`\n<div class="callout callout-${type}"><strong>${labels[type]}</strong> ${message}</div>\n`);
+                setShowCalloutModal(false);
+                toast.success("Callout inserted!");
+              }}
+              onClose={() => setShowCalloutModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Code Modal */}
+      {showCodeModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowCodeModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Insert Code Block</h3>
+              <button onClick={() => setShowCodeModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <CodeModalForm
+              onInsert={(code, language) => {
+                insertText(`\n\`\`\`${language}\n${code}\n\`\`\`\n`);
+                setShowCodeModal(false);
+                toast.success("Code block inserted!");
+              }}
+              onClose={() => setShowCodeModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Figure Modal */}
+      {showFigureModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowFigureModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Insert Figure</h3>
+              <button onClick={() => setShowFigureModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <FigureModalForm
+              onInsert={(url, caption) => {
+                insertText(`\n<figure>\n  <img src="${url}" alt="${caption}"/>\n  <figcaption>${caption}</figcaption>\n</figure>\n`);
+                setShowFigureModal(false);
+                toast.success("Figure inserted!");
+              }}
+              onClose={() => setShowFigureModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Details Modal */}
+      {showDetailsModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowDetailsModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Collapsible Section</h3>
+              <button onClick={() => setShowDetailsModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <DetailsModalForm
+              onInsert={(summary, content) => {
+                insertText(`\n<details>\n  <summary>${summary}</summary>\n  <p>${content}</p>\n</details>\n`);
+                setShowDetailsModal(false);
+                toast.success("Collapsible section inserted!");
+              }}
+              onClose={() => setShowDetailsModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Quote Modal */}
+      {showQuoteModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowQuoteModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Insert Quote</h3>
+              <button onClick={() => setShowQuoteModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <QuoteModalForm
+              onInsert={(quote, author) => {
+                insertText(`\n> ${quote}\n\n— ${author}\n`);
+                setShowQuoteModal(false);
+                toast.success("Quote inserted!");
+              }}
+              onClose={() => setShowQuoteModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Badge Modal */}
+      {showBadgeModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowBadgeModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Insert Badge</h3>
+              <button onClick={() => setShowBadgeModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <BadgeModalForm
+              onInsert={(text) => {
+                insertText(`<span class="badge">${text}</span>`);
+                setShowBadgeModal(false);
+                toast.success("Badge inserted!");
+              }}
+              onClose={() => setShowBadgeModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Kbd Modal */}
+      {showKbdModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowKbdModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Keyboard Shortcut</h3>
+              <button onClick={() => setShowKbdModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <KbdModalForm
+              onInsert={(keys) => {
+                insertText(keys.map(k => `<kbd>${k}</kbd>`).join(" + "));
+                setShowKbdModal(false);
+                toast.success("Keyboard shortcut inserted!");
+              }}
+              onClose={() => setShowKbdModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive CTA Modal */}
+      {showCTAModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowCTAModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Insert CTA Button</h3>
+              <button onClick={() => setShowCTAModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <CTAModalForm
+              onInsert={(label, url) => {
+                insertText(`\n<div class="cta"><a href="${url}" class="btn-cta">${label}</a></div>\n`);
+                setShowCTAModal(false);
+                toast.success("CTA button inserted!");
+              }}
+              onClose={() => setShowCTAModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Citation Modal */}
+      {showCitationModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowCitationModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Insert Citation</h3>
+              <button onClick={() => setShowCitationModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <CitationModalForm
+              onInsert={(citation, sourceUrl) => {
+                const html = sourceUrl
+                  ? `\n<blockquote class="citation">${citation} — <a href="${sourceUrl}">source</a></blockquote>\n`
+                  : `\n<blockquote class="citation">${citation}</blockquote>\n`;
+                insertText(html);
+                setShowCitationModal(false);
+                toast.success("Citation inserted!");
+              }}
+              onClose={() => setShowCitationModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Anchor Modal */}
+      {showAnchorModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowAnchorModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Insert Anchor</h3>
+              <button onClick={() => setShowAnchorModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <AnchorModalForm
+              defaultSlug={slugValue}
+              onInsert={(id) => {
+                insertText(`<a id="${id}"></a>`);
+                setShowAnchorModal(false);
+                toast.success("Anchor inserted!");
+              }}
+              onClose={() => setShowAnchorModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Footnote Modal */}
+      {showFootnoteModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowFootnoteModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Insert Footnote</h3>
+              <button onClick={() => setShowFootnoteModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <FootnoteModalForm
+              onInsert={(marker, definition) => {
+                insertText(`[^${marker}]`);
+                setFormData(prev => ({
+                  ...prev,
+                  content: prev.content + `\n\n[^${marker}]: ${definition}`
+                }));
+                setShowFootnoteModal(false);
+                toast.success("Footnote inserted!");
+              }}
+              onClose={() => setShowFootnoteModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Steps Modal */}
+      {showStepsModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowStepsModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Step-by-Step Guide</h3>
+              <button onClick={() => setShowStepsModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <StepsModalForm
+              onInsert={(content) => { insertText(content); setShowStepsModal(false); toast.success("Steps inserted!"); }}
+              onClose={() => setShowStepsModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Timeline Modal */}
+      {showTimelineModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowTimelineModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Timeline</h3>
+              <button onClick={() => setShowTimelineModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <TimelineModalForm
+              onInsert={(content) => { insertText(content); setShowTimelineModal(false); toast.success("Timeline inserted!"); }}
+              onClose={() => setShowTimelineModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Comparison Modal */}
+      {showComparisonModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowComparisonModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Comparison Table</h3>
+              <button onClick={() => setShowComparisonModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <ComparisonModalForm
+              onInsert={(content) => { insertText(content); setShowComparisonModal(false); toast.success("Comparison inserted!"); }}
+              onClose={() => setShowComparisonModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Alert Modal */}
+      {showAlertModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowAlertModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Alert Box</h3>
+              <button onClick={() => setShowAlertModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <AlertModalForm
+              onInsert={(content) => { insertText(content); setShowAlertModal(false); toast.success("Alert inserted!"); }}
+              onClose={() => setShowAlertModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Tabs Modal */}
+      {showTabsModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowTabsModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Tabs</h3>
+              <button onClick={() => setShowTabsModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <TabsModalForm
+              onInsert={(content) => { insertText(content); setShowTabsModal(false); toast.success("Tabs inserted!"); }}
+              onClose={() => setShowTabsModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Definition Modal */}
+      {showDefinitionModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowDefinitionModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Definitions</h3>
+              <button onClick={() => setShowDefinitionModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <DefinitionModalForm
+              onInsert={(content) => { insertText(content); setShowDefinitionModal(false); toast.success("Definitions inserted!"); }}
+              onClose={() => setShowDefinitionModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Code Diff Modal */}
+      {showCodeDiffModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowCodeDiffModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Code Diff</h3>
+              <button onClick={() => setShowCodeDiffModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <CodeDiffModalForm
+              onInsert={(content) => { insertText(content); setShowCodeDiffModal(false); toast.success("Code diff inserted!"); }}
+              onClose={() => setShowCodeDiffModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive FAQ Modal */}
+      {showFAQModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowFAQModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">FAQ</h3>
+              <button onClick={() => setShowFAQModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <FAQModalForm
+              onInsert={(content) => { insertText(content); setShowFAQModal(false); toast.success("FAQ inserted!"); }}
+              onClose={() => setShowFAQModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Version Modal */}
+      {showVersionModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowVersionModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Changelog</h3>
+              <button onClick={() => setShowVersionModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <VersionModalForm
+              onInsert={(content) => { insertText(content); setShowVersionModal(false); toast.success("Changelog inserted!"); }}
+              onClose={() => setShowVersionModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Key-Value Modal */}
+      {showKeyValueModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowKeyValueModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Key-Value</h3>
+              <button onClick={() => setShowKeyValueModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
+            </div>
+            <KeyValueModalForm
+              onInsert={(content) => { insertText(content); setShowKeyValueModal(false); toast.success("Key-Value inserted!"); }}
+              onClose={() => setShowKeyValueModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 flex overflow-hidden">
         {/* Editor Side */}
         <div
@@ -1514,6 +1953,101 @@ export default function AddGuideModal({ onClose }) {
                       >
                         <Terminal size={16} />
                         <span>Run</span>
+                      </button>
+
+                      {/* ===== ADVANCED GUIDE CREATOR TOOLS ===== */}
+                      <div className="col-span-3 border-t border-gray-200 pt-2 mt-1">
+                        <span className="text-xs font-semibold text-gray-400 uppercase">Advanced Tools</span>
+                      </div>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => { handleToolbarAction("steps"); setShowMoreTools(false); }}
+                        title="Steps"
+                      >
+                        <ListOrdered size={16} />
+                        <span>Steps</span>
+                      </button>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => { handleToolbarAction("timeline"); setShowMoreTools(false); }}
+                        title="Timeline"
+                      >
+                        <Clock size={16} />
+                        <span>Time</span>
+                      </button>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => { handleToolbarAction("comparison"); setShowMoreTools(false); }}
+                        title="Comparison"
+                      >
+                        <GitMerge size={16} />
+                        <span>Compare</span>
+                      </button>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => { handleToolbarAction("alert"); setShowMoreTools(false); }}
+                        title="Alert"
+                      >
+                        <AlertTriangle size={16} />
+                        <span>Alert</span>
+                      </button>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => { handleToolbarAction("tabs"); setShowMoreTools(false); }}
+                        title="Tabs"
+                      >
+                        <HashIcon size={16} />
+                        <span>Tabs</span>
+                      </button>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => { handleToolbarAction("definition"); setShowMoreTools(false); }}
+                        title="Definition"
+                      >
+                        <BookOpen size={16} />
+                        <span>Define</span>
+                      </button>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => { handleToolbarAction("code-diff"); setShowMoreTools(false); }}
+                        title="Code Diff"
+                      >
+                        <FileCode size={16} />
+                        <span>Diff</span>
+                      </button>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => { handleToolbarAction("faq"); setShowMoreTools(false); }}
+                        title="FAQ"
+                      >
+                        <HelpCircle size={16} />
+                        <span>FAQ</span>
+                      </button>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => { handleToolbarAction("version"); setShowMoreTools(false); }}
+                        title="Version"
+                      >
+                        <Download size={16} />
+                        <span>Version</span>
+                      </button>
+
+                      <button
+                        className="tool-item flex flex-col items-center gap-1 text-xs text-gray-600"
+                        onClick={() => { handleToolbarAction("key-value"); setShowMoreTools(false); }}
+                        title="Key-Value"
+                      >
+                        <Key size={16} />
+                        <span>KeyValue</span>
                       </button>
                     </div>
                   </div>

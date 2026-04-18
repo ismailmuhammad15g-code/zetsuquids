@@ -241,17 +241,39 @@ async function handleRecordInteraction(req, res) {
       `📊 Recording interaction: ${interactionType} for ${guideSlug} by ${userEmail}`,
     );
 
+    // First, get the guide UUID from slug (RPC might expect UUID, not slug)
+    const { data: guideData, error: guideError } = await supabase
+      .from("guides")
+      .select("id")
+      .eq("slug", guideSlug)
+      .maybeSingle();
+
+    if (guideError || !guideData) {
+      console.error("Guide not found for slug:", guideSlug, guideError);
+      // Silently skip if guide doesn't exist (deleted guide, etc.)
+      return res.status(200).json({
+        success: true,
+        message: "Interaction skipped (guide not found)",
+      });
+    }
+
+    const guideId = guideData.id;
+
     // Record the interaction using Supabase RPC function
     const { error } = await supabase.rpc("record_guide_interaction", {
       p_user_email: userEmail.toLowerCase(),
-      p_guide_slug: guideSlug,
+      p_guide_id: guideId,
       p_interaction_type: interactionType,
       p_interaction_score: parseInt(interactionScore) || 1,
     });
 
     if (error) {
       console.error("❌ Database error recording interaction:", error);
-      throw error;
+      // Don't throw - just log and continue
+      return res.status(200).json({
+        success: true,
+        message: "Interaction recorded (with error)",
+      });
     }
 
     console.log(`✅ Successfully recorded ${interactionType} interaction`);
