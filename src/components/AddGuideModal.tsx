@@ -898,7 +898,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         .map((k) => k.trim())
         .filter(Boolean);
 
-      const guide = await guidesApi.create({
+      const guide: any = await guidesApi.create({
         title: formData.title || "",
         slug: slugValue || undefined,
         keywords,
@@ -2066,16 +2066,17 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
                   <div className="flex items-center gap-3 mt-4">
                     <img
                       src={
-                        user?.user_metadata?.avatar_url ||
-                        getAvatarForUser(user?.email)
+                        (user?.user_metadata?.avatar_url as string) ||
+                        (getAvatarForUser(user?.email) as string)
                       }
                       alt="avatar"
                       className="w-8 h-8 rounded-full object-cover"
                     />
                     <div>
                       <div className="text-sm font-medium">
-                        {user?.user_metadata?.full_name ||
-                          user?.email?.split("@")[0]}
+                        {(user?.user_metadata?.full_name as string) ||
+                          (user?.email?.split("@")[0] as string) ||
+                          "Author"}
                       </div>
                       <div className="text-xs text-gray-400">
                         {readTime} min •{" "}

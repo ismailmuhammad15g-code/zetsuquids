@@ -1,12 +1,6 @@
 ﻿import { X, Calendar } from "lucide-react";
 import { ReactNode, useState } from "react";
 
-interface ModalContainerProps {
-  children: ReactNode;
-  title: string;
-  onClose: () => void;
-}
-
 interface ModalFormProps {
   onInsert: (content: string) => void;
   onClose: () => void;
@@ -81,16 +75,6 @@ interface AnchorModalFormProps {
 interface FootnoteModalFormProps {
   onInsert: (marker: string, definition: string) => void;
   onClose: () => void;
-}
-
-function ModalContainer({ children }: ModalContainerProps) {
-  return (
-    <div className="px-6 py-4">
-      <div className="space-y-4">
-        {children}
-      </div>
-    </div>
-  );
 }
 
 export function LinkModalForm({ onInsert, onClose }: LinkModalFormProps) {
