@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 
 // Define the possible screen sizes
-const SCREEN_SIZES = ["xs", "sm", "md", "lg", "xl", "2xl"];
+type ScreenSizeType = "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
 
 // Size order mapping
-const sizeOrder = {
+const sizeOrder: Record<ScreenSizeType, number> = {
   xs: 0,
   sm: 1,
   md: 2,
@@ -14,44 +14,46 @@ const sizeOrder = {
 };
 
 class ComparableScreenSize {
-  constructor(value) {
+  private value: ScreenSizeType;
+
+  constructor(value: ScreenSizeType) {
     this.value = value;
   }
 
-  toString() {
+  toString(): string {
     return this.value;
   }
 
-  valueOf() {
+  valueOf(): number {
     return sizeOrder[this.value];
   }
 
-  equals(other) {
+  equals(other: ScreenSizeType): boolean {
     return this.value === other;
   }
 
-  lessThan(other) {
+  lessThan(other: ScreenSizeType): boolean {
     return this.valueOf() < sizeOrder[other];
   }
 
-  greaterThan(other) {
+  greaterThan(other: ScreenSizeType): boolean {
     return this.valueOf() > sizeOrder[other];
   }
 
-  lessThanOrEqual(other) {
+  lessThanOrEqual(other: ScreenSizeType): boolean {
     return this.valueOf() <= sizeOrder[other];
   }
 
-  greaterThanOrEqual(other) {
+  greaterThanOrEqual(other: ScreenSizeType): boolean {
     return this.valueOf() >= sizeOrder[other];
   }
 }
 
-const useScreenSize = () => {
-  const [screenSize, setScreenSize] = useState("xs");
+const useScreenSize = (): ComparableScreenSize => {
+  const [screenSize, setScreenSize] = useState<ScreenSizeType>("xs");
 
   useEffect(() => {
-    const handleResize = () => {
+    const handleResize = (): void => {
       const width = window.innerWidth;
 
       if (width >= 1536) {
