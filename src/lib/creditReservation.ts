@@ -1,23 +1,23 @@
 // Credit Reservation System for AI Chat
 // Prevents losing credits when AI API fails
 
-import { supabase } from './supabase'
+import { supabase } from './supabase';
 
 interface CreditResult {
-  success: boolean;
-  remainingCredits: number;
-  reserved?: number;
+    success: boolean;
+    remainingCredits: number;
+    reserved?: number;
 }
 
 interface CommitResult {
-  success: boolean;
-  newBalance: number;
+    success: boolean;
+    newBalance: number;
 }
 
 interface AvailableCreditsResult {
-  credits: number;
-  reserved: number;
-  available: number;
+    credits: number;
+    reserved: number;
+    available: number;
 }
 
 /**

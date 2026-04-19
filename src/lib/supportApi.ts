@@ -1,22 +1,22 @@
-import { supabase } from './supabase'
+import { supabase } from './supabase';
 
 interface SupportMessage {
-  id?: string | number;
-  user_id: string;
-  message: string;
-  created_at?: string;
+    id?: string | number;
+    user_id: string;
+    message: string;
+    created_at?: string;
 }
 
 interface SupportResult {
-  success: boolean;
-  error?: string;
-  data?: SupportMessage;
+    success: boolean;
+    error?: string;
+    data?: SupportMessage;
 }
 
 interface SupportMessagesResult {
-  success: boolean;
-  error?: string;
-  data?: SupportMessage[];
+    success: boolean;
+    error?: string;
+    data?: SupportMessage[];
 }
 
 export const supportApi = {
