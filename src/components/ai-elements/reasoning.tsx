@@ -1,0 +1,196 @@
+﻿// Type definitions for reasoning
+
+interface reasoningProps {
+  // Add prop types here
+}
+
+// Event handler types
+type HandleEvent = (e: React.SyntheticEvent<any>) => void;
+
+import { useState, useEffect, useRef, createContext, useContext } from "react";
+import { BrainCircuit, ChevronUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+// ─── Context ──────────────────────────────────────────────────────────────────
+
+const ReasoningContext = createContext(null);
+
+export const useReasoning = () => {
+  const ctx = useContext(ReasoningContext);
+  if (!ctx) throw new Error("useReasoning must be used inside <Reasoning>");
+  return ctx;
+};
+
+// ─── Root ─────────────────────────────────────────────────────────────────────
+
+/**
+ * @param {Object}  props
+ * @param {boolean} props.isStreaming   – auto-opens while streaming, closes when done
+ * @param {boolean} [props.open]        – controlled open state
+ * @param {boolean} [props.defaultOpen] – uncontrolled initial state (default true)
+ * @param {(open: boolean) => void} [props.onOpenChange]
+ * @param {number}  [props.duration]    – override elapsed seconds from outside
+ * @param {string}  [props.className]
+ */
+export const Reasoning = ({
+  isStreaming = false,
+  open,
+  defaultOpen = true,
+  onOpenChange,
+  duration,
+  children,
+  className = "",
+}) => {
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const [elapsed, setElapsed] = useState(undefined);
+  const startRef = useRef(null);
+  const tickRef = useRef(null);
+
+  const controlled = open !== undefined;
+  const isOpen = controlled ? open : internalOpen;
+
+  const setOpen = (val) => {
+    if (!controlled) setInternalOpen(val);
+    onOpenChange?.(val);
+  };
+
+  useEffect(() => {
+    if (isStreaming) {
+      setOpen(true);
+      startRef.current = Date.now();
+      tickRef.current = setInterval(() => {
+        setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+      }, 1000);
+    } else {
+      clearInterval(tickRef.current);
+      if (startRef.current) {
+        setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+        startRef.current = null;
+      }
+      // small delay so user can see the final state before collapsing
+      const t = setTimeout(() => setOpen(false), 600);
+      return () => clearTimeout(t);
+    }
+    return () => clearInterval(tickRef.current);
+  }, [isStreaming]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <ReasoningContext.Provider
+      value={{
+        isStreaming,
+        isOpen,
+        setOpen,
+        duration: duration ?? elapsed,
+      }}
+    >
+      <div className={`w-full ${className}`}>{children}</div>
+    </ReasoningContext.Provider>
+  );
+};
+
+// ─── Trigger ──────────────────────────────────────────────────────────────────
+
+/**
+ * @param {Object} props
+ * @param {(isStreaming: boolean, duration?: number) => React.ReactNode} [props.getThinkingMessage]
+ */
+export const ReasoningTrigger = ({ getThinkingMessage, className = "", ...rest }) => {
+  const { isStreaming, isOpen, setOpen, duration } = useReasoning();
+
+  const label = getThinkingMessage
+    ? getThinkingMessage(isStreaming, duration)
+    : isStreaming
+    ? "Thinking…"
+    : duration !== undefined
+    ? `Thought for ${duration}s`
+    : "View reasoning";
+
+  return (
+    <button
+      type="button"
+      onClick={() => setOpen(!isOpen)}
+      className={[
+        "flex items-center gap-1.5 select-none",
+        "text-sm transition-colors duration-150",
+        isStreaming
+          ? "text-blue-500 dark:text-blue-400"
+          : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200",
+        className,
+      ].join(" ")}
+      {...rest}
+    >
+      {/* icon + pulse ring */}
+      <span className="relative flex items-center justify-center w-5 h-5 shrink-0">
+        <BrainCircuit size={16} />
+        {isStreaming && (
+          <span className="absolute inset-0 rounded-full animate-ping bg-blue-400 opacity-30 pointer-events-none" />
+        )}
+      </span>
+
+      {/* label */}
+      <span className="font-normal">{label}</span>
+
+      {/* chevron rotates when open */}
+      <motion.span
+        className="flex items-center"
+        animate={{ rotate: isOpen ? 0 : 180 }}
+        transition={{ duration: 0.2, ease: "easeInOut" }}
+      >
+        <ChevronUp size={14} />
+      </motion.span>
+    </button>
+  );
+};
+
+// ─── Content ──────────────────────────────────────────────────────────────────
+
+/**
+ * @param {Object} props
+ * @param {string} props.children  – reasoning text to display
+ */
+export const ReasoningContent = ({ children, className = "", ...rest }) => {
+  const { isOpen } = useReasoning();
+
+  return (
+    <AnimatePresence initial={false}>
+      {isOpen && (
+        <motion.div
+          key="reasoning-body"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.25, ease: "easeInOut" }}
+          className="overflow-hidden"
+          {...rest}
+        >
+          <div
+            className={[
+              "pt-2 pb-1 pl-0.5",
+              "text-sm leading-relaxed whitespace-pre-wrap",
+              "text-gray-600 dark:text-gray-300",
+              className,
+            ].join(" ")}
+          >
+            {children}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+// ─── Composed default export (optional convenience) ───────────────────────────
+
+/**
+ * Drop-in composed version — matches the screenshot exactly.
+ *
+ * Usage:
+ *   <ReasoningBlock isStreaming={isStreaming} text={reasoningText} />
+ */
+export const ReasoningBlock = ({ isStreaming, text, className = "" }) => (
+  <Reasoning isStreaming={isStreaming} className={className}>
+    <ReasoningTrigger />
+    <ReasoningContent>{text}</ReasoningContent>
+  </Reasoning>
+);
+

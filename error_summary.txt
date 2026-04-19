@@ -1,0 +1,994 @@
+﻿Total TypeScript Errors: 995
+Total files with errors in src/components/ (excluding ui/):
+src/components/AccountSetupModal.tsx(105,29): error TS2322: Type 'MutableRefObject<undefined>' is not assignable to type 'MutableRefObject<LottieRefCurrentProps | null>'.
+src/components/AccountSetupModal.tsx(131,45): error TS7031: Binding element 'user' implicitly has an 'any' type.
+src/components/AccountSetupModal.tsx(131,51): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/components/AccountSetupModal.tsx(131,60): error TS7031: Binding element 'onComplete' implicitly has an 'any' type.
+src/components/AccountSetupModal.tsx(163,12): error TS6133: 'bonusCredits' is declared but its value is never read.
+src/components/AccountSetupModal.tsx(280,69): error TS2322: Type 'string' is not assignable to type 'null'.
+src/components/AccountSetupModal.tsx(3,11): error TS6196: 'AccountSetupModalProps' is declared but never used.
+src/components/AccountSetupModal.tsx(312,26): error TS2741: Property 'staticIcon' is missing in type '{ key: string; name: string; icon: { v: string; fr: number; ip: number; op: number; w: number; h: number; nm: string; ddd: number; assets: { id: string; layers: ({ ddd: number; ind: number; ty: number; nm: string; ... 10 more ...; shapes?: undefined; } | { ...; })[]; }[]; layers: ({ ...; } | { ...; })[]; markers: ne...' but required in type '{ name: any; icon: any; staticIcon: any; isSelected: any; onClick: any; }'.
+src/components/AccountSetupModal.tsx(317,73): error TS2322: Type 'string' is not assignable to type 'null'.
+src/components/AccountSetupModal.tsx(321,69): error TS2322: Type 'string' is not assignable to type 'null'.
+src/components/AccountSetupModal.tsx(51,23): error TS7031: Binding element 'name' implicitly has an 'any' type.
+src/components/AccountSetupModal.tsx(51,29): error TS7031: Binding element 'icon' implicitly has an 'any' type.
+src/components/AccountSetupModal.tsx(51,47): error TS7031: Binding element 'StaticIcon' implicitly has an 'any' type.
+src/components/AccountSetupModal.tsx(51,59): error TS7031: Binding element 'isSelected' implicitly has an 'any' type.
+src/components/AccountSetupModal.tsx(51,71): error TS7031: Binding element 'onClick' implicitly has an 'any' type.
+src/components/AccountSetupModal.tsx(64,11): error TS6133: 'showStaticIcon' is declared but its value is never read.
+src/components/AccountSetupModal.tsx(66,48): error TS2339: Property 'getDuration' does not exist on type 'never'.
+src/components/AccountSetupModal.tsx(68,35): error TS2339: Property 'goToAndStop' does not exist on type 'never'.
+src/components/AccountSetupModal.tsx(77,31): error TS2339: Property 'pause' does not exist on type 'never'.
+src/components/AccountSetupModal.tsx(79,31): error TS2339: Property 'goToAndPlay' does not exist on type 'never'.
+src/components/AccountSetupModal.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/AdBlockFallback.tsx(109,27): error TS2322: Type '{ position: string; top: number; left: number; right: number; bottom: number; width: string; height: string; zIndex: number; backgroundColor: string; overflowY: string; overflowX: string; margin: number; padding: number; }' is not assignable to type 'Properties<string | number, string & {}>'.
+src/components/AdBlockFallback.tsx(3,11): error TS6196: 'AdBlockFallbackProps' is declared but never used.
+src/components/AdBlockFallback.tsx(38,26): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/AdBlockFallback.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/AddGuideModal.tsx(1147,22): error TS7006: Parameter 'quizData' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1167,15): error TS2322: Type '(linkText: any, url: any) => void' is not assignable to type '(content: string) => void'.
+src/components/AddGuideModal.tsx(1167,26): error TS7006: Parameter 'linkText' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1167,36): error TS7006: Parameter 'url' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1187,15): error TS2322: Type '(rows: any, cols: any) => void' is not assignable to type '(content: string) => void'.
+src/components/AddGuideModal.tsx(1187,26): error TS7006: Parameter 'rows' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1187,32): error TS7006: Parameter 'cols' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(119,35): error TS6133: 'match' is declared but its value is never read.
+src/components/AddGuideModal.tsx(120,42): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+src/components/AddGuideModal.tsx(1236,15): error TS2322: Type '(type: any, message: any) => void' is not assignable to type '(content: string) => void'.
+src/components/AddGuideModal.tsx(1236,26): error TS7006: Parameter 'type' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1236,32): error TS7006: Parameter 'message' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1238,78): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ info: string; warn: string; success: string; }'.
+src/components/AddGuideModal.tsx(1257,15): error TS2322: Type '(code: any, language: any) => void' is not assignable to type '(content: string) => void'.
+src/components/AddGuideModal.tsx(1257,26): error TS7006: Parameter 'code' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1257,32): error TS7006: Parameter 'language' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1277,15): error TS2322: Type '(url: any, caption: any) => void' is not assignable to type '(content: string) => void'.
+src/components/AddGuideModal.tsx(1277,26): error TS7006: Parameter 'url' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1277,31): error TS7006: Parameter 'caption' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1297,15): error TS2322: Type '(summary: any, content: any) => void' is not assignable to type '(content: string) => void'.
+src/components/AddGuideModal.tsx(1297,26): error TS7006: Parameter 'summary' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1297,35): error TS7006: Parameter 'content' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1317,15): error TS2322: Type '(quote: any, author: any) => void' is not assignable to type '(content: string) => void'.
+src/components/AddGuideModal.tsx(1317,26): error TS7006: Parameter 'quote' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1317,33): error TS7006: Parameter 'author' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1358,33): error TS2339: Property 'map' does not exist on type 'string'.
+src/components/AddGuideModal.tsx(1358,37): error TS7006: Parameter 'k' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1377,15): error TS2322: Type '(label: any, url: any) => void' is not assignable to type '(content: string) => void'.
+src/components/AddGuideModal.tsx(1377,26): error TS7006: Parameter 'label' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1377,33): error TS7006: Parameter 'url' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1397,15): error TS2322: Type '(citation: any, sourceUrl: any) => void' is not assignable to type '(content: string) => void'.
+src/components/AddGuideModal.tsx(1397,26): error TS7006: Parameter 'citation' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1397,36): error TS7006: Parameter 'sourceUrl' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1441,15): error TS2322: Type '(marker: any, definition: any) => void' is not assignable to type '(content: string) => void'.
+src/components/AddGuideModal.tsx(1441,26): error TS7006: Parameter 'marker' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(1441,34): error TS7006: Parameter 'definition' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(148,14): error TS2322: Type '{ code(code: any, language: any): string; }' is not assignable to type 'RendererObject<string, string>'.
+src/components/AddGuideModal.tsx(152,3): error TS2353: Object literal may only specify known properties, and 'headerIds' does not exist in type 'MarkedOptions<string, string>'.
+src/components/AddGuideModal.tsx(155,41): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(162,10): error TS6133: 'aiProcessing' is declared but its value is never read.
+src/components/AddGuideModal.tsx(171,10): error TS6133: 'showImageModal' is declared but its value is never read.
+src/components/AddGuideModal.tsx(171,26): error TS6133: 'setShowImageModal' is declared but its value is never read.
+src/components/AddGuideModal.tsx(181,10): error TS6133: 'showColumnsModal' is declared but its value is never read.
+src/components/AddGuideModal.tsx(208,10): error TS6133: 'draftAvailable' is declared but its value is never read.
+src/components/AddGuideModal.tsx(209,24): error TS6133: 'setSlugEditMode' is declared but its value is never read.
+src/components/AddGuideModal.tsx(2129,23): error TS2322: Type '{}' is not assignable to type 'string'.
+src/components/AddGuideModal.tsx(2138,25): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/AddGuideModal.tsx(2177,64): error TS6133: 'm' is declared but its value is never read.
+src/components/AddGuideModal.tsx(2178,21): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/components/AddGuideModal.tsx(2183,38): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(219,18): error TS2339: Property 'getBalance' does not exist on type '{ claimDailyCredits(userEmail: string): Promise<DailyCreditsResult>; checkDailyCredits(userEmail: string): Promise<DailyCreditsCheck>; }'.
+src/components/AddGuideModal.tsx(2218,36): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(2225,38): error TS2339: Property 'replace' does not exist on type 'string | Promise<string>'.
+src/components/AddGuideModal.tsx(2227,22): error TS6133: 'm' is declared but its value is never read.
+src/components/AddGuideModal.tsx(2227,22): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(2227,25): error TS7006: Parameter 'level' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(2227,32): error TS7006: Parameter 'inner' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(2238,24): error TS6133: 'm' is declared but its value is never read.
+src/components/AddGuideModal.tsx(2238,24): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(2238,27): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(2245,39): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/components/AddGuideModal.tsx(2245,43): error TS2363: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/components/AddGuideModal.tsx(2248,61): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{}'.
+src/components/AddGuideModal.tsx(2248,79): error TS2339: Property 'replace' does not exist on type 'string | Promise<string>'.
+src/components/AddGuideModal.tsx(2275,50): error TS2339: Property 'includes' does not exist on type 'never'.
+src/components/AddGuideModal.tsx(2291,26): error TS7031: Binding element 'icon' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(2291,32): error TS7031: Binding element 'onClick' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(2291,41): error TS7031: Binding element 'tooltip' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(254,9): error TS6133: 'restoreDraft' is declared but its value is never read.
+src/components/AddGuideModal.tsx(268,9): error TS6133: 'discardDraft' is declared but its value is never read.
+src/components/AddGuideModal.tsx(3,11): error TS6196: 'AddGuideModalProps' is declared but never used.
+src/components/AddGuideModal.tsx(355,64): error TS2345: Argument of type '(svgCode: any) => void' is not assignable to parameter of type 'Element'.
+src/components/AddGuideModal.tsx(355,65): error TS7006: Parameter 'svgCode' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(373,25): error TS2322: Type 'string | RenderResult' is not assignable to type 'string'.
+src/components/AddGuideModal.tsx(451,38): error TS7006: Parameter 'html' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(457,51): error TS7006: Parameter 'match' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(468,11): error TS7034: Variable 'errors' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/components/AddGuideModal.tsx(489,16): error TS7005: Variable 'errors' implicitly has an 'any[]' type.
+src/components/AddGuideModal.tsx(516,25): error TS2345: Argument of type 'string[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/AddGuideModal.tsx(522,36): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(537,23): error TS7006: Parameter 'textToInsert' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(541,28): error TS2339: Property 'selectionStart' does not exist on type 'never'.
+src/components/AddGuideModal.tsx(542,26): error TS2339: Property 'selectionEnd' does not exist on type 'never'.
+src/components/AddGuideModal.tsx(551,16): error TS2339: Property 'focus' does not exist on type 'never'.
+src/components/AddGuideModal.tsx(552,16): error TS2339: Property 'setSelectionRange' does not exist on type 'never'.
+src/components/AddGuideModal.tsx(559,32): error TS7006: Parameter 'action' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(561,28): error TS7006: Parameter 'before' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(561,36): error TS7006: Parameter 'after' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(567,30): error TS2339: Property 'selectionStart' does not exist on type 'never'.
+src/components/AddGuideModal.tsx(568,28): error TS2339: Property 'selectionEnd' does not exist on type 'never'.
+src/components/AddGuideModal.tsx(578,18): error TS2339: Property 'focus' does not exist on type 'never'.
+src/components/AddGuideModal.tsx(579,18): error TS2339: Property 'setSelectionRange' does not exist on type 'never'.
+src/components/AddGuideModal.tsx(660,9): error TS2552: Cannot find name 'setShowTocModal'. Did you mean 'setShowCTAModal'?
+src/components/AddGuideModal.tsx(750,29): error TS7006: Parameter 'prompt' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(750,37): error TS7006: Parameter 'onChunk' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(781,22): error TS18047: 'response.body' is possibly 'null'.
+src/components/AddGuideModal.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/AddGuideModal.tsx(880,33): error TS7006: Parameter 'type' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(910,48): error TS7006: Parameter 'chunk' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(931,19): error TS18046: 'error' is of type 'unknown'.
+src/components/AddGuideModal.tsx(937,31): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(960,9): error TS2322: Type '{}' is not assignable to type 'string'.
+src/components/AddGuideModal.tsx(99,14): error TS7006: Parameter 'language' implicitly has an 'any' type.
+src/components/AddGuideModal.tsx(99,8): error TS7006: Parameter 'code' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(141,47): error TS2554: Expected 1 arguments, but got 2.
+src/components/AddGuideModals.tsx(15,10): error TS6133: 'ModalContainer' is declared but its value is never read.
+src/components/AddGuideModals.tsx(15,37): error TS6133: 'title' is declared but its value is never read.
+src/components/AddGuideModals.tsx(15,44): error TS6133: 'onClose' is declared but its value is never read.
+src/components/AddGuideModals.tsx(167,47): error TS2554: Expected 1 arguments, but got 2.
+src/components/AddGuideModals.tsx(189,46): error TS2554: Expected 1 arguments, but got 2.
+src/components/AddGuideModals.tsx(2,31): error TS6133: 'FC' is declared but its value is never read.
+src/components/AddGuideModals.tsx(211,50): error TS2554: Expected 1 arguments, but got 2.
+src/components/AddGuideModals.tsx(233,48): error TS2554: Expected 1 arguments, but got 2.
+src/components/AddGuideModals.tsx(268,41): error TS2345: Argument of type 'string[]' is not assignable to parameter of type 'string'.
+src/components/AddGuideModals.tsx(290,48): error TS2554: Expected 1 arguments, but got 2.
+src/components/AddGuideModals.tsx(312,51): error TS2554: Expected 1 arguments, but got 2.
+src/components/AddGuideModals.tsx(356,49): error TS2554: Expected 1 arguments, but got 2.
+src/components/AddGuideModals.tsx(369,23): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(370,23): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(370,28): error TS7006: Parameter 'field' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(370,35): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(372,5): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ title: string; content: string; }'.
+src/components/AddGuideModals.tsx(412,23): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(413,23): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(413,28): error TS7006: Parameter 'field' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(413,35): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(415,5): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ date: string; event: string; }'.
+src/components/AddGuideModals.tsx(432,14): error TS2304: Cannot find name 'Calendar'.
+src/components/AddGuideModals.tsx(454,26): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(454,31): error TS7006: Parameter 'val' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(460,24): error TS7006: Parameter 'featureIdx' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(460,36): error TS7006: Parameter 'optionIdx' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(460,47): error TS7006: Parameter 'val' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(462,29): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ 0: string[]; 1: string[]; }'.
+src/components/AddGuideModals.tsx(462,5): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ 0: string[]; 1: string[]; }'.
+src/components/AddGuideModals.tsx(463,5): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ 0: string[]; 1: string[]; }'.
+src/components/AddGuideModals.tsx(471,33): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type '{ 0: string[]; 1: string[]; }'.
+src/components/AddGuideModals.tsx(488,50): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type '{ 0: string[]; 1: string[]; }'.
+src/components/AddGuideModals.tsx(53,47): error TS2554: Expected 1 arguments, but got 2.
+src/components/AddGuideModals.tsx(545,22): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(545,27): error TS7006: Parameter 'field' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(545,34): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(547,5): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ label: string; content: string; }'.
+src/components/AddGuideModals.tsx(553,24): error TS6133: 'i' is declared but its value is never read.
+src/components/AddGuideModals.tsx(587,23): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(587,28): error TS7006: Parameter 'field' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(587,35): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(589,5): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ term: string; definition: string; }'.
+src/components/AddGuideModals.tsx(653,23): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(653,28): error TS7006: Parameter 'field' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(653,35): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(655,5): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ question: string; answer: string; }'.
+src/components/AddGuideModals.tsx(695,26): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(695,31): error TS7006: Parameter 'field' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(695,38): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(697,5): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ version: string; date: string; changes: string; }'.
+src/components/AddGuideModals.tsx(735,23): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(735,28): error TS7006: Parameter 'field' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(735,35): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/components/AddGuideModals.tsx(737,5): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ key: string; value: string; }'.
+src/components/AddGuideModals.tsx(77,47): error TS2554: Expected 1 arguments, but got 2.
+src/components/AddGuideModals.tsx(87,24): error TS7006: Parameter 'inputUrl' implicitly has an 'any' type.
+src/components/ai-elements/AIThinkingDemo.tsx(12,35)
+src/components/ai-elements/AIThinkingDemo.tsx(13,34)
+src/components/ai-elements/AIThinkingDemo.tsx(14,37)
+src/components/ai-elements/AIThinkingDemo.tsx(143,14)
+src/components/ai-elements/AIThinkingDemo.tsx(29,50)
+src/components/ai-elements/AIThinkingDemo.tsx(3,11)
+src/components/ai-elements/AIThinkingDemo.tsx(35,9)
+src/components/ai-elements/AIThinkingDemo.tsx(51,25)
+src/components/ai-elements/AIThinkingDemo.tsx(61,18)
+src/components/ai-elements/AIThinkingDemo.tsx(66,18)
+src/components/ai-elements/AIThinkingDemo.tsx(78,17)
+src/components/ai-elements/AIThinkingDemo.tsx(8,6)
+src/components/ai-elements/LiveThinkingDisplay.tsx(11,44)
+src/components/ai-elements/LiveThinkingDisplay.tsx(12,29)
+src/components/ai-elements/LiveThinkingDisplay.tsx(151,29)
+src/components/ai-elements/LiveThinkingDisplay.tsx(169,25)
+src/components/ai-elements/LiveThinkingDisplay.tsx(3,11)
+src/components/ai-elements/LiveThinkingDisplay.tsx(31,18)
+src/components/ai-elements/LiveThinkingDisplay.tsx(31,24)
+src/components/ai-elements/LiveThinkingDisplay.tsx(31,32)
+src/components/ai-elements/LiveThinkingDisplay.tsx(31,43)
+src/components/ai-elements/LiveThinkingDisplay.tsx(53,15)
+src/components/ai-elements/LiveThinkingDisplay.tsx(53,21)
+src/components/ai-elements/LiveThinkingDisplay.tsx(64,15)
+src/components/ai-elements/LiveThinkingDisplay.tsx(65,16)
+src/components/ai-elements/LiveThinkingDisplay.tsx(68,16)
+src/components/ai-elements/LiveThinkingDisplay.tsx(71,16)
+src/components/ai-elements/LiveThinkingDisplay.tsx(72,24)
+src/components/ai-elements/LiveThinkingDisplay.tsx(77,19)
+src/components/ai-elements/LiveThinkingDisplay.tsx(82,16)
+src/components/ai-elements/LiveThinkingDisplay.tsx(85,16)
+src/components/ai-elements/LiveThinkingDisplay.tsx(88,16)
+src/components/ai-elements/reasoning.tsx(111,22)
+src/components/ai-elements/reasoning.tsx(151,36)
+src/components/ai-elements/reasoning.tsx(190,34)
+src/components/ai-elements/reasoning.tsx(190,47)
+src/components/ai-elements/reasoning.tsx(191,4)
+src/components/ai-elements/reasoning.tsx(192,6)
+src/components/ai-elements/reasoning.tsx(3,11)
+src/components/ai-elements/reasoning.tsx(37,3)
+src/components/ai-elements/reasoning.tsx(39,3)
+src/components/ai-elements/reasoning.tsx(40,3)
+src/components/ai-elements/reasoning.tsx(41,3)
+src/components/ai-elements/reasoning.tsx(52,20)
+src/components/ai-elements/reasoning.tsx(60,7)
+src/components/ai-elements/reasoning.tsx(61,7)
+src/components/ai-elements/reasoning.tsx(62,20)
+src/components/ai-elements/reasoning.tsx(62,45)
+src/components/ai-elements/reasoning.tsx(65,21)
+src/components/ai-elements/reasoning.tsx(67,20)
+src/components/ai-elements/reasoning.tsx(74,32)
+src/components/ai-elements/reasoning.tsx(79,7)
+src/components/ai-elements/reasoning.tsx(8,6)
+src/components/ai-elements/reasoning.tsx(97,36)
+src/components/ApprovedBugModal.tsx(10,1): error TS6192: All imports in import declaration are unused.
+src/components/ApprovedBugModal.tsx(13,44): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/components/ApprovedBugModal.tsx(3,11): error TS6196: 'ApprovedBugModalProps' is declared but never used.
+src/components/ApprovedBugModal.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/blocks/pricing-section.tsx(14,3)
+src/components/blocks/pricing-section.tsx(15,3)
+src/components/blocks/pricing-section.tsx(16,3)
+src/components/blocks/pricing-section.tsx(17,3)
+src/components/blocks/pricing-section.tsx(18,3)
+src/components/blocks/pricing-section.tsx(19,3)
+src/components/blocks/pricing-section.tsx(20,3)
+src/components/blocks/pricing-section.tsx(34,29)
+src/components/blocks/pricing-section.tsx(38,15)
+src/components/blocks/pricing-section.tsx(47,21)
+src/components/Chatbot.tsx(104,26): error TS2339: Property 'inline' does not exist on type 'ClassAttributes<HTMLElement> & HTMLAttributes<HTMLElement> & ExtraProps'.
+src/components/Chatbot.tsx(105,19): error TS6133: 'match' is declared but its value is never read.
+src/components/Chatbot.tsx(1102,34): error TS2339: Property 'guideId' does not exist on type '{ id: string; role: string; content: string; type: string; }'.
+src/components/Chatbot.tsx(1104,52): error TS2339: Property 'guideId' does not exist on type '{ id: string; role: string; content: string; type: string; }'.
+src/components/Chatbot.tsx(205,10): error TS6133: 'hasUnread' is declared but its value is never read.
+src/components/Chatbot.tsx(205,21): error TS6133: 'setHasUnread' is declared but its value is never read.
+src/components/Chatbot.tsx(235,26): error TS18047: 'user' is possibly 'null'.
+src/components/Chatbot.tsx(241,33): error TS18047: 'user' is possibly 'null'.
+src/components/Chatbot.tsx(250,30): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/components/Chatbot.tsx(250,36): error TS2363: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/components/Chatbot.tsx(259,30): error TS18047: 'user' is possibly 'null'.
+src/components/Chatbot.tsx(279,19): error TS2345: Argument of type 'Guide[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/Chatbot.tsx(28,10): error TS2305: Module '"../lib/ai"' has no exported member 'aiAgentSearch'.
+src/components/Chatbot.tsx(289,29): error TS2339: Property 'scrollIntoView' does not exist on type 'never'.
+src/components/Chatbot.tsx(297,39): error TS2551: Property 'webkitAudioContext' does not exist on type 'Window & typeof globalThis'. Did you mean 'AudioContext'?
+src/components/Chatbot.tsx(3,11): error TS6196: 'ChatbotProps' is declared but never used.
+src/components/Chatbot.tsx(36,23): error TS7006: Parameter 'text' implicitly has an 'any' type.
+src/components/Chatbot.tsx(360,9): error TS7034: Variable 'subscription' implicitly has type 'any' in some locations where its type cannot be determined.
+src/components/Chatbot.tsx(38,9): error TS6133: 'arabicRegex' is declared but its value is never read.
+src/components/Chatbot.tsx(438,11): error TS7005: Variable 'subscription' implicitly has an 'any' type.
+src/components/Chatbot.tsx(484,53): error TS18047: 'user' is possibly 'null'.
+src/components/Chatbot.tsx(484,53): error TS2554: Expected 0 arguments, but got 1.
+src/components/Chatbot.tsx(495,29): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/Chatbot.tsx(52,28): error TS7031: Binding element 'content' implicitly has an 'any' type.
+src/components/Chatbot.tsx(530,19): error TS2345: Argument of type '(prev: { id: string; role: string; content: string; type: string; }[]) => ({ id: string; role: string; content: string; type: string; } | { id: number; role: string; content: string; type: string; })[]' is not assignable to parameter of type 'SetStateAction<{ id: string; role: string; content: string; type: string; }[]>'.
+src/components/Chatbot.tsx(539,19): error TS2345: Argument of type '(prev: { id: string; role: string; content: string; type: string; }[]) => ({ id: string; role: string; content: string; type: string; } | { id: number; role: string; content: string; type: string; })[]' is not assignable to parameter of type 'SetStateAction<{ id: string; role: string; content: string; type: string; }[]>'.
+src/components/Chatbot.tsx(552,17): error TS2345: Argument of type '(prev: { id: string; role: string; content: string; type: string; }[]) => ({ id: string; role: string; content: string; type: string; } | { id: number; role: string; content: string; type: string; })[]' is not assignable to parameter of type 'SetStateAction<{ id: string; role: string; content: string; type: string; }[]>'.
+src/components/Chatbot.tsx(564,24): error TS18047: 'user' is possibly 'null'.
+src/components/Chatbot.tsx(579,23): error TS2345: Argument of type '(prev: { id: string; role: string; content: string; type: string; }[]) => ({ id: string; role: string; content: string; type: string; } | { id: number; role: string; content: string; type: string; })[]' is not assignable to parameter of type 'SetStateAction<{ id: string; role: string; content: string; type: string; }[]>'.
+src/components/Chatbot.tsx(618,19): error TS2345: Argument of type '(prev: { id: string; role: string; content: string; type: string; }[]) => ({ id: string; role: string; content: string; type: string; } | { id: number; role: string; content: any; relatedGuides: any; type: string; })[]' is not assignable to parameter of type 'SetStateAction<{ id: string; role: string; content: string; type: string; }[]>'.
+src/components/Chatbot.tsx(621,19): error TS2345: Argument of type '(prev: { id: string; role: string; content: string; type: string; }[]) => ({ id: string; role: string; content: string; type: string; } | { id: number; role: string; content: string; type: string; })[]' is not assignable to parameter of type 'SetStateAction<{ id: string; role: string; content: string; type: string; }[]>'.
+src/components/Chatbot.tsx(639,23): error TS2345: Argument of type '(prev: { id: string; role: string; content: string; type: string; }[]) => ({ id: string; role: string; content: string; type: string; } | { id: number; role: string; content: string; type: string; })[]' is not assignable to parameter of type 'SetStateAction<{ id: string; role: string; content: string; type: string; }[]>'.
+src/components/Chatbot.tsx(654,38): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/Chatbot.tsx(689,21): error TS2345: Argument of type '(prev: { id: string; role: string; content: string; type: string; }[]) => ({ id: string; role: string; content: string; type: string; } | { id: number; role: string; content: string; type: string; })[]' is not assignable to parameter of type 'SetStateAction<{ id: string; role: string; content: string; type: string; }[]>'.
+src/components/Chatbot.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/community/CommunityLayout.tsx(26,9)
+src/components/community/CommunityLayout.tsx(3,11)
+src/components/community/CommunityLeftSidebar.tsx(10,85)
+src/components/community/CommunityLeftSidebar.tsx(135,32)
+src/components/community/CommunityLeftSidebar.tsx(17,48)
+src/components/community/CommunityLeftSidebar.tsx(194,21)
+src/components/community/CommunityLeftSidebar.tsx(3,11)
+src/components/community/CommunityLeftSidebar.tsx(47,98)
+src/components/community/CommunityLeftSidebar.tsx(8,6)
+src/components/community/Composer.tsx(12,26)
+src/components/community/Composer.tsx(121,36)
+src/components/community/Composer.tsx(128,20)
+src/components/community/Composer.tsx(134,29)
+src/components/community/Composer.tsx(135,29)
+src/components/community/Composer.tsx(135,64)
+src/components/community/Composer.tsx(136,29)
+src/components/community/Composer.tsx(146,54)
+src/components/community/Composer.tsx(15,1)
+src/components/community/Composer.tsx(156,29)
+src/components/community/Composer.tsx(164,29)
+src/components/community/Composer.tsx(164,36)
+src/components/community/Composer.tsx(170,25)
+src/components/community/Composer.tsx(172,26)
+src/components/community/Composer.tsx(218,24)
+src/components/community/Composer.tsx(219,24)
+src/components/community/Composer.tsx(219,48)
+src/components/community/Composer.tsx(25,36)
+src/components/community/Composer.tsx(25,42)
+src/components/community/Composer.tsx(3,11)
+src/components/community/Composer.tsx(301,52)
+src/components/community/Composer.tsx(49,26)
+src/components/community/Composer.tsx(50,49)
+src/components/community/Composer.tsx(8,6)
+src/components/community/Composer.tsx(99,29)
+src/components/community/FeedTabs.tsx(10,1)
+src/components/community/FeedTabs.tsx(12,36)
+src/components/community/FeedTabs.tsx(12,47)
+src/components/community/FeedTabs.tsx(3,11)
+src/components/community/FeedTabs.tsx(8,6)
+src/components/community/PostModal.tsx(14,37)
+src/components/community/PostModal.tsx(14,45)
+src/components/community/PostModal.tsx(14,54)
+src/components/community/PostModal.tsx(3,11)
+src/components/community/PostModal.tsx(8,6)
+src/components/community/TrendsSidebar.tsx(102,28)
+src/components/community/TrendsSidebar.tsx(113,31)
+src/components/community/TrendsSidebar.tsx(113,41)
+src/components/community/TrendsSidebar.tsx(143,54)
+src/components/community/TrendsSidebar.tsx(143,67)
+src/components/community/TrendsSidebar.tsx(146,20)
+src/components/community/TrendsSidebar.tsx(156,22)
+src/components/community/TrendsSidebar.tsx(166,33)
+src/components/community/TrendsSidebar.tsx(166,43)
+src/components/community/TrendsSidebar.tsx(17,41)
+src/components/community/TrendsSidebar.tsx(194,52)
+src/components/community/TrendsSidebar.tsx(194,65)
+src/components/community/TrendsSidebar.tsx(200,22)
+src/components/community/TrendsSidebar.tsx(221,23)
+src/components/community/TrendsSidebar.tsx(24,27)
+src/components/community/TrendsSidebar.tsx(25,10)
+src/components/community/TrendsSidebar.tsx(272,26)
+src/components/community/TrendsSidebar.tsx(272,39)
+src/components/community/TrendsSidebar.tsx(277,31)
+src/components/community/TrendsSidebar.tsx(277,65)
+src/components/community/TrendsSidebar.tsx(277,82)
+src/components/community/TrendsSidebar.tsx(278,31)
+src/components/community/TrendsSidebar.tsx(280,50)
+src/components/community/TrendsSidebar.tsx(286,29)
+src/components/community/TrendsSidebar.tsx(286,48)
+src/components/community/TrendsSidebar.tsx(288,27)
+src/components/community/TrendsSidebar.tsx(299,28)
+src/components/community/TrendsSidebar.tsx(3,11)
+src/components/community/TrendsSidebar.tsx(325,27)
+src/components/community/TrendsSidebar.tsx(327,25)
+src/components/community/TrendsSidebar.tsx(332,25)
+src/components/community/TrendsSidebar.tsx(339,23)
+src/components/community/TrendsSidebar.tsx(340,34)
+src/components/community/TrendsSidebar.tsx(343,31)
+src/components/community/TrendsSidebar.tsx(344,29)
+src/components/community/TrendsSidebar.tsx(377,26)
+src/components/community/TrendsSidebar.tsx(377,45)
+src/components/community/TrendsSidebar.tsx(392,25)
+src/components/community/TrendsSidebar.tsx(395,24)
+src/components/community/TrendsSidebar.tsx(396,24)
+src/components/community/TrendsSidebar.tsx(425,30)
+src/components/community/TrendsSidebar.tsx(425,43)
+src/components/community/TrendsSidebar.tsx(433,29)
+src/components/community/TrendsSidebar.tsx(433,63)
+src/components/community/TrendsSidebar.tsx(433,80)
+src/components/community/TrendsSidebar.tsx(434,29)
+src/components/community/TrendsSidebar.tsx(436,48)
+src/components/community/TrendsSidebar.tsx(442,27)
+src/components/community/TrendsSidebar.tsx(442,46)
+src/components/community/TrendsSidebar.tsx(444,25)
+src/components/community/TrendsSidebar.tsx(455,25)
+src/components/community/TrendsSidebar.tsx(461,46)
+src/components/community/TrendsSidebar.tsx(488,22)
+src/components/community/TrendsSidebar.tsx(489,61)
+src/components/community/TrendsSidebar.tsx(493,20)
+src/components/community/TrendsSidebar.tsx(494,31)
+src/components/community/TrendsSidebar.tsx(502,81)
+src/components/community/TrendsSidebar.tsx(504,23)
+src/components/community/TrendsSidebar.tsx(546,31)
+src/components/community/TrendsSidebar.tsx(546,44)
+src/components/community/TrendsSidebar.tsx(549,24)
+src/components/community/TrendsSidebar.tsx(549,37)
+src/components/community/TrendsSidebar.tsx(554,28)
+src/components/community/TrendsSidebar.tsx(554,61)
+src/components/community/TrendsSidebar.tsx(555,28)
+src/components/community/TrendsSidebar.tsx(562,26)
+src/components/community/TrendsSidebar.tsx(562,44)
+src/components/community/TrendsSidebar.tsx(564,25)
+src/components/community/TrendsSidebar.tsx(575,26)
+src/components/community/TrendsSidebar.tsx(58,19)
+src/components/community/TrendsSidebar.tsx(581,37)
+src/components/community/TrendsSidebar.tsx(581,51)
+src/components/community/TrendsSidebar.tsx(581,58)
+src/components/community/TrendsSidebar.tsx(59,17)
+src/components/community/TrendsSidebar.tsx(60,24)
+src/components/community/TrendsSidebar.tsx(61,22)
+src/components/community/TrendsSidebar.tsx(62,33)
+src/components/community/TrendsSidebar.tsx(76,26)
+src/components/community/TrendsSidebar.tsx(77,51)
+src/components/community/TrendsSidebar.tsx(8,6)
+src/components/community/TrendsSidebar.tsx(86,6)
+src/components/community/TrendsSidebar.tsx(99,7)
+src/components/DirectSupportChat.tsx(104,29): error TS2345: Argument of type 'string | ArrayBuffer | null' is not assignable to parameter of type 'SetStateAction<null>'.
+src/components/DirectSupportChat.tsx(113,56): error TS2339: Property 'value' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(117,41): error TS7006: Parameter 'file' implicitly has an 'any' type.
+src/components/DirectSupportChat.tsx(135,42): error TS18047: 'reader.result' is possibly 'null'.
+src/components/DirectSupportChat.tsx(135,56): error TS2339: Property 'split' does not exist on type 'string | ArrayBuffer'.
+src/components/DirectSupportChat.tsx(15,8): error TS2613: Module '"D:/new/zetsuquids/src/lib/supportApi"' has no default export. Did you mean to use 'import { supportApi } from "D:/new/zetsuquids/src/lib/supportApi"' instead?
+src/components/DirectSupportChat.tsx(212,31): error TS7006: Parameter 'text' implicitly has an 'any' type.
+src/components/DirectSupportChat.tsx(28,23): error TS7006: Parameter 'text' implicitly has an 'any' type.
+src/components/DirectSupportChat.tsx(3,11): error TS6196: 'DirectSupportChatProps' is declared but never used.
+src/components/DirectSupportChat.tsx(30,11): error TS6133: 'arabicRegex' is declared but its value is never read.
+src/components/DirectSupportChat.tsx(306,29): error TS2345: Argument of type '{ id: any; role: string; content: any; timestamp: Date; senderType: any; senderName: any; staffProfileId: any; imageUrl: any; readStatus: any; }[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/DirectSupportChat.tsx(337,31): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/DirectSupportChat.tsx(368,21): error TS2345: Argument of type '(prev: never[]) => { id: number; role: string; content: string; timestamp: Date; senderType: string; imageUrl: {} | null; readStatus: string; }[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/DirectSupportChat.tsx(419,37): error TS2339: Property 'image_url' does not exist on type '{ conversation_id: never; user_email: string; sender_type: string; sender_name: {}; message: string; }'.
+src/components/DirectSupportChat.tsx(439,41): error TS2345: Argument of type '(prev: never[]) => any[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/DirectSupportChat.tsx(440,35): error TS2339: Property 'id' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(440,61): error TS2698: Spread types may only be created from object types.
+src/components/DirectSupportChat.tsx(462,69): error TS2551: Property 'webkitAudioContext' does not exist on type 'Window & typeof globalThis'. Did you mean 'AudioContext'?
+src/components/DirectSupportChat.tsx(518,37): error TS2345: Argument of type '(prev: never[]) => { id: any; role: string; content: any; timestamp: Date; senderType: any; senderName: any; staffProfileId: any; imageUrl: any; }[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/DirectSupportChat.tsx(536,37): error TS2345: Argument of type '(prev: never[]) => any[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/DirectSupportChat.tsx(537,31): error TS2339: Property 'senderType' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(537,57): error TS2698: Spread types may only be created from object types.
+src/components/DirectSupportChat.tsx(552,25): error TS2322: Type 'number' is not assignable to type 'null'.
+src/components/DirectSupportChat.tsx(566,31): error TS7006: Parameter 'msg' implicitly has an 'any' type.
+src/components/DirectSupportChat.tsx(592,29): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ staff1: { name: string; animation: { v: string; fr: number; ip: number; op: number; w: number; h: number; nm: string; ddd: number; assets: never[]; layers: ({ ddd: number; ind: number; ty: number; nm: string; sr: number; ... 8 more ...; bm: number; } | { ...; })[]; markers: never[]; }; color: string; }; staff2: { ...'.
+src/components/DirectSupportChat.tsx(618,29): error TS7006: Parameter 'msg' implicitly has an 'any' type.
+src/components/DirectSupportChat.tsx(623,29): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ staff1: { name: string; animation: { v: string; fr: number; ip: number; op: number; w: number; h: number; nm: string; ddd: number; assets: never[]; layers: ({ ddd: number; ind: number; ty: number; nm: string; sr: number; ... 8 more ...; bm: number; } | { ...; })[]; markers: never[]; }; color: string; }; staff2: { ...'.
+src/components/DirectSupportChat.tsx(630,31): error TS7006: Parameter 'msg' implicitly has an 'any' type.
+src/components/DirectSupportChat.tsx(630,36): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/components/DirectSupportChat.tsx(635,21): error TS2339: Property 'senderType' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(638,51): error TS2339: Property 'staffProfileId' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(69,33): error TS2339: Property 'scrollIntoView' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(703,40): error TS2339: Property 'senderType' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(704,27): error TS6133: 'isFirstInGroup' is declared but its value is never read.
+src/components/DirectSupportChat.tsx(711,54): error TS2339: Property 'timestamp' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(712,79): error TS2339: Property 'timestamp' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(738,39): error TS2339: Property 'id' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(756,49): error TS2339: Property 'senderType' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(757,53): error TS2339: Property 'senderType' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(778,78): error TS2339: Property 'senderType' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(780,63): error TS2339: Property 'senderType' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(788,50): error TS2339: Property 'imageUrl' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(791,66): error TS2339: Property 'imageUrl' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(794,88): error TS2339: Property 'imageUrl' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/DirectSupportChat.tsx(801,50): error TS2339: Property 'content' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(804,75): error TS2339: Property 'content' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(806,86): error TS2339: Property 'content' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(81,32): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/DirectSupportChat.tsx(811,58): error TS2339: Property 'content' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(819,62): error TS2339: Property 'readStatus' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(820,62): error TS2339: Property 'readStatus' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(821,62): error TS2339: Property 'readStatus' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(829,54): error TS2339: Property 'timestamp' does not exist on type 'never'.
+src/components/DirectSupportChat.tsx(954,62): error TS2339: Property 'click' does not exist on type 'never'.
+src/components/fancy/background/pixel-trail.tsx(111,15): error TS2322: Type '{ key: string; id: string; size: number; fadeDuration: number; delay: number; className: any; }' is not assignable to type 'IntrinsicAttributes & object'.
+src/components/fancy/background/pixel-trail.tsx(17,32): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/fancy/background/pixel-trail.tsx(17,36): error TS2339: Property 'size' does not exist on type '{}'.
+src/components/fancy/background/pixel-trail.tsx(17,42): error TS2339: Property 'fadeDuration' does not exist on type '{}'.
+src/components/fancy/background/pixel-trail.tsx(17,56): error TS2339: Property 'delay' does not exist on type '{}'.
+src/components/fancy/background/pixel-trail.tsx(17,63): error TS2339: Property 'className' does not exist on type '{}'.
+src/components/fancy/background/pixel-trail.tsx(29,6): error TS7006: Parameter 'node' implicitly has an 'any' type.
+src/components/fancy/background/pixel-trail.tsx(3,11): error TS6196: 'PixelTrailProps' is declared but never used.
+src/components/fancy/background/pixel-trail.tsx(58,3): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/components/fancy/background/pixel-trail.tsx(59,3): error TS7031: Binding element 'pixelClassName' implicitly has an 'any' type.
+src/components/fancy/background/pixel-trail.tsx(67,6): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/fancy/background/pixel-trail.tsx(70,41): error TS2339: Property 'getBoundingClientRect' does not exist on type 'never'.
+src/components/fancy/background/pixel-trail.tsx(81,43): error TS2339: Property '__animatePixel' does not exist on type 'HTMLElement'.
+src/components/fancy/blocks/simple-marquee.tsx(21,15): error TS7006: Parameter 'min' implicitly has an 'any' type.
+src/components/fancy/blocks/simple-marquee.tsx(21,20): error TS7006: Parameter 'max' implicitly has an 'any' type.
+src/components/fancy/blocks/simple-marquee.tsx(21,25): error TS7006: Parameter 'v' implicitly has an 'any' type.
+src/components/fancy/blocks/simple-marquee.tsx(27,3): error TS7031: Binding element 'children' implicitly has an 'any' type.
+src/components/fancy/blocks/simple-marquee.tsx(3,11): error TS6196: 'SimpleMarqueeProps' is declared but never used.
+src/components/fancy/blocks/simple-marquee.tsx(32,3): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/components/fancy/blocks/simple-marquee.tsx(59,22): error TS6133: 't' is declared but its value is never read.
+src/components/FollowButton.tsx(209,17): error TS6133: 'confettiMod' is declared but its value is never read.
+src/components/FollowButton.tsx(209,44): error TS7016: Could not find a declaration file for module 'canvas-confetti'. 'D:/new/zetsuquids/node_modules/canvas-confetti/src/confetti.js' implicitly has an 'any' type.
+src/components/GuideAIChat.tsx(123,31): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/GuideAIChat.tsx(141,17): error TS2345: Argument of type '(prev: never[]) => { role: string; content: string; }[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/GuideAIChat.tsx(16,31): error TS7031: Binding element 'guide' implicitly has an 'any' type.
+src/components/GuideAIChat.tsx(16,38): error TS7031: Binding element 'isOpen' implicitly has an 'any' type.
+src/components/GuideAIChat.tsx(16,46): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/components/GuideAIChat.tsx(161,17): error TS2304: Cannot find name 'context'.
+src/components/GuideAIChat.tsx(170,25): error TS2339: Property 'role' does not exist on type 'never'.
+src/components/GuideAIChat.tsx(171,28): error TS2339: Property 'content' does not exist on type 'never'.
+src/components/GuideAIChat.tsx(192,19): error TS2345: Argument of type '(prev: never[]) => { role: string; content: any; }[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/GuideAIChat.tsx(200,19): error TS2345: Argument of type '(prev: never[]) => { role: string; content: string; }[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/GuideAIChat.tsx(286,31): error TS2339: Property 'role' does not exist on type 'never'.
+src/components/GuideAIChat.tsx(289,30): error TS2339: Property 'role' does not exist on type 'never'.
+src/components/GuideAIChat.tsx(296,33): error TS2339: Property 'role' does not exist on type 'never'.
+src/components/GuideAIChat.tsx(3,11): error TS6196: 'GuideAIChatProps' is declared but never used.
+src/components/GuideAIChat.tsx(302,34): error TS2339: Property 'content' does not exist on type 'never'.
+src/components/GuideAIChat.tsx(305,30): error TS2339: Property 'role' does not exist on type 'never'.
+src/components/GuideAIChat.tsx(39,29): error TS2339: Property 'scrollIntoView' does not exist on type 'never'.
+src/components/GuideAIChat.tsx(50,42): error TS2339: Property 'focus' does not exist on type 'never'.
+src/components/GuideAIChat.tsx(67,20): error TS2345: Argument of type '0' is not assignable to parameter of type 'SetStateAction<null>'.
+src/components/GuideAIChat.tsx(74,20): error TS2345: Argument of type '0' is not assignable to parameter of type 'SetStateAction<null>'.
+src/components/GuideAIChat.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/GuideAIChat.tsx(81,32): error TS7006: Parameter 'amount' implicitly has an 'any' type.
+src/components/GuideHistoryModal.tsx(14,45): error TS7031: Binding element 'guideId' implicitly has an 'any' type.
+src/components/GuideHistoryModal.tsx(14,54): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/components/GuideHistoryModal.tsx(25,18): error TS2345: Argument of type 'GuideVersion[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/GuideHistoryModal.tsx(3,11): error TS6196: 'GuideHistoryModalProps' is declared but never used.
+src/components/GuideHistoryModal.tsx(67,30): error TS2339: Property 'id' does not exist on type 'never'.
+src/components/GuideHistoryModal.tsx(71,28): error TS2339: Property 'title' does not exist on type 'never'.
+src/components/GuideHistoryModal.tsx(76,39): error TS2339: Property 'created_at' does not exist on type 'never'.
+src/components/GuideHistoryModal.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/GuideHistoryModal.tsx(80,39): error TS2339: Property 'created_at' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(12,35): error TS6133: 'useReducedMotion' is declared but its value is never read.
+src/components/GuideInlineComment.tsx(13,40): error TS6133: 'Clock' is declared but its value is never read.
+src/components/GuideInlineComment.tsx(19,22): error TS7031: Binding element 'src' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(19,27): error TS7031: Binding element 'alt' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(230,103): error TS7031: Binding element 'onCommentCountChange' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(230,47): error TS7031: Binding element 'guideId' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(230,56): error TS7031: Binding element 'isGuideOwner' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(230,70): error TS7031: Binding element 'onCommentsUpdated' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(230,89): error TS6133: 'commentCount' is declared but its value is never read.
+src/components/GuideInlineComment.tsx(230,89): error TS7031: Binding element 'commentCount' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(239,10): error TS6133: 'showAllComments' is declared but its value is never read.
+src/components/GuideInlineComment.tsx(239,27): error TS6133: 'setShowAllComments' is declared but its value is never read.
+src/components/GuideInlineComment.tsx(263,26): error TS2345: Argument of type 'any[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/GuideInlineComment.tsx(272,19): error TS2345: Argument of type 'any[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/GuideInlineComment.tsx(294,63): error TS2339: Property 'id' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(3,11): error TS6196: 'GuideInlineCommentProps' is declared but never used.
+src/components/GuideInlineComment.tsx(314,34): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(322,31): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(324,20): error TS18047: 'selection' is possibly 'null'.
+src/components/GuideInlineComment.tsx(328,27): error TS2353: Object literal may only specify known properties, and 'text' does not exist in type '(prevState: null) => null'.
+src/components/GuideInlineComment.tsx(332,23): error TS18047: 'selection' is possibly 'null'.
+src/components/GuideInlineComment.tsx(334,30): error TS2353: Object literal may only specify known properties, and 'pageX' does not exist in type '(prevState: null) => null'.
+src/components/GuideInlineComment.tsx(35,21): error TS7006: Parameter 'date' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(352,38): error TS7006: Parameter 'commentId' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(365,36): error TS7006: Parameter 'commentId' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(365,47): error TS7006: Parameter 'newText' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(377,39): error TS7006: Parameter 'commentId' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(377,50): error TS7006: Parameter 'replyText' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(379,53): error TS2339: Property 'id' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(38,16): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/components/GuideInlineComment.tsx(38,22): error TS2363: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/components/GuideInlineComment.tsx(384,100): error TS2339: Property 'position_json' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(384,135): error TS2339: Property 'position_json' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(384,43): error TS2339: Property 'position_json' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(387,15): error TS2339: Property 'approved' does not exist on type '{}'.
+src/components/GuideInlineComment.tsx(389,17): error TS2339: Property 'adminReply' does not exist on type '{}'.
+src/components/GuideInlineComment.tsx(413,37): error TS2339: Property 'text' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(415,100): error TS2339: Property 'viewportY' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(415,65): error TS2339: Property 'pageX' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(476,84): error TS2339: Property 'text' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(49,7): error TS6133: 'CLOSED_SIZE' is declared but its value is never read.
+src/components/GuideInlineComment.tsx(502,69): error TS2339: Property 'id' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(507,21): error TS2339: Property 'zetsuguide_user_profiles' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(508,32): error TS2339: Property 'zetsuguide_user_profiles' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(508,81): error TS2339: Property 'zetsuguide_user_profiles' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(509,31): error TS2339: Property 'zetsuguide_user_profiles' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(514,110): error TS2339: Property 'position_json' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(514,36): error TS2339: Property 'position_json' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(514,84): error TS2339: Property 'position_json' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(517,54): error TS2339: Property 'user_id' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(52,3): error TS7031: Binding element 'message' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(523,39): error TS2339: Property 'id' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(524,27): error TS2339: Property 'id' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(525,32): error TS2339: Property 'comment' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(527,45): error TS2339: Property 'created_at' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(529,37): error TS2339: Property 'selected_text' does not exist on type 'never'.
+src/components/GuideInlineComment.tsx(53,3): error TS7031: Binding element 'authorName' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(534,27): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(534,31): error TS7006: Parameter 'reply' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(535,41): error TS2339: Property 'approved' does not exist on type '{}'.
+src/components/GuideInlineComment.tsx(536,35): error TS2339: Property 'adminReply' does not exist on type '{}'.
+src/components/GuideInlineComment.tsx(54,3): error TS7031: Binding element 'timestamp' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(55,3): error TS7031: Binding element 'avatarUrl' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(56,3): error TS7031: Binding element 'selectedText' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(57,3): error TS7031: Binding element 'id' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(58,3): error TS7031: Binding element 'isCommentAuthor' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(59,3): error TS7031: Binding element 'isGuideOwner' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(60,3): error TS7031: Binding element 'onDelete' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(61,3): error TS7031: Binding element 'onEdit' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(62,3): error TS7031: Binding element 'onApprove' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(63,3): error TS7031: Binding element 'approvedStatus' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(64,3): error TS7031: Binding element 'adminReply' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(73,25): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/GuideInlineComment.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/GuideInlineComment.tsx(83,29): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/GuideRating.tsx(135,17): error TS7034: Variable 'userProfiles' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/components/GuideRating.tsx(144,29): error TS2345: Argument of type '{ user_id: any; avatar_url: any; display_name: any; username: any; }[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/GuideRating.tsx(148,33): error TS7005: Variable 'userProfiles' implicitly has an 'any[]' type.
+src/components/GuideRating.tsx(160,27): error TS2345: Argument of type '{ id: any; rating: any; comment: any; created_at: any; user_id: any; author_name: any; user_email: null; }[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/GuideRating.tsx(19,22): error TS7031: Binding element 'userId' implicitly has an 'any' type.
+src/components/GuideRating.tsx(19,30): error TS7031: Binding element 'userEmail' implicitly has an 'any' type.
+src/components/GuideRating.tsx(19,41): error TS7031: Binding element 'profiles' implicitly has an 'any' type.
+src/components/GuideRating.tsx(20,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/components/GuideRating.tsx(263,91): error TS2339: Property 'rating' does not exist on type 'never'.
+src/components/GuideRating.tsx(29,26): error TS2339: Property 'style' does not exist on type 'EventTarget'.
+src/components/GuideRating.tsx(292,49): error TS2339: Property 'id' does not exist on type 'never'.
+src/components/GuideRating.tsx(3,11): error TS6196: 'GuideRatingProps' is declared but never used.
+src/components/GuideRating.tsx(30,26): error TS2339: Property 'nextSibling' does not exist on type 'EventTarget'.
+src/components/GuideRating.tsx(30,51): error TS2339: Property 'nextSibling' does not exist on type 'EventTarget'.
+src/components/GuideRating.tsx(36,10): error TS6133: 'AvatarFallback' is declared but its value is never read.
+src/components/GuideRating.tsx(44,21): error TS7031: Binding element 'filled' implicitly has an 'any' type.
+src/components/GuideRating.tsx(52,23): error TS7031: Binding element 'review' implicitly has an 'any' type.
+src/components/GuideRating.tsx(52,31): error TS7031: Binding element 'profiles' implicitly has an 'any' type.
+src/components/GuideRating.tsx(52,41): error TS7031: Binding element 'darkMode' implicitly has an 'any' type.
+src/components/GuideRating.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/GuideRating.tsx(94,39): error TS7031: Binding element 'guideId' implicitly has an 'any' type.
+src/components/GuideRating.tsx(94,48): error TS7031: Binding element 'authorId' implicitly has an 'any' type.
+src/components/GuideRating.tsx(94,58): error TS6133: 'guideTitle' is declared but its value is never read.
+src/components/GuideRating.tsx(94,58): error TS7031: Binding element 'guideTitle' implicitly has an 'any' type.
+src/components/GuideRecommendations.tsx(110,20): error TS2538: Type 'unknown' cannot be used as an index type.
+src/components/GuideRecommendations.tsx(110,46): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string | null | undefined'.
+src/components/GuideRecommendations.tsx(112,20): error TS2538: Type 'unknown' cannot be used as an index type.
+src/components/GuideRecommendations.tsx(112,46): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string | null | undefined'.
+src/components/GuideRecommendations.tsx(120,26): error TS7006: Parameter 'reason' implicitly has an 'any' type.
+src/components/GuideRecommendations.tsx(165,24): error TS2339: Property 'slug' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(166,33): error TS2339: Property 'slug' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(171,36): error TS2339: Property 'recommendation_reason' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(172,22): error TS2339: Property 'recommendation_reason' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(176,20): error TS2339: Property 'user_email' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(178,18): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/components/GuideRecommendations.tsx(178,38): error TS2339: Property 'user_email' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(180,26): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/components/GuideRecommendations.tsx(180,46): error TS2339: Property 'user_email' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(181,32): error TS2339: Property 'author_name' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(186,29): error TS2339: Property 'author_name' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(187,29): error TS2339: Property 'user_email' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(191,26): error TS2339: Property 'author_name' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(191,47): error TS2339: Property 'user_email' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(198,22): error TS2339: Property 'title' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(205,33): error TS2339: Property 'created_at' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(211,22): error TS2339: Property 'views_count' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(214,26): error TS2339: Property 'views_count' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(220,20): error TS2339: Property 'keywords' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(220,38): error TS2339: Property 'keywords' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(222,24): error TS2339: Property 'keywords' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(222,50): error TS7006: Parameter 'kw' implicitly has an 'any' type.
+src/components/GuideRecommendations.tsx(222,54): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/components/GuideRecommendations.tsx(231,24): error TS2339: Property 'keywords' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(233,29): error TS2339: Property 'keywords' does not exist on type 'never'.
+src/components/GuideRecommendations.tsx(3,11): error TS6196: 'GuideRecommendationsProps' is declared but never used.
+src/components/GuideRecommendations.tsx(85,24): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/components/GuideRecommendations.tsx(96,49): error TS7006: Parameter 'guides' implicitly has an 'any' type.
+src/components/GuideRecommendations.tsx(98,30): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/components/GuideSkeleton.tsx(3,11): error TS6196: 'GuideSkeletonProps' is declared but never used.
+src/components/GuideSummarizer.tsx(23,31): error TS6133: 'sanitizeContent' is declared but its value is never read.
+src/components/GuideSummarizer.tsx(28,35): error TS7031: Binding element 'guide' implicitly has an 'any' type.
+src/components/GuideSummarizer.tsx(28,42): error TS7031: Binding element 'isOpen' implicitly has an 'any' type.
+src/components/GuideSummarizer.tsx(28,50): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/components/GuideSummarizer.tsx(3,11): error TS6196: 'GuideSummarizerProps' is declared but never used.
+src/components/GuideSummarizer.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/GuideTimer.tsx(109,12): error TS2339: Property 'catch' does not exist on type 'PromiseLike<void>'.
+src/components/GuideTimer.tsx(14,38): error TS7031: Binding element 'guideId' implicitly has an 'any' type.
+src/components/GuideTimer.tsx(14,47): error TS7031: Binding element 'userId' implicitly has an 'any' type.
+src/components/GuideTimer.tsx(152,9): error TS6133: 'startTracking' is declared but its value is never read.
+src/components/GuideTimer.tsx(162,31): error TS7006: Parameter 'amount' implicitly has an 'any' type.
+src/components/GuideTimer.tsx(191,9): error TS18046: 'err' is of type 'unknown'.
+src/components/GuideTimer.tsx(192,9): error TS18046: 'err' is of type 'unknown'.
+src/components/GuideTimer.tsx(193,9): error TS18046: 'err' is of type 'unknown'.
+src/components/GuideTimer.tsx(202,23): error TS7006: Parameter 'secs' implicitly has an 'any' type.
+src/components/GuideTimer.tsx(202,9): error TS6133: 'formatTime' is declared but its value is never read.
+src/components/GuideTimer.tsx(203,11): error TS6133: 'h' is declared but its value is never read.
+src/components/GuideTimer.tsx(204,11): error TS6133: 'm' is declared but its value is never read.
+src/components/GuideTimer.tsx(205,11): error TS6133: 's' is declared but its value is never read.
+src/components/GuideTimer.tsx(220,22): error TS6133: 'secs' is declared but its value is never read.
+src/components/GuideTimer.tsx(220,22): error TS7006: Parameter 'secs' implicitly has an 'any' type.
+src/components/GuideTimer.tsx(220,9): error TS6133: 'getPlaces' is declared but its value is never read.
+src/components/GuideTimer.tsx(288,25): error TS2322: Type 'number' is not assignable to type 'string'.
+src/components/GuideTimer.tsx(3,11): error TS6196: 'GuideTimerProps' is declared but never used.
+src/components/GuideTimer.tsx(309,21): error TS2322: Type 'number' is not assignable to type 'string'.
+src/components/GuideTimer.tsx(74,11): error TS2322: Type 'number' is not assignable to type 'null'.
+src/components/GuideTimer.tsx(79,11): error TS2322: Type 'number' is not assignable to type 'null'.
+src/components/GuideTranslator.tsx(113,54): error TS18048: 'targetLang' is possibly 'undefined'.
+src/components/GuideTranslator.tsx(118,51): error TS18048: 'targetLang' is possibly 'undefined'.
+src/components/GuideTranslator.tsx(3,11): error TS6196: 'GuideTranslatorProps' is declared but never used.
+src/components/GuideTranslator.tsx(33,35): error TS7031: Binding element 'guide' implicitly has an 'any' type.
+src/components/GuideTranslator.tsx(33,42): error TS7031: Binding element 'isOpen' implicitly has an 'any' type.
+src/components/GuideTranslator.tsx(33,50): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/components/GuideTranslator.tsx(77,94): error TS18048: 'targetLang' is possibly 'undefined'.
+src/components/GuideTranslator.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/GuideTranslator.tsx(83,16): error TS18048: 'targetLang' is possibly 'undefined'.
+src/components/Layout.tsx(100,28): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/Layout.tsx(146,13): error TS18046: 'err' is of type 'unknown'.
+src/components/Layout.tsx(146,42): error TS18046: 'err' is of type 'unknown'.
+src/components/Layout.tsx(167,29): error TS18047: 'user' is possibly 'null'.
+src/components/Layout.tsx(226,24): error TS18047: 'user' is possibly 'null'.
+src/components/Layout.tsx(282,20): error TS2322: Type '{ isLoading: boolean; color: string; }' is not assignable to type 'IntrinsicAttributes & RefAttributes<unknown>'.
+src/components/Layout.tsx(3,11): error TS6196: 'LayoutProps' is declared but never used.
+src/components/Layout.tsx(346,42): error TS2339: Property 'avatar_url' does not exist on type 'never'.
+src/components/Layout.tsx(353,32): error TS2339: Property 'name' does not exist on type 'SupabaseUser'.
+src/components/Layout.tsx(370,50): error TS2339: Property 'avatar_url' does not exist on type 'never'.
+src/components/Layout.tsx(378,42): error TS2339: Property 'name' does not exist on type 'SupabaseUser'.
+src/components/Layout.tsx(388,103): error TS2339: Property 'toLowerCase' does not exist on type '{}'.
+src/components/Layout.tsx(388,40): error TS2532: Object is possibly 'undefined'.
+src/components/Layout.tsx(536,46): error TS2339: Property 'avatar_url' does not exist on type 'never'.
+src/components/Layout.tsx(544,38): error TS2339: Property 'name' does not exist on type 'SupabaseUser'.
+src/components/Layout.tsx(553,36): error TS2532: Object is possibly 'undefined'.
+src/components/Layout.tsx(553,99): error TS2339: Property 'toLowerCase' does not exist on type '{}'.
+src/components/Layout.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/Layout.tsx(80,22): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/magicui/blur-fade.tsx(29,53)
+src/components/ModernNav.tsx(12,18): error TS6133: 'AnimatePresence' is declared but its value is never read.
+src/components/ModernNav.tsx(15,22): error TS7031: Binding element 'items' implicitly has an 'any' type.
+src/components/ModernNav.tsx(21,36): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/components/ModernNav.tsx(3,11): error TS6196: 'ModernNavProps' is declared but never used.
+src/components/ModernNav.tsx(35,19): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/components/ModernNav.tsx(35,25): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/components/ModernNav.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/NetworkStatusMonitor.tsx(15,7): error TS2304: Cannot find name 'setLatency'.
+src/components/onboarding/MotionCarousel.tsx(16,18)
+src/components/onboarding/MotionCarousel.tsx(20,34)
+src/components/onboarding/MotionCarousel.tsx(20,42)
+src/components/onboarding/MotionCarousel.tsx(20,51)
+src/components/onboarding/MotionCarousel.tsx(3,11)
+src/components/onboarding/MotionCarousel.tsx(33,20)
+src/components/onboarding/MotionCarousel.tsx(51,24)
+src/components/onboarding/MotionCarousel.tsx(51,31)
+src/components/onboarding/MotionCarousel.tsx(8,6)
+src/components/onboarding/OnboardingModal.tsx(18,28)
+src/components/onboarding/OnboardingModal.tsx(18,38)
+src/components/onboarding/OnboardingModal.tsx(241,12)
+src/components/onboarding/OnboardingModal.tsx(3,11)
+src/components/onboarding/OnboardingModal.tsx(8,6)
+src/components/PostCard.tsx(115,26): error TS7006: Parameter 'date' implicitly has an 'any' type.
+src/components/PostCard.tsx(138,29): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/PostCard.tsx(147,15): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+src/components/PostCard.tsx(154,17): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+src/components/PostCard.tsx(160,9): error TS18047: 'selection' is possibly 'null'.
+src/components/PostCard.tsx(164,21): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/PostCard.tsx(166,33): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/PostCard.tsx(185,46): error TS18047: 'user' is possibly 'null'.
+src/components/PostCard.tsx(198,29): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/PostCard.tsx(198,32): error TS7006: Parameter 'optionId' implicitly has an 'any' type.
+src/components/PostCard.tsx(212,71): error TS7006: Parameter 'opt' implicitly has an 'any' type.
+src/components/PostCard.tsx(225,24): error TS7006: Parameter 'num' implicitly has an 'any' type.
+src/components/PostCard.tsx(240,24): error TS2339: Property 'inline' does not exist on type 'ClassAttributes<HTMLElement> & HTMLAttributes<HTMLElement> & ExtraProps'.
+src/components/PostCard.tsx(25,44): error TS7016: Could not find a declaration file for module 'react-syntax-highlighter'. 'D:/new/zetsuquids/node_modules/react-syntax-highlighter/dist/cjs/index.js' implicitly has an 'any' type.
+src/components/PostCard.tsx(26,26): error TS7016: Could not find a declaration file for module 'react-syntax-highlighter/dist/esm/styles/prism'. 'D:/new/zetsuquids/node_modules/react-syntax-highlighter/dist/esm/styles/prism/index.js' implicitly has an 'any' type.
+src/components/PostCard.tsx(288,19): error TS7034: Variable 'textChildren' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/components/PostCard.tsx(289,19): error TS7034: Variable 'nonTextElements' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/components/PostCard.tsx(291,38): error TS7006: Parameter 'items' implicitly has an 'any' type.
+src/components/PostCard.tsx(297,55): error TS6133: 'idx' is declared but its value is never read.
+src/components/PostCard.tsx(3,11): error TS6196: 'PostCardProps' is declared but never used.
+src/components/PostCard.tsx(307,42): error TS7006: Parameter 'items' implicitly has an 'any' type.
+src/components/PostCard.tsx(308,33): error TS7006: Parameter 'child' implicitly has an 'any' type.
+src/components/PostCard.tsx(308,40): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/components/PostCard.tsx(33,36): error TS7031: Binding element 'post' implicitly has an 'any' type.
+src/components/PostCard.tsx(33,42): error TS7031: Binding element 'onDeleted' implicitly has an 'any' type.
+src/components/PostCard.tsx(338,42): error TS7005: Variable 'textChildren' implicitly has an 'any[]' type.
+src/components/PostCard.tsx(341,18): error TS7005: Variable 'nonTextElements' implicitly has an 'any[]' type.
+src/components/PostCard.tsx(353,69): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+src/components/PostCard.tsx(353,74): error TS7006: Parameter 'opt' implicitly has an 'any' type.
+src/components/PostCard.tsx(359,52): error TS7006: Parameter 'option' implicitly has an 'any' type.
+src/components/PostCard.tsx(38,24): error TS6133: 'setRepliesCount' is declared but its value is never read.
+src/components/PostCard.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/PostCard.tsx(82,24): error TS18047: 'user' is possibly 'null'.
+src/components/PostCard.tsx(99,30): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/PricingDecoration.tsx(3,11): error TS6196: 'PricingDecorationProps' is declared but never used.
+src/components/PromptInputWithActions.tsx(15,5): error TS2724: '"@/components/ui/prompt-input"' has no exported member named 'PromptInputAction'. Did you mean 'PromptInputButton'?
+src/components/PromptInputWithActions.tsx(16,5): error TS2724: '"@/components/ui/prompt-input"' has no exported member named 'PromptInputActions'. Did you mean 'PromptInputButton'?
+src/components/PromptInputWithActions.tsx(23,3): error TS7031: Binding element 'onSend' implicitly has an 'any' type.
+src/components/PromptInputWithActions.tsx(24,3): error TS7031: Binding element 'isLoading' implicitly has an 'any' type.
+src/components/PromptInputWithActions.tsx(25,3): error TS7031: Binding element 'onFileSelect' implicitly has an 'any' type.
+src/components/PromptInputWithActions.tsx(27,3): error TS7031: Binding element 'value' implicitly has an 'any' type.
+src/components/PromptInputWithActions.tsx(28,3): error TS7031: Binding element 'onChange' implicitly has an 'any' type.
+src/components/PromptInputWithActions.tsx(29,3): error TS7031: Binding element 'startActions' implicitly has an 'any' type.
+src/components/PromptInputWithActions.tsx(3,11): error TS6196: 'PromptInputWithActionsProps' is declared but never used.
+src/components/PromptInputWithActions.tsx(52,29): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/components/PromptInputWithActions.tsx(55,16): error TS2345: Argument of type '(prev: never[]) => unknown[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/PromptInputWithActions.tsx(60,29): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/components/PromptInputWithActions.tsx(63,30): error TS2339: Property 'value' does not exist on type 'never'.
+src/components/PromptInputWithActions.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/PromptInputWithActions.tsx(88,62): error TS2339: Property 'name' does not exist on type 'never'.
+src/components/quiz/QuizBuilderModal.tsx(15,44)
+src/components/quiz/QuizBuilderModal.tsx(15,53)
+src/components/quiz/QuizBuilderModal.tsx(21,33)
+src/components/quiz/QuizBuilderModal.tsx(21,40)
+src/components/quiz/QuizBuilderModal.tsx(3,11)
+src/components/quiz/QuizBuilderModal.tsx(35,27)
+src/components/quiz/QuizBuilderModal.tsx(8,6)
+src/components/quiz/QuizComponent.tsx(12,22)
+src/components/quiz/QuizComponent.tsx(13,20)
+src/components/quiz/QuizComponent.tsx(16,41)
+src/components/quiz/QuizComponent.tsx(3,11)
+src/components/quiz/QuizComponent.tsx(43,36)
+src/components/quiz/QuizComponent.tsx(43,41)
+src/components/quiz/QuizComponent.tsx(8,6)
+src/components/quiz/QuizComponent.tsx(90,39)
+src/components/quiz/QuizComponent.tsx(90,47)
+src/components/react-bits/ClickSpark.tsx(107,26)
+src/components/react-bits/ClickSpark.tsx(107,56)
+src/components/react-bits/ClickSpark.tsx(108,26)
+src/components/react-bits/ClickSpark.tsx(108,56)
+src/components/react-bits/ClickSpark.tsx(109,26)
+src/components/react-bits/ClickSpark.tsx(109,71)
+src/components/react-bits/ClickSpark.tsx(110,26)
+src/components/react-bits/ClickSpark.tsx(110,71)
+src/components/react-bits/ClickSpark.tsx(129,28)
+src/components/react-bits/ClickSpark.tsx(141,24)
+src/components/react-bits/ClickSpark.tsx(147,25)
+src/components/react-bits/ClickSpark.tsx(160,28)
+src/components/react-bits/ClickSpark.tsx(20,3)
+src/components/react-bits/ClickSpark.tsx(3,11)
+src/components/react-bits/ClickSpark.tsx(30,27)
+src/components/react-bits/ClickSpark.tsx(33,9)
+src/components/react-bits/ClickSpark.tsx(39,18)
+src/components/react-bits/ClickSpark.tsx(39,44)
+src/components/react-bits/ClickSpark.tsx(40,16)
+src/components/react-bits/ClickSpark.tsx(41,16)
+src/components/react-bits/ClickSpark.tsx(46,20)
+src/components/react-bits/ClickSpark.tsx(57,20)
+src/components/react-bits/ClickSpark.tsx(62,6)
+src/components/react-bits/ClickSpark.tsx(8,6)
+src/components/react-bits/ClickSpark.tsx(80,24)
+src/components/react-bits/ClickSpark.tsx(82,9)
+src/components/react-bits/ClickSpark.tsx(84,19)
+src/components/react-bits/ClickSpark.tsx(89,34)
+src/components/react-bits/ClickSpark.tsx(89,48)
+src/components/react-bits/ClickSpark.tsx(93,43)
+src/components/react-bits/Counter.tsx(122,29)
+src/components/react-bits/Counter.tsx(122,36)
+src/components/react-bits/Counter.tsx(14,19)
+src/components/react-bits/Counter.tsx(14,23)
+src/components/react-bits/Counter.tsx(14,31)
+src/components/react-bits/Counter.tsx(16,22)
+src/components/react-bits/Counter.tsx(3,11)
+src/components/react-bits/Counter.tsx(31,18)
+src/components/react-bits/Counter.tsx(31,25)
+src/components/react-bits/Counter.tsx(31,32)
+src/components/react-bits/Counter.tsx(31,40)
+src/components/react-bits/Counter.tsx(68,3)
+src/components/react-bits/Counter.tsx(71,3)
+src/components/react-bits/Counter.tsx(77,3)
+src/components/react-bits/Counter.tsx(78,3)
+src/components/react-bits/Counter.tsx(79,3)
+src/components/react-bits/Counter.tsx(83,3)
+src/components/react-bits/Counter.tsx(84,3)
+src/components/ReferralBonusNotification.tsx(19,10): error TS6133: 'isSubscribed' is declared but its value is never read.
+src/components/ReferralBonusNotification.tsx(3,11): error TS6196: 'ReferralBonusNotificationProps' is declared but never used.
+src/components/ReferralBonusNotification.tsx(38,27): error TS2345: Argument of type '{ [key: string]: any; }' is not assignable to parameter of type 'SetStateAction<null>'.
+src/components/ReferralBonusNotification.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/ReferralBonusNotification.tsx(86,31): error TS2339: Property 'referred_email' does not exist on type 'never'.
+src/components/ReferralSuccessModal.tsx(17,48): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/components/ReferralSuccessModal.tsx(3,11): error TS6196: 'ReferralSuccessModalProps' is declared but never used.
+src/components/ReferralSuccessModal.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/retroui/charts/AreaChart.tsx(53,43): error TS6133: 'colorIndex' is declared but its value is never read.
+src/components/SearchModal.tsx(149,30): error TS7006: Parameter 'action' implicitly has an 'any' type.
+src/components/SearchModal.tsx(170,23): error TS2339: Property 'focus' does not exist on type 'never'.
+src/components/SearchModal.tsx(179,20): error TS2345: Argument of type 'Guide[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/SearchModal.tsx(186,30): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/SearchModal.tsx(193,21): error TS2345: Argument of type 'any[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/SearchModal.tsx(219,32): error TS7006: Parameter 'searchQuery' implicitly has an 'any' type.
+src/components/SearchModal.tsx(250,18): error TS2345: Argument of type 'unknown[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/SearchModal.tsx(260,9): error TS2322: Type 'number' is not assignable to type 'null'.
+src/components/SearchModal.tsx(266,9): error TS2322: Type 'number' is not assignable to type 'null'.
+src/components/SearchModal.tsx(277,34): error TS7006: Parameter 'searchQuery' implicitly has an 'any' type.
+src/components/SearchModal.tsx(29,23): error TS2305: Module '"../lib/ai"' has no exported member 'getAIEnhancement'.
+src/components/SearchModal.tsx(3,11): error TS6196: 'SearchModalProps' is declared but never used.
+src/components/SearchModal.tsx(301,32): error TS7006: Parameter 'searchQuery' implicitly has an 'any' type.
+src/components/SearchModal.tsx(315,22): error TS2345: Argument of type '(prev: never[]) => any[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/components/SearchModal.tsx(316,59): error TS2339: Property 'id' does not exist on type 'never'.
+src/components/SearchModal.tsx(318,16): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/components/SearchModal.tsx(330,25): error TS7006: Parameter 'guide' implicitly has an 'any' type.
+src/components/SearchModal.tsx(334,25): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/components/SearchModal.tsx(342,26): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/SearchModal.tsx(356,27): error TS7006: Parameter 'text' implicitly has an 'any' type.
+src/components/SearchModal.tsx(356,33): error TS7006: Parameter 'searchQuery' implicitly has an 'any' type.
+src/components/SearchModal.tsx(364,25): error TS7006: Parameter 'part' implicitly has an 'any' type.
+src/components/SearchModal.tsx(364,31): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/components/SearchModal.tsx(379,9): error TS6133: 'AIThinkingPanel' is declared but its value is never read.
+src/components/SearchModal.tsx(432,24): error TS2339: Property 'aiInsight' does not exist on type 'never'.
+src/components/SearchModal.tsx(434,28): error TS2339: Property 'aiInsight' does not exist on type 'never'.
+src/components/SearchModal.tsx(614,37): error TS2339: Property 'id' does not exist on type 'never'.
+src/components/SearchModal.tsx(623,35): error TS2339: Property 'title' does not exist on type 'never'.
+src/components/SearchModal.tsx(644,65): error TS2339: Property 'isAction' does not exist on type 'never'.
+src/components/SearchModal.tsx(645,65): error TS2339: Property 'isAction' does not exist on type 'never'.
+src/components/SearchModal.tsx(651,69): error TS2339: Property 'isAction' does not exist on type 'never'.
+src/components/SearchModal.tsx(652,69): error TS2339: Property 'isAction' does not exist on type 'never'.
+src/components/SearchModal.tsx(657,37): error TS2339: Property 'id' does not exist on type 'never'.
+src/components/SearchModal.tsx(659,34): error TS2339: Property 'isAction' does not exist on type 'never'.
+src/components/SearchModal.tsx(672,36): error TS2339: Property 'isAction' does not exist on type 'never'.
+src/components/SearchModal.tsx(674,40): error TS2339: Property 'isAIResult' does not exist on type 'never'.
+src/components/SearchModal.tsx(679,35): error TS2339: Property 'isAction' does not exist on type 'never'.
+src/components/SearchModal.tsx(681,38): error TS2339: Property 'isAIResult' does not exist on type 'never'.
+src/components/SearchModal.tsx(694,54): error TS2339: Property 'title' does not exist on type 'never'.
+src/components/SearchModal.tsx(696,37): error TS2339: Property 'isAIResult' does not exist on type 'never'.
+src/components/SearchModal.tsx(701,37): error TS2339: Property 'isAction' does not exist on type 'never'.
+src/components/SearchModal.tsx(707,35): error TS2339: Property 'keywords' does not exist on type 'never'.
+src/components/SearchModal.tsx(707,53): error TS2339: Property 'isAction' does not exist on type 'never'.
+src/components/SearchModal.tsx(709,39): error TS2339: Property 'keywords' does not exist on type 'never'.
+src/components/SearchModal.tsx(712,35): error TS2339: Property 'isAction' does not exist on type 'never'.
+src/components/SearchModal.tsx(78,25): error TS7006: Parameter 'text' implicitly has an 'any' type.
+src/components/SearchModal.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/SearchModal.tsx(98,39): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/components/SEOHelmet_Examples.tsx(102,10): error TS6133: 'CommunityPage' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(119,10): error TS6133: 'PricingPage' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(136,10): error TS6133: 'AdminConsole' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(15,10): error TS6133: 'HomePage' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(153,10): error TS6133: 'PostDetailsPage' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(154,18): error TS2304: Cannot find name 'useParams'.
+src/components/SEOHelmet_Examples.tsx(154,9): error TS6133: 'id' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(155,16): error TS6133: 'setPost' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(155,27): error TS2304: Cannot find name 'useState'.
+src/components/SEOHelmet_Examples.tsx(177,10): error TS6133: 'FAQPage' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(194,10): error TS6133: 'SupportPage' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(3,11): error TS6196: 'SEOHelmet_ExamplesProps' is declared but never used.
+src/components/SEOHelmet_Examples.tsx(32,10): error TS6133: 'AllGuidesPage' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(49,10): error TS6133: 'GuidePage' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(50,17): error TS6133: 'setGuide' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(50,29): error TS2304: Cannot find name 'useState'.
+src/components/SEOHelmet_Examples.tsx(76,10): error TS6133: 'UserWorkspacePage' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(77,24): error TS2304: Cannot find name 'useParams'.
+src/components/SEOHelmet_Examples.tsx(77,9): error TS6133: 'username' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(78,23): error TS6133: 'setUserProfile' is declared but its value is never read.
+src/components/SEOHelmet_Examples.tsx(78,41): error TS2304: Cannot find name 'useState'.
+src/components/SubscriptionRenewAd.tsx(100,89): error TS2339: Property 'badge' does not exist on type 'never'.
+src/components/SubscriptionRenewAd.tsx(103,71): error TS2339: Property 'iconColor' does not exist on type 'never'.
+src/components/SubscriptionRenewAd.tsx(105,40): error TS2339: Property 'message' does not exist on type 'never'.
+src/components/SubscriptionRenewAd.tsx(23,13): error TS7034: Variable 'timer' implicitly has type 'any' in some locations where its type cannot be determined.
+src/components/SubscriptionRenewAd.tsx(3,11): error TS6196: 'SubscriptionRenewAdProps' is declared but never used.
+src/components/SubscriptionRenewAd.tsx(31,21): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type '(prevState: null) => null'.
+src/components/SubscriptionRenewAd.tsx(47,21): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type '(prevState: null) => null'.
+src/components/SubscriptionRenewAd.tsx(61,17): error TS7005: Variable 'timer' implicitly has an 'any' type.
+src/components/SubscriptionRenewAd.tsx(65,26): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/SubscriptionRenewAd.tsx(68,24): error TS2339: Property 'id' does not exist on type 'never'.
+src/components/SubscriptionRenewAd.tsx(69,44): error TS2339: Property 'id' does not exist on type 'never'.
+src/components/SubscriptionRenewAd.tsx(74,24): error TS2339: Property 'onClick' does not exist on type 'never'.
+src/components/SubscriptionRenewAd.tsx(75,23): error TS2339: Property 'onClick' does not exist on type 'never'.
+src/components/SubscriptionRenewAd.tsx(76,13): error TS2554: Expected 1 arguments, but got 0.
+src/components/SubscriptionRenewAd.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/SubscriptionRenewAd.tsx(82,37): error TS2339: Property 'Icon' does not exist on type 'never'.
+src/components/TestimonialsMarquee.tsx(54,8): error TS2741: Property 'className' is missing in type '{ children: Element[]; baseVelocity: number; direction: string; slowdownOnHover: true; }' but required in type '{ [x: string]: any; children: any; baseVelocity?: number | undefined; direction?: string | undefined; scrollAwareDirection?: boolean | undefined; slowdownOnHover?: boolean | undefined; className: any; }'.
+src/components/TextToSpeech.tsx(145,18): error TS7006: Parameter 'w' implicitly has an 'any' type.
+src/components/TextToSpeech.tsx(155,46): error TS7006: Parameter 'word' implicitly has an 'any' type.
+src/components/TextToSpeech.tsx(192,26): error TS7006: Parameter 'html' implicitly has an 'any' type.
+src/components/TextToSpeech.tsx(29,15): error TS2339: Property 'title' does not exist on type '{}'.
+src/components/TextToSpeech.tsx(29,22): error TS2339: Property 'onClose' does not exist on type '{}'.
+src/components/TextToSpeech.tsx(29,31): error TS2339: Property 'hideButton' does not exist on type '{}'.
+src/components/TextToSpeech.tsx(29,6): error TS2339: Property 'content' does not exist on type '{}'.
+src/components/TextToSpeech.tsx(295,9): error TS2322: Type 'string[]' is not assignable to type 'never[]'.
+src/components/TextToSpeech.tsx(3,11): error TS6196: 'TextToSpeechProps' is declared but never used.
+src/components/TextToSpeech.tsx(301,9): error TS2322: Type 'SpeechSynthesisUtterance' is not assignable to type 'null'.
+src/components/TextToSpeech.tsx(358,13): error TS2322: Type 'number' is not assignable to type 'null'.
+src/components/TextToSpeech.tsx(367,31): error TS2345: Argument of type 'null' is not assignable to parameter of type 'number | undefined'.
+src/components/TextToSpeech.tsx(393,15): error TS2322: Type 'SpeechSynthesisUtterance' is not assignable to type 'null'.
+src/components/TextToSpeech.tsx(504,26): error TS7006: Parameter 'newSpeed' implicitly has an 'any' type.
+src/components/TextToSpeech.tsx(530,32): error TS7006: Parameter 'chunkIndex' implicitly has an 'any' type.
+src/components/TextToSpeech.tsx(530,44): error TS7006: Parameter 'speedRate' implicitly has an 'any' type.
+src/components/TextToSpeech.tsx(612,9): error TS2322: Type 'SpeechSynthesisUtterance' is not assignable to type 'null'.
+src/components/TextToSpeech.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.
+src/components/ThinkingWave.tsx(10,65): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/components/ThinkingWave.tsx(3,11): error TS6196: 'ThinkingWaveProps' is declared but never used.
+src/components/TopLoader.tsx(110,8): error TS7006: Parameter 'amount' implicitly has an 'any' type.
+src/components/TopLoader.tsx(144,11): error TS2322: Type 'number' is not assignable to type 'null'.
+src/components/TopLoader.tsx(16,7): error TS2339: Property 'isLoading' does not exist on type '{}'.
+src/components/TopLoader.tsx(17,7): error TS2339: Property 'color' does not exist on type '{}'.
+src/components/TopLoader.tsx(18,7): error TS2339: Property 'height' does not exist on type '{}'.
+src/components/TopLoader.tsx(19,7): error TS2339: Property 'speed' does not exist on type '{}'.
+src/components/TopLoader.tsx(20,7): error TS2339: Property 'showSpinner' does not exist on type '{}'.
+src/components/TopLoader.tsx(203,9): error TS2322: Type 'ForwardedRef<unknown>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'.
+src/components/TopLoader.tsx(205,9): error TS2322: Type '{ pointerEvents: string; position: string; top: number; left: number; width: string; height: string; zIndex: any; }' is not assignable to type 'Properties<string | number, string & {}>'.
+src/components/TopLoader.tsx(21,7): error TS2339: Property 'easing' does not exist on type '{}'.
+src/components/TopLoader.tsx(213,41): error TS2322: Type '{ position: string; top: number; left: number; width: string; height: string; background: any; boxShadow: string; transition: string; transform: string; zIndex: any; }' is not assignable to type 'Properties<string | number, string & {}>'.
+src/components/TopLoader.tsx(215,47): error TS2322: Type '{ display: string; position: string; top: string; right: string; width: string; height: string; boxSizing: string; border: string; borderTopColor: any; borderLeftColor: any; borderRadius: string; animation: string; zIndex: any; }' is not assignable to type 'Properties<string | number, string & {}>'.
+src/components/TopLoader.tsx(22,7): error TS2339: Property 'minimum' does not exist on type '{}'.
+src/components/TopLoader.tsx(23,7): error TS2339: Property 'parent' does not exist on type '{}'.
+src/components/TopLoader.tsx(24,7): error TS2339: Property 'trickle' does not exist on type '{}'.
+src/components/TopLoader.tsx(25,7): error TS2339: Property 'trickleRate' does not exist on type '{}'.
+src/components/TopLoader.tsx(26,7): error TS2339: Property 'trickleSpeed' does not exist on type '{}'.
+src/components/TopLoader.tsx(27,7): error TS2339: Property 'zIndex' does not exist on type '{}'.
+src/components/TopLoader.tsx(28,7): error TS2339: Property 'progress' does not exist on type '{}'.
+src/components/TopLoader.tsx(29,7): error TS2339: Property 'className' does not exist on type '{}'.
+src/components/TopLoader.tsx(3,11): error TS6196: 'TopLoaderProps' is declared but never used.
+src/components/TopLoader.tsx(85,20): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/components/TopLoader.tsx(85,23): error TS7006: Parameter 'min' implicitly has an 'any' type.
+src/components/TopLoader.tsx(85,28): error TS7006: Parameter 'max' implicitly has an 'any' type.
+src/components/TopLoader.tsx(92,8): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/components/TourCursor.tsx(3,11): error TS6196: 'TourCursorProps' is declared but never used.
+src/components/TourCursor.tsx(8,6): error TS6196: 'HandleEvent' is declared but never used.

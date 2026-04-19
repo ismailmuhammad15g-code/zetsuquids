@@ -35,7 +35,7 @@ export function sanitizeSlug(value: string | null | undefined): string {
 }
 
 // Types for Guides
-interface Guide {
+export interface Guide {
     id?: number | string;
     title: string;
     slug?: string;
@@ -54,7 +54,7 @@ interface Guide {
     status?: string;
 }
 
-interface GuideVersion {
+export interface GuideVersion {
     guide_id: number | string;
     title: string;
     content?: string;
@@ -63,7 +63,7 @@ interface GuideVersion {
     created_at?: string;
 }
 
-interface SearchResult extends Guide {
+export interface SearchResult extends Guide {
     score: number;
 }
 
@@ -583,7 +583,7 @@ export const guidesApi = {
 };
 
 // Types for Ads
-interface Ad {
+export interface Ad {
     id?: number | string;
     title?: string;
     content?: string;
@@ -779,7 +779,7 @@ Flexbox makes it easy to design flexible responsive layouts.
 ];
 
 // Admin/Staff Guide Management API
-interface PendingGuide extends Guide {
+export interface PendingGuide extends Guide {
     approved_by?: string | null;
     approved_at?: string;
 }
@@ -837,14 +837,14 @@ export const adminGuidesApi = {
 };
 
 // Types for Daily Credits
-interface DailyCreditsResult {
+export interface DailyCreditsResult {
     success: boolean;
     message: string;
     creditsAwarded?: number;
     newBalance?: number;
 }
 
-interface DailyCreditsCheck {
+export interface DailyCreditsCheck {
     canClaim: boolean;
     hoursRemaining: number;
 }
@@ -994,3 +994,8 @@ export const promptsApi = {
         return true;
     },
 };
+
+
+// Backward compatibility alias
+export const creditsApi = dailyCreditsApi;
+export const creditsApi = dailyCreditsApi;

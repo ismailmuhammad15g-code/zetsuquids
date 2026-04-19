@@ -54,7 +54,7 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({
             left: `${left}px`,
             top: showBelow ? `${rect.bottom + 10}px` : `${rect.top - 10}px`,
         });
-        
+
         setIsHovered(true);
     }, []);
 
