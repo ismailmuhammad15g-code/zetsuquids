@@ -1,31 +1,34 @@
 ﻿// Type definitions for TextToSpeech
 
 interface TextToSpeechProps {
-  // Add prop types here
+  content?: string;
+  title?: string;
+  onClose?: () => void;
+  hideButton?: boolean;
 }
 
 // Event handler types
 type HandleEvent = (e: React.SyntheticEvent<any>) => void;
 
 import {
-    Gauge,
-    Pause,
-    Play,
-    RotateCcw,
-    Volume2,
-    VolumeX,
-    X,
+  Gauge,
+  Pause,
+  Play,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+  X,
 } from "lucide-react";
 import {
-    forwardRef,
-    useEffect,
-    useImperativeHandle,
-    useRef,
-    useState,
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
 } from "react";
 import { toast } from "sonner";
 
-const TextToSpeech = forwardRef(
+const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
   ({ content, title, onClose, hideButton }, ref) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
@@ -770,11 +773,10 @@ const TextToSpeech = forwardRef(
                   <button
                     key={s}
                     onClick={() => changeSpeed(s)}
-                    className={`px-2 py-1.5 text-xs font-bold border-2 transition-all active:scale-95 ${
-                      speed === s
+                    className={`px-2 py-1.5 text-xs font-bold border-2 transition-all active:scale-95 ${speed === s
                         ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                         : "bg-white border-gray-300 hover:border-black text-gray-700"
-                    }`}
+                      }`}
                   >
                     {s}x
                   </button>
@@ -789,4 +791,3 @@ const TextToSpeech = forwardRef(
 );
 
 export default TextToSpeech;
-

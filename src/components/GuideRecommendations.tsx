@@ -1,20 +1,21 @@
 ﻿// Type definitions for GuideRecommendations
 
 interface GuideRecommendationsProps {
-  // Add prop types here
+  currentGuideSlug?: string | null;
+  limit?: number;
 }
 
 
 import {
-    ArrowRight,
-    Calendar,
-    Eye,
-    Lightbulb,
-    Loader2,
-    Sparkles,
-    Tag,
-    TrendingUp,
-    User,
+  ArrowRight,
+  Calendar,
+  Eye,
+  Lightbulb,
+  Loader2,
+  Sparkles,
+  Tag,
+  TrendingUp,
+  User,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -25,7 +26,7 @@ import { supabase } from "../lib/supabase";
 export default function GuideRecommendations({
   currentGuideSlug = null,
   limit = 6,
-}) {
+}: GuideRecommendationsProps) {
   const { user } = useAuth();
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -247,4 +248,3 @@ export default function GuideRecommendations({
     </div>
   );
 }
-
