@@ -1,10 +1,114 @@
 import { isSupabaseConfigured } from "./api";
 import { supabase } from "./supabase";
 
+// Types for Community API
+interface UserProfile {
+  user_id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  [key: string]: unknown;
+}
+
+interface Post {
+  id: string | number;
+  title?: string;
+  content: string;
+  category?: string;
+  user_id: string;
+  created_at?: string;
+  views_count?: number;
+  group_id?: string | null;
+  [key: string]: unknown;
+}
+
+interface EnrichedPost extends Post {
+  author: UserProfile | { display_name: string; username: string; avatar_url: null };
+  likes_count: number;
+  comments_count: number;
+  has_liked: boolean;
+}
+
+interface PostComment {
+  id: string | number;
+  post_id: string | number;
+  content: string;
+  user_id: string;
+  created_at?: string;
+  author?: UserProfile;
+}
+
+interface Poll {
+  id: string | number;
+  post_id: string | number;
+  question: string;
+  ends_at?: string;
+  [key: string]: unknown;
+}
+
+interface Community {
+  id: string | number;
+  name: string;
+  description?: string;
+  avatar_url?: string;
+  creator_id?: string;
+  members_count?: number;
+  [key: string]: unknown;
+}
+
+interface Notification {
+  id: string | number;
+  user_id: string;
+  actor_id?: string;
+  post_id?: string | number;
+  type?: string;
+  created_at?: string;
+  is_read?: boolean;
+  post?: { content: string };
+  actor?: UserProfile;
+  [key: string]: unknown;
+}
+
+interface Conversation {
+  id: string | number;
+  user1_id: string;
+  user2_id: string;
+  last_message_at?: string;
+  otherUser?: UserProfile;
+  lastMessage?: Message | null;
+}
+
+interface Message {
+  id: string | number;
+  conversation_id: string | number;
+  sender_id: string;
+  content: string;
+  created_at?: string;
+}
+
+interface Trend {
+  tag: string;
+  posts_count: number;
+  unique_id?: string | number;
+}
+
+interface NewsItem {
+  id: string | number;
+  title: string;
+  category: string;
+  posts_count: string;
+  source_image: string;
+  created_at?: string;
+}
+
 export const communityApi = {
   // --- Posts ---
 
-  async getPosts(category = "All", userId = null, groupId = null) {
+  async getPosts(
+    category: string = "All",
+    userId: string | null = null,
+    groupId: string | null = null
+  ): Promise<EnrichedPost[]> {
     if (!isSupabaseConfigured()) {
       return [];
     }
@@ -68,7 +172,7 @@ export const communityApi = {
       .select("*")
       .in("user_id", userIds);
 
-    const profileMap = {};
+    const profileMap: Record<string, UserProfile> = {};
     profiles?.forEach((p) => (profileMap[p.user_id] = p));
 
     return posts.map((post) => ({
@@ -78,15 +182,15 @@ export const communityApi = {
         username: "unknown",
         avatar_url: null,
       },
-      likes_count: post.post_likes?.length || 0,
-      comments_count: post.post_comments?.[0]?.count || 0,
+      likes_count: (post.post_likes as unknown[])?.length || 0,
+      comments_count: ((post.post_comments as Array<{ count: number }> | undefined)?.[0]?.count) || 0,
       has_liked: userId
-        ? post.post_likes?.some((l) => l.user_id === userId)
+        ? (post.post_likes as Array<{ user_id: string }> | undefined)?.some((l) => l.user_id === userId) || false
         : false,
-    }));
+    })) as EnrichedPost[];
   },
 
-  async getSmartFeed(userId) {
+  async getSmartFeed(userId: string): Promise<EnrichedPost[]> {
     if (!isSupabaseConfigured()) return [];
 
     let query = supabase
@@ -112,7 +216,7 @@ export const communityApi = {
       .select("*")
       .in("user_id", userIds);
 
-    const profileMap = {};
+    const profileMap: Record<string, UserProfile> = {};
     profiles?.forEach((p) => (profileMap[p.user_id] = p));
 
     return posts.map((post) => ({
@@ -122,15 +226,15 @@ export const communityApi = {
         username: "unknown",
         avatar_url: null,
       },
-      likes_count: post.post_likes?.length || 0,
-      comments_count: post.post_comments?.[0]?.count || 0,
+      likes_count: (post.post_likes as unknown[])?.length || 0,
+      comments_count: ((post.post_comments as Array<{ count: number }> | undefined)?.[0]?.count) || 0,
       has_liked: userId
-        ? post.post_likes?.some((l) => l.user_id === userId)
+        ? (post.post_likes as Array<{ user_id: string }> | undefined)?.some((l) => l.user_id === userId) || false
         : false,
-    }));
+    })) as EnrichedPost[];
   },
 
-  async createPost(post) {
+  async createPost(post: Partial<Post>): Promise<Post> {
     if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
 
     const { data, error } = await supabase
@@ -145,7 +249,7 @@ export const communityApi = {
 
   // --- Interactions ---
 
-  async toggleLike(postId, userId) {
+  async toggleLike(postId: string | number, userId: string): Promise<boolean> {
     if (!userId) throw new Error("User must be logged in");
 
     const { data: existing } = await supabase
@@ -172,7 +276,7 @@ export const communityApi = {
     }
   },
 
-  async hasUserLiked(postId, userId) {
+  async hasUserLiked(postId: string | number, userId: string): Promise<boolean> {
     if (!userId) return false;
     const { data } = await supabase
       .from("post_likes")
@@ -186,7 +290,7 @@ export const communityApi = {
 
   // --- Comments ---
 
-  async getComments(postId) {
+  async getComments(postId: string | number): Promise<PostComment[]> {
     if (!isSupabaseConfigured()) return [];
 
     const { data: comments, error } = await supabase
@@ -203,7 +307,7 @@ export const communityApi = {
       .select("*")
       .in("user_id", userIds);
 
-    const profileMap = {};
+    const profileMap: Record<string, UserProfile> = {};
     profiles?.forEach((p) => (profileMap[p.user_id] = p));
 
     return comments.map((c) => ({
@@ -213,10 +317,14 @@ export const communityApi = {
         username: "unknown",
         avatar_url: null,
       },
-    }));
+    })) as PostComment[];
   },
 
-  async addComment(postId, content, userId) {
+  async addComment(
+    postId: string | number,
+    content: string,
+    userId: string
+  ): Promise<PostComment> {
     if (!userId) throw new Error("User must be logged in");
 
     const { data, error } = await supabase
@@ -231,7 +339,7 @@ export const communityApi = {
 
   // --- Post Detail ---
 
-  async getPostById(id, userId = null) {
+  async getPostById(id: string | number, userId: string | null = null): Promise<EnrichedPost> {
     if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
 
     const { data, error } = await supabase
@@ -254,12 +362,12 @@ export const communityApi = {
 
     // Increment views count asynchronously (don't block the response)
     if (data?.id) {
-      supabase
+      (supabase
         .from("posts")
         .update({ views_count: (data.views_count || 0) + 1 })
-        .eq("id", data.id)
+        .eq("id", data.id) as unknown as Promise<void>)
         .then(() => console.log("📊 View count incremented"))
-        .catch((err) => console.error("Failed to increment view count:", err));
+        .catch((err: unknown) => console.error("Failed to increment view count:", err));
     }
 
     const { data: profile } = await supabase
@@ -286,36 +394,15 @@ export const communityApi = {
         username: "unknown",
         avatar_url: null,
       },
-      likes_count: data.post_likes?.[0]?.count || 0,
-      comments_count: data.post_comments?.[0]?.count || 0,
+      likes_count: ((data.post_likes as Array<{ count: number }> | undefined)?.[0]?.count) || 0,
+      comments_count: ((data.post_comments as Array<{ count: number }> | undefined)?.[0]?.count) || 0,
       has_liked: hasLiked,
-    };
+    } as EnrichedPost;
   },
 
   // --- Community Features ---
 
-  async createPost(postData) {
-    if (!isSupabaseConfigured()) throw new Error("Supabase is not configured.");
-
-    const { data: userData, error: authError } = await supabase.auth.getUser();
-    if (authError || !userData?.user) throw new Error("Must be logged in to post.");
-
-    const { data, error } = await supabase
-      .from("posts")
-      .insert({
-        title: postData.title || postData.content?.slice(0, 50) || "Post",
-        content: postData.content,
-        category: postData.category || "General",
-        user_id: userData.user.id,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  async deletePost(postId, userId) {
+  async deletePost(postId: string | number, userId: string): Promise<boolean> {
     if (!isSupabaseConfigured()) throw new Error("Supabase not configured.");
 
     // Clean up relations first
@@ -336,7 +423,7 @@ export const communityApi = {
     return true;
   },
 
-  async getFollowing(userId, limit = 50) {
+  async getFollowing(userId: string, limit: number = 50): Promise<(UserProfile & { followed_at?: string })[]> {
     if (!isSupabaseConfigured() || !userId) return [];
 
     // Step 1: Get the list of user IDs this user is following
@@ -378,18 +465,16 @@ export const communityApi = {
     });
   },
 
-  async getWhoToFollow(userId = null, limit = 3) {
+  async getWhoToFollow(userId: string | null = null, limit: number = 3): Promise<UserProfile[]> {
     if (!isSupabaseConfigured()) return [];
-
-    // Start with all profiles
-    let query = supabase
-      .from("zetsuguide_user_profiles")
-      .select("*");
 
     console.log("🔍 [getWhoToFollow] Current userId:", userId);
 
-    // If user is logged in, exclude self and already-followed users
+    // Build exclude list
+    const excludeIds: string[] = [];
     if (userId) {
+      excludeIds.push(userId);
+
       // Get already followed users
       const { data: followedUsers } = await supabase
         .from("community_follows")
@@ -398,38 +483,18 @@ export const communityApi = {
 
       console.log("👥 [getWhoToFollow] Already following:", followedUsers);
 
-      // Build exclude list: always include self
-      const excludeIds = [userId];
-
       if (followedUsers && followedUsers.length > 0) {
         followedUsers.forEach((f) => excludeIds.push(f.following_id));
       }
-
-      console.log("🚫 [getWhoToFollow] Excluding user IDs:", excludeIds);
-
-      // Filter out excluded users in JavaScript after fetching
-      // This is more reliable than Supabase's NOT IN filter for UUIDs
-      let allProfiles = await supabase
-        .from("zetsuguide_user_profiles")
-        .select("*");
-
-      if (!allProfiles.error && allProfiles.data) {
-        query = allProfiles.data.filter((p) => !excludeIds.includes(p.user_id));
-      }
-    } else {
-      // No user logged in, fetch all profiles
-      const { data } = await query;
-      query = data || [];
     }
 
-    // If query is already an array (filtered above), work with it directly
-    let allProfiles = Array.isArray(query) ? query : null;
+    console.log("🚫 [getWhoToFollow] Excluding user IDs:", excludeIds);
 
-    if (!allProfiles) {
-      const { data } = await supabase
-        .from("zetsuguide_user_profiles")
-        .select("*");
-      allProfiles = data || [];
+    // Fetch all profiles
+    let allProfiles: UserProfile[] = [];
+    const { data } = await supabase.from("zetsuguide_user_profiles").select("*");
+    if (data) {
+      allProfiles = data.filter((p) => !excludeIds.includes(p.user_id));
     }
 
     // Try to get users with activity first (those who have posted)
@@ -441,7 +506,7 @@ export const communityApi = {
 
     console.log("📝 [getWhoToFollow] Active users (who posted):", activeUsers);
 
-    let prioritizedUsers = [];
+    let prioritizedUsers: UserProfile[] = [];
     if (activeUsers && activeUsers.length > 0) {
       const activeUserIds = [...new Set(activeUsers.map((p) => p.user_id))];
 
@@ -463,7 +528,7 @@ export const communityApi = {
     }
 
     // Otherwise, combine active users with remaining profiles
-    const combined = [...prioritizedUsers];
+    const combined: UserProfile[] = [...prioritizedUsers];
     const existingIds = new Set(combined.map((u) => u.user_id));
 
     for (const profile of allProfiles) {
@@ -478,7 +543,7 @@ export const communityApi = {
     return combined.slice(0, limit);
   },
 
-  async getTrends(limit = 5) {
+  async getTrends(limit: number = 5): Promise<Trend[]> {
     if (!isSupabaseConfigured()) return [];
 
     const { data, error } = await supabase.rpc("get_top_trends", {
@@ -506,12 +571,12 @@ export const communityApi = {
     return data || [];
   },
 
-  async getNews(limit = 4) {
+  async getNews(limit: number = 4): Promise<NewsItem[]> {
     if (!isSupabaseConfigured()) return [];
 
     const { data, error } = await supabase
       .from("posts")
-      .select("id, title, category, created_at, posts_count:likes_count, content")
+      .select("id, title, category, created_at, likes_count:post_likes, content")
       .eq("category", "News")
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -521,17 +586,17 @@ export const communityApi = {
       return [];
     }
 
-    return data?.map(item => ({
+    return data?.map((item) => ({
       id: item.id,
-      title: item.content.split('\n')[0].slice(0, 80),
+      title: (item.content || "").split('\n')[0].slice(0, 80),
       category: item.category || 'News',
-      posts_count: (item.posts_count * 10).toLocaleString() + 'K',
+      posts_count: ((item.likes_count || 0) * 10).toLocaleString() + 'K',
       source_image: "https://ui-avatars.com/api/?name=" + (item.category || "News"),
       created_at: item.created_at
     })) || [];
   },
 
-  async toggleBookmark(postId, userId) {
+  async toggleBookmark(postId: string | number, userId: string): Promise<{ bookmarked: boolean }> {
     if (!isSupabaseConfigured()) return { bookmarked: false };
 
     // Check if bookmarked
@@ -540,7 +605,7 @@ export const communityApi = {
       .select("post_id")
       .eq("post_id", postId)
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       await supabase.from("post_bookmarks").delete().eq("post_id", postId).eq("user_id", userId);
@@ -551,7 +616,7 @@ export const communityApi = {
     }
   },
 
-  async getBookmarkedPosts(userId) {
+  async getBookmarkedPosts(userId: string): Promise<EnrichedPost[]> {
     if (!isSupabaseConfigured()) return [];
 
     // Step 1: Get bookmarked post IDs
@@ -563,7 +628,7 @@ export const communityApi = {
 
     if (bErr || !bookmarks?.length) return [];
 
-    const postIds = bookmarks.map(b => b.post_id);
+    const postIds = bookmarks.map((b) => b.post_id);
 
     // Step 2: Fetch those posts
     const { data: posts, error: pErr } = await supabase
@@ -582,32 +647,32 @@ export const communityApi = {
     if (pErr || !posts?.length) return [];
 
     // Step 3: Fetch profiles
-    const userIds = [...new Set(posts.map(p => p.user_id))];
+    const userIds = [...new Set(posts.map((p) => p.user_id))];
     const { data: profiles } = await supabase
       .from("zetsuguide_user_profiles")
       .select("*")
       .in("user_id", userIds);
 
-    const profileMap = {};
-    profiles?.forEach(p => (profileMap[p.user_id] = p));
+    const profileMap: Record<string, UserProfile> = {};
+    profiles?.forEach((p) => (profileMap[p.user_id] = p));
 
-    return posts.map(post => ({
+    return posts.map((post) => ({
       ...post,
       author: profileMap[post.user_id] || {
         display_name: "Unknown User",
         username: "unknown",
         avatar_url: null,
       },
-      likes_count: post.post_likes?.length || 0,
-      comments_count: post.post_comments?.[0]?.count || 0,
-      has_liked: post.post_likes?.some(l => l.user_id === userId) || false,
+      likes_count: (post.post_likes as unknown[])?.length || 0,
+      comments_count: ((post.post_comments as Array<{ count: number }> | undefined)?.[0]?.count) || 0,
+      has_liked: (post.post_likes as Array<{ user_id: string }> | undefined)?.some((l) => l.user_id === userId) || false,
     })).sort((a, b) => {
       // Preserve bookmark order
-      return postIds.indexOf(a.id) - postIds.indexOf(b.id);
-    });
+      return postIds.indexOf(a.id as string | number) - postIds.indexOf(b.id as string | number);
+    }) as EnrichedPost[];
   },
 
-  async getNotifications(userId) {
+  async getNotifications(userId: string): Promise<Notification[]> {
     if (!isSupabaseConfigured()) return [];
 
     // Step 1: Get notifications
@@ -623,26 +688,26 @@ export const communityApi = {
     if (error || !data?.length) return [];
 
     // Step 2: Fetch actor profiles
-    const actorIds = [...new Set(data.map(n => n.actor_id).filter(Boolean))];
+    const actorIds = [...new Set(data.map((n) => n.actor_id).filter(Boolean))];
     const { data: profiles } = await supabase
       .from("zetsuguide_user_profiles")
       .select("*")
       .in("user_id", actorIds);
 
-    const profileMap = {};
-    profiles?.forEach(p => (profileMap[p.user_id] = p));
+    const profileMap: Record<string, UserProfile> = {};
+    profiles?.forEach((p) => (profileMap[p.user_id] = p));
 
-    return data.map(n => ({
+    return data.map((n) => ({
       ...n,
       actor: profileMap[n.actor_id] || {
         display_name: "Someone",
         username: "user",
         avatar_url: null,
       },
-    }));
+    })) as Notification[];
   },
 
-  async getUnreadNotificationCount(userId) {
+  async getUnreadNotificationCount(userId: string): Promise<number> {
     if (!isSupabaseConfigured() || !userId) return 0;
     const { data, error } = await supabase.rpc("get_unread_notification_count", {
       p_user_id: userId
@@ -654,7 +719,7 @@ export const communityApi = {
     return data || 0;
   },
 
-  async markNotificationsAsRead(userId) {
+  async markNotificationsAsRead(userId: string): Promise<void> {
     if (!isSupabaseConfigured() || !userId) return;
     await supabase
       .from("community_notifications")
@@ -663,7 +728,7 @@ export const communityApi = {
       .eq("is_read", false);
   },
 
-  async getCommunities() {
+  async getCommunities(): Promise<Community[]> {
     if (!isSupabaseConfigured()) return [];
 
     const { data, error } = await supabase
@@ -672,10 +737,15 @@ export const communityApi = {
       .order("members_count", { ascending: false });
 
     if (error) return [];
-    return data;
+    return data || [];
   },
 
-  async createCommunity(name, description, avatarUrl, creatorId) {
+  async createCommunity(
+    name: string,
+    description: string,
+    avatarUrl: string,
+    creatorId: string
+  ): Promise<Community> {
     if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
 
     const { data, error } = await supabase
@@ -699,7 +769,7 @@ export const communityApi = {
     return data;
   },
 
-  async getGroup(id) {
+  async getGroup(id: string | number): Promise<Community | null> {
     if (!isSupabaseConfigured()) return null;
     const { data, error } = await supabase
       .from("community_groups")
@@ -710,7 +780,7 @@ export const communityApi = {
     return data;
   },
 
-  async deleteCommunity(id) {
+  async deleteCommunity(id: string | number): Promise<boolean> {
     if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
     const { error } = await supabase
       .from("community_groups")
@@ -720,7 +790,7 @@ export const communityApi = {
     return true;
   },
 
-  async getUserProfile(username) {
+  async getUserProfile(username: string): Promise<UserProfile | null> {
     if (!isSupabaseConfigured() || !username) return null;
     const { data, error } = await supabase
       .from("zetsuguide_user_profiles")
@@ -731,7 +801,7 @@ export const communityApi = {
     return data;
   },
 
-  async updateUserProfile(userId, updates) {
+  async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
     if (!isSupabaseConfigured() || !userId) throw new Error("User ID required");
     const { data, error } = await supabase
       .from("zetsuguide_user_profiles")
@@ -743,10 +813,10 @@ export const communityApi = {
     return data;
   },
 
-  async getUserPosts(userId) {
+  async getUserPosts(userId: string): Promise<EnrichedPost[]> {
     if (!isSupabaseConfigured() || !userId) return [];
 
-    // Fetch posts with author profiles (standard enrichment)
+    // Fetch posts with author profiles
     const { data, error } = await supabase
       .from("posts")
       .select("*")
@@ -755,21 +825,23 @@ export const communityApi = {
 
     if (error) return [];
 
-    // Enrich with profile (could also use join, but we keep it consistent with other methods)
+    // Enrich with profile
     const { data: profile } = await supabase
       .from("zetsuguide_user_profiles")
       .select("*")
       .eq("user_id", userId)
       .single();
 
-    return data.map(post => ({
+    return data.map((post) => ({
       ...post,
-      author: profile
-    }));
+      author: profile,
+      likes_count: 0,
+      comments_count: 0,
+      has_liked: false,
+    })) as EnrichedPost[];
   },
 
-
-  async updateCommunity(id, updates) {
+  async updateCommunity(id: string | number, updates: Partial<Community>): Promise<Community> {
     if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
     const { data, error } = await supabase
       .from("community_groups")
@@ -781,7 +853,7 @@ export const communityApi = {
     return data;
   },
 
-  async getCommunityMembers(groupId) {
+  async getCommunityMembers(groupId: string | number): Promise<UserProfile[]> {
     if (!isSupabaseConfigured()) return [];
     const { data, error } = await supabase
       .from("community_members")
@@ -792,11 +864,13 @@ export const communityApi = {
       .eq("group_id", groupId);
 
     if (error) return [];
-    return data.map(m => m.profiles).filter(Boolean);
+    return data.map((m: unknown) => {
+      const item = m as { profiles: unknown };
+      return item.profiles;
+    }).filter(Boolean) as UserProfile[];
   },
 
-
-  async joinCommunity(groupId, userId) {
+  async joinCommunity(groupId: string | number, userId: string): Promise<boolean> {
     if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
 
     const { error } = await supabase
@@ -807,7 +881,7 @@ export const communityApi = {
     return true;
   },
 
-  async leaveCommunity(groupId, userId) {
+  async leaveCommunity(groupId: string | number, userId: string): Promise<boolean> {
     if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
 
     const { error } = await supabase
@@ -820,7 +894,7 @@ export const communityApi = {
     return true;
   },
 
-  async getJoinedCommunities(userId) {
+  async getJoinedCommunities(userId: string): Promise<(string | number)[]> {
     if (!isSupabaseConfigured() || !userId) return [];
 
     const { data, error } = await supabase
@@ -832,7 +906,7 @@ export const communityApi = {
     return data.map((m) => m.group_id);
   },
 
-  async getSuggestedCommunities(userId, limit = 3) {
+  async getSuggestedCommunities(userId: string | null = null, limit: number = 3): Promise<Community[]> {
     if (!isSupabaseConfigured()) return [];
 
     let query = supabase.from("community_groups").select("*");
@@ -841,7 +915,8 @@ export const communityApi = {
       // Get IDs of joined communities
       const joinedIds = await this.getJoinedCommunities(userId);
       if (joinedIds.length > 0) {
-        query = query.not("id", "in", `(${joinedIds.join(",")})`);
+        const joinedIdsStr = joinedIds.join(",");
+        query = query.not("id", "in", `(${joinedIdsStr})`);
       }
     }
 
@@ -850,10 +925,10 @@ export const communityApi = {
       .limit(limit);
 
     if (error) return [];
-    return data;
+    return data || [];
   },
 
-  async followUser(followerId, followingId) {
+  async followUser(followerId: string, followingId: string): Promise<void> {
     // Validate IDs
     if (!followerId || !followingId) {
       throw new Error("Follower ID and Following ID are required");
@@ -887,7 +962,7 @@ export const communityApi = {
     }
   },
 
-  async unfollowUser(followerId, followingId) {
+  async unfollowUser(followerId: string, followingId: string): Promise<void> {
     const { error } = await supabase
       .from("community_follows")
       .delete()
@@ -898,7 +973,7 @@ export const communityApi = {
 
   // --- Search ---
 
-  async searchUsers(query) {
+  async searchUsers(query: string): Promise<UserProfile[]> {
     if (!isSupabaseConfigured() || !query?.trim()) return [];
 
     // Try RPC first
@@ -922,7 +997,7 @@ export const communityApi = {
     return data || [];
   },
 
-  async searchPosts(query) {
+  async searchPosts(query: string): Promise<EnrichedPost[]> {
     if (!isSupabaseConfigured() || !query?.trim()) return [];
 
     const { data, error } = await supabase
@@ -946,7 +1021,7 @@ export const communityApi = {
       .select("*")
       .in("user_id", userIds);
 
-    const profileMap = {};
+    const profileMap: Record<string, UserProfile> = {};
     profiles?.forEach((p) => (profileMap[p.user_id] = p));
 
     return data.map((post) => ({
@@ -956,26 +1031,15 @@ export const communityApi = {
         username: "unknown",
         avatar_url: null,
       },
-    }));
-  },
-
-  // --- Delete Post ---
-
-  async deletePost(postId, userId) {
-    if (!userId) throw new Error("User must be logged in");
-
-    const { error } = await supabase
-      .from("posts")
-      .delete()
-      .match({ id: postId, user_id: userId });
-
-    if (error) throw error;
-    return true;
+      likes_count: 0,
+      comments_count: 0,
+      has_liked: false,
+    })) as EnrichedPost[];
   },
 
   // --- Direct Messaging ---
 
-  async getConversations(userId) {
+  async getConversations(userId: string): Promise<Conversation[]> {
     if (!isSupabaseConfigured() || !userId) return [];
 
     const { data: convos, error: cErr } = await supabase
@@ -987,18 +1051,18 @@ export const communityApi = {
     if (cErr || !convos) return [];
 
     // Fetch profiles for the other participant
-    const otherUserIds = convos.map(c => c.user1_id === userId ? c.user2_id : c.user1_id);
+    const otherUserIds = convos.map((c) => c.user1_id === userId ? c.user2_id : c.user1_id);
     const { data: profiles } = await supabase
       .from('zetsuguide_user_profiles')
       .select('*')
       .in('user_id', otherUserIds);
 
-    const profileMap = {};
-    profiles?.forEach(p => profileMap[p.user_id] = p);
+    const profileMap: Record<string, UserProfile> = {};
+    profiles?.forEach((p) => (profileMap[p.user_id] = p));
 
     // Get last message for each conversation
-    const convIds = convos.map(c => c.id);
-    let msgMap = {};
+    const convIds = convos.map((c) => c.id);
+    let msgMap: Record<string | number, Message> = {};
     if (convIds.length > 0) {
       const { data: lastMessages } = await supabase
         .from('community_messages')
@@ -1006,12 +1070,12 @@ export const communityApi = {
         .in('conversation_id', convIds)
         .order('created_at', { ascending: false });
 
-      lastMessages?.forEach(m => {
+      lastMessages?.forEach((m) => {
         if (!msgMap[m.conversation_id]) msgMap[m.conversation_id] = m;
       });
     }
 
-    return convos.map(c => {
+    return convos.map((c) => {
       const otherId = c.user1_id === userId ? c.user2_id : c.user1_id;
       return {
         ...c,
@@ -1021,7 +1085,7 @@ export const communityApi = {
     });
   },
 
-  async getMessages(conversationId) {
+  async getMessages(conversationId: string | number): Promise<Message[]> {
     if (!isSupabaseConfigured() || !conversationId) return [];
     const { data, error } = await supabase
       .from('community_messages')
@@ -1036,7 +1100,11 @@ export const communityApi = {
     return data || [];
   },
 
-  async sendMessage(conversationId, content, senderId) {
+  async sendMessage(
+    conversationId: string | number,
+    content: string,
+    senderId: string
+  ): Promise<Message> {
     if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
 
     const { data, error } = await supabase
@@ -1056,7 +1124,7 @@ export const communityApi = {
     return data;
   },
 
-  async createConversation(user1Id, user2Id) {
+  async createConversation(user1Id: string, user2Id: string): Promise<Conversation> {
     if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
     // Ensure consistent ordering to prevent duplicates
     const u1 = user1Id < user2Id ? user1Id : user2Id;
@@ -1082,7 +1150,7 @@ export const communityApi = {
     return data;
   },
 
-  async castVote(pollId, optionId, userId) {
+  async castVote(pollId: string | number, optionId: string | number, userId: string): Promise<boolean> {
     if (!isSupabaseConfigured() || !userId) {
       console.error("castVote: User not logged in or Supabase not configured");
       throw new Error("Must be logged in to vote");
@@ -1100,13 +1168,16 @@ export const communityApi = {
         throw error;
       }
       return true;
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("castVote Exception:", err);
       throw err;
     }
   },
 
-  async createPoll(postId, pollData) {
+  async createPoll(
+    postId: string | number,
+    pollData: { question: string; options: string[]; durationDays?: number }
+  ): Promise<Poll> {
     if (!isSupabaseConfigured()) {
       console.error("createPoll: Supabase not configured");
       throw new Error("Supabase not configured");
@@ -1117,7 +1188,7 @@ export const communityApi = {
     }
 
     try {
-      const duration = parseInt(pollData.durationDays) || 1;
+      const duration = parseInt(String(pollData.durationDays)) || 1;
       const { data: poll, error: pollError } = await supabase
         .from("community_polls")
         .insert([
@@ -1146,15 +1217,17 @@ export const communityApi = {
 
       if (optError) {
         console.error("createPoll Options Error:", optError);
-        // Attempt to cleanup the orphan poll? (Database CASCADE handles this if we delete the poll)
+        // Attempt to cleanup the orphan poll
         await supabase.from("community_polls").delete().eq("id", poll.id);
         throw optError;
       }
 
       return poll;
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("createPoll Exception:", err);
       throw err;
     }
   },
 };
+
+

@@ -4,7 +4,10 @@
  * @param {Function} onProgress - Optional callback for upload progress (0-100).
  * @returns {Promise<string>} - The URL of the uploaded image.
  */
-export function uploadImageToImgBB(file, onProgress) {
+export function uploadImageToImgBB(
+  file: File,
+  onProgress?: (progress: number) => void
+): Promise<string> {
   return new Promise((resolve, reject) => {
     // Standard API key - should preferably come from env but keeping it robust
     const API_KEY = "1d1f0d90c8b5e24ebdfec95f9c4019ab";

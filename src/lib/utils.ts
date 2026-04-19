@@ -3,11 +3,11 @@ import DOMPurify from "dompurify";
 import React from "react";
 import { twMerge } from "tailwind-merge";
 
-export function cn(...inputs) {
+export function cn(...inputs: (string | undefined | null | false | Record<string, boolean>)[]): string {
   return twMerge(clsx(inputs));
 }
 
-export function sanitizeContent(html) {
+export function sanitizeContent(html: string | null | undefined): string {
   if (!html) return "";
   return DOMPurify.sanitize(html, {
     // allow safe embed-related + lightweight HTML used by editor tools
@@ -50,7 +50,13 @@ export function sanitizeContent(html) {
   });
 }
 
-export function extractGuideContent(guide) {
+interface Guide {
+  markdown?: string;
+  content?: string;
+  html_content?: string;
+}
+
+export function extractGuideContent(guide: Guide | null | undefined): string {
   if (!guide) return "";
 
   // Prioritize markdown as it's cleaner for AI
@@ -73,19 +79,23 @@ export function extractGuideContent(guide) {
 }
 
 // Helper: lazy import with retry for transient dev-server/import failures
-export function lazyWithRetry(factory, retries = 2, delayMs = 250) {
+export function lazyWithRetry(
+  factory: () => Promise<{ default: React.ComponentType<unknown> }>,
+  retries: number = 2,
+  delayMs: number = 250
+): React.LazyExoticComponent<React.ComponentType<unknown>> {
   return React.lazy(
     () =>
-      new Promise((resolve, reject) => {
-        const attempt = (n) => {
+      new Promise<{ default: React.ComponentType<unknown> }>((resolve, reject) => {
+        const attempt = (n: number): void => {
           factory()
             .then(resolve)
-            .catch((err) => {
+            .catch((err: unknown) => {
               if (n <= 0) return reject(err);
               setTimeout(() => attempt(n - 1), delayMs);
             });
         };
         attempt(retries);
-      }),
+      })
   );
 }

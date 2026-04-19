@@ -14,7 +14,7 @@ const TOTAL_AVATARS = 99 // Safe upper bound for deterministic hash
 /**
  * Get a list of all available avatar URLs (for picker)
  */
-export function getAllAvatars() {
+export function getAllAvatars(): string[] {
     // Generate array of /avatars/peep-1.svg ... /avatars/peep-99.svg
     return Array.from({ length: TOTAL_AVATARS }, (_, i) => `/avatars/peep-${i + 1}.svg`)
 }
@@ -26,7 +26,7 @@ export function getAllAvatars() {
  * 2. Deterministic hash based on email
  * 3. Fallback
  */
-export function getAvatarForUser(email, savedAvatarUrl = null) {
+export function getAvatarForUser(email: string | null | undefined, savedAvatarUrl: string | null = null): string {
     // 1. Check saved avatar
     if (savedAvatarUrl) {
         // Fix legacy broken paths from Dev environment

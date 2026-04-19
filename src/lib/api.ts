@@ -3,20 +3,17 @@ import {
     supabase,
 } from "./supabase";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-
 // Re-export or use the singleton
 export { supabase } from "./supabase";
 
-export function isSupabaseConfigured() {
+export function isSupabaseConfigured(): boolean {
   // Determine configuration status
   const configured = isSupabaseConfiguredLib();
   return configured;
 }
 
 // Generate unique slug from title
-export function generateSlug(title) {
+export function generateSlug(title: string): string {
   return (
     title
       .toLowerCase()
@@ -28,7 +25,7 @@ export function generateSlug(title) {
 }
 
 // Sanitize a user-provided slug (no timestamp appended)
-export function sanitizeSlug(value) {
+export function sanitizeSlug(value: string | null | undefined): string {
   if (!value) return "";
   return value
     .toLowerCase()
@@ -37,11 +34,44 @@ export function sanitizeSlug(value) {
     .replace(/^-|-$/g, "");
 }
 
+// Types for Guides
+interface Guide {
+  id?: number | string;
+  title: string;
+  slug?: string;
+  content?: string;
+  markdown?: string;
+  html_content?: string;
+  css_content?: string;
+  keywords?: string[];
+  content_type?: string;
+  user_email?: string;
+  author_name?: string;
+  author_id?: string | null;
+  views_count?: number;
+  created_at?: string;
+  updated_at?: string;
+  status?: string;
+}
+
+interface GuideVersion {
+  guide_id: number | string;
+  title: string;
+  content?: string;
+  html_content?: string;
+  markdown?: string;
+  created_at?: string;
+}
+
+interface SearchResult extends Guide {
+  score: number;
+}
+
 // Guides API
 export const guidesApi = {
-  async getAll() {
-    let supabaseGuides = [];
-    let localGuides = [];
+  async getAll(): Promise<Guide[]> {
+    let supabaseGuides: Guide[] = [];
+    let localGuides: Guide[] = [];
     try {
       localGuides = JSON.parse(localStorage.getItem("guides") || "[]");
     } catch (e) {
@@ -69,7 +99,8 @@ export const guidesApi = {
           supabaseGuides = data;
         }
       } catch (err) {
-        if (err.name !== "AbortError" && !err.message?.includes("aborted")) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        if (!errMsg.includes("AbortError") && !errMsg.includes("aborted")) {
           console.error("Supabase connection error:", err);
         }
       }
@@ -78,21 +109,29 @@ export const guidesApi = {
     // MERGE: Combine Supabase guides with LocalStorage guides
     // Priority: Supabase (latest) > LocalStorage (unsynced)
 
-    const mergedMap = new Map();
+    const mergedMap = new Map<string, Guide>();
 
     // 1. Add local guides first (Filter ONLY approved guides for public view)
     localGuides.forEach((g) => {
-      if (g.status === "approved") {
+      if (g.status === "approved" && g.slug) {
         mergedMap.set(g.slug, g);
       }
     });
 
     // 2. Overwrite/Add Supabase guides (authoritative source)
-    supabaseGuides.forEach((g) => mergedMap.set(g.slug, g));
+    supabaseGuides.forEach((g) => {
+      if (g.slug) {
+        mergedMap.set(g.slug, g);
+      }
+    });
 
     // 3. Convert back to array
     const mergedGuides = Array.from(mergedMap.values()).sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at),
+      (a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      }
     );
 
     // Safe Update of LocalStorage
@@ -103,7 +142,7 @@ export const guidesApi = {
     return mergedGuides;
   },
 
-  async getBySlug(slug) {
+  async getBySlug(slug: string): Promise<Guide | null> {
     // Try Supabase FIRST if configured
     if (isSupabaseConfigured()) {
       try {
@@ -125,7 +164,7 @@ export const guidesApi = {
     }
 
     // Fallback to localStorage
-    const localGuides = JSON.parse(localStorage.getItem("guides") || "[]");
+    const localGuides: Guide[] = JSON.parse(localStorage.getItem("guides") || "[]");
     const localGuide = localGuides.find((g) => g.slug === slug);
     console.log(
       "localStorage result:",
@@ -134,7 +173,7 @@ export const guidesApi = {
     return localGuide || null;
   },
 
-  async getById(id) {
+  async getById(id: number | string): Promise<Guide | null> {
     console.log("getById called:", id);
 
     // Try Supabase FIRST if configured
@@ -157,11 +196,11 @@ export const guidesApi = {
     }
 
     // Fallback to localStorage
-    const localGuides = JSON.parse(localStorage.getItem("guides") || "[]");
+    const localGuides: Guide[] = JSON.parse(localStorage.getItem("guides") || "[]");
     return localGuides.find((g) => g.id == id) || null;
   },
 
-  async create(guide) {
+  async create(guide: Guide): Promise<Guide> {
     // Allow optional slug override from the client (sanitized). If none provided, generate one.
     let slug = guide.slug
       ? sanitizeSlug(String(guide.slug))
@@ -180,14 +219,15 @@ export const guidesApi = {
           slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
         }
       } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
         console.warn(
           "Could not verify slug uniqueness, proceeding with generated slug",
-          err?.message || err,
+          errMsg,
         );
       }
     }
 
-    const guideData = {
+    const guideData: Guide = {
       title: guide.title,
       slug,
       content: guide.content || "",
@@ -233,7 +273,7 @@ export const guidesApi = {
         } else if (data) {
           console.log("Successfully saved to Supabase:", data);
           // Also save to localStorage for offline access
-          const guides = JSON.parse(localStorage.getItem("guides") || "[]");
+          const guides: Guide[] = JSON.parse(localStorage.getItem("guides") || "[]");
           guides.unshift(data);
           localStorage.setItem("guides", JSON.stringify(guides));
           return data;
@@ -245,20 +285,20 @@ export const guidesApi = {
 
     // Fallback to localStorage
     console.log("Saving to localStorage as fallback");
-    const guides = JSON.parse(localStorage.getItem("guides") || "[]");
-    const newGuide = { ...guideData, id: Date.now() };
+    const guides: Guide[] = JSON.parse(localStorage.getItem("guides") || "[]");
+    const newGuide: Guide = { ...guideData, id: Date.now() };
     guides.unshift(newGuide);
     localStorage.setItem("guides", JSON.stringify(guides));
     return newGuide;
   },
 
-  async update(id, updates) {
+  async update(id: number | string, updates: Partial<Guide>): Promise<Guide | null> {
     if (!isSupabaseConfigured()) {
-      const guides = JSON.parse(localStorage.getItem("guides") || "[]");
+      const guides: Guide[] = JSON.parse(localStorage.getItem("guides") || "[]");
       const idx = guides.findIndex((g) => g.id == id);
       if (idx !== -1) {
         // Save version to history (local storage simulation)
-        const versions = JSON.parse(
+        const versions: GuideVersion[] = JSON.parse(
           localStorage.getItem(`guide_versions_${id}`) || "[]",
         );
         versions.push({
@@ -293,7 +333,7 @@ export const guidesApi = {
       await supabase.from("guide_versions").insert({
         guide_id: id,
         title: currentGuide.title,
-        // Handle both content fields to differenciate schema versions if any
+        // Handle both content fields to differentiate schema versions if any
         content: currentGuide.content || currentGuide.markdown,
         html_content: currentGuide.html_content,
       });
@@ -309,11 +349,16 @@ export const guidesApi = {
     return data;
   },
 
-  async getHistory(id) {
+  async getHistory(id: number | string): Promise<GuideVersion[]> {
     if (!isSupabaseConfigured()) {
-      return JSON.parse(
+      const versions: GuideVersion[] = JSON.parse(
         localStorage.getItem(`guide_versions_${id}`) || "[]",
-      ).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      );
+      return versions.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      });
     }
 
     const { data, error } = await supabase
@@ -326,15 +371,15 @@ export const guidesApi = {
       console.error("Error fetching history:", error);
       return [];
     }
-    return data;
+    return data || [];
   },
 
-  async delete(id) {
+  async delete(id: number | string): Promise<boolean> {
     console.log("[guidesApi.delete] Attempting to delete guide:", id);
 
     if (!isSupabaseConfigured()) {
       console.log("[guidesApi.delete] Using localStorage fallback");
-      const guides = JSON.parse(localStorage.getItem("guides") || "[]");
+      const guides: Guide[] = JSON.parse(localStorage.getItem("guides") || "[]");
       const filtered = guides.filter((g) => g.id != id);
       localStorage.setItem("guides", JSON.stringify(filtered));
       console.log("[guidesApi.delete] Successfully deleted from localStorage");
@@ -358,7 +403,7 @@ export const guidesApi = {
 
     // CRITICAL: Also remove from localStorage to prevent it from reappearing
     try {
-      const guides = JSON.parse(localStorage.getItem("guides") || "[]");
+      const guides: Guide[] = JSON.parse(localStorage.getItem("guides") || "[]");
       const filtered = guides.filter((g) => g.id != id);
       localStorage.setItem("guides", JSON.stringify(filtered));
       console.log("[guidesApi.delete] Also removed from localStorage cache");
@@ -371,12 +416,12 @@ export const guidesApi = {
   },
 
   // AI Search within guides
-  async search(query) {
+  async search(query: string): Promise<SearchResult[]> {
     try {
       const allGuides = await this.getAll();
       console.log("All guides for search:", allGuides);
 
-      if (!query.trim()) return allGuides;
+      if (!query.trim()) return allGuides as SearchResult[];
       if (!allGuides || allGuides.length === 0) {
         console.log("No guides found in database");
         return [];
@@ -385,7 +430,7 @@ export const guidesApi = {
       const q = query.toLowerCase().trim();
 
       // Score-based search with Arabic support
-      const scored = allGuides.map((guide) => {
+      const scored: SearchResult[] = allGuides.map((guide) => {
         let score = 0;
         const title = (guide.title || "").toLowerCase();
         const content = (
@@ -448,13 +493,13 @@ export const guidesApi = {
   },
 
   // Sync localStorage guides to Supabase
-  async syncToSupabase(userEmail) {
+  async syncToSupabase(userEmail: string): Promise<{ synced: number; failed: number }> {
     if (!isSupabaseConfigured()) {
       console.log("Supabase not configured, cannot sync");
       return { synced: 0, failed: 0 };
     }
 
-    const localGuides = JSON.parse(localStorage.getItem("guides") || "[]");
+    const localGuides: Guide[] = JSON.parse(localStorage.getItem("guides") || "[]");
     if (localGuides.length === 0) {
       return { synced: 0, failed: 0 };
     }
@@ -496,7 +541,7 @@ export const guidesApi = {
         }
 
         // Insert to Supabase (Add owner)
-        const guideData = {
+        const guideData: Guide = {
           title: guide.title,
           slug: guide.slug,
           content: guide.content || "",
@@ -537,9 +582,18 @@ export const guidesApi = {
   },
 };
 
+// Types for Ads
+interface Ad {
+  id?: number | string;
+  title?: string;
+  content?: string;
+  is_active?: boolean;
+  created_at?: string;
+}
+
 // Ads API
 export const adsApi = {
-  async getActiveAd() {
+  async getActiveAd(): Promise<Ad | null> {
     if (!isSupabaseConfigured()) return null;
     try {
       const { data, error } = await supabase
@@ -557,7 +611,7 @@ export const adsApi = {
     }
   },
 
-  async getAllAds() {
+  async getAllAds(): Promise<Ad[]> {
     if (!isSupabaseConfigured()) return [];
     try {
       const { data, error } = await supabase
@@ -572,7 +626,7 @@ export const adsApi = {
     }
   },
 
-  async createAd(adData) {
+  async createAd(adData: Ad): Promise<Ad | null> {
     if (!isSupabaseConfigured()) return null;
     try {
       const { data, error } = await supabase
@@ -588,7 +642,7 @@ export const adsApi = {
     }
   },
 
-  async toggleAdStatus(id, isActive) {
+  async toggleAdStatus(id: number | string, isActive: boolean): Promise<boolean> {
     if (!isSupabaseConfigured()) return false;
     try {
       const { error } = await supabase
@@ -603,7 +657,7 @@ export const adsApi = {
     }
   },
 
-  async deleteAd(id) {
+  async deleteAd(id: number | string): Promise<boolean> {
     if (!isSupabaseConfigured()) return false;
     try {
       const { error } = await supabase
@@ -620,7 +674,7 @@ export const adsApi = {
 };
 
 // Sample data for testing
-const sampleGuides = [
+const sampleGuides: Guide[] = [
   {
     title: "مقدمة في JavaScript",
     content: "دليل شامل لتعلم JavaScript",
@@ -724,10 +778,14 @@ Flexbox makes it easy to design flexible responsive layouts.
   },
 ];
 
-// Initialize sample data if database is empty
 // Admin/Staff Guide Management API
+interface PendingGuide extends Guide {
+  approved_by?: string | null;
+  approved_at?: string;
+}
+
 export const adminGuidesApi = {
-  async getPendingGuides() {
+  async getPendingGuides(): Promise<PendingGuide[]> {
     if (!isSupabaseConfigured()) return [];
 
     const { data, error } = await supabase
@@ -740,10 +798,10 @@ export const adminGuidesApi = {
       console.error("Error fetching pending guides:", error);
       return [];
     }
-    return data;
+    return data || [];
   },
 
-  async approveGuide(id, staffId) {
+  async approveGuide(id: number | string): Promise<boolean> {
     if (!isSupabaseConfigured()) return false;
 
     // Use NULL for approved_by to avoid FK violation with virtual staff IDs
@@ -763,7 +821,7 @@ export const adminGuidesApi = {
     return true;
   },
 
-  async rejectGuide(id) {
+  async rejectGuide(id: number | string): Promise<boolean> {
     if (!isSupabaseConfigured()) return false;
 
     // For now, we delete rejected guides.
@@ -778,9 +836,22 @@ export const adminGuidesApi = {
   },
 };
 
+// Types for Daily Credits
+interface DailyCreditsResult {
+  success: boolean;
+  message: string;
+  creditsAwarded?: number;
+  newBalance?: number;
+}
+
+interface DailyCreditsCheck {
+  canClaim: boolean;
+  hoursRemaining: number;
+}
+
 // Daily Credits API
 export const dailyCreditsApi = {
-  async claimDailyCredits(userEmail) {
+  async claimDailyCredits(userEmail: string): Promise<DailyCreditsResult> {
     if (!isSupabaseConfigured()) {
       console.log("Supabase not configured, cannot claim daily credits");
       return { success: false, message: "Supabase not configured" };
@@ -796,12 +867,12 @@ export const dailyCreditsApi = {
         return { success: false, message: "Failed to claim daily credits" };
       }
 
-      const result = data[0];
+      const result = (data as unknown[])?.[0] as { success: boolean; message: string; credits_awarded: number; new_balance: number } | undefined;
       return {
-        success: result.success,
-        message: result.message,
-        creditsAwarded: result.credits_awarded,
-        newBalance: result.new_balance,
+        success: result?.success || false,
+        message: result?.message || "",
+        creditsAwarded: result?.credits_awarded,
+        newBalance: result?.new_balance,
       };
     } catch (error) {
       console.error("Error claiming daily credits:", error);
@@ -809,7 +880,7 @@ export const dailyCreditsApi = {
     }
   },
 
-  async checkDailyCredits(userEmail) {
+  async checkDailyCredits(userEmail: string): Promise<DailyCreditsCheck> {
     if (!isSupabaseConfigured()) {
       console.log("Supabase not configured, cannot check daily credits");
       return { canClaim: false, hoursRemaining: 0 };
@@ -825,10 +896,10 @@ export const dailyCreditsApi = {
         return { canClaim: false, hoursRemaining: 0 };
       }
 
-      const result = data[0];
+      const result = (data as unknown[])?.[0] as { can_claim: boolean; hours_remaining: number } | undefined;
       return {
-        canClaim: result.can_claim,
-        hoursRemaining: result.hours_remaining,
+        canClaim: result?.can_claim || false,
+        hoursRemaining: result?.hours_remaining || 0,
       };
     } catch (error) {
       console.error("Error checking daily credits:", error);
@@ -837,7 +908,7 @@ export const dailyCreditsApi = {
   },
 };
 
-export async function initializeSampleData() {
+export async function initializeSampleData(): Promise<boolean> {
   try {
     const existing = await guidesApi.getAll();
     if (existing.length === 0) {
@@ -855,7 +926,7 @@ export async function initializeSampleData() {
   }
 }
 
-// Prompts API (keeping for backward compatibility)
+// Prompts API (backward compatibility - already exported from supabase.ts)
 export const promptsApi = {
   async getAll() {
     if (!isSupabaseConfigured()) {
@@ -869,11 +940,11 @@ export const promptsApi = {
     return data || [];
   },
 
-  async create(prompt) {
+  async create(prompt: unknown) {
     if (!isSupabaseConfigured()) {
       const prompts = JSON.parse(localStorage.getItem("prompts") || "[]");
       const newPrompt = {
-        ...prompt,
+        ...(prompt as object),
         id: Date.now(),
         created_at: new Date().toISOString(),
       };
@@ -890,12 +961,12 @@ export const promptsApi = {
     return data;
   },
 
-  async update(id, updates) {
+  async update(id: number | string, updates: unknown) {
     if (!isSupabaseConfigured()) {
       const prompts = JSON.parse(localStorage.getItem("prompts") || "[]");
-      const idx = prompts.findIndex((p) => p.id == id);
+      const idx = prompts.findIndex((p: unknown) => (p as { id: unknown }).id == id);
       if (idx !== -1) {
-        prompts[idx] = { ...prompts[idx], ...updates };
+        prompts[idx] = { ...prompts[idx], ...(updates as object) };
         localStorage.setItem("prompts", JSON.stringify(prompts));
         return prompts[idx];
       }
@@ -911,40 +982,15 @@ export const promptsApi = {
     return data;
   },
 
-  async delete(id) {
+  async delete(id: number | string) {
     if (!isSupabaseConfigured()) {
       const prompts = JSON.parse(localStorage.getItem("prompts") || "[]");
-      const filtered = prompts.filter((p) => p.id != id);
+      const filtered = prompts.filter((p: unknown) => (p as { id: unknown }).id !== id);
       localStorage.setItem("prompts", JSON.stringify(filtered));
       return true;
     }
     const { error } = await supabase.from("prompts").delete().eq("id", id);
     if (error) throw error;
     return true;
-  },
-};
-// Credits API
-export const creditsApi = {
-  async getBalance(userEmail) {
-    if (!userEmail || !isSupabaseConfigured()) return 0;
-
-    try {
-      const { data, error } = await supabase
-        .from("zetsuguide_credits")
-        .select("credits")
-        .eq("user_email", userEmail)
-        .maybeSingle();
-
-      // maybeSingle returns null data when no row exists (avoids 406)
-      if (error) {
-        console.error("Error fetching credits:", error);
-        return 0;
-      }
-      if (!data) return 0;
-      return data.credits || 0;
-    } catch (e) {
-      console.error("Error fetching credits:", e);
-      return 0;
-    }
   },
 };

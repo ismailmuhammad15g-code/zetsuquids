@@ -1,14 +1,31 @@
 // Credit Reservation System for AI Chat
 // Prevents losing credits when AI API fails
 
-import { supabase } from './api'
+import { supabase } from './supabase'
+
+interface CreditResult {
+  success: boolean;
+  remainingCredits: number;
+  reserved?: number;
+}
+
+interface CommitResult {
+  success: boolean;
+  newBalance: number;
+}
+
+interface AvailableCreditsResult {
+  credits: number;
+  reserved: number;
+  available: number;
+}
 
 /**
  * Reserve 1 credit before making AI API call
  * @param {string} userEmail - User's email
- * @returns {Promise<{success: boolean, remainingCredits: number, reserved: number}>}
+ * @returns {Promise<CreditResult>}
  */
-export async function reserveCredit(userEmail) {
+export async function reserveCredit(userEmail: string): Promise<CreditResult> {
     try {
         const { data, error } = await supabase.rpc('reserve_credit', {
             user_email_param: userEmail.toLowerCase()
@@ -19,11 +36,11 @@ export async function reserveCredit(userEmail) {
             return { success: false, remainingCredits: 0, reserved: 0 }
         }
 
-        const result = data[0]
+        const result = (data as unknown[])?.[0] as { success: boolean; remaining_credits: number; reserved: number } | undefined;
         return {
-            success: result.success,
-            remainingCredits: result.remaining_credits,
-            reserved: result.reserved
+            success: result?.success || false,
+            remainingCredits: result?.remaining_credits || 0,
+            reserved: result?.reserved || 0
         }
     } catch (err) {
         console.error('Reserve credit exception:', err)
@@ -34,9 +51,9 @@ export async function reserveCredit(userEmail) {
 /**
  * Commit the reserved credit (deduct it) after successful AI response
  * @param {string} userEmail - User's email
- * @returns {Promise<{success: boolean, newBalance: number}>}
+ * @returns {Promise<CommitResult>}
  */
-export async function commitReservedCredit(userEmail) {
+export async function commitReservedCredit(userEmail: string): Promise<CommitResult> {
     try {
         const { data, error } = await supabase.rpc('commit_reserved_credit', {
             user_email_param: userEmail.toLowerCase()
@@ -47,10 +64,10 @@ export async function commitReservedCredit(userEmail) {
             return { success: false, newBalance: 0 }
         }
 
-        const result = data[0]
+        const result = (data as unknown[])?.[0] as { success: boolean; new_balance: number } | undefined;
         return {
-            success: result.success,
-            newBalance: result.new_balance
+            success: result?.success || false,
+            newBalance: result?.new_balance || 0
         }
     } catch (err) {
         console.error('Commit credit exception:', err)
@@ -61,9 +78,9 @@ export async function commitReservedCredit(userEmail) {
 /**
  * Release the reserved credit (return it) if AI API fails
  * @param {string} userEmail - User's email
- * @returns {Promise<{success: boolean, creditsRemaining: number}>}
+ * @returns {Promise<{ success: boolean; creditsRemaining: number }>}
  */
-export async function releaseReservedCredit(userEmail) {
+export async function releaseReservedCredit(userEmail: string): Promise<{ success: boolean; creditsRemaining: number }> {
     try {
         const { data, error } = await supabase.rpc('release_reserved_credit', {
             user_email_param: userEmail.toLowerCase()
@@ -74,10 +91,10 @@ export async function releaseReservedCredit(userEmail) {
             return { success: false, creditsRemaining: 0 }
         }
 
-        const result = data[0]
+        const result = (data as unknown[])?.[0] as { success: boolean; credits_remaining: number } | undefined;
         return {
-            success: result.success,
-            creditsRemaining: result.credits_remaining
+            success: result?.success || false,
+            creditsRemaining: result?.credits_remaining || 0
         }
     } catch (err) {
         console.error('Release credit exception:', err)
@@ -88,9 +105,9 @@ export async function releaseReservedCredit(userEmail) {
 /**
  * Get available credits (total credits - reserved credits)
  * @param {string} userEmail - User's email
- * @returns {Promise<{credits: number, reserved: number, available: number}>}
+ * @returns {Promise<AvailableCreditsResult>}
  */
-export async function getAvailableCredits(userEmail) {
+export async function getAvailableCredits(userEmail: string): Promise<AvailableCreditsResult> {
     try {
         const { data, error } = await supabase
             .from('zetsuguide_credits')
@@ -98,14 +115,20 @@ export async function getAvailableCredits(userEmail) {
             .eq('user_email', userEmail.toLowerCase())
             .single()
 
-        if (error || !data) {
+        if (error) {
+            console.error('Error fetching credits:', error)
+            return { credits: 0, reserved: 0, available: 0 }
+        }
+
+        const result = data as { credits: number; reserved_credits: number } | null;
+        if (!result) {
             return { credits: 0, reserved: 0, available: 0 }
         }
 
         return {
-            credits: data.credits,
-            reserved: data.reserved_credits || 0,
-            available: data.credits - (data.reserved_credits || 0)
+            credits: result.credits || 0,
+            reserved: result.reserved_credits || 0,
+            available: (result.credits || 0) - (result.reserved_credits || 0)
         }
     } catch (err) {
         console.error('Get credits exception:', err)

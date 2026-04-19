@@ -784,7 +784,17 @@ export default function GuidePage() {
       const escaped = comment.selected_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`(${escaped})`, 'gi');
       
-      const commentHtml = `<span id="comment-ghost-${comment.id}" class="relative bg-yellow-200/60 rounded px-0.5 cursor-pointer transition-colors hover:bg-yellow-300/80 inline" data-comment-id="${comment.id}">$1</span>`;
+      let isApproved = false;
+      try {
+        if (comment.position_json) {
+          const pos = typeof comment.position_json === 'string' ? JSON.parse(comment.position_json) : comment.position_json;
+          isApproved = !!pos.approved;
+        }
+      } catch(e){}
+      
+      const bgClass = isApproved ? 'bg-blue-200/60 hover:bg-blue-300/80' : 'bg-yellow-200/60 hover:bg-yellow-300/80';
+      
+      const commentHtml = `<span id="comment-ghost-${comment.id}" class="relative ${bgClass} rounded px-0.5 cursor-pointer transition-colors inline" data-comment-id="${comment.id}">$1</span>`;
       html = html.replace(regex, commentHtml);
     });
 
@@ -1545,7 +1555,12 @@ export default function GuidePage() {
         </div>
 
         {/* Inline Comments on Text */}
-        <GuideInlineComments guideId={guide.id} contentRef={contentRef} />
+        <GuideInlineComments 
+          guideId={guide.id} 
+          contentRef={contentRef} 
+          isGuideOwner={isOwner}
+          onCommentsUpdated={loadGuide}
+        />
 
         {/* Comments Section */}
         <GuideComments guideId={guide.id} onCommentPosted={recordComment} />
