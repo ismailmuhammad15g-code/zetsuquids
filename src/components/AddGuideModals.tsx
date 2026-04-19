@@ -83,7 +83,7 @@ interface FootnoteModalFormProps {
   onClose: () => void;
 }
 
-function ModalContainer({ children, title, onClose }: ModalContainerProps) {
+function ModalContainer({ children }: ModalContainerProps) {
   return (
     <div className="px-6 py-4">
       <div className="space-y-4">
@@ -191,14 +191,14 @@ export function VideoModalForm({ onInsert, onClose }: VideoModalFormProps) {
 }
 
 export function CalloutModalForm({ onInsert, onClose }: CalloutModalFormProps) {
-  const [type, setType] = useState("info");
+  const [type, setType] = useState<"info" | "warn" | "success">("info");
   const [message, setMessage] = useState("");
 
   return (
     <div className="px-6 py-4 space-y-4">
       <div className="flex gap-2 mb-4">
         {["info", "warn", "success"].map((t) => (
-          <button key={t} onClick={() => setType(t)} className={`flex-1 py-2 px-3 rounded-lg font-medium capitalize transition-colors ${type === t ? (t === "info" ? "bg-blue-500 text-white" : t === "warn" ? "bg-yellow-500 text-white" : "bg-green-500 text-white") : "bg-gray-100 text-gray-600"}`}>
+          <button key={t} onClick={() => setType(t as "info" | "warn" | "success")} className={`flex-1 py-2 px-3 rounded-lg font-medium capitalize transition-colors ${type === t ? (t === "info" ? "bg-blue-500 text-white" : t === "warn" ? "bg-yellow-500 text-white" : "bg-green-500 text-white") : "bg-gray-100 text-gray-600"}`}>
             {t}
           </button>
         ))}
@@ -623,7 +623,7 @@ export function TabsModalForm({ onInsert, onClose }: ModalFormProps) {
 
   const handleInsert = () => {
     let md = "\n:::tabs\n";
-    tabs.forEach((tab, i) => {
+    tabs.forEach((tab, _i) => {
       md += `### ${tab.label}\n${tab.content || "(empty)"}\n\n`;
     });
     md += ":::\n";
@@ -782,12 +782,12 @@ export function VersionModalForm({ onInsert, onClose }: ModalFormProps) {
   return (
     <div className="px-6 py-4 space-y-4">
       <div className="space-y-3 max-h-[250px] overflow-y-auto">
-        {versions.map((v, i) => (
-          <div key={i} className="flex gap-2">
-            <input type="text" value={v.version} onChange={(e) => updateVersion(i, "version", e.target.value)} placeholder="v1.0" className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-            <input type="text" value={v.date} onChange={(e) => updateVersion(i, "date", e.target.value)} placeholder="2024-01-01" className="w-28 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-            <input type="text" value={v.changes} onChange={(e) => updateVersion(i, "changes", e.target.value)} placeholder="Changes..." className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-            {versions.length > 1 && <button onClick={() => setVersions(versions.filter((_, idx) => idx !== i))} className="text-red-500"><X size={16} /></button>}
+        {versions.map((v, idx: number) => (
+          <div key={idx} className="flex gap-2">
+            <input type="text" value={v.version} onChange={(e) => updateVersion(idx, "version", e.target.value)} placeholder="v1.0" className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            <input type="text" value={v.date} onChange={(e) => updateVersion(idx, "date", e.target.value)} placeholder="2024-01-01" className="w-28 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            <input type="text" value={v.changes} onChange={(e) => updateVersion(idx, "changes", e.target.value)} placeholder="Changes..." className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            {versions.length > 1 && <button onClick={() => setVersions(versions.filter((_, idx2) => idx2 !== idx))} className="text-red-500"><X size={16} /></button>}
           </div>
         ))}
       </div>

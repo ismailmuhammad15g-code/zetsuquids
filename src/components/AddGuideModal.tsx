@@ -196,7 +196,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
   const DRAFT_KEY = "add_guide_draft_v1";
   const [slugValue, setSlugValue] = useState("");
 
-  const [validationErrors, setValidationErrors] = useState([]);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [credits, setCredits] = useState(0);
 
   const invalidateGuides = useInvalidateGuides();
@@ -307,12 +307,16 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
                   // prefer mermaid.mermaidAPI.render when available
                   if (mermaid.mermaidAPI && mermaid.mermaidAPI.render) {
                     const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
-                    mermaid.mermaidAPI.render(id, diagramCode, (svgCode: string) => {
-                      const wrapper = document.createElement("div");
-                      wrapper.className = "mermaid-render";
-                      wrapper.innerHTML = svgCode;
-                      if (pre.parentNode) pre.parentNode.replaceChild(wrapper, pre);
-                    });
+                    (mermaid.mermaidAPI.render as any)(
+                      id,
+                      diagramCode,
+                      (svgCode: string) => {
+                        const wrapper = document.createElement("div");
+                        wrapper.className = "mermaid-render";
+                        wrapper.innerHTML = svgCode;
+                        if (pre.parentNode) pre.parentNode.replaceChild(wrapper, pre);
+                      }
+                    );
                   } else if (mermaid.render) {
                     // newer API may return promise
                     Promise.resolve(
@@ -611,10 +615,6 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         setShowFootnoteModal(true);
         break;
 
-      case "toc":
-        setShowTocModal(true);
-        break;
-
       case "figure":
         setShowFigureModal(true);
         break;
@@ -629,10 +629,6 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
 
       case "pull-quote":
         setShowQuoteModal(true);
-        break;
-
-      case "columns":
-        setShowColumnsModal(true);
         break;
 
       case "anchor":
@@ -891,7 +887,8 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
     e.preventDefault();
 
     if (!validateContent()) {
-      return toast.error("Please fix validation errors before publishing");
+      toast.error("Please fix validation errors before publishing");
+      return;
     }
 
     setSaving(true);
@@ -902,17 +899,17 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         .filter(Boolean);
 
       const guide = await guidesApi.create({
-        title: formData.title,
+        title: formData.title || "",
         slug: slugValue || undefined,
         keywords,
-        markdown: formData.content,
-        html_content: formData.html_content,
-        css_content: formData.css_content,
+        markdown: formData.content || "",
+        html_content: formData.html_content || "",
+        css_content: formData.css_content || "",
         content_type: activeTab === "advanced" ? "html" : "markdown",
-        user_email: user?.email,
+        user_email: user?.email || "",
         author_name:
-          user?.user_metadata?.full_name || user?.email?.split("@")[0],
-        author_id: user?.id,
+          user?.user_metadata?.full_name || user?.email?.split("@")[0] || "",
+        author_id: user?.id || "",
         status: "pending", // Explicitly set to pending
       });
 
@@ -960,21 +957,21 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
             <button
               onClick={() => setViewMode("edit")}
               title="Editor Only"
-              className={`p-1.5 rounded-md transition-all ${viewMode === "edit" ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-gray-900"}`} as unknown
+              className={`p-1.5 rounded-md transition-all ${viewMode === "edit" ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-gray-900"}`}
             >
               <LayoutTemplate size={18} />
             </button>
             <button
               onClick={() => setViewMode("split")}
               title="Split View"
-              className={`p-1.5 rounded-md transition-all ${viewMode === "split" ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-gray-900"}`} as unknown
+              className={`p-1.5 rounded-md transition-all ${viewMode === "split" ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-gray-900"}`}
             >
               <SplitSquareHorizontal size={18} />
             </button>
             <button
               onClick={() => setViewMode("preview")}
               title="Preview Only"
-              className={`p-1.5 rounded-md transition-all ${viewMode === "preview" ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-gray-900"}`} as unknown
+              className={`p-1.5 rounded-md transition-all ${viewMode === "preview" ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-gray-900"}`}
             >
               <Eye size={18} />
             </button>
@@ -1038,7 +1035,9 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
 
           <div className="relative group">
             <button
-              onClick={handleSubmit}
+              onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                handleSubmit(e as any as React.FormEvent<HTMLFormElement>);
+              }}
               disabled={saving || validationErrors.length > 0}
               className="flex items-center gap-2 px-6 py-2 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -1097,7 +1096,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {showQuizBuilder && (
         <QuizBuilderModal
           onClose={() => setShowQuizBuilder(false)}
-          onInsert={(quizData) => {
+          onInsert={(quizData: Record<string, any>) => {
             const quizBlock = `\n\`\`\`quiz\n${JSON.stringify(quizData, null, 2)}\n\`\`\`\n`;
             setFormData({
               ...formData,
@@ -1137,8 +1136,12 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
               <button onClick={() => setShowTableModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
             </div>
             <TableModalForm
-              onInsert={(content: string) => {
-                insertText(content);
+              onInsert={(rows: number, cols: number) => {
+                const tableRows = Array.from({ length: rows }).map(() =>
+                  `<tr>${Array.from({ length: cols }).map(() => '<td></td>').join('')}</tr>`
+                ).join('');
+                const tableHtml = `<table><tbody>${tableRows}</tbody></table>`;
+                insertText(tableHtml);
                 setShowTableModal(false);
                 toast.success("Table inserted!");
               }}
@@ -1297,8 +1300,8 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
               <button onClick={() => setShowKbdModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
             </div>
             <KbdModalForm
-              onInsert={(content: string) => {
-                insertText(content);
+              onInsert={(keys: string[]) => {
+                insertText(keys.map((k: string) => `<kbd>${k}</kbd>`).join(" + "));
                 setShowKbdModal(false);
                 toast.success("Keyboard shortcut inserted!");
               }}
@@ -2109,14 +2112,14 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
                   md = md.replace(/==([^=]+)==/g, "<mark>$1</mark>");
 
                   // 2) extract footnote definitions (they will be appended below)
-                  const footnoteDefs = {};
-                  md = md.replace(/^\[\^(\d+)\]:\s*(.*)$/gim, (m, id, def) => {
+                  const footnoteDefs: Record<string, string> = {};
+                  md = md.replace(/^\[\^(\d+)\]:\s*(.*)$/gim, (_m: string, id: string, def: string) => {
                     footnoteDefs[id] = def.trim();
                     return "";
                   });
 
                   if (/\[toc\]/i.test(md)) {
-                    const slugify = (s) =>
+                    const slugify = (s: string) =>
                       String(s || "")
                         .toLowerCase()
                         .trim()
@@ -2148,10 +2151,10 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
                     }
                   }
 
-                  const htmlRaw = marked.parse(md);
+                  const htmlRaw = marked.parse(md) as string;
 
                   // Ensure headings have stable IDs that match TOC links
-                  const slugify = (s) =>
+                  const slugify = (s: string) =>
                     String(s || "")
                       .toLowerCase()
                       .trim()
@@ -2178,10 +2181,10 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
                     const footnotesHtml = `<section class="guide-footnotes"><hr />\n<ol>${Object.keys(
                       footnoteDefs,
                     )
-                      .sort((a, b) => a - b)
+                      .sort((a: string, b: string) => parseInt(a) - parseInt(b))
                       .map(
-                        (id) =>
-                          `<li id="fn-${id}">${marked.parse(footnoteDefs[id]).replace(/^<p>|<\/p>$/g, "")}&nbsp;<a href="#fnref-${id}" class="footnote-back">↩︎</a></li>`,
+                        (id: string) =>
+                          `<li id="fn-${id}">${(marked.parse(footnoteDefs[id]) as string).replace(/^<p>|<\/p>$/g, "")}&nbsp;<a href="#fnref-${id}" class="footnote-back">↩︎</a></li>`,
                       )
                       .join("")}</ol></section>`;
 
