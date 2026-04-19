@@ -1,5 +1,5 @@
-﻿import { X, Calendar } from "lucide-react";
-import { ReactNode, useState } from "react";
+﻿import { Calendar, X } from "lucide-react";
+import { useState } from "react";
 
 interface ModalFormProps {
   onInsert: (content: string) => void;

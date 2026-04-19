@@ -908,7 +908,9 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         content_type: activeTab === "advanced" ? "html" : "markdown",
         user_email: user?.email || "",
         author_name:
-          user?.user_metadata?.full_name || user?.email?.split("@")[0] || "",
+          (user?.user_metadata?.full_name as string) ||
+          (user?.email?.split("@")[0] as string) ||
+          "",
         author_id: user?.id || "",
         status: "pending", // Explicitly set to pending
       });
