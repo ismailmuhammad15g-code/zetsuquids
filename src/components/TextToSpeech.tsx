@@ -1,4 +1,4 @@
-﻿// Type definitions for TextToSpeech
+// Type definitions for TextToSpeech
 
 interface TextToSpeechProps {
   content?: string;
@@ -145,17 +145,17 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
       const words = textContent
         .toLowerCase()
         .split(/\s+/)
-        .filter((w) => w.length > 0);
+        .filter((w: any) => w.length > 0);
       const totalWords = words.length;
 
       if (totalWords < 10) {
         setIsEnglish(false);
-        console.log("⚠️ Content too short for language detection");
+        console.log("?? Content too short for language detection");
         return;
       }
 
       // Count English words
-      const englishWordCount = words.filter((word) =>
+      const englishWordCount = words.filter((word: any) =>
         commonEnglishWords.includes(word),
       ).length;
 
@@ -170,7 +170,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
 
       setIsEnglish(isEnglishContent);
 
-      console.log("🌍 Language detection:", {
+      console.log("?? Language detection:", {
         totalWords,
         englishWordCount,
         percentage: ((englishWordCount / totalWords) * 100).toFixed(2) + "%",
@@ -218,7 +218,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
         .replace(/\s+/g, " ") // Normalize whitespace
         .trim();
 
-      console.log("🧹 Cleaned text sample:", text.substring(0, 200));
+      console.log("?? Cleaned text sample:", text.substring(0, 200));
       return text;
     };
 
@@ -230,14 +230,14 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
 
       // Don't start if already playing
       if (isPlaying) {
-        console.log("⚠️ Already playing");
+        console.log("?? Already playing");
         return;
       }
 
       try {
         // Only cancel if something is actually speaking
         if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
-          console.log("🗑️ Canceling previous speech");
+          console.log("??? Canceling previous speech");
           window.speechSynthesis.cancel();
 
           // Wait for cancel to complete before starting new speech
@@ -247,7 +247,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
         } else {
           startSpeechInternal();
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Failed to start speech:", error);
         toast.error("Failed to start text-to-speech");
       }
@@ -267,7 +267,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
           return;
         }
 
-        console.log(`📖 Starting to read ${text.length} characters`);
+        console.log(`?? Starting to read ${text.length} characters`);
 
         // Split text into chunks (for better browser handling)
         const maxLength = 200; // characters per utterance
@@ -275,7 +275,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
         let chunks = [];
         let currentChunk = "";
 
-        sentences.forEach((sentence) => {
+        sentences.forEach((sentence: any) => {
           if ((currentChunk + sentence).length > maxLength) {
             if (currentChunk.trim()) chunks.push(currentChunk.trim());
             currentChunk = sentence;
@@ -287,7 +287,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
         if (currentChunk.trim()) chunks.push(currentChunk.trim());
 
         // Filter empty chunks
-        chunks = chunks.filter((chunk) => chunk.trim().length > 0);
+        chunks = chunks.filter((chunk: any) => chunk.trim().length > 0);
 
         if (chunks.length === 0) {
           toast.warning("No valid content to read");
@@ -298,7 +298,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
         chunksRef.current = chunks;
         currentChunkRef.current = 0;
 
-        console.log(`📚 Prepared ${chunks.length} chunks to read`);
+        console.log(`?? Prepared ${chunks.length} chunks to read`);
 
         const utterance = new SpeechSynthesisUtterance(chunks[0]);
         utteranceRef.current = utterance;
@@ -335,7 +335,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
 
           if (englishVoice) {
             utterance.voice = englishVoice;
-            console.log("🔊 Using voice:", englishVoice.name);
+            console.log("?? Using voice:", englishVoice.name);
           }
 
           utterance.lang = "en-US";
@@ -378,7 +378,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
 
             if (currentChunkRef.current < chunksRef.current.length) {
               console.log(
-                `📖 Reading chunk ${currentChunkRef.current + 1}/${chunksRef.current.length}`,
+                `?? Reading chunk ${currentChunkRef.current + 1}/${chunksRef.current.length}`,
               );
 
               // Read next chunk
@@ -397,7 +397,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
               window.speechSynthesis.speak(nextUtterance);
             } else {
               // All chunks finished
-              console.log("✅ Finished reading all content");
+              console.log("? Finished reading all content");
               setIsPlaying(false);
               setIsPaused(false);
               setProgress(100);
@@ -417,14 +417,14 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
             // Check error type first to avoid unnecessary console errors
             if (event.error === "interrupted" || event.error === "canceled") {
               console.log(
-                "⚠️ Speech interrupted (this is normal)",
+                "?? Speech interrupted (this is normal)",
                 event.error,
               );
               return; // Don't change state for normal interruptions
             }
 
             // Log real errors only
-            console.error("🛑 Speech synthesis error:", event.error, event);
+            console.error("?? Speech synthesis error:", event.error, event);
 
             // Show error toast for real problems
             if (
@@ -444,7 +444,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
 
           window.speechSynthesis.speak(utterance);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Failed to start speech:", error);
         toast.error("Failed to start text-to-speech");
         setIsPlaying(false);
@@ -458,9 +458,9 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
         if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
           window.speechSynthesis.pause();
           setIsPaused(true);
-          console.log("⏸️ Speech paused");
+          console.log("?? Speech paused");
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Failed to pause:", error);
       }
     };
@@ -470,9 +470,9 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
         if (window.speechSynthesis.paused) {
           window.speechSynthesis.resume();
           setIsPaused(false);
-          console.log("▶️ Speech resumed");
+          console.log("?? Speech resumed");
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Failed to resume:", error);
         // If resume fails, try restarting
         restartSpeech();
@@ -493,8 +493,8 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
         // Reset chunk tracking
         currentChunkRef.current = 0;
         chunksRef.current = [];
-        console.log("⏹️ Speech stopped");
-      } catch (error) {
+        console.log("?? Speech stopped");
+      } catch (error: unknown) {
         console.error("Failed to stop:", error);
       }
     };
@@ -509,7 +509,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
       const currentChunk = currentChunkRef.current;
 
       setSpeed(newSpeed);
-      console.log(`⚡ Speed changed to ${newSpeed}x`);
+      console.log(`? Speed changed to ${newSpeed}x`);
 
       if (wasPlaying) {
         // Stop current playback gracefully
@@ -523,7 +523,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
               continueFromChunk(currentChunk, newSpeed);
             }
           }, 100);
-        } catch (error) {
+        } catch (error: unknown) {
           console.error("Failed to change speed:", error);
           stopSpeech();
         }
@@ -532,7 +532,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
 
     const continueFromChunk = (chunkIndex, speedRate) => {
       if (chunkIndex >= chunksRef.current.length) {
-        console.log("✅ No more chunks to read");
+        console.log("? No more chunks to read");
         stopSpeech();
         return;
       }
@@ -580,11 +580,11 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
 
           if (currentChunkRef.current < chunksRef.current.length) {
             console.log(
-              `📖 Reading chunk ${currentChunkRef.current + 1}/${chunksRef.current.length}`,
+              `?? Reading chunk ${currentChunkRef.current + 1}/${chunksRef.current.length}`,
             );
             continueFromChunk(currentChunkRef.current, speedRate);
           } else {
-            console.log("✅ Finished reading all content");
+            console.log("? Finished reading all content");
             setIsPlaying(false);
             setIsPaused(false);
             setProgress(100);
@@ -598,12 +598,12 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
         utterance.onerror = (event) => {
           // Check error type first
           if (event.error === "interrupted" || event.error === "canceled") {
-            console.log("⚠️ Speech interrupted (normal behavior)", event.error);
+            console.log("?? Speech interrupted (normal behavior)", event.error);
             return; // Don't stop for normal interruptions
           }
 
           // Log real errors only
-          console.error("🛑 Speech error:", event.error);
+          console.error("?? Speech error:", event.error);
 
           if (event.error === "network" || event.error === "synthesis-failed") {
             toast.error(`Speech error: ${event.error}`);
@@ -614,7 +614,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
 
         utteranceRef.current = utterance;
         window.speechSynthesis.speak(utterance);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Failed to continue reading:", error);
         stopSpeech();
       }
@@ -691,7 +691,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
                 className="text-xs font-medium text-gray-700 line-clamp-2"
                 title={title}
               >
-                🎧 {title}
+                ?? {title}
               </p>
             </div>
 
@@ -769,7 +769,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
                 </span>
               </div>
               <div className="grid grid-cols-6 gap-1.5">
-                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
+                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s: any) => (
                   <button
                     key={s}
                     onClick={() => changeSpeed(s)}

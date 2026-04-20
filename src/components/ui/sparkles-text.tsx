@@ -80,8 +80,7 @@ export const SparklesText: React.FC<SparklesTextProps> = ({
         const interval = setInterval(() => {
             setSparkles((currentSparkles) => {
                 const now = Date.now();
-                const filtered = currentSparkles.filter(
-                    (sparkle) => now - sparkle.createdAt < 750
+                const filtered = currentSparkles.filter((sparkle: any) => now - sparkle.createdAt < 750
                 );
 
                 if (filtered.length < sparklesCount) {
@@ -122,7 +121,7 @@ export const SparklesText: React.FC<SparklesTextProps> = ({
             >
                 {children}
             </span>
-            {sparkles.map((sparkle) => (
+            {sparkles.map((sparkle: any) => (
                 <Sparkle
                     key={sparkle.id}
                     color={sparkle.color}

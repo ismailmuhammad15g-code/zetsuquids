@@ -1,4 +1,4 @@
-﻿// Type definitions for Chatbot
+// Type definitions for Chatbot
 
 interface ChatbotProps {
   // Add prop types here
@@ -337,7 +337,7 @@ export default function Chatbot() {
         osc2.start(audioContext.currentTime);
         osc2.stop(audioContext.currentTime + 0.3);
       }, 150);
-    } catch (error) {
+    } catch (error: unknown) {
       console.log("Could not play notification sound:", error);
     }
   };
@@ -412,7 +412,7 @@ export default function Chatbot() {
                       newMsg.sender_type === "admin"
                         ? "Admin"
                         : newMsg.sender_name || "Support";
-                    new Notification(`New message from ${senderName}! 💬`, {
+                    new Notification(`New message from ${senderName}! ??`, {
                       body: newMsg.message.substring(0, 100),
                       icon: "/favicon.ico",
                     });
@@ -426,7 +426,7 @@ export default function Chatbot() {
               console.log('Chatbot support channel subscribed');
             }
           });
-      } catch (error) {
+      } catch (error: unknown) {
         console.log("Could not subscribe to support messages:", error);
       }
     };
@@ -456,7 +456,7 @@ export default function Chatbot() {
         if (conv && conv.unread_count > 0) {
           setUnreadSupportCount(conv.unread_count);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         // Ignore errors
       }
     };
@@ -533,7 +533,7 @@ export default function Chatbot() {
         id: Date.now() + 1,
         role: "bot",
         content:
-          "✅ Great! Please fill out the support form below and our team will get back to you shortly.",
+          "? Great! Please fill out the support form below and our team will get back to you shortly.",
         type: "text",
       };
       setMessages((prev) => [...prev, botMsg]);
@@ -616,7 +616,7 @@ export default function Chatbot() {
       };
 
       setMessages((prev) => [...prev, botMsg]);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Chat error:", error);
       setMessages((prev) => [
         ...prev,
@@ -683,7 +683,7 @@ export default function Chatbot() {
           id: Date.now(),
           role: "bot",
           content:
-            "✅ **Support ticket sent successfully!**\n\nOur team will review your request and get back to you via email within 24 hours. Thank you for your patience!",
+            "? **Support ticket sent successfully!**\n\nOur team will review your request and get back to you via email within 24 hours. Thank you for your patience!",
           type: "text",
         };
         setMessages((prev) => [...prev, successMsg]);
@@ -699,7 +699,7 @@ export default function Chatbot() {
       } else {
         throw new Error(data.error || "Failed to send support ticket");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Support ticket error:", error);
       alert(
         "Failed to send support ticket. Please try again or email us directly at zetsuserv@gmail.com",
@@ -721,7 +721,7 @@ export default function Chatbot() {
           {showPopup && (
             <div className="hidden md:block absolute bottom-full right-0 mb-3 w-64 p-4 bg-white text-black rounded-xl shadow-2xl opacity-100 transition-all duration-300 transform translate-y-0">
               <button
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLElement>) => {
                   e.stopPropagation();
                   setShowPopup(false);
                   localStorage.setItem("zetsu_chatbot_popup_dismissed", "true");
@@ -846,7 +846,7 @@ export default function Chatbot() {
               )}
               {!isMinimized && (
                 <button
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent<HTMLElement>) => {
                     e.stopPropagation();
                     setIsMinimized(true);
                   }}
@@ -856,7 +856,7 @@ export default function Chatbot() {
                 </button>
               )}
               <button
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLElement>) => {
                   e.stopPropagation();
                   setIsOpen(false);
                 }}
@@ -1053,7 +1053,7 @@ export default function Chatbot() {
                     )}
 
                     {/* Messages */}
-                    {messages.map((msg) => {
+                    {messages.map((msg: any) => {
                       const isArabic = isArabicText(msg.content);
                       return (
                         <div
@@ -1169,7 +1169,7 @@ export default function Chatbot() {
                       <input
                         type="text"
                         value={userInput}
-                        onChange={(e) => setUserInput(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setUserInput(e.target.value)}
                         placeholder={
                           isAuthenticated()
                             ? tokensLeft > 0
@@ -1243,7 +1243,7 @@ export default function Chatbot() {
                             onClick={() => setActiveTab("chat")}
                             className="w-full text-white/80 hover:text-white text-xs transition-colors"
                           >
-                            ← Back to Chat
+                            ? Back to Chat
                           </button>
                         </div>
                       </div>
@@ -1280,7 +1280,7 @@ export default function Chatbot() {
                             onClick={() => setActiveTab("chat")}
                             className="w-full text-white/80 hover:text-white text-xs transition-colors"
                           >
-                            ← Back to Chat
+                            ? Back to Chat
                           </button>
                         </div>
                       </div>
@@ -1311,7 +1311,7 @@ export default function Chatbot() {
                           type="email"
                           required
                           value={supportFormData.email}
-                          onChange={(e) =>
+                          onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
                             setSupportFormData((prev) => ({
                               ...prev,
                               email: e.target.value,
@@ -1330,7 +1330,7 @@ export default function Chatbot() {
                         <input
                           type="tel"
                           value={supportFormData.phone}
-                          onChange={(e) =>
+                          onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
                             setSupportFormData((prev) => ({
                               ...prev,
                               phone: e.target.value,
@@ -1349,7 +1349,7 @@ export default function Chatbot() {
                         <select
                           required
                           value={supportFormData.category}
-                          onChange={(e) =>
+                          onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
                             setSupportFormData((prev) => ({
                               ...prev,
                               category: e.target.value,
@@ -1357,12 +1357,12 @@ export default function Chatbot() {
                           }
                           className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
                         >
-                          <option value="account">👤 Account Issues</option>
-                          <option value="payment">💳 Payment & Billing</option>
+                          <option value="account">?? Account Issues</option>
+                          <option value="payment">?? Payment & Billing</option>
                           <option value="technical">
-                            🔧 Technical Problems
+                            ?? Technical Problems
                           </option>
-                          <option value="other">📝 Other</option>
+                          <option value="other">?? Other</option>
                         </select>
                       </div>
 
@@ -1374,7 +1374,7 @@ export default function Chatbot() {
                         <textarea
                           required
                           value={supportFormData.message}
-                          onChange={(e) =>
+                          onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
                             setSupportFormData((prev) => ({
                               ...prev,
                               message: e.target.value,

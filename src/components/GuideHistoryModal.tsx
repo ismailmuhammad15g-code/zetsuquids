@@ -1,4 +1,4 @@
-﻿// Type definitions for GuideHistoryModal
+// Type definitions for GuideHistoryModal
 
 interface GuideHistoryModalProps {
   // Add prop types here
@@ -23,7 +23,7 @@ export default function GuideHistoryModal({ guideId, onClose }) {
     try {
       const data = await guidesApi.getHistory(guideId);
       setHistory(data);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to load history:", error);
     } finally {
       setLoading(false);
@@ -37,7 +37,7 @@ export default function GuideHistoryModal({ guideId, onClose }) {
     >
       <div
         className="bg-white rounded-lg shadow-2xl p-6 max-w-md w-full max-h-[80vh] flex flex-col animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4 pb-4 border-b">
           <h2 className="text-xl font-bold flex items-center gap-2">
@@ -62,7 +62,7 @@ export default function GuideHistoryModal({ guideId, onClose }) {
               No previous versions found.
             </div>
           ) : (
-            history.map((version) => (
+            history.map((version: any) => (
               <div
                 key={version.id}
                 className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors group"

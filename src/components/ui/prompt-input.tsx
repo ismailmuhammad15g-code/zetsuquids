@@ -112,7 +112,7 @@ function PromptInputTextarea({
         <Textarea
             ref={textareaRef}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e: any) => setValue(e.target.value)}
             placeholder="Type your message..."
             className={cn(
                 "max-h-96 resize-none rounded-lg border-0 p-2 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0",

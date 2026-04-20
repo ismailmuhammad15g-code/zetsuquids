@@ -1,4 +1,4 @@
-﻿// Type definitions for FeedTabs
+// Type definitions for FeedTabs
 
 interface FeedTabsProps {
   // Add prop types here
@@ -12,7 +12,7 @@ import { Settings } from "lucide-react";
 export default function FeedTabs({ activeTab, setActiveTab }) {
   return (
     <div className="grid grid-cols-2 bg-black/60 backdrop-blur-md">
-      {["For you", "Following"].map((tab) => (
+      {["For you", "Following"].map((tab: any) => (
         <button
           key={tab}
           onClick={() => setActiveTab(tab)}

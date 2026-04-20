@@ -1,4 +1,4 @@
-﻿// Type definitions for SearchModal
+// Type definitions for SearchModal
 
 interface SearchModalProps {
   // Add prop types here
@@ -53,25 +53,25 @@ const BLACKLIST = [
   "slut",
   "whore",
   // Arabic inappropriate words
-  "كس",
-  "زب",
-  "نيك",
-  "شرموط",
-  "عاهر",
-  "قحب",
-  "طيز",
-  "منيوك",
-  "خول",
-  "عرص",
-  "متناك",
-  "زانية",
-  "لعن",
-  "ابن الكلب",
-  "يلعن",
-  "كلب",
-  "حمار",
-  "غبي",
-  "احمق",
+  "??",
+  "??",
+  "???",
+  "?????",
+  "????",
+  "???",
+  "???",
+  "?????",
+  "???",
+  "???",
+  "?????",
+  "?????",
+  "???",
+  "??? ?????",
+  "????",
+  "???",
+  "????",
+  "???",
+  "????",
 ];
 
 // Check if query contains blacklisted words
@@ -236,9 +236,9 @@ export default function SearchModal({ onClose }) {
       let basicResults = basicSearch(searchQuery, allGuides);
 
       // Search Actions
-      const actionResults = QUICK_ACTIONS.filter((action) =>
+      const actionResults = QUICK_ACTIONS.filter((action: any) =>
         action.title.toLowerCase().includes(searchQuery.toLowerCase()),
-      ).map((action) => ({
+      ).map((action: any) => ({
         ...action,
         isAction: true,
         keywords: ["shortcut", "action"],
@@ -313,9 +313,8 @@ export default function SearchModal({ onClose }) {
         // Merge AI results with basic results
         if (aiData.results && aiData.results.length > 0) {
           setResults((prev) => {
-            const existingIds = new Set(prev.map((r) => r.id));
-            const uniqueNewResults = aiData.results.filter(
-              (r) => !existingIds.has(r.id),
+            const existingIds = new Set(prev.map((r: any) => r.id));
+            const uniqueNewResults = aiData.results.filter((r: any) => !existingIds.has(r.id),
             );
             return [...prev, ...uniqueNewResults];
           });
@@ -331,7 +330,7 @@ export default function SearchModal({ onClose }) {
     const recent = JSON.parse(localStorage.getItem("recentSearches") || "[]");
     const updated = [
       { id: guide.id, title: guide.title, slug: guide.slug },
-      ...recent.filter((r) => r.id !== guide.id),
+      ...recent.filter((r: any) => r.id !== guide.id),
     ].slice(0, 5);
     localStorage.setItem("recentSearches", JSON.stringify(updated));
 
@@ -455,7 +454,7 @@ export default function SearchModal({ onClose }) {
       >
         <div
           className="relative bg-white w-full max-w-2xl shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}
         >
           {/* Header: Search Input + Tabs */}
           <div className="border-b border-gray-100 bg-white z-10">
@@ -497,7 +496,7 @@ export default function SearchModal({ onClose }) {
             {/* Filter Tabs (Only show when searching) */}
             {query && !violations.length && (
               <div className="flex items-center gap-1 px-4 pb-0 overflow-x-auto scrollbar-hide">
-                {["all", "guides", "actions"].map((filter) => (
+                {["all", "guides", "actions"].map((filter: any) => (
                   <button
                     key={filter}
                     onClick={() => setActiveFilter(filter)}
@@ -582,7 +581,7 @@ export default function SearchModal({ onClose }) {
                     Quick Actions
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {QUICK_ACTIONS.map((action) => (
+                    {QUICK_ACTIONS.map((action: any) => (
                       <button
                         key={action.id}
                         onClick={() => handleActionClick(action)}
@@ -609,7 +608,7 @@ export default function SearchModal({ onClose }) {
                       Recent
                     </h3>
                     <div className="space-y-1">
-                      {recentSearches.map((item) => (
+                      {recentSearches.map((item: any) => (
                         <button
                           key={item.id}
                           onClick={() => handleSelect(item)}
@@ -639,14 +638,14 @@ export default function SearchModal({ onClose }) {
               results.length > 0 &&
               violations.length === 0 && (
                 <div className="p-2 space-y-1">
-                  {results.filter((item) => {
+                  {results.filter((item: any) => {
                     if (activeFilter === "all") return true;
                     if (activeFilter === "guides") return !item.isAction;
                     if (activeFilter === "actions") return item.isAction;
                     return true;
                   }).length > 0 ? (
                     results
-                      .filter((item) => {
+                      .filter((item: any) => {
                         if (activeFilter === "all") return true;
                         if (activeFilter === "guides") return !item.isAction;
                         if (activeFilter === "actions") return item.isAction;
@@ -721,7 +720,7 @@ export default function SearchModal({ onClose }) {
                             <div className="flex items-center gap-2 text-indigo-400 text-sm font-medium animate-in fade-in duration-200">
                               <span>Open</span>
                               <kbd className="hidden sm:inline-flex items-center justify-center h-5 w-5 bg-white rounded border border-indigo-200 text-xs shadow-sm">
-                                ↵
+                                ?
                               </kbd>
                             </div>
                           )}
@@ -763,7 +762,7 @@ export default function SearchModal({ onClose }) {
                   )}
                   {allGuides.length === 0 && (
                     <p className="text-sm text-amber-600 mt-4 bg-amber-50 px-4 py-2 rounded-lg">
-                      💡 Database is empty - Add new guides!
+                      ?? Database is empty - Add new guides!
                     </p>
                   )}
                 </div>
@@ -783,13 +782,13 @@ export default function SearchModal({ onClose }) {
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
                 <kbd className="px-1.5 py-0.5 bg-white border rounded text-xs">
-                  ↑↓
+                  ??
                 </kbd>
                 <span className="text-xs">toggle</span>
               </div>
               <div className="flex items-center gap-1">
                 <kbd className="px-1.5 py-0.5 bg-white border rounded text-xs">
-                  ↵
+                  ?
                 </kbd>
                 <span className="text-xs">select</span>
               </div>

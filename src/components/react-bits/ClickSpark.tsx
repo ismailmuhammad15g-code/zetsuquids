@@ -1,4 +1,4 @@
-﻿// Type definitions for ClickSpark
+// Type definitions for ClickSpark
 
 interface ClickSparkProps {
   // Add prop types here
@@ -89,7 +89,7 @@ const ClickSpark = ({
       ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
 
       // Filter out expired sparks AND draw active ones
-      sparksRef.current = sparksRef.current.filter((spark) => {
+      sparksRef.current = sparksRef.current.filter((spark: any) => {
         const elapsed = timestamp - spark.startTime;
 
         // If finished, remove

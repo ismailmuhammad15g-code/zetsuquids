@@ -1,4 +1,4 @@
-﻿import { Calendar, X } from "lucide-react";
+import { Calendar, X } from "lucide-react";
 import { useState } from "react";
 
 interface ModalFormProps {
@@ -88,7 +88,7 @@ export function LinkModalForm({ onInsert, onClose }: LinkModalFormProps) {
         <input
           type="text"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setText(e.target.value)}
           placeholder="Click here..."
           className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all"
         />
@@ -98,7 +98,7 @@ export function LinkModalForm({ onInsert, onClose }: LinkModalFormProps) {
         <input
           type="url"
           value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setUrl(e.target.value)}
           placeholder="https://example.com"
           className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all"
         />
@@ -120,11 +120,11 @@ export function TableModalForm({ onInsert, onClose }: TableModalFormProps) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Rows</label>
-          <input type="number" min={1} max={10} value={rows} onChange={(e) => setRows(parseInt(e.target.value) || 1)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+          <input type="number" min={1} max={10} value={rows} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setRows(parseInt(e.target.value) || 1)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Columns</label>
-          <input type="number" min={1} max={10} value={cols} onChange={(e) => setCols(parseInt(e.target.value) || 1)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+          <input type="number" min={1} max={10} value={cols} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setCols(parseInt(e.target.value) || 1)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
         </div>
       </div>
       <div className="flex gap-3 pt-2">
@@ -164,7 +164,7 @@ export function VideoModalForm({ onInsert, onClose }: VideoModalFormProps) {
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">{videoType === "youtube" ? "YouTube" : "Vimeo"} URL</label>
-        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={videoType === "youtube" ? "https://youtube.com/watch?v=..." : "https://vimeo.com/..."} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+        <input type="url" value={url} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setUrl(e.target.value)} placeholder={videoType === "youtube" ? "https://youtube.com/watch?v=..." : "https://vimeo.com/..."} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
       </div>
       <div className="flex gap-3 pt-2">
         <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">Cancel</button>
@@ -181,7 +181,7 @@ export function CalloutModalForm({ onInsert, onClose }: CalloutModalFormProps) {
   return (
     <div className="px-6 py-4 space-y-4">
       <div className="flex gap-2 mb-4">
-        {["info", "warn", "success"].map((t) => (
+        {["info", "warn", "success"].map((t: any) => (
           <button key={t} onClick={() => setType(t as "info" | "warn" | "success")} className={`flex-1 py-2 px-3 rounded-lg font-medium capitalize transition-colors ${type === t ? (t === "info" ? "bg-blue-500 text-white" : t === "warn" ? "bg-yellow-500 text-white" : "bg-green-500 text-white") : "bg-gray-100 text-gray-600"}`}>
             {t}
           </button>
@@ -189,7 +189,7 @@ export function CalloutModalForm({ onInsert, onClose }: CalloutModalFormProps) {
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-        <textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Your message..." className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent min-h-[100px]" />
+        <textarea value={message} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setMessage(e.target.value)} placeholder="Your message..." className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent min-h-[100px]" />
       </div>
       <div className="flex gap-3 pt-2">
         <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">Cancel</button>
@@ -209,13 +209,13 @@ export function CodeModalForm({ onInsert, onClose }: CodeModalFormProps) {
     <div className="px-6 py-4 space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
-        <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent">
+        <select value={language} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setLanguage(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent">
           {languages.map(lang => <option key={lang} value={lang}>{lang}</option>)}
         </select>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Code</label>
-        <textarea value={code} onChange={(e) => setCode(e.target.value)} placeholder="// Your code here..." className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent min-h-[150px] font-mono text-sm" />
+        <textarea value={code} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setCode(e.target.value)} placeholder="// Your code here..." className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent min-h-[150px] font-mono text-sm" />
       </div>
       <div className="flex gap-3 pt-2">
         <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">Cancel</button>
@@ -233,11 +233,11 @@ export function FigureModalForm({ onInsert, onClose }: FigureModalFormProps) {
     <div className="px-6 py-4 space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/image.jpg" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+        <input type="url" value={url} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setUrl(e.target.value)} placeholder="https://example.com/image.jpg" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Caption</label>
-        <input type="text" value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Figure description" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+        <input type="text" value={caption} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setCaption(e.target.value)} placeholder="Figure description" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
       </div>
       <div className="flex gap-3 pt-2">
         <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">Cancel</button>
@@ -255,11 +255,11 @@ export function DetailsModalForm({ onInsert, onClose }: DetailsModalFormProps) {
     <div className="px-6 py-4 space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Summary</label>
-        <input type="text" value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="Click to expand" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+        <input type="text" value={summary} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setSummary(e.target.value)} placeholder="Click to expand" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
-        <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Hidden content..." className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent min-h-[100px]" />
+        <textarea value={content} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setContent(e.target.value)} placeholder="Hidden content..." className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent min-h-[100px]" />
       </div>
       <div className="flex gap-3 pt-2">
         <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">Cancel</button>
@@ -277,11 +277,11 @@ export function QuoteModalForm({ onInsert, onClose }: QuoteModalFormProps) {
     <div className="px-6 py-4 space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Quote Text</label>
-        <textarea value={quote} onChange={(e) => setQuote(e.target.value)} placeholder="Enter quote..." className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent min-h-[100px]" />
+        <textarea value={quote} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setQuote(e.target.value)} placeholder="Enter quote..." className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent min-h-[100px]" />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Author</label>
-        <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Author name" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+        <input type="text" value={author} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setAuthor(e.target.value)} placeholder="Author name" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
       </div>
       <div className="flex gap-3 pt-2">
         <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">Cancel</button>
@@ -298,7 +298,7 @@ export function BadgeModalForm({ onInsert, onClose }: BadgeModalFormProps) {
     <div className="px-6 py-4 space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Badge Text</label>
-        <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder="New" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+        <input type="text" value={text} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setText(e.target.value)} placeholder="New" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
       </div>
       <div className="flex gap-3 pt-2">
         <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">Cancel</button>
@@ -315,7 +315,7 @@ export function KbdModalForm({ onInsert, onClose }: KbdModalFormProps) {
     <div className="px-6 py-4 space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Keys (comma separated)</label>
-        <input type="text" value={keys} onChange={(e) => setKeys(e.target.value)} placeholder="Ctrl+S" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+        <input type="text" value={keys} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setKeys(e.target.value)} placeholder="Ctrl+S" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
       </div>
       <p className="text-xs text-gray-500">Separate multiple keys with commas</p>
       <div className="flex gap-3 pt-2">
@@ -334,11 +334,11 @@ export function CTAModalForm({ onInsert, onClose }: CTAModalFormProps) {
     <div className="px-6 py-4 space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Button Text</label>
-        <input type="text" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Get Started" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+        <input type="text" value={label} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setLabel(e.target.value)} placeholder="Get Started" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">URL</label>
-        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+        <input type="url" value={url} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setUrl(e.target.value)} placeholder="https://example.com" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
       </div>
       <div className="flex gap-3 pt-2">
         <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">Cancel</button>
@@ -356,11 +356,11 @@ export function CitationModalForm({ onInsert, onClose }: CitationModalFormProps)
     <div className="px-6 py-4 space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Citation</label>
-        <input type="text" value={citation} onChange={(e) => setCitation(e.target.value)} placeholder="Author, Year" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+        <input type="text" value={citation} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setCitation(e.target.value)} placeholder="Author, Year" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Source URL (optional)</label>
-        <input type="url" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://source.com" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+        <input type="url" value={sourceUrl} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setSourceUrl(e.target.value)} placeholder="https://source.com" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
       </div>
       <div className="flex gap-3 pt-2">
         <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">Cancel</button>
@@ -383,7 +383,7 @@ export function AnchorModalForm({ defaultSlug, onInsert, onClose }: AnchorModalF
     <div className="px-6 py-4 space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Anchor ID</label>
-        <input type="text" value={id} onChange={(e) => setId(e.target.value)} placeholder="section-name" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+        <input type="text" value={id} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setId(e.target.value)} placeholder="section-name" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
       </div>
       <p className="text-xs text-gray-500">Use lowercase letters, numbers, and hyphens only</p>
       <div className="flex gap-3 pt-2">
@@ -402,11 +402,11 @@ export function FootnoteModalForm({ onInsert, onClose }: FootnoteModalFormProps)
     <div className="px-6 py-4 space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Footnote Number</label>
-        <input type="number" min={1} value={marker} onChange={(e) => setMarker(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
+        <input type="number" min={1} value={marker} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setMarker(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent" />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Definition</label>
-        <textarea value={definition} onChange={(e) => setDefinition(e.target.value)} placeholder="Source or explanation..." className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent min-h-[100px]" />
+        <textarea value={definition} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setDefinition(e.target.value)} placeholder="Source or explanation..." className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent min-h-[100px]" />
       </div>
       <div className="flex gap-3 pt-2">
         <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">Cancel</button>
@@ -447,8 +447,8 @@ export function StepsModalForm({ onInsert, onClose }: ModalFormProps) {
               <span className="text-sm font-semibold text-gray-700">Step {idx + 1}</span>
               {steps.length > 1 && <button onClick={() => removeStep(idx)} className="text-red-500 text-xs hover:underline">Remove</button>}
             </div>
-            <input type="text" value={step.title} onChange={(e) => updateStep(idx, "title", e.target.value)} placeholder="Step title" className="w-full px-3 py-2 mb-2 border border-gray-200 rounded-lg text-sm" />
-            <textarea value={step.content} onChange={(e) => updateStep(idx, "content", e.target.value)} placeholder="Step description" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm min-h-[60px]" />
+            <input type="text" value={step.title} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateStep(idx, "title", e.target.value)} placeholder="Step title" className="w-full px-3 py-2 mb-2 border border-gray-200 rounded-lg text-sm" />
+            <textarea value={step.content} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateStep(idx, "content", e.target.value)} placeholder="Step description" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm min-h-[60px]" />
           </div>
         ))}
       </div>
@@ -475,7 +475,7 @@ export function TimelineModalForm({ onInsert, onClose }: ModalFormProps) {
 
   const handleInsert = () => {
     let md = "\n## Timeline\n\n";
-    items.forEach((item) => {
+    items.forEach((item: any) => {
       md += `- **${item.date}**: ${item.event}\n`;
     });
     onInsert(md);
@@ -487,8 +487,8 @@ export function TimelineModalForm({ onInsert, onClose }: ModalFormProps) {
         {items.map((item, idx) => (
           <div key={idx} className="flex gap-2 items-center">
             <Calendar size={18} className="text-gray-400" />
-            <input type="text" value={item.date} onChange={(e) => updateItem(idx, "date", e.target.value)} placeholder="Date (e.g. Jan 2024)" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-            <input type="text" value={item.event} onChange={(e) => updateItem(idx, "event", e.target.value)} placeholder="Event" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            <input type="text" value={item.date} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateItem(idx, "date", e.target.value)} placeholder="Date (e.g. Jan 2024)" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            <input type="text" value={item.event} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateItem(idx, "event", e.target.value)} placeholder="Event" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
             {items.length > 1 && <button onClick={() => removeItem(idx)} className="text-red-500"><X size={16} /></button>}
           </div>
         ))}
@@ -534,15 +534,15 @@ export function ComparisonModalForm({ onInsert, onClose }: ModalFormProps) {
     <div className="px-6 py-4 space-y-4">
       <div className="space-y-2">
         {options.map((opt, i) => (
-          <input key={i} type="text" value={opt} onChange={(e) => { const newOpts = [...options]; newOpts[i] = e.target.value; setOptions(newOpts); }} placeholder={`Option ${i + 1}`} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+          <input key={i} type="text" value={opt} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const newOpts = [...options]; newOpts[i] = e.target.value; setOptions(newOpts); }} placeholder={`Option ${i + 1}`} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
         ))}
       </div>
       <div className="space-y-3 max-h-[200px] overflow-y-auto">
         {features.map((f, i) => (
           <div key={i} className="flex gap-2">
-            <input type="text" value={f} onChange={(e) => updateFeature(i, e.target.value)} placeholder="Feature name" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            <input type="text" value={f} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateFeature(i, e.target.value)} placeholder="Feature name" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
             {options.map((_, j) => (
-              <input key={j} type="text" value={(values[i] || ["", ""])[j] || ""} onChange={(e) => updateValue(i, j, e.target.value)} placeholder="Value" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+              <input key={j} type="text" value={(values[i] || ["", ""])[j] || ""} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateValue(i, j, e.target.value)} placeholder="Value" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
             ))}
           </div>
         ))}
@@ -578,14 +578,14 @@ export function AlertModalForm({ onInsert, onClose }: ModalFormProps) {
   return (
     <div className="px-6 py-4 space-y-4">
       <div className="grid grid-cols-3 gap-2">
-        {types.map((t) => (
+        {types.map((t: any) => (
           <button key={t.value} onClick={() => setType(t.value)} className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${type === t.value ? `${t.color} text-white` : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
             {t.label}
           </button>
         ))}
       </div>
-      <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Alert title" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg" />
-      <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Alert content" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg min-h-[80px]" />
+      <input type="text" value={title} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setTitle(e.target.value)} placeholder="Alert title" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg" />
+      <textarea value={content} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setContent(e.target.value)} placeholder="Alert content" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg min-h-[80px]" />
       <div className="flex gap-3 pt-2">
         <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
         <button onClick={handleInsert} disabled={!title} className="flex-1 px-4 py-2.5 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50">Insert</button>
@@ -620,10 +620,10 @@ export function TabsModalForm({ onInsert, onClose }: ModalFormProps) {
         {tabs.map((tab, i) => (
           <div key={i} className="p-3 bg-gray-50 rounded-lg">
             <div className="flex gap-2 mb-2">
-              <input type="text" value={tab.label} onChange={(e) => updateTab(i, "label", e.target.value)} placeholder="Tab label" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+              <input type="text" value={tab.label} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateTab(i, "label", e.target.value)} placeholder="Tab label" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
               {tabs.length > 1 && <button onClick={() => setTabs(tabs.filter((_, idx) => idx !== i))} className="text-red-500"><X size={16} /></button>}
             </div>
-            <textarea value={tab.content} onChange={(e) => updateTab(i, "content", e.target.value)} placeholder="Tab content" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm min-h-[60px]" />
+            <textarea value={tab.content} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateTab(i, "content", e.target.value)} placeholder="Tab content" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm min-h-[60px]" />
           </div>
         ))}
       </div>
@@ -649,7 +649,7 @@ export function DefinitionModalForm({ onInsert, onClose }: ModalFormProps) {
 
   const handleInsert = () => {
     let md = "\n## Definitions\n\n";
-    items.forEach((item) => {
+    items.forEach((item: any) => {
       if (item.term) md += `**${item.term}**: ${item.definition}\n`;
     });
     onInsert(md);
@@ -660,8 +660,8 @@ export function DefinitionModalForm({ onInsert, onClose }: ModalFormProps) {
       <div className="space-y-3 max-h-[300px] overflow-y-auto">
         {items.map((item, i) => (
           <div key={i} className="flex gap-2">
-            <input type="text" value={item.term} onChange={(e) => updateItem(i, "term", e.target.value)} placeholder="Term" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-            <input type="text" value={item.definition} onChange={(e) => updateItem(i, "definition", e.target.value)} placeholder="Definition" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            <input type="text" value={item.term} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateItem(i, "term", e.target.value)} placeholder="Term" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            <input type="text" value={item.definition} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateItem(i, "definition", e.target.value)} placeholder="Definition" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
             {items.length > 1 && <button onClick={() => setItems(items.filter((_, idx) => idx !== i))} className="text-red-500"><X size={16} /></button>}
           </div>
         ))}
@@ -688,11 +688,11 @@ export function CodeDiffModalForm({ onInsert, onClose }: ModalFormProps) {
     <div className="px-6 py-4 space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Before (removed -)</label>
-        <textarea value={before} onChange={(e) => setBefore(e.target.value)} placeholder="// old code" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg font-mono text-sm min-h-[80px]" />
+        <textarea value={before} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setBefore(e.target.value)} placeholder="// old code" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg font-mono text-sm min-h-[80px]" />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">After (added +)</label>
-        <textarea value={after} onChange={(e) => setAfter(e.target.value)} placeholder="// new code" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg font-mono text-sm min-h-[80px]" />
+        <textarea value={after} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setAfter(e.target.value)} placeholder="// new code" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg font-mono text-sm min-h-[80px]" />
       </div>
       <div className="flex gap-3 pt-2">
         <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
@@ -730,8 +730,8 @@ export function FAQModalForm({ onInsert, onClose }: ModalFormProps) {
               <span className="text-sm font-semibold text-gray-700">Question {i + 1}</span>
               {items.length > 1 && <button onClick={() => setItems(items.filter((_, idx) => idx !== i))} className="text-red-500 text-xs hover:underline">Remove</button>}
             </div>
-            <input type="text" value={item.question} onChange={(e) => updateItem(i, "question", e.target.value)} placeholder="Your question?" className="w-full px-3 py-2 mb-2 border border-gray-200 rounded-lg text-sm" />
-            <textarea value={item.answer} onChange={(e) => updateItem(i, "answer", e.target.value)} placeholder="Answer..." className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm min-h-[60px]" />
+            <input type="text" value={item.question} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateItem(i, "question", e.target.value)} placeholder="Your question?" className="w-full px-3 py-2 mb-2 border border-gray-200 rounded-lg text-sm" />
+            <textarea value={item.answer} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateItem(i, "answer", e.target.value)} placeholder="Answer..." className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm min-h-[60px]" />
           </div>
         ))}
       </div>
@@ -757,7 +757,7 @@ export function VersionModalForm({ onInsert, onClose }: ModalFormProps) {
 
   const handleInsert = () => {
     let md = "\n## Changelog\n\n";
-    versions.forEach((v) => {
+    versions.forEach((v: any) => {
       if (v.version) md += `### v${v.version}${v.date ? ` (${v.date})` : ""}\n${v.changes || "(no changes)"}\n\n`;
     });
     onInsert(md);
@@ -768,9 +768,9 @@ export function VersionModalForm({ onInsert, onClose }: ModalFormProps) {
       <div className="space-y-3 max-h-[250px] overflow-y-auto">
         {versions.map((v, idx: number) => (
           <div key={idx} className="flex gap-2">
-            <input type="text" value={v.version} onChange={(e) => updateVersion(idx, "version", e.target.value)} placeholder="v1.0" className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-            <input type="text" value={v.date} onChange={(e) => updateVersion(idx, "date", e.target.value)} placeholder="2024-01-01" className="w-28 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-            <input type="text" value={v.changes} onChange={(e) => updateVersion(idx, "changes", e.target.value)} placeholder="Changes..." className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            <input type="text" value={v.version} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateVersion(idx, "version", e.target.value)} placeholder="v1.0" className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            <input type="text" value={v.date} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateVersion(idx, "date", e.target.value)} placeholder="2024-01-01" className="w-28 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            <input type="text" value={v.changes} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateVersion(idx, "changes", e.target.value)} placeholder="Changes..." className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
             {versions.length > 1 && <button onClick={() => setVersions(versions.filter((_, idx2) => idx2 !== idx))} className="text-red-500"><X size={16} /></button>}
           </div>
         ))}
@@ -797,7 +797,7 @@ export function KeyValueModalForm({ onInsert, onClose }: ModalFormProps) {
 
   const handleInsert = () => {
     let md = "\n| Key | Value |\n| --- | --- |\n";
-    items.forEach((item) => {
+    items.forEach((item: any) => {
       if (item.key) md += `| ${item.key} | ${item.value} |\n`;
     });
     onInsert(md);
@@ -808,8 +808,8 @@ export function KeyValueModalForm({ onInsert, onClose }: ModalFormProps) {
       <div className="space-y-2 max-h-[250px] overflow-y-auto">
         {items.map((item, i) => (
           <div key={i} className="flex gap-2">
-            <input type="text" value={item.key} onChange={(e) => updateItem(i, "key", e.target.value)} placeholder="Key" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-            <input type="text" value={item.value} onChange={(e) => updateItem(i, "value", e.target.value)} placeholder="Value" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            <input type="text" value={item.key} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateItem(i, "key", e.target.value)} placeholder="Key" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            <input type="text" value={item.value} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => updateItem(i, "value", e.target.value)} placeholder="Value" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
             {items.length > 1 && <button onClick={() => setItems(items.filter((_, idx) => idx !== i))} className="text-red-500"><X size={16} /></button>}
           </div>
         ))}

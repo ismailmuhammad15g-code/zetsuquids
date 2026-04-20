@@ -1,4 +1,4 @@
-﻿// Type definitions for GuideInlineComment
+// Type definitions for GuideInlineComment
 
 interface GuideInlineCommentProps {
   // Add prop types here
@@ -126,7 +126,7 @@ export function FigmaCommentInline({
           ? 'w-[280px] rounded-2xl rounded-tl-none p-3.5 opacity-100 scale-100' 
           : `w-7 h-7 rounded-full rounded-tl-none opacity-90 hover:opacity-100 hover:scale-110 hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] scale-100 ${approvedStatus ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`
       }`}
-      onClick={(e) => { 
+      onClick={(e: React.MouseEvent<HTMLElement>) => { 
         if (!isExpanded) {
            e.stopPropagation(); 
            e.preventDefault(); 
@@ -152,16 +152,16 @@ export function FigmaCommentInline({
             <div className="flex flex-col gap-1 items-end">
               {isCommentAuthor && !isEditing && (
                 <div className="flex gap-1">
-                  <button onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-black transition-colors" title="Edit">
+                  <button onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); setIsEditing(true); }} className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-black transition-colors" title="Edit">
                     <Edit2 size={14} />
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); onDelete(id); }} className="p-1 hover:bg-red-50 rounded text-gray-500 hover:text-red-500 transition-colors" title="Delete">
+                  <button onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); onDelete(id); }} className="p-1 hover:bg-red-50 rounded text-gray-500 hover:text-red-500 transition-colors" title="Delete">
                     <Trash2 size={14} />
                   </button>
                 </div>
               )}
               {isGuideOwner && !approvedStatus && !isReplying && (
-                <button onClick={(e) => { e.stopPropagation(); setIsReplying(true); }} className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-xs font-semibold transition-colors" title="Approve & Reply">
+                <button onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); setIsReplying(true); }} className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-xs font-semibold transition-colors" title="Approve & Reply">
                   <CheckCircle size={14} />
                   Approve
                 </button>
@@ -174,13 +174,13 @@ export function FigmaCommentInline({
             <div className="flex flex-col gap-2 mt-1">
               <textarea 
                 value={editVal}
-                onChange={(e) => setEditVal(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
+                onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setEditVal(e.target.value)}
+                onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}
                 className="w-full text-[13px] p-2 border border-gray-300 rounded focus:outline-none focus:border-black resize-none min-h-[60px]"
               />
               <div className="flex justify-end gap-2">
-                <button onClick={(e) => { e.stopPropagation(); setIsEditing(false); setEditVal(msg); }} className="text-xs text-gray-500 hover:text-black">Cancel</button>
-                <button onClick={(e) => { e.stopPropagation(); handleEditSubmit(); }} className="text-xs bg-black text-white px-3 py-1 rounded font-medium hover:bg-gray-800">Save</button>
+                <button onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); setIsEditing(false); setEditVal(msg); }} className="text-xs text-gray-500 hover:text-black">Cancel</button>
+                <button onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); handleEditSubmit(); }} className="text-xs bg-black text-white px-3 py-1 rounded font-medium hover:bg-gray-800">Save</button>
               </div>
             </div>
           ) : (
@@ -193,14 +193,14 @@ export function FigmaCommentInline({
               <span className="text-[11px] font-bold text-blue-700">Guide Author Reply:</span>
               <textarea 
                 value={replyVal}
-                onChange={(e) => setReplyVal(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
+                onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setReplyVal(e.target.value)}
+                onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}
                 placeholder="Thanks for the feedback! (Optional)"
                 className="w-full text-[12px] p-2 border border-blue-200 rounded focus:outline-none focus:border-blue-400 resize-none min-h-[50px] bg-white"
               />
               <div className="flex justify-end gap-2">
-                <button onClick={(e) => { e.stopPropagation(); setIsReplying(false); }} className="text-xs text-gray-500 hover:text-black">Cancel</button>
-                <button onClick={(e) => { e.stopPropagation(); handleReplySubmit(); }} className="text-xs bg-blue-600 text-white px-3 py-1 rounded font-medium hover:bg-blue-700">Approve</button>
+                <button onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); setIsReplying(false); }} className="text-xs text-gray-500 hover:text-black">Cancel</button>
+                <button onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); handleReplySubmit(); }} className="text-xs bg-blue-600 text-white px-3 py-1 rounded font-medium hover:bg-blue-700">Approve</button>
               </div>
             </div>
           )}
@@ -382,7 +382,7 @@ export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsU
       let posData = {};
       try {
         posData = typeof commentToApprove.position_json === 'string' ? JSON.parse(commentToApprove.position_json) : (commentToApprove.position_json || {});
-      } catch (e) {}
+      } catch (e: unknown) {}
 
       posData.approved = true;
       if (replyText) {
@@ -463,7 +463,7 @@ export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsU
               initial={{ scale: 0.95 }}
               animate={{ scale: 1 }}
               className="bg-white dark:bg-gray-900 w-full max-w-md mx-4 rounded-2xl shadow-2xl p-5"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-lg text-gray-900 dark:text-white">Add Comment</h3>
@@ -478,7 +478,7 @@ export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsU
               
               <textarea
                 value={commentInput}
-                onChange={(e) => setCommentInput(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setCommentInput(e.target.value)}
                 placeholder="Write your comment..."
                 className="w-full min-h-[100px] p-3 text-sm bg-gray-50 border border-gray-200 rounded-lg resize-none focus:outline-none focus:border-black"
                 autoFocus
@@ -512,7 +512,7 @@ export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsU
         let posData = {};
         try {
           posData = typeof comment.position_json === 'string' ? JSON.parse(comment.position_json) : (comment.position_json || {});
-        } catch(e) {}
+        } catch (e: unknown) {}
 
         const isCommentAuthor = user?.id === comment.user_id;
 

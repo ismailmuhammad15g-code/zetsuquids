@@ -1,4 +1,4 @@
-﻿// Type definitions for GuideRating
+// Type definitions for GuideRating
 
 interface GuideRatingProps {
   // Add prop types here
@@ -76,7 +76,7 @@ function ReviewCard({ review, profiles, darkMode }) {
                         </span>
                     </div>
                     <div className="flex items-center gap-0.5 mt-1 mb-2">
-                        {[1, 2, 3, 4, 5].map((star) => (
+                        {[1, 2, 3, 4, 5].map((star: any) => (
                             <StarIcon key={star} filled={review.rating >= star} size="w-3.5 h-3.5" />
                         ))}
                     </div>
@@ -175,7 +175,7 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
                     setComment('');
                 }
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Error fetching reviews:', error);
             setAllReviews([]);
         } finally {
@@ -213,7 +213,7 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
             toast.success(hasRated ? "Rating updated!" : "Thank you for your feedback!");
             
             fetchAllReviews();
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Error submitting rating:', error);
             toast.error("Failed to submit rating. Please try again.");
         } finally {
@@ -249,7 +249,7 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-0.5 mb-1">
-                                            {[1, 2, 3, 4, 5].map((star) => (
+                                            {[1, 2, 3, 4, 5].map((star: any) => (
                                                 <StarIcon key={star} filled={Math.round(avgRating) >= star} />
                                             ))}
                                         </div>
@@ -259,7 +259,7 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
-                                    {[5, 4, 3, 2, 1].map((star) => {
+                                    {[5, 4, 3, 2, 1].map((star: any) => {
                                         const count = allReviews.filter(r => Math.round(r.rating) === star).length;
                                         const percent = totalRatings > 0 ? Math.round((count / totalRatings) * 100) : 0;
                                         return (
@@ -287,7 +287,7 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
                             User Reviews ({totalRatings})
                         </h4>
                         <div className="space-y-3">
-                            {visibleReviews.map((review) => (
+                            {visibleReviews.map((review: any) => (
                                 <ReviewCard 
                                     key={review.id} 
                                     review={review} 
@@ -322,13 +322,13 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
                         {hasRated ? (
                             <div className="text-center">
                                 <div className="w-14 h-14 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
-                                    <span className="text-2xl">✓</span>
+                                    <span className="text-2xl">?</span>
                                 </div>
                                 <p className="text-gray-700 dark:text-gray-300 mb-3 font-medium">
                                     You rated this guide {rating} star{rating !== 1 ? 's' : ''}
                                 </p>
                                 <div className="flex justify-center gap-1 mb-4">
-                                    {[1, 2, 3, 4, 5].map((star) => (
+                                    {[1, 2, 3, 4, 5].map((star: any) => (
                                         <StarIcon key={star} filled={rating >= star} />
                                     ))}
                                 </div>
@@ -350,7 +350,7 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
                                     Your feedback helps improve this guide
                                 </p>
                                 <div className="flex justify-center gap-2 mb-5">
-                                    {[1, 2, 3, 4, 5].map((star) => (
+                                    {[1, 2, 3, 4, 5].map((star: any) => (
                                         <button
                                             key={star}
                                             onClick={() => setRating(star)}
@@ -372,7 +372,7 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
                                     <Textarea
                                         placeholder="Tell us more about your experience... (Optional)"
                                         value={comment}
-                                        onChange={(e) => setComment(e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setComment(e.target.value)}
                                         className="min-h-[100px] mb-4 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-600 focus:border-black dark:focus:border-white focus:ring-0 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 text-base resize-none"
                                     />
                                     <Button

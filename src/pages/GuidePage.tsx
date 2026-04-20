@@ -28,7 +28,7 @@ import {
     VolumeX,
 } from "lucide-react";
 import { marked } from "marked";
-import { FC, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -53,57 +53,21 @@ import ShinyText from "../components/ui/shiny-text";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useGuideInteraction } from "../hooks/useGuideInteraction";
-import { guidesApi, type Guide } from "../lib/api";
+import { Guide, guidesApi } from "../lib/api";
 import { getAvatarForUser } from "../lib/avatar";
 import { supabase } from "../lib/supabase";
 import { sanitizeContent } from "../lib/utils";
 
-// Type definitions
-interface RouteParams extends Record<string, string | undefined> {
-    slug?: string;
-}
-
-interface TableOfContentsItem {
-    id: string;
-    text: string;
-    level: number;
-}
-
-interface InlineComment {
-    id: string;
-    text: string;
-    user: string;
-    timestamp: number;
-    selected_text?: string;
-    user_id?: string;
-    position_json?: string | Record<string, any>;
-}
-
-interface MarkedCodeBlockInput {
-    text?: string;
-    lang?: string;
-}
-
-interface RendererHandler {
-    code(code: string | MarkedCodeBlockInput, language?: string): string;
-}
-
-interface ProcessedContent {
-    type: "html" | "markdown";
-    content: string;
-}
-
-// Configure marked renderer with proper typing
-const renderer: Partial<RendererHandler> = {
-    code(code: string | MarkedCodeBlockInput, language?: string): string {
-        let text = "";
-        let lang = language || "";
+// Configure marked
+const renderer = {
+    code(code, language) {
+        // Handle newer marked versions passing object
+        let text = code;
+        let lang = language;
 
         if (typeof code === "object" && code !== null) {
-            text = (code as MarkedCodeBlockInput).text || "";
-            lang = (code as MarkedCodeBlockInput).lang || language || "";
-        } else {
-            text = String(code || "");
+            text = code.text || "";
+            lang = code.lang || "";
         }
 
         // Ensure text is a string
@@ -125,13 +89,13 @@ const renderer: Partial<RendererHandler> = {
 
         if (lang === "quiz") {
             try {
-                const jsonStr = typeof code === "object" ? (code as MarkedCodeBlockInput).text : code;
+                const jsonStr = typeof code === "object" ? code.text : code;
                 // Secure encoding for data attribute
                 const encoded = btoa(
-                    encodeURIComponent(jsonStr as string).replace(
+                    encodeURIComponent(jsonStr).replace(
                         /%([0-9A-F]{2})/g,
-                        function toSolidBytes(_match: string, p1: string) {
-                            return String.fromCharCode(parseInt(p1, 16));
+                        function toSolidBytes(match, p1) {
+                            return String.fromCharCode("0x" + p1);
                         },
                     ),
                 );
@@ -143,7 +107,7 @@ const renderer: Partial<RendererHandler> = {
         }
 
         // Manual fallback for normal code blocks to avoid renderer recursion issues
-        const escapedText = (text as string)
+        const escapedText = text
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
@@ -159,52 +123,52 @@ const renderer: Partial<RendererHandler> = {
     },
 };
 
-marked.use({ renderer: renderer as any });
+marked.use({ renderer } as any);
 marked.setOptions({
     breaks: true,
     gfm: true,
-});
+} as any);
 
-interface GuidePageProps { }
-
-const GuidePage: FC<GuidePageProps> = () => {
-    const { slug } = useParams<RouteParams>();
+export default function GuidePage() {
+    const { slug } = useParams();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user } = useAuth(); // Get current user
 
     // Track interactions for recommendations
-    const { recordComment } = useGuideInteraction(slug);
+    const { recordComment, recordRate } = useGuideInteraction(slug);
 
     const [guide, setGuide] = useState<Guide | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    const [copied, setCopied] = useState<boolean>(false);
-    const [deleting, setDeleting] = useState<boolean>(false);
-    const [authorAvatar, setAuthorAvatar] = useState<string | null>(null);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
-    const [showHistory, setShowHistory] = useState<boolean>(false);
-    const [showDownloadModal, setShowDownloadModal] = useState<boolean>(false);
-    const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
-    const [isPlayingTTS, setIsPlayingTTS] = useState<boolean>(false);
-    const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
-    const { isDarkMode, toggleTheme } = useTheme();
-    const [searchQuery, setSearchQuery] = useState<string>("");
-    const [inlineComments, setInlineComments] = useState<InlineComment[]>([]);
-    const [debouncedSearch, setDebouncedSearch] = useState<string>("");
-    const [viewsCount, setViewsCount] = useState<number>(0);
-    const [hasRecordedView, setHasRecordedView] = useState<boolean>(false);
-    const [showAIChat, setShowAIChat] = useState<boolean>(false);
-    const [showSummarizer, setShowSummarizer] = useState<boolean>(false);
-    const [showTranslator, setShowTranslator] = useState<boolean>(false);
-    const [aiToolsExpanded, setAiToolsExpanded] = useState<boolean>(false);
-    const [showTOC, setShowTOC] = useState<boolean>(false);
-    const [tableOfContents, setTableOfContents] = useState<TableOfContentsItem[]>([]);
-    const [contentWithAnchors, setContentWithAnchors] = useState<string | null>(null);
-
+    const [copied, setCopied] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [authorAvatar, setAuthorAvatar] = useState(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showHistory, setShowHistory] = useState(false);
+    const [showDownloadModal, setShowDownloadModal] = useState(false);
+    const [showMoreMenu, setShowMoreMenu] = useState(false);
+    const [isPlayingTTS, setIsPlayingTTS] = useState(false);
+    const [isFocusMode, setIsFocusMode] = useState(false); // Focus Mode
+    const { isDarkMode, toggleTheme } = useTheme(); // Dark Mode
+    const [searchQuery, setSearchQuery] = useState("");
+    const [inlineComments, setInlineComments] = useState([]);
+    const [debouncedSearch, setDebouncedSearch] = useState(""); // Debounced search for performance
+    const [viewsCount, setViewsCount] = useState(0);
+    const [hasRecordedView, setHasRecordedView] = useState(false);
+    // AI Tools Modals
+    const [showAIChat, setShowAIChat] = useState(false);
+    const [showSummarizer, setShowSummarizer] = useState(false);
+    const [showTranslator, setShowTranslator] = useState(false);
+    const [aiToolsExpanded, setAiToolsExpanded] = useState(false);
+    // Table of Contents
+    const [showTOC, setShowTOC] = useState(false);
+    const [tableOfContents, setTableOfContents] = useState([]);
+    // HTML content that includes heading IDs for in-page anchors
+    const [contentWithAnchors, setContentWithAnchors] = useState(null);
     const moreMenuRef = useRef<HTMLDivElement>(null);
     const ttsRef = useRef<any>(null);
     const contentRef = useRef<HTMLDivElement>(null);
-    const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const searchTimeoutRef = useRef<any>(null); // For debouncing search
 
     // Debounce search query for performance
     useEffect(() => {
@@ -231,7 +195,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                     theme: "default",
                     securityLevel: "loose",
                 });
-            } catch (error) {
+            } catch (error: unknown) {
                 console.error("Failed to initialize Mermaid:", error);
             }
         };
@@ -248,6 +212,7 @@ const GuidePage: FC<GuidePageProps> = () => {
             const scrollTop = window.scrollY || document.documentElement.scrollTop;
             const scrollPercentage = (scrollTop + windowHeight) / documentHeight;
 
+            // If user scrolled 85% or more, record view
             if (scrollPercentage >= 0.85 && !hasRecordedView) {
                 recordView();
             }
@@ -263,6 +228,11 @@ const GuidePage: FC<GuidePageProps> = () => {
             fetchViewsCount();
         }
     }, [guide?.id]);
+
+    /* Dark Mode handled by ThemeContext now
+    // Handle Dark Mode
+    // ... (Deleted local effect)
+    */
 
     // Close More menu when clicking outside
     useEffect(() => {
@@ -284,6 +254,7 @@ const GuidePage: FC<GuidePageProps> = () => {
     // Render Mermaid diagrams
     useEffect(() => {
         if (guide) {
+            // Small delay to ensure DOM is ready
             const timer = setTimeout(() => {
                 const renderMermaid = async () => {
                     try {
@@ -293,9 +264,10 @@ const GuidePage: FC<GuidePageProps> = () => {
                         });
                     } catch (err) {
                         console.error("Mermaid failed to render:", err);
+                        // Hide Mermaid blocks that fail to render to prevent visual issues
                         const mermaidBlocks = document.querySelectorAll(".mermaid");
-                        mermaidBlocks.forEach((block) => {
-                            (block as HTMLElement).style.display = "none";
+                        mermaidBlocks.forEach((block: any) => {
+                            block.style.display = "none";
                         });
                         toast.error("Failed to render diagram");
                     }
@@ -307,15 +279,16 @@ const GuidePage: FC<GuidePageProps> = () => {
         }
     }, [guide]);
 
-    // Process content with memoization
-    const processedContent = useMemo((): ProcessedContent | null => {
+    // Process content with memoization to avoid Hook violations and performance issues
+    const processedContent = useMemo((): string | null => {
         if (!guide) return null;
 
+        // 1. Handle HTML Content Type
         if (
             guide.content_type === "html" ||
             (guide.html_content && guide.html_content.trim())
         ) {
-            const htmlContent = (guide.html_content || "").trim();
+            const htmlContent = guide.html_content?.trim() || "";
             const isFullDocument =
                 htmlContent.toLowerCase().includes("<!doctype") ||
                 htmlContent.toLowerCase().includes("<html");
@@ -343,10 +316,12 @@ const GuidePage: FC<GuidePageProps> = () => {
             return { type: "html", content: fullHTML };
         }
 
+        // 2. Handle Markdown Content
         const markdownContent = guide.markdown || guide.content || "";
-        const html = marked.parse(markdownContent) as string;
+        const html = marked.parse(markdownContent);
         const sanitizedHtml = sanitizeContent(html);
 
+        // Apply Search Highlighting (using debounced search for performance)
         if (!debouncedSearch || !debouncedSearch.trim()) {
             return { type: "markdown", content: sanitizedHtml };
         }
@@ -357,24 +332,22 @@ const GuidePage: FC<GuidePageProps> = () => {
             const walker = document.createTreeWalker(
                 doc.body,
                 NodeFilter.SHOW_TEXT,
-                null
+                null,
+                false,
             );
-            const nodes: Node[] = [];
-            let node: Node | null;
-            while ((node = walker.nextNode())) {
-                nodes.push(node);
-            }
+            const nodes = [];
+            while (walker.nextNode()) nodes.push(walker.currentNode);
 
             const regex = new RegExp(
                 `(${debouncedSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
                 "gi",
             );
 
-            nodes.forEach((textNode) => {
-                if (textNode.nodeValue && regex.test(textNode.nodeValue)) {
+            nodes.forEach((node: any) => {
+                if (node.nodeValue && regex.test(node.nodeValue)) {
                     const fragment = document.createDocumentFragment();
-                    const parts = textNode.nodeValue.split(regex);
-                    parts.forEach((part) => {
+                    const parts = node.nodeValue.split(regex);
+                    parts.forEach((part: any) => {
                         if (regex.test(part)) {
                             const mark = document.createElement("mark");
                             mark.className =
@@ -385,9 +358,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                             fragment.appendChild(document.createTextNode(part));
                         }
                     });
-                    if (textNode.parentNode) {
-                        textNode.parentNode.replaceChild(fragment, textNode);
-                    }
+                    node.parentNode.replaceChild(fragment, node);
                 }
             });
             return { type: "markdown", content: doc.body.innerHTML };
@@ -398,11 +369,11 @@ const GuidePage: FC<GuidePageProps> = () => {
     }, [guide, debouncedSearch]);
 
     // Calculate reading time
-    const readingTime = useMemo((): number => {
+    const readingTime = useMemo(() => {
         if (!guide) return 0;
         const content = guide.markdown || guide.content || "";
         const wordCount = content.trim().split(/\s+/).length;
-        const readingTimeMinutes = Math.ceil(wordCount / 200);
+        const readingTimeMinutes = Math.ceil(wordCount / 200); // Average reading speed: 200 words/min
         return readingTimeMinutes;
     }, [guide]);
 
@@ -418,19 +389,24 @@ const GuidePage: FC<GuidePageProps> = () => {
             const parser = new DOMParser();
             const doc = parser.parseFromString(processedContent.content, "text/html");
             const headings = doc.querySelectorAll("h1, h2, h3, h4");
-            const tocItems: TableOfContentsItem[] = [];
+            const tocItems = [];
 
             headings.forEach((heading, index) => {
                 const id = `heading-${index}`;
-                heading.id = id;
+                heading.id = id; // Add ID for anchor links
+                // Note: we avoid forcing a fixed scrollMargin here to prevent
+                // double-counting offsets. Scroll compensation is handled when
+                // the TOC link is clicked by measuring fixed/sticky elements.
                 tocItems.push({
                     id,
-                    text: heading.textContent || "",
+                    text: heading.textContent,
                     level: parseInt(heading.tagName.charAt(1)),
                 });
             });
 
             setTableOfContents(tocItems);
+            // Save modified HTML that includes the heading IDs so the rendered
+            // content actually contains the anchors we link to.
             setContentWithAnchors(doc.body.innerHTML);
         } catch (e) {
             console.error("TOC extraction error:", e);
@@ -441,7 +417,7 @@ const GuidePage: FC<GuidePageProps> = () => {
     // Hydrate Interactive Quizzes
     useEffect(() => {
         const containers = document.querySelectorAll(".interactive-quiz-container");
-        containers.forEach((container) => {
+        containers.forEach((container: any) => {
             if (container.getAttribute("data-hydrated") === "true") return;
 
             const encoded = container.getAttribute("data-quiz");
@@ -451,14 +427,14 @@ const GuidePage: FC<GuidePageProps> = () => {
                 const json = decodeURIComponent(
                     atob(encoded)
                         .split("")
-                        .map(function (c: string) {
+                        .map(function (c) {
                             return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
                         })
                         .join(""),
                 );
 
                 const data = JSON.parse(json);
-                const root = createRoot(container as HTMLElement);
+                const root = createRoot(container);
                 root.render(<QuizComponent data={data} />);
                 container.setAttribute("data-hydrated", "true");
             } catch (e) {
@@ -473,9 +449,11 @@ const GuidePage: FC<GuidePageProps> = () => {
             setLoading(true);
             setError(null);
 
-            let guideData = await guidesApi.getBySlug(slug || "");
+            // Try to find by slug first
+            let guideData = await guidesApi.getBySlug(slug);
 
-            if (!guideData && slug && /^\d+$/.test(slug)) {
+            // If not found by slug, try by ID (for backward compatibility)
+            if (!guideData && /^\d+$/.test(slug)) {
                 guideData = await guidesApi.getById(parseInt(slug));
             }
 
@@ -486,40 +464,46 @@ const GuidePage: FC<GuidePageProps> = () => {
 
             setGuide(guideData);
 
+            // Fetch inline comments for text highlighting
             if (guideData.id) {
                 try {
-                    const { data: commentsData, error: commentsError } = await supabase
-                        .from("guide_inline_comments")
-                        .select("*")
-                        .eq("guide_id", guideData.id);
+                    const { data: commentsData } = await supabase
+                        .from('guide_inline_comments')
+                        .select('*')
+                        .eq('guide_id', guideData.id);
 
-                    if (!commentsError && commentsData) {
-                        setInlineComments(commentsData as InlineComment[]);
-                        console.log("[GuidePage] Loaded inline comments:", commentsData.length);
+                    if (commentsData) {
+                        setInlineComments(commentsData);
+                        console.log('[GuidePage] Loaded inline comments:', commentsData.length);
                     }
                 } catch (e) {
-                    console.debug("[GuidePage] Inline comments fetch error:", e);
+                    console.debug('[GuidePage] Inline comments fetch error:', e);
                 }
             }
 
+            // Fetch author avatar
             if (guideData.user_email) {
                 try {
-                    const { data: profileData } = await supabase
+                    const { data: profileData, error: profileError } = await supabase
                         .from("zetsuguide_user_profiles")
                         .select("avatar_url")
                         .eq("user_email", guideData.user_email);
 
+                    if (profileError) {
+                        console.debug("[GuidePage] Profile fetch error:", profileError.message);
+                    }
+
                     const avatarUrl = getAvatarForUser(
                         guideData.user_email,
-                        profileData?.[0]?.avatar_url || undefined,
+                        profileData?.[0]?.avatar_url,
                     );
                     setAuthorAvatar(avatarUrl);
                 } catch (err) {
-                    console.debug("Error fetching author avatar:", err);
-                    setAuthorAvatar(getAvatarForUser(guideData.user_email, undefined));
+                    console.debug("Error fetching author avatar:", err.message);
+                    setAuthorAvatar(getAvatarForUser(guideData.user_email, null));
                 }
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error("Error loading guide:", err);
             setError("Failed to load guide");
         } finally {
@@ -527,14 +511,13 @@ const GuidePage: FC<GuidePageProps> = () => {
         }
     }, [slug]);
 
+    // Call loadGuide when slug changes
     useEffect(() => {
         loadGuide();
     }, [loadGuide]);
 
-    const fetchViewsCount = async () => {
+    async function fetchViewsCount() {
         try {
-            if (!guide?.id) return;
-
             const { data, error } = await supabase
                 .from("guides")
                 .select("views_count")
@@ -544,19 +527,21 @@ const GuidePage: FC<GuidePageProps> = () => {
             if (error) throw error;
             setViewsCount(data?.views_count || 0);
         } catch (err) {
+            // If views_count column doesn't exist yet, default to 0
             console.log("Views count not available yet");
             setViewsCount(0);
         }
-    };
+    }
 
-    const toggleDarkMode = () => {
+    function toggleDarkMode() {
         toggleTheme();
-    };
+    }
 
-    const recordView = async () => {
+    async function recordView() {
         if (hasRecordedView || !guide?.id) return;
 
         try {
+            // 🔒 SECURITY: Prevent author from viewing their own guide
             if (user?.id && guide.author_id && user.id === guide.author_id) {
                 console.log(
                     "🔒 Security: Author cannot record views on their own guide",
@@ -565,10 +550,11 @@ const GuidePage: FC<GuidePageProps> = () => {
                 return;
             }
 
+            // 🔒 SECURITY: Check if user already viewed this guide today
             const viewKey = `guide_view_${guide.id}_${user?.id || "anon"}`;
             const lastViewTime = localStorage.getItem(viewKey);
             const now = Date.now();
-            const ONE_DAY = 24 * 60 * 60 * 1000;
+            const ONE_DAY = 24 * 60 * 60 * 1000; // 24 hours
 
             if (lastViewTime) {
                 const timeSinceLastView = now - parseInt(lastViewTime);
@@ -586,6 +572,7 @@ const GuidePage: FC<GuidePageProps> = () => {
 
             setHasRecordedView(true);
 
+            // Generate session ID for anonymous users
             let sessionId = localStorage.getItem("guide_session_id");
             if (!sessionId) {
                 sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -599,6 +586,7 @@ const GuidePage: FC<GuidePageProps> = () => {
             });
 
             if (error) {
+                // If duplicate or table doesn't exist, that's fine
                 if (
                     !error.message?.includes("unique") &&
                     !error.message?.includes("does not exist") &&
@@ -612,28 +600,30 @@ const GuidePage: FC<GuidePageProps> = () => {
                     console.log("✅ View already recorded (database protection active)");
                 }
             } else {
+                // ✅ Success: Save timestamp and refresh count
                 localStorage.setItem(viewKey, now.toString());
                 setViewsCount((prev) => prev + 1);
                 console.log("✅ View recorded successfully!");
             }
-        } catch (err: any) {
+        } catch (err) {
+            // Silently fail if views tracking is not set up yet
             console.log(
                 "Error recording view (views tracking may not be enabled yet):",
                 err.message,
             );
-            setHasRecordedView(false);
+            setHasRecordedView(false); // Allow retry
         }
-    };
+    }
 
-    const handleDeleteClick = () => {
+    function handleDeleteClick() {
         console.log("[GuidePage] Delete button clicked", {
             guide: guide?.id,
             user: user?.email,
         });
 
-        if (!guide?.user_email) {
+        if (!guide.user_email) {
             console.error("[GuidePage] Cannot delete: Guide has no owner", {
-                guideId: guide?.id,
+                guideId: guide.id,
             });
             alert("Cannot delete legacy guides or guides without owner.");
             return;
@@ -650,40 +640,44 @@ const GuidePage: FC<GuidePageProps> = () => {
 
         console.log("[GuidePage] Opening delete confirmation modal");
         setShowDeleteConfirm(true);
-    };
+    }
 
-    const handleDeleteConfirm = async () => {
+    async function handleDeleteConfirm() {
         console.log("[GuidePage] User confirmed deletion, proceeding...");
 
         setDeleting(true);
         console.log("[GuidePage] Starting deletion process...");
 
         try {
-            await guidesApi.delete(guide?.id || 0);
+            await guidesApi.delete(guide.id);
             console.log("[GuidePage] Guide deleted successfully!");
 
+            // Show success toast
             toast.success("Guide deleted successfully!", {
                 description: "The guide has been permanently removed.",
                 duration: 3000,
             });
 
+            // Close modal and navigate
             setShowDeleteConfirm(false);
 
+            // Small delay to let user see the success message
             setTimeout(() => {
                 console.log("[GuidePage] Navigating to /guides");
                 navigate("/guides");
             }, 500);
-        } catch (err: any) {
+        } catch (err) {
             console.error("[GuidePage] Deletion failed:", {
                 error: err,
                 message: err.message,
                 code: err.code,
                 details: err.details,
                 hint: err.hint,
-                guideId: guide?.id,
+                guideId: guide.id,
                 userEmail: user?.email,
             });
 
+            // Provide specific error messages
             let errorTitle = "Failed to delete guide";
             let errorMessage = "";
 
@@ -700,25 +694,73 @@ const GuidePage: FC<GuidePageProps> = () => {
                 errorMessage = err.message || "Unknown error occurred.";
             }
 
+            // Show error toast
             toast.error(errorTitle, {
                 description: errorMessage,
                 duration: 5000,
             });
 
+            // Close modal on error too
             setShowDeleteConfirm(false);
         } finally {
             setDeleting(false);
             console.log("[GuidePage] Deletion process completed");
         }
-    };
+    }
 
-    const handleCopyLink = () => {
+    function handleCopyLink() {
         navigator.clipboard.writeText(window.location.href);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-    };
+    }
 
-    const renderContentWithComments = (): ReactNode => {
+    // Parse HTML and inject inline comments
+    function parseContentWithInlineComments(htmlContent, inlineComments, profilesData) {
+        if (!htmlContent || !inlineComments?.length) {
+            return (
+                <div
+                    className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800"
+                    dangerouslySetInnerHTML={{ __html: htmlContent }}
+                />
+            );
+        }
+
+        let processedHtml = htmlContent;
+
+        inlineComments.forEach((comment: any) => {
+            const selectedText = comment.selected_text;
+            if (!selectedText) return;
+
+            const escapedText = selectedText
+                .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+                .replace(/\n/g, "\\n");
+
+            const regex = new RegExp(`(${escapedText})`, "gi");
+
+            const profile = profilesData?.[comment.user_id];
+            const authorName = profile?.display_name || profile?.username || "User";
+            const avatarUrl = profile?.avatar_url || getAvatarForUser(null);
+
+            const commentHtml = `
+        <span class="relative bg-yellow-100/60 rounded px-1 group cursor-pointer" data-comment-id="${comment.id}">
+          $1
+        </span>
+      `;
+
+            processedHtml = processedHtml.replace(regex, commentHtml);
+        });
+
+        return (
+            <div
+                ref={contentRef}
+                className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800"
+                dangerouslySetInnerHTML={{ __html: processedHtml }}
+            />
+        );
+    }
+
+    // Pure CSS approach: Find and wrap text with inline comments
+    function renderContentWithComments() {
         if (!processedContent) return null;
 
         if (processedContent.type === "html") {
@@ -727,7 +769,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                     srcDoc={processedContent.content}
                     className="w-full min-h-[700px] border-2 border-black bg-white"
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
-                    title={guide?.title}
+                    title={guide.title}
                     style={{ display: "block" }}
                 />
             );
@@ -735,30 +777,21 @@ const GuidePage: FC<GuidePageProps> = () => {
 
         let html = contentWithAnchors || processedContent.content;
 
-        inlineComments.forEach((comment) => {
+        // Inject inline comments using Pure CSS - wrap matching text in span with FigmaComment
+        inlineComments.forEach(comment => {
             if (!comment.selected_text) return;
-            const escaped = comment.selected_text.replace(
-                /[.*+?^${}()|[\]\\]/g,
-                "\\$&",
-            );
-            const regex = new RegExp(`(${escaped})`, "gi");
+            const escaped = comment.selected_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(${escaped})`, 'gi');
 
             let isApproved = false;
             try {
                 if (comment.position_json) {
-                    const pos =
-                        typeof comment.position_json === "string"
-                            ? JSON.parse(comment.position_json)
-                            : comment.position_json;
+                    const pos = typeof comment.position_json === 'string' ? JSON.parse(comment.position_json) : comment.position_json;
                     isApproved = !!pos.approved;
                 }
-            } catch (e) {
-                // ignore
-            }
+            } catch (e) { }
 
-            const bgClass = isApproved
-                ? "bg-blue-200/60 hover:bg-blue-300/80"
-                : "bg-yellow-200/60 hover:bg-yellow-300/80";
+            const bgClass = isApproved ? 'bg-blue-200/60 hover:bg-blue-300/80' : 'bg-yellow-200/60 hover:bg-yellow-300/80';
 
             const commentHtml = `<span id="comment-ghost-${comment.id}" class="relative ${bgClass} rounded px-0.5 cursor-pointer transition-colors inline" data-comment-id="${comment.id}">$1</span>`;
             html = html.replace(regex, commentHtml);
@@ -771,9 +804,10 @@ const GuidePage: FC<GuidePageProps> = () => {
                 dangerouslySetInnerHTML={{ __html: html }}
             />
         );
-    };
+    }
 
-    const renderContent = (): ReactNode => {
+    // Legacy render - without injection (works)
+    function renderContent() {
         if (!processedContent) return null;
 
         if (processedContent.type === "html") {
@@ -782,7 +816,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                     srcDoc={processedContent.content}
                     className="w-full min-h-[700px] border-2 border-black bg-white"
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
-                    title={guide?.title}
+                    title={guide.title}
                     style={{ display: "block" }}
                 />
             );
@@ -792,21 +826,21 @@ const GuidePage: FC<GuidePageProps> = () => {
             <div
                 ref={contentRef}
                 className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800"
-                dangerouslySetInnerHTML={{
-                    __html: contentWithAnchors || processedContent.content,
-                }}
+                dangerouslySetInnerHTML={{ __html: contentWithAnchors || processedContent.content }}
             />
         );
-    };
-
+    }
+    // Check if admin is authenticated via sessionStorage
     const isAdmin = sessionStorage.getItem("adminAuthenticated") === "true";
 
+    // Robust check for ownership (case-insensitive)
     const isOwner =
         user?.email &&
         guide?.user_email &&
         (guide.user_email === user.email ||
             guide.user_email.toLowerCase() === user.email.toLowerCase());
 
+    // Debug permissions
     useEffect(() => {
         if (guide) {
             console.log("[GuidePage] Permissions Check:", {
@@ -819,6 +853,7 @@ const GuidePage: FC<GuidePageProps> = () => {
         }
     }, [guide, user, isOwner, isAdmin]);
 
+    // Loading State
     if (loading) {
         return (
             <div className="max-w-4xl mx-auto px-4 py-20">
@@ -830,6 +865,7 @@ const GuidePage: FC<GuidePageProps> = () => {
         );
     }
 
+    // Error State
     if (error || !guide) {
         return (
             <div className="max-w-4xl mx-auto px-4 py-20">
@@ -857,6 +893,7 @@ const GuidePage: FC<GuidePageProps> = () => {
 
     return (
         <>
+            {/* Dynamic SEO Meta Tags */}
             {guide && (
                 <SEOHelmet
                     title={guide.title}
@@ -866,17 +903,15 @@ const GuidePage: FC<GuidePageProps> = () => {
                             : "A comprehensive developer guide"
                     }
                     author={guide.author_name || guide.user_email?.split("@")[0]}
-                    keywords={
-                        guide.keywords && Array.isArray(guide.keywords)
-                            ? guide.keywords.join(", ")
-                            : ""
-                    }
+                    keywords={guide.keywords ? guide.keywords.join(", ") : ""}
                     type="article"
                 />
             )}
 
             <div className="pointer-events-none fixed left-0 top-0 z-[100] w-full">
+                {/* Backdrop Blur Effect */}
                 <div className="absolute left-0 top-0 h-24 w-full bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl [-webkit-mask-image:linear-gradient(to_bottom,black,transparent)]" />
+                {/* Focus Mode Overlay */}
                 {isFocusMode && (
                     <div className="fixed inset-0 z-[200] bg-white dark:bg-gray-900 pointer-events-auto overflow-y-auto animate-in fade-in duration-300">
                         <div className="max-w-3xl mx-auto px-6 py-12">
@@ -900,16 +935,17 @@ const GuidePage: FC<GuidePageProps> = () => {
                     </div>
                 )}
 
+                {/* Progress Track */}
                 <div className="absolute left-0 top-0 w-full">
                     <div className="absolute left-0 top-0 h-1 w-full bg-gray-200/30 dark:bg-gray-700/30" />
                     <ScrollProgress
                         className="absolute top-0 h-1 bg-[linear-gradient(to_right,rgba(0,0,0,0),#000000_75%,#000000_100%)] dark:bg-[linear-gradient(to_right,rgba(255,255,255,0),#ffffff_75%,#ffffff_100%)]"
-                        springOptions={{ stiffness: 280, damping: 18 }}
+                        springOptions={{ stiffness: 280, damping: 18, mass: 0.3 }}
                     />
                 </div>
             </div>
-
             <article className="max-w-4xl mx-auto px-4 py-8 relative z-10 bg-white dark:bg-gray-900 text-black dark:text-white">
+                {/* Top Bar: Back Link & Timer */}
                 <div className="flex items-center justify-between mb-4">
                     <Link
                         to="/guides"
@@ -919,11 +955,11 @@ const GuidePage: FC<GuidePageProps> = () => {
                         Back to Guides
                     </Link>
 
-                    {user && guide && (
-                        <GuideTimer guideId={guide.id} userId={user.id} />
-                    )}
+                    {/* Real-time Usage Timer */}
+                    {user && guide && <GuideTimer guideId={guide.id} userId={user.id} />}
                 </div>
 
+                {/* Breadcrumbs Navigation */}
                 <Breadcrumbs
                     dividerType="chevron"
                     items={[
@@ -933,7 +969,9 @@ const GuidePage: FC<GuidePageProps> = () => {
                     ]}
                 />
 
+                {/* Header */}
                 <header className="mb-8 pb-8 border-b-2 border-black">
+                    {/* Sign Up Banner for Guest Users */}
                     {!user && (
                         <div className="mb-8 p-6 bg-black text-white border-2 border-gray-800 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] relative overflow-hidden group">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full translate-x-16 -translate-y-16 group-hover:scale-110 transition-transform duration-500" />
@@ -959,7 +997,11 @@ const GuidePage: FC<GuidePageProps> = () => {
                         </div>
                     )}
 
-                    <h1 className="text-4xl sm:text-5xl font-black mb-4 leading-tight relative overflow-hidden select-text z-[1] text-black dark:text-white">
+                    <h1
+                        className="text-4xl sm:text-5xl font-black mb-4 leading-tight relative overflow-hidden select-text z-[1] text-black dark:text-white"
+                        style={{ position: "relative" }}
+                    >
+                        {/* Decorative container: gradient border + solid blue background + padding to fully contain the title */}
                         <span className="inline-block mb-4 leading-tight select-text z-[1] w-full">
                             <span className="inline-block p-[2px] rounded-2xl bg-gradient-to-r from-blue-300/40 via-indigo-200/30 to-pink-100/20 shadow-sm">
                                 <span className="inline-block max-w-full px-5 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/60 border border-black/5 overflow-hidden">
@@ -985,6 +1027,7 @@ const GuidePage: FC<GuidePageProps> = () => {
               0% { background-position: 200% 0; }
               100% { background-position: -200% 0; }
             }
+            /* Temporary highlight applied when navigating from TOC */
             .toc-highlight {
               background-color: rgba(250,204,21,0.45);
               transition: background-color 0.25s ease, box-shadow 0.25s ease;
@@ -992,10 +1035,11 @@ const GuidePage: FC<GuidePageProps> = () => {
             }
           `}</style>
 
+                    {/* Meta */}
                     <div className="flex flex-wrap items-center gap-4 text-gray-500 dark:text-gray-400 mb-6">
                         <span className="flex items-center gap-2">
                             <Calendar size={16} />
-                            {guide.created_at && new Date(guide.created_at).toLocaleDateString("en-US", {
+                            {new Date(guide.created_at).toLocaleDateString("en-US", {
                                 year: "numeric",
                                 month: "long",
                                 day: "numeric",
@@ -1022,6 +1066,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                         )}
                     </div>
 
+                    {/* Author Card */}
                     {guide.user_email && (
                         <div className="mb-8 p-4 border-2 border-black bg-gradient-to-r from-purple-50 to-pink-50 dark:bg-gradient-to-r from-purple-900/30 to-pink-900/30 dark:border-gray-700">
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1029,12 +1074,13 @@ const GuidePage: FC<GuidePageProps> = () => {
                                     {authorAvatar ? (
                                         <img
                                             src={authorAvatar}
-                                            alt={guide.author_name || "Author"}
+                                            alt={guide.author_name}
                                             className="w-12 h-12 rounded-full object-cover flex-shrink-0"
                                         />
                                     ) : (
                                         <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                                            {(guide.author_name || guide.user_email)?.[0]?.toUpperCase()}
+                                            {(guide.author_name ||
+                                                guide.user_email)?.[0]?.toUpperCase()}
                                         </div>
                                     )}
                                     <div>
@@ -1053,6 +1099,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                                     </div>
                                 </div>
 
+                                {/* Follow Button and Profile Link */}
                                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                                     <FollowButton
                                         targetUserEmail={guide.user_email}
@@ -1071,9 +1118,10 @@ const GuidePage: FC<GuidePageProps> = () => {
                         </div>
                     )}
 
-                    {guide.keywords && (Array.isArray(guide.keywords) ? guide.keywords : []).length > 0 && (
+                    {/* Keywords */}
+                    {guide.keywords && guide.keywords.length > 0 && (
                         <div className="flex flex-wrap gap-2 mb-6">
-                            {(Array.isArray(guide.keywords) ? guide.keywords : []).map((kw: string, i: number) => (
+                            {guide.keywords.map((kw, i) => (
                                 <span
                                     key={i}
                                     className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -1085,6 +1133,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                         </div>
                     )}
 
+                    {/* Table of Contents Button */}
                     {tableOfContents.length > 0 && (
                         <div className="mb-6">
                             <button
@@ -1101,6 +1150,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                                 />
                             </button>
 
+                            {/* Table of Contents Dropdown */}
                             {showTOC && (
                                 <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg animate-in fade-in slide-in-from-top-2 duration-200">
                                     <nav aria-label="Table of contents">
@@ -1112,17 +1162,24 @@ const GuidePage: FC<GuidePageProps> = () => {
                                                 >
                                                     <a
                                                         href={`#${item.id}`}
-                                                        onClick={(e) => {
+                                                        onClick={(e: any) => {
                                                             e.preventDefault();
                                                             const element = document.getElementById(item.id);
                                                             if (element) {
                                                                 try {
+                                                                    // Dynamically compute top offset from any fixed/sticky
+                                                                    // elements that sit at the top of the viewport so the
+                                                                    // target heading isn't hidden under them.
                                                                     const getTopOffset = () => {
                                                                         try {
+                                                                            // Find visible fixed/sticky elements that overlap the
+                                                                            // top of the viewport and sum their heights. This
+                                                                            // avoids picking unrelated fixed elements further
+                                                                            // down the page.
                                                                             const els = Array.from(
                                                                                 document.querySelectorAll("body *"),
                                                                             );
-                                                                            const candidates = els.filter((el) => {
+                                                                            const candidates = els.filter((el: any) => {
                                                                                 const style =
                                                                                     window.getComputedStyle(el);
                                                                                 if (
@@ -1133,6 +1190,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                                                                                 )
                                                                                     return false;
                                                                                 const rect = el.getBoundingClientRect();
+                                                                                // element must intersect the top region
                                                                                 return (
                                                                                     rect.height > 0 &&
                                                                                     rect.width > 0 &&
@@ -1147,13 +1205,14 @@ const GuidePage: FC<GuidePageProps> = () => {
                                                                                         0),
                                                                                 0,
                                                                             );
+                                                                            // Cap to avoid extreme values (e.g., modals)
                                                                             const capped = Math.min(
                                                                                 Math.ceil(total) + 8,
                                                                                 200,
                                                                             );
                                                                             return capped;
                                                                         } catch (e) {
-                                                                            return 72;
+                                                                            return 72; // safer fallback
                                                                         }
                                                                     };
 
@@ -1168,6 +1227,9 @@ const GuidePage: FC<GuidePageProps> = () => {
                                                                         behavior: "smooth",
                                                                     });
 
+                                                                    // After the smooth scroll finishes (or shortly after),
+                                                                    // re-check offsets in case sticky/fixed elements appeared
+                                                                    // or the layout shifted, and fine-tune the scroll once.
                                                                     setTimeout(() => {
                                                                         try {
                                                                             const newOffset = getTopOffset();
@@ -1175,7 +1237,9 @@ const GuidePage: FC<GuidePageProps> = () => {
                                                                                 element.getBoundingClientRect();
                                                                             const newTargetY = Math.max(
                                                                                 0,
-                                                                                newRect.top + window.scrollY - newOffset,
+                                                                                newRect.top +
+                                                                                window.scrollY -
+                                                                                newOffset,
                                                                             );
                                                                             const diff = Math.abs(
                                                                                 window.scrollY - newTargetY,
@@ -1191,6 +1255,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                                                                         }
                                                                     }, 350);
 
+                                                                    // Add temporary highlight for 3 seconds (start now)
                                                                     element.classList.add("toc-highlight");
                                                                     setTimeout(() => {
                                                                         element.classList.remove("toc-highlight");
@@ -1221,7 +1286,9 @@ const GuidePage: FC<GuidePageProps> = () => {
                         </div>
                     )}
 
+                    {/* Actions */}
                     <div className="flex flex-wrap gap-2">
+                        {/* Save/Download Button - Available to all users */}
                         <button
                             onClick={() => setShowDownloadModal(true)}
                             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black hover:from-purple-600 hover:to-pink-600 transition-all text-sm font-medium shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
@@ -1247,6 +1314,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                             )}
                         </button>
 
+                        {/* More Menu */}
                         <div className="relative" ref={moreMenuRef}>
                             <button
                                 onClick={() => setShowMoreMenu(!showMoreMenu)}
@@ -1256,8 +1324,10 @@ const GuidePage: FC<GuidePageProps> = () => {
                                 More
                             </button>
 
+                            {/* Dropdown Menu */}
                             {showMoreMenu && (
                                 <div className="absolute right-0 mt-2 w-56 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-50 rounded-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                    {/* Guest Actions */}
                                     {!user && (
                                         <div className="p-2 bg-gray-50 border-b border-gray-200">
                                             <p className="text-xs font-bold text-gray-500 px-2 mb-2 uppercase tracking-wide">
@@ -1280,6 +1350,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                                         </div>
                                     )}
 
+                                    {/* Text-to-Speech Button */}
                                     {guide.content && (
                                         <button
                                             onClick={() => {
@@ -1312,6 +1383,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                                         </button>
                                     )}
 
+                                    {/* Dark Mode Toggle - NEW FEATURE */}
                                     <button
                                         onClick={() => {
                                             toggleDarkMode();
@@ -1323,6 +1395,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                                         {isDarkMode ? "Light Mode" : "Dark Mode"}
                                     </button>
 
+                                    {/* Focus Mode Button - NEW FEATURE */}
                                     <button
                                         onClick={() => {
                                             setIsFocusMode(true);
@@ -1334,6 +1407,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                                         Enter Focus Mode
                                     </button>
 
+                                    {/* AI Tools Section */}
                                     <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
                                         <button
                                             onClick={() => setAiToolsExpanded(!aiToolsExpanded)}
@@ -1403,6 +1477,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                                         )}
                                     </div>
 
+                                    {/* Owner/Admin Actions */}
                                     {(isOwner || isAdmin) && (
                                         <>
                                             <button
@@ -1439,6 +1514,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                     </div>
                 </header>
 
+                {/* Match Search Bar */}
                 <div className="max-w-md mb-8 mx-auto sm:mx-0">
                     <div className="flex w-full shadow-sm hover:shadow-md transition-shadow rounded-lg overflow-hidden border border-gray-300 hover:border-black group">
                         <div className="flex-1 bg-white dark:bg-gray-800 flex items-center px-4 group-focus-within:ring-2 group-focus-within:ring-black dark:group-focus-within:ring-white group-focus-within:ring-inset">
@@ -1447,7 +1523,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                                 className="w-full py-3 outline-none text-gray-800 dark:text-gray-200 placeholder:text-gray-400 bg-transparent text-sm font-medium"
                                 placeholder="Search related text in guide..."
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={(e: any) => setSearchQuery(e.target.value)}
                                 aria-label="Search in guide"
                             />
                             {searchQuery && (
@@ -1456,7 +1532,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                                     className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                                     aria-label="Clear search"
                                 >
-                                    X
+                                    <X size={16} className="text-gray-400" />
                                 </button>
                             )}
                         </div>
@@ -1472,28 +1548,28 @@ const GuidePage: FC<GuidePageProps> = () => {
                     )}
                 </div>
 
+                {/* Content with Pure CSS inline comments (Gutter) */}
                 <div ref={contentRef} className="guide-content relative pl-16 md:pl-20 overflow-visible">
-                    {inlineComments.length > 0
-                        ? renderContentWithComments()
-                        : renderContent()}
+                    {inlineComments.length > 0 ? renderContentWithComments() : renderContent()}
                 </div>
 
+                {/* Inline Comments on Text */}
                 <GuideInlineComments
                     guideId={guide.id}
-                    isGuideOwner={isOwner || false}
+                    contentRef={contentRef}
+                    isGuideOwner={isOwner}
                     onCommentsUpdated={loadGuide}
-                    commentCount={inlineComments.length}
-                    onCommentCountChange={() => { }}
                 />
 
-                <GuideComments guideId={String(guide.id)} onCommentPosted={recordComment} />
+                {/* Comments Section */}
+                <GuideComments guideId={guide.id} onCommentPosted={recordComment} />
 
-                {slug && (
-                    <div className="mt-16 mb-12">
-                        <GuideRecommendations currentGuideSlug={slug} limit={3} />
-                    </div>
-                )}
+                {/* Recommendations Section */}
+                <div className="mt-16 mb-12">
+                    <GuideRecommendations currentGuideSlug={slug} limit={3} />
+                </div>
 
+                {/* Bottom Navigation */}
                 <div className="mt-12 pt-8 border-t-2 border-black">
                     <Link
                         to="/guides"
@@ -1504,6 +1580,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                     </Link>
                 </div>
 
+                {/* Delete Confirmation Modal */}
                 <ConfirmModal
                     isOpen={showDeleteConfirm}
                     onClose={() => {
@@ -1517,6 +1594,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                     cancelText="Cancel"
                 />
 
+                {/* History Modal */}
                 {showHistory && (
                     <GuideHistoryModal
                         guideId={guide.id}
@@ -1524,6 +1602,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                     />
                 )}
 
+                {/* Download Modal */}
                 {showDownloadModal && (
                     <DownloadGuideModal
                         guide={guide}
@@ -1536,15 +1615,17 @@ const GuidePage: FC<GuidePageProps> = () => {
                     />
                 )}
 
+                {/* Text-to-Speech Component (Permanently Mounted) */}
                 {guide && guide.content && (
                     <TextToSpeech
                         ref={ttsRef}
+                        content={guide.content}
                         title={guide.title}
                         hideButton={true}
                         onClose={() => setIsPlayingTTS(false)}
                     />
                 )}
-
+                {/* Guide Rating System */}
                 {guide && (
                     <GuideRating
                         guideId={guide.id}
@@ -1553,6 +1634,7 @@ const GuidePage: FC<GuidePageProps> = () => {
                     />
                 )}
 
+                {/* AI Tools Modals */}
                 {guide && (
                     <>
                         <GuideAIChat
@@ -1574,15 +1656,15 @@ const GuidePage: FC<GuidePageProps> = () => {
                 )}
             </article>
 
+            {/* Scroll to Top Button */}
             <ScrollToTopButton />
         </>
     );
-};
+}
 
-GuidePage.displayName = "GuidePage";
-
+// Scroll to Top Button Component
 function ScrollToTopButton() {
-    const [isVisible, setIsVisible] = useState<boolean>(false);
+    const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
         const toggleVisibility = () => {
@@ -1616,5 +1698,3 @@ function ScrollToTopButton() {
         </button>
     );
 }
-
-export default GuidePage;

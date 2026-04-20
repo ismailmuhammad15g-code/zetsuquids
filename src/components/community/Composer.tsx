@@ -1,4 +1,4 @@
-﻿// Type definitions for Composer
+// Type definitions for Composer
 
 interface ComposerProps {
   // Add prop types here
@@ -110,7 +110,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
         },
       });
       if (onPostCreated) onPostCreated();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(error);
       toast.error("Failed to send post");
     } finally {
@@ -136,7 +136,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
         textareaRef.current.focus();
       }
       toast.success("Image uploaded!");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(error);
       toast.error("Image upload failed");
     } finally {
@@ -210,7 +210,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
           <textarea
             ref={textareaRef}
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e: any) => setContent(e.target.value)}
             placeholder={placeholder}
             className="w-full resize-none border-none bg-transparent text-[20px] text-[#e7e9ea] placeholder-[#71767b] focus:ring-0 focus:outline-none min-h-[56px] scrollbar-none py-3"
             rows={isModal ? 3 : 1}
@@ -240,7 +240,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
                     <input
                       type="text"
                       value={option}
-                      onChange={(e) => updatePollOption(idx, e.target.value)}
+                      onChange={(e: any) => updatePollOption(idx, e.target.value)}
                       placeholder={`Choice ${idx + 1}`}
                       maxLength={25}
                       className="w-full bg-transparent border border-[#2f3336] rounded-md px-3 py-2 text-[#e7e9ea] focus:border-[#1d9bf0] focus:ring-1 focus:ring-[#1d9bf0] transition-all outline-none"
@@ -276,7 +276,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
                 <span className="text-sm">Poll length</span>
                 <select 
                   value={pollDuration}
-                  onChange={(e) => setPollDuration(Number(e.target.value))}
+                  onChange={(e: any) => setPollDuration(Number(e.target.value))}
                   className="bg-black text-[#e7e9ea] border-none focus:ring-0 text-sm font-bold cursor-pointer"
                 >
                   <option value={1}>1 day</option>

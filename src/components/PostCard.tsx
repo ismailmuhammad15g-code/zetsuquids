@@ -1,4 +1,4 @@
-ï»¿// Type definitions for PostCard
+// Type definitions for PostCard
 
 interface PostCardProps {
   // Add prop types here
@@ -59,7 +59,7 @@ export default function PostCard({ post, onDeleted }) {
         try {
           const hasLiked = await communityApi.hasUserLiked(post.id, user.id);
           if (mounted) setLiked(hasLiked);
-        } catch (error) {
+        } catch (error: unknown) {
           console.error("Error checking like status:", error);
         }
       }
@@ -148,7 +148,7 @@ export default function PostCard({ post, onDeleted }) {
 
     try {
       await communityApi.toggleLike(post.id, user.id);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Like failed", error);
       setLiked(!isLiking);
       setLikes((prev) => (!isLiking ? prev + 1 : prev - 1));
@@ -315,7 +315,7 @@ export default function PostCard({ post, onDeleted }) {
                           <span
                             key={`${i}-${j}`}
                             className="text-[#1d9bf0] hover:underline cursor-pointer"
-                            onClick={(e) => {
+                            onClick={(e: React.MouseEvent<HTMLElement>) => {
                               e.stopPropagation();
                               navigate(`/community/explore?q=${encodeURIComponent(part)}`);
                             }}
@@ -356,7 +356,7 @@ export default function PostCard({ post, onDeleted }) {
 
     return (
       <div className="mt-3 space-y-2 select-none" onClick={stopProp}>
-        {localPollData.community_poll_options.map((option) => {
+        {localPollData.community_poll_options.map((option: any) => {
           const percentage = totalVotes > 0 ? Math.round((option.votes_count / totalVotes) * 100) : 0;
           const isUserVote = votedOptionId === option.id;
 
@@ -379,7 +379,7 @@ export default function PostCard({ post, onDeleted }) {
                 </div>
               ) : (
                 <button
-                  onClick={(e) => handleVote(e, option.id)}
+                  onClick={(e: React.MouseEvent<HTMLElement>) => handleVote(e, option.id)}
                   disabled={voting}
                   className="w-full h-9 flex items-center justify-center rounded-full border border-[#1d9bf0] text-[#1d9bf0] font-bold text-[14px] hover:bg-[#1d9bf0]/10 transition-colors disabled:opacity-50"
                 >
@@ -391,7 +391,7 @@ export default function PostCard({ post, onDeleted }) {
         })}
         <div className="flex gap-2 text-[14px] text-[#71767b] pt-1">
           <span>{totalVotes.toLocaleString()} votes</span>
-          <span>Â·</span>
+          <span>·</span>
           <span>
             {isExpired ? "Final results" : `${formatDistanceToNow(new Date(localPollData.ends_at))} left`}
           </span>
@@ -440,7 +440,7 @@ export default function PostCard({ post, onDeleted }) {
                 />
               )}
               <span className="text-[#71767b] truncate">{authorHandle}</span>
-              <span className="text-[#71767b]">Â·</span>
+              <span className="text-[#71767b]">·</span>
               <span className="text-[#71767b] hover:underline whitespace-nowrap text-[15px]">
                 {formatTimeAgo(post.created_at)}
               </span>
@@ -450,17 +450,17 @@ export default function PostCard({ post, onDeleted }) {
             {isOwner && (
               <div className="relative flex-shrink-0" ref={menuRef}>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setShowMenu(v => !v); }}
+                  onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); setShowMenu(v => !v); }}
                   className="p-1.5 rounded-full hover:bg-[#1d9bf0]/10 hover:text-[#1d9bf0] text-[#71767b] transition-colors"
                 >
                   <MoreHorizontal size={18} />
                 </button>
                 {showMenu && (
                   <>
-                    <div className="fixed inset-0 z-30" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }} />
+                    <div className="fixed inset-0 z-30" onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); setShowMenu(false); }} />
                     <div className="absolute right-0 top-full mt-1 bg-black border border-[#2f3336] rounded-2xl shadow-[0_8px_28px_rgba(255,255,255,0.15)] overflow-hidden z-40 min-w-[200px] py-2">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }}
+                        onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }}
                         className="w-full flex items-center gap-3 px-4 py-3 text-[15px] font-bold text-[#f4212e] hover:bg-[#f4212e]/10 transition-colors"
                       >
                         <Trash2 size={18} />
@@ -473,7 +473,7 @@ export default function PostCard({ post, onDeleted }) {
             )}
           </div>
 
-          {/* Post Body â€” no separate title, just content */}
+          {/* Post Body — no separate title, just content */}
           <div className="text-[#e7e9ea] text-[15px] leading-[20px] mt-0.5 whitespace-pre-wrap break-words">
             {renderContent()}
           </div>
@@ -486,7 +486,7 @@ export default function PostCard({ post, onDeleted }) {
             {/* Reply */}
             <button
               className="group flex items-center gap-1 transition-colors hover:text-[#1d9bf0]"
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent<HTMLElement>) => {
                 e.stopPropagation();
                 navigate(`/community/post/${post.id}`);
               }}
@@ -525,7 +525,7 @@ export default function PostCard({ post, onDeleted }) {
             {/* Views */}
             <button
               className="group flex items-center gap-1 transition-colors hover:text-[#1d9bf0]"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}
             >
               <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 transition-all duration-200">
                 <BarChart3 size={18.75} strokeWidth={2} />
@@ -553,7 +553,7 @@ export default function PostCard({ post, onDeleted }) {
               </button>
               <button
                 className="group transition-colors hover:text-[#1d9bf0] p-2 rounded-full group-hover:bg-[#1d9bf0]/10"
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLElement>) => {
                   stopProp(e);
                   navigator.clipboard.writeText(
                     window.location.origin + `/community/post/${post.id}`,
@@ -578,7 +578,7 @@ export default function PostCard({ post, onDeleted }) {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)} />
           <div className="relative bg-black border border-[#2f3336] rounded-2xl p-8 max-w-[320px] w-full shadow-[0_0_30px_rgba(255,255,255,0.1)] text-center">
             <h2 className="text-[20px] font-extrabold text-[#e7e9ea] mb-2">Delete post?</h2>

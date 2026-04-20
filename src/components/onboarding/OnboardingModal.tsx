@@ -1,4 +1,4 @@
-﻿// Type definitions for OnboardingModal
+// Type definitions for OnboardingModal
 
 interface OnboardingModalProps {
   // Add prop types here
@@ -135,7 +135,7 @@ export const OnboardingModal = () => {
       if (!profile?.has_seen_onboarding) {
         setIsOpen(true);
       }
-    } catch (e) {
+    } catch (e: unknown) {
       console.error(e);
     } finally {
       setLoading(false);
@@ -154,7 +154,7 @@ export const OnboardingModal = () => {
           .eq("user_email", user.email);
       }
       setIsOpen(false);
-    } catch (e) {
+    } catch (e: unknown) {
       console.error("Error updating status:", e);
       setIsOpen(false); // Close anyway
     }

@@ -1,4 +1,4 @@
-﻿// Type definitions for GuideTranslator
+// Type definitions for GuideTranslator
 
 interface GuideTranslatorProps {
   // Add prop types here
@@ -15,19 +15,19 @@ import { extractGuideContent } from "../lib/utils";
 import { supabase } from "../lib/api";
 
 const LANGUAGES = [
-  { code: "ar", name: "Arabic", flag: "🇸🇦" },
-  { code: "en", name: "English", flag: "🇺🇸" },
-  { code: "zh", name: "Chinese", flag: "🇨🇳" },
-  { code: "es", name: "Spanish", flag: "🇪🇸" },
-  { code: "fr", name: "French", flag: "🇫🇷" },
-  { code: "de", name: "German", flag: "🇩🇪" },
-  { code: "ja", name: "Japanese", flag: "🇯🇵" },
-  { code: "ko", name: "Korean", flag: "🇰🇷" },
-  { code: "ru", name: "Russian", flag: "🇷🇺" },
-  { code: "pt", name: "Portuguese", flag: "🇵🇹" },
-  { code: "it", name: "Italian", flag: "🇮🇹" },
-  { code: "hi", name: "Hindi", flag: "🇮🇳" },
-  { code: "tr", name: "Turkish", flag: "🇹🇷" },
+  { code: "ar", name: "Arabic", flag: "????" },
+  { code: "en", name: "English", flag: "????" },
+  { code: "zh", name: "Chinese", flag: "????" },
+  { code: "es", name: "Spanish", flag: "????" },
+  { code: "fr", name: "French", flag: "????" },
+  { code: "de", name: "German", flag: "????" },
+  { code: "ja", name: "Japanese", flag: "????" },
+  { code: "ko", name: "Korean", flag: "????" },
+  { code: "ru", name: "Russian", flag: "????" },
+  { code: "pt", name: "Portuguese", flag: "????" },
+  { code: "it", name: "Italian", flag: "????" },
+  { code: "hi", name: "Hindi", flag: "????" },
+  { code: "tr", name: "Turkish", flag: "????" },
 ];
 
 export function GuideTranslator({ guide, isOpen, onClose }) {
@@ -115,8 +115,8 @@ Text to translate:`,
         });
       }
 
-      toast.success(`Successfully translated to ${targetLang.name}! 🎉`);
-    } catch (error) {
+      toast.success(`Successfully translated to ${targetLang.name}! ??`);
+    } catch (error: unknown) {
       console.error("Translation error:", error);
       toast.error("Translation failed. Please try again.");
     } finally {
@@ -179,7 +179,7 @@ Text to translate:`,
                     Select Language
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {LANGUAGES.map((lang) => (
+                    {LANGUAGES.map((lang: any) => (
                       <button
                         key={lang.code}
                         onClick={() => setSelectedLanguage(lang.code)}
@@ -217,7 +217,7 @@ Text to translate:`,
                 </button>
 
                 <p className="text-center text-sm text-gray-500 mt-4 font-medium">
-                  ✨ Free translation • Auto-detect language • No credits
+                  ? Free translation � Auto-detect language � No credits
                   required
                 </p>
               </div>

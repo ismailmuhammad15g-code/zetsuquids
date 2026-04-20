@@ -1,4 +1,4 @@
-﻿import { motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import Lottie from 'lottie-react'
 import { Briefcase, Building2, Check, ChevronRight, User, Users } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -215,7 +215,7 @@ export default function AccountSetupModal({ user, onClose, onComplete }: Account
             // Notify parent to refresh user data
             if (onComplete) onComplete()
             onClose()
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Error saving profile:', error)
         } finally {
             setLoading(false)

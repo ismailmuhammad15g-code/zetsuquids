@@ -44,8 +44,8 @@ const AnimatedLoadingSkeleton: React.FC = () => {
         }
 
         return {
-            x: shuffledPositions.map((pos) => pos.x),
-            y: shuffledPositions.map((pos) => pos.y),
+            x: shuffledPositions.map((pos: any) => pos.x),
+            y: shuffledPositions.map((pos: any) => pos.y),
             scale: Array(shuffledPositions.length).fill(1.2),
             transition: {
                 duration: shuffledPositions.length * 2,

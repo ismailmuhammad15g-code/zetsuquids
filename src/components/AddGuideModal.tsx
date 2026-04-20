@@ -255,7 +255,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         const containers = document.querySelectorAll(
           ".interactive-quiz-container",
         );
-        containers.forEach((container) => {
+        containers.forEach((container: any) => {
           if (container.getAttribute("data-hydrated") === "true") return;
 
           const encoded = container.getAttribute("data-quiz");
@@ -294,7 +294,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
                 /* ignore init errors */
               }
 
-              mermaidBlocks.forEach((codeEl) => {
+              mermaidBlocks.forEach((codeEl: any) => {
                 const pre = codeEl.closest("pre");
                 if (
                   !pre ||
@@ -487,7 +487,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       const url = await uploadImageToImgBB(file);
       insertText(`![${file.name}](${url})`);
       toast.success("Image uploaded successfully", { id: toastId });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(error);
       toast.error("Failed to upload image");
     }
@@ -895,7 +895,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
     try {
       const keywords = formData.keywords
         .split(",")
-        .map((k) => k.trim())
+        .map((k: any) => k.trim())
         .filter(Boolean);
 
       const guide: any = await guidesApi.create({
@@ -927,7 +927,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         toast.success("Guide submitted for review!");
         setShowSuccessModal(true);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Publish Error:", error);
       toast.error("Failed to publish guide");
     } finally {
@@ -1112,7 +1112,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Link Modal */}
       {showLinkModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowLinkModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Insert Link</h3>
               <button onClick={() => setShowLinkModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1132,7 +1132,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Table Modal */}
       {showTableModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowTableModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Insert Table</h3>
               <button onClick={() => setShowTableModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1156,7 +1156,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Video Modal */}
       {showVideoModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowVideoModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Embed Video</h3>
               <button onClick={() => setShowVideoModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1176,7 +1176,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Callout Modal */}
       {showCalloutModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowCalloutModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Insert Callout</h3>
               <button onClick={() => setShowCalloutModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1196,7 +1196,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Code Modal */}
       {showCodeModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowCodeModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Insert Code Block</h3>
               <button onClick={() => setShowCodeModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1216,7 +1216,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Figure Modal */}
       {showFigureModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowFigureModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Insert Figure</h3>
               <button onClick={() => setShowFigureModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1236,7 +1236,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Details Modal */}
       {showDetailsModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowDetailsModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Collapsible Section</h3>
               <button onClick={() => setShowDetailsModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1256,7 +1256,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Quote Modal */}
       {showQuoteModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowQuoteModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Insert Quote</h3>
               <button onClick={() => setShowQuoteModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1276,7 +1276,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Badge Modal */}
       {showBadgeModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowBadgeModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Insert Badge</h3>
               <button onClick={() => setShowBadgeModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1296,7 +1296,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Kbd Modal */}
       {showKbdModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowKbdModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Keyboard Shortcut</h3>
               <button onClick={() => setShowKbdModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1316,7 +1316,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive CTA Modal */}
       {showCTAModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowCTAModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Insert CTA Button</h3>
               <button onClick={() => setShowCTAModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1336,7 +1336,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Citation Modal */}
       {showCitationModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowCitationModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Insert Citation</h3>
               <button onClick={() => setShowCitationModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1356,7 +1356,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Anchor Modal */}
       {showAnchorModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowAnchorModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Insert Anchor</h3>
               <button onClick={() => setShowAnchorModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1377,7 +1377,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Footnote Modal */}
       {showFootnoteModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowFootnoteModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Insert Footnote</h3>
               <button onClick={() => setShowFootnoteModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1397,7 +1397,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Steps Modal */}
       {showStepsModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowStepsModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Step-by-Step Guide</h3>
               <button onClick={() => setShowStepsModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1413,7 +1413,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Timeline Modal */}
       {showTimelineModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowTimelineModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Timeline</h3>
               <button onClick={() => setShowTimelineModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1429,7 +1429,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Comparison Modal */}
       {showComparisonModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowComparisonModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Comparison Table</h3>
               <button onClick={() => setShowComparisonModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1445,7 +1445,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Alert Modal */}
       {showAlertModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowAlertModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Alert Box</h3>
               <button onClick={() => setShowAlertModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1461,7 +1461,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Tabs Modal */}
       {showTabsModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowTabsModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Tabs</h3>
               <button onClick={() => setShowTabsModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1477,7 +1477,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Definition Modal */}
       {showDefinitionModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowDefinitionModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Definitions</h3>
               <button onClick={() => setShowDefinitionModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1493,7 +1493,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Code Diff Modal */}
       {showCodeDiffModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowCodeDiffModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Code Diff</h3>
               <button onClick={() => setShowCodeDiffModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1509,7 +1509,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive FAQ Modal */}
       {showFAQModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowFAQModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">FAQ</h3>
               <button onClick={() => setShowFAQModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1525,7 +1525,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Version Modal */}
       {showVersionModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowVersionModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Changelog</h3>
               <button onClick={() => setShowVersionModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1541,7 +1541,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       {/* Interactive Key-Value Modal */}
       {showKeyValueModal && (
         <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowKeyValueModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Key-Value</h3>
               <button onClick={() => setShowKeyValueModal(false)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><X size={18} /></button>
@@ -1565,7 +1565,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
             <input
               type="text"
               value={formData.title}
-              onChange={(e) =>
+              onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
                 setFormData({ ...formData, title: e.target.value })
               }
               placeholder="Guide Title"
@@ -1574,7 +1574,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
             <input
               type="text"
               value={formData.keywords}
-              onChange={(e) =>
+              onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
                 setFormData({ ...formData, keywords: e.target.value })
               }
               placeholder="Add keywords (e.g., react, tutorial, web-dev)..."
@@ -2021,7 +2021,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
               <textarea
                 ref={textareaRef}
                 value={formData.content}
-                onChange={(e) =>
+                onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
                   setFormData({ ...formData, content: e.target.value })
                 }
                 placeholder="Start writing your amazing guide..."
@@ -2031,7 +2031,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
             ) : (
               <textarea
                 value={formData.html_content}
-                onChange={(e) =>
+                onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
                   setFormData({ ...formData, html_content: e.target.value })
                 }
                 placeholder="<html>...</html>"
@@ -2089,7 +2089,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
                   <div className="flex flex-wrap gap-2 mt-4">
                     {(formData.keywords || "")
                       .split(",")
-                      .map((k) => k.trim())
+                      .map((k: any) => k.trim())
                       .filter(Boolean)
                       .slice(0, 3)
                       .map((k, i) => (
@@ -2133,7 +2133,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
                       md.matchAll(/^#{1,6}\s+(.*)$/gim),
                     );
                     if (matches.length > 0) {
-                      const tocItems = matches.map((m) => {
+                      const tocItems = matches.map((m: any) => {
                         const text = m[1].trim();
                         const level = (m[0].match(/^#+/) || ["#"])[0].length;
                         const id = slugify(text);
@@ -2142,8 +2142,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
 
                       // Build nested list (simple flat list with indentation)
                       const tocHtml = `\n<nav class="guide-toc"><ul class="space-y-1">${tocItems
-                        .map(
-                          (it) =>
+                        .map((it: any) =>
                             `\n<li class="text-sm ml-${Math.max(0, (it.level - 1) * 4)}"><a href=\"#${it.id}\" class=\"text-gray-600 hover:text-gray-900\">${it.text}</a></li>`,
                         )
                         .join("")}\n</ul></nav>\n`;

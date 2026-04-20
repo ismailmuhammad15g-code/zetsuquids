@@ -20,71 +20,64 @@ import {
     Tag,
     X,
 } from "lucide-react";
-import { FC, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import GuideRecommendations from "../components/GuideRecommendations";
+import { useAuth } from "../contexts/AuthContext";
 import { useGuides } from "../hooks/useGuides";
-import type { Guide } from "../lib/api";
-import { supabase } from "../lib/api";
 import { getAvatarForUser } from "../lib/avatar";
-
-// Type definitions
-type ViewMode = "grid" | "list";
+import { supabase } from "../lib/supabase";
 
 interface OutletContextType {
     openAddModal: () => void;
 }
 
-interface AuthorAvatars {
-    [email: string]: string;
-}
-
-const AllGuidesPage: FC = () => {
+export default function AllGuidesPage() {
     const { openAddModal } = useOutletContext<OutletContextType>();
+    const { user } = useAuth();
 
     // Use React Query hook for caching and data fetching
-    const { data: guides = [], isLoading } = useGuides();
+    const { data: guides = [] } = useGuides();
 
     const [searchQuery, setSearchQuery] = useState("");
-    const [viewMode, setViewMode] = useState<ViewMode>("grid");
-    const [selectedTag, setSelectedTag] = useState<string | null>(null);
+    const [viewMode, setViewMode] = useState("grid"); // grid or list
+    const [selectedTag, setSelectedTag] = useState(null);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [tagSearch, setTagSearch] = useState("");
-    const [authorAvatars, setAuthorAvatars] = useState<AuthorAvatars>({});
+    const [authorAvatars, setAuthorAvatars] = useState({}); // Cache for author avatars
     const [currentPage, setCurrentPage] = useState(1);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const GUIDES_PER_PAGE = 12;
 
-    // Helper to safely read keywords
-    const getKeywords = (g: Guide): string[] => {
+    // Helper to safely read keywords (handles arrays and comma-separated strings)
+    const getKeywords = (g: any): string[] => {
         if (!g) return [];
         if (Array.isArray(g.keywords)) return g.keywords || [];
         if (typeof g.keywords === "string")
-            return (g.keywords as string)
+            return g.keywords
                 .split(",")
-                .map((k: string) => k.trim())
+                .map((k: any) => k.trim())
                 .filter(Boolean);
         return [];
     };
 
     // Extract all unique tags
-    const allTags = useMemo((): string[] => {
-        const tags = new Set<string>();
-        guides.forEach((g) => {
-            getKeywords(g).forEach((k) => tags.add(k));
+    const allTags = useMemo(() => {
+        const tags = new Set();
+        guides.forEach((g: any) => {
+            getKeywords(g).forEach((k: any) => tags.add(k));
         });
         return Array.from(tags);
     }, [guides]);
 
     // Filter guides
-    const filteredGuides = useMemo((): Guide[] => {
+    const filteredGuides = useMemo(() => {
         let filtered = [...guides];
 
         // Search filter
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
-            filtered = filtered.filter(
-                (g) =>
+            filtered = filtered.filter((g: any) =>
                     g.title.toLowerCase().includes(q) ||
                     getKeywords(g).some((k) => k.toLowerCase().includes(q)) ||
                     (g.markdown || g.content || "").toLowerCase().includes(q),
@@ -93,7 +86,7 @@ const AllGuidesPage: FC = () => {
 
         // Tag filter
         if (selectedTag) {
-            filtered = filtered.filter((g) => getKeywords(g).includes(selectedTag));
+            filtered = filtered.filter((g: any) => getKeywords(g).includes(selectedTag));
         }
 
         return filtered;
@@ -107,19 +100,17 @@ const AllGuidesPage: FC = () => {
         setCurrentPage(1);
     }, [searchQuery, selectedTag]);
 
-    const currentGuides = useMemo((): Guide[] => {
+    const currentGuides = useMemo(() => {
         const start = (currentPage - 1) * GUIDES_PER_PAGE;
         return filteredGuides.slice(start, start + GUIDES_PER_PAGE);
     }, [filteredGuides, currentPage]);
 
-    const highlight = (text: string): JSX.Element => {
-        if (!searchQuery || !text) return <>{text}</>;
-        const parts = text
-            .toString()
-            .split(new RegExp(`(${searchQuery})`, "gi"));
+    const highlight = (text: string): JSX.Element | string => {
+        if (!searchQuery || !text) return text;
+        const parts = text.toString().split(new RegExp(`(${searchQuery})`, "gi"));
         return (
             <span>
-                {parts.map((part, i) =>
+                {parts.map((part: string, i: number) =>
                     part.toLowerCase() === searchQuery.toLowerCase() ? (
                         <span key={i} className="bg-yellow-200 text-black px-0.5 rounded">
                             {part}
@@ -144,14 +135,14 @@ const AllGuidesPage: FC = () => {
         }
     }, [currentGuides]);
 
-    const fetchAuthorAvatars = async (guidesList: Guide[]): Promise<void> => {
+    async function fetchAuthorAvatars(guidesList: any[]): Promise<void> {
         const uniqueEmails = new Set(
-            guidesList.map((g) => g.user_email).filter(Boolean),
+            guidesList.map((g: any) => g.user_email).filter(Boolean),
         );
-        const newAvatars: AuthorAvatars = { ...authorAvatars };
+        const newAvatars = { ...authorAvatars };
 
-        for (const email of uniqueEmails) {
-            if (email && newAvatars[email]) continue;
+        for (const email of uniqueEmails as Set<string>) {
+            if (newAvatars[email]) continue; // Already cached
 
             try {
                 const { data: profileData } = await supabase
@@ -160,20 +151,18 @@ const AllGuidesPage: FC = () => {
                     .eq("user_email", email)
                     .maybeSingle();
 
-                if (email) {
-                    const avatarUrl = getAvatarForUser(email, profileData?.avatar_url);
-                    newAvatars[email] = avatarUrl;
-                }
+                // Get avatar: from profile or deterministic hash
+                const avatarUrl = getAvatarForUser(email, profileData?.avatar_url);
+                newAvatars[email] = avatarUrl;
             } catch (err) {
                 console.error(`Error fetching avatar for ${email}:`, err);
-                if (email) {
-                    newAvatars[email] = getAvatarForUser(email, null);
-                }
+                // Fallback to deterministic avatar
+                newAvatars[email] = getAvatarForUser(email, null);
             }
         }
 
         setAuthorAvatars(newAvatars);
-    };
+    }
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
@@ -206,14 +195,14 @@ const AllGuidesPage: FC = () => {
                     <input
                         type="text"
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e: any) => setSearchQuery(e.target.value)}
                         onFocus={() => setIsSearchFocused(true)}
                         onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                         placeholder="Search guides..."
                         className="w-full pl-12 pr-4 py-3 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black bg-white"
                     />
 
-                    {/* Search Results Dropdown */}
+                    {/* Search Results Dropdown (Modal) */}
                     {isSearchFocused && searchQuery && (
                         <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-black shadow-xl z-50 animate-in fade-in zoom-in-95 duration-200 max-h-[400px] overflow-y-auto">
                             {filteredGuides.length > 0 ? (
@@ -222,7 +211,7 @@ const AllGuidesPage: FC = () => {
                                         {filteredGuides.length} Result
                                         {filteredGuides.length !== 1 ? "s" : ""} Found
                                     </div>
-                                    {filteredGuides.slice(0, 5).map((guide) => (
+                                    {filteredGuides.slice(0, 5).map((guide: any) => (
                                         <Link
                                             key={guide.id}
                                             to={`/guide/${guide.slug}`}
@@ -289,7 +278,7 @@ const AllGuidesPage: FC = () => {
                             </div>
                             {selectedTag ? (
                                 <div
-                                    onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+                                    onClick={(e: any) => {
                                         e.stopPropagation();
                                         setSelectedTag(null);
                                     }}
@@ -322,7 +311,7 @@ const AllGuidesPage: FC = () => {
                                     <input
                                         type="text"
                                         value={tagSearch}
-                                        onChange={(e) => setTagSearch(e.target.value)}
+                                        onChange={(e: any) => setTagSearch(e.target.value)}
                                         placeholder="Search tags..."
                                         className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                         autoFocus
@@ -345,10 +334,10 @@ const AllGuidesPage: FC = () => {
                                     </button>
 
                                     {allTags
-                                        .filter((tag) =>
+                                        .filter((tag: any) =>
                                             tag.toLowerCase().includes(tagSearch.toLowerCase()),
                                         )
-                                        .map((tag) => (
+                                        .map((tag: any) => (
                                             <button
                                                 key={tag}
                                                 onClick={() => {
@@ -365,7 +354,7 @@ const AllGuidesPage: FC = () => {
                                             </button>
                                         ))}
 
-                                    {allTags.filter((tag) =>
+                                    {allTags.filter((tag: any) =>
                                         tag.toLowerCase().includes(tagSearch.toLowerCase()),
                                     ).length === 0 && (
                                             <div className="text-center py-4 text-xs text-gray-400">
@@ -403,7 +392,15 @@ const AllGuidesPage: FC = () => {
                 </div>
             </div>
 
-            {/* Empty State */}
+            {/* Loading Sguide.title
+      {isLoading &&
+        (viewMode === "grid" ? (
+          <GuidesSkeletonGrid count={6} />
+        ) : (
+          <GuidesSkeletonList count={6} />
+        ))}
+
+      {/* Empty State */}
             {!isLoading && guides.length === 0 && (
                 <div className="border-2 border-dashed border-gray-300 p-12 text-center">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -437,7 +434,7 @@ const AllGuidesPage: FC = () => {
             {/* Grid View */}
             {!isLoading && viewMode === "grid" && currentGuides.length > 0 && (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {currentGuides.map((guide) => (
+                    {currentGuides.map((guide: any) => (
                         <Link
                             key={guide.id}
                             to={`/guide/${guide.slug}`}
@@ -476,7 +473,7 @@ const AllGuidesPage: FC = () => {
 
                             <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
                                 <Calendar size={14} />
-                                {guide.created_at && new Date(guide.created_at).toLocaleDateString("en-US", {
+                                {new Date(guide.created_at).toLocaleDateString("en-US", {
                                     year: "numeric",
                                     month: "short",
                                     day: "numeric",
@@ -510,7 +507,7 @@ const AllGuidesPage: FC = () => {
             {/* List View */}
             {!isLoading && viewMode === "list" && currentGuides.length > 0 && (
                 <div className="border-2 border-black divide-y-2 divide-black">
-                    {currentGuides.map((guide) => (
+                    {currentGuides.map((guide: any) => (
                         <Link
                             key={guide.id}
                             to={`/guide/${guide.slug}`}
@@ -539,7 +536,7 @@ const AllGuidesPage: FC = () => {
                                 <div className="flex items-center gap-4 text-xs text-gray-500 ml-11">
                                     <span className="flex items-center gap-1">
                                         <Calendar size={12} />
-                                        {guide.created_at && new Date(guide.created_at).toLocaleDateString()}
+                                        {new Date(guide.created_at).toLocaleDateString()}
                                     </span>
                                     {getKeywords(guide).length > 0 && (
                                         <span className="flex items-center gap-1">
@@ -566,7 +563,7 @@ const AllGuidesPage: FC = () => {
                             <PaginationItem>
                                 <PaginationPrevious
                                     href="#"
-                                    onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                                    onClick={(e: any) => {
                                         e.preventDefault();
                                         if (currentPage > 1) setCurrentPage((p) => p - 1);
                                     }}
@@ -582,6 +579,7 @@ const AllGuidesPage: FC = () => {
                             {Array.from({ length: totalPages }).map((_, idx) => {
                                 const pageNum = idx + 1;
 
+                                // Show first, last, current, and surrounding pages
                                 if (
                                     pageNum === 1 ||
                                     pageNum === totalPages ||
@@ -592,7 +590,7 @@ const AllGuidesPage: FC = () => {
                                             <PaginationLink
                                                 href="#"
                                                 isActive={currentPage === pageNum}
-                                                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                                                onClick={(e: any) => {
                                                     e.preventDefault();
                                                     setCurrentPage(pageNum);
                                                 }}
@@ -603,6 +601,7 @@ const AllGuidesPage: FC = () => {
                                     );
                                 }
 
+                                // Show ellipsis if gap exists
                                 if (
                                     (pageNum === 2 && currentPage > 3) ||
                                     (pageNum === totalPages - 1 && currentPage < totalPages - 2)
@@ -620,10 +619,9 @@ const AllGuidesPage: FC = () => {
                             <PaginationItem>
                                 <PaginationNext
                                     href="#"
-                                    onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                                    onClick={(e: any) => {
                                         e.preventDefault();
-                                        if (currentPage < totalPages)
-                                            setCurrentPage((p) => p + 1);
+                                        if (currentPage < totalPages) setCurrentPage((p) => p + 1);
                                     }}
                                     className={
                                         currentPage >= totalPages
@@ -637,7 +635,7 @@ const AllGuidesPage: FC = () => {
                 </div>
             )}
 
-            {/* Recommendations Section */}
+            {/* Recommendations Section (Bottom) */}
             {!searchQuery && !selectedTag && currentPage === 1 && (
                 <div className="mt-16 pt-8 border-t-2 border-dashed border-gray-200">
                     <GuideRecommendations limit={6} />
@@ -645,6 +643,4 @@ const AllGuidesPage: FC = () => {
             )}
         </div>
     );
-};
-
-export default AllGuidesPage;
+}

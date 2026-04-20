@@ -1,4 +1,4 @@
-﻿// Type definitions for CommunityLeftSidebar
+// Type definitions for CommunityLeftSidebar
 
 interface CommunityLeftSidebarProps {
   // Add prop types here
@@ -64,7 +64,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
 
           {/* Nav Links */}
           <nav className="flex flex-col gap-2 w-full mt-2">
-            {navItems.map((item) => {
+            {navItems.map((item: any) => {
               const isActive = location.pathname === item.href;
               const Icon = item.icon;
               if (item.name === "More") {
@@ -88,7 +88,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
                       </>
                     )}
                     <button
-                      onClick={(e) => {
+                      onClick={(e: any) => {
                         e.preventDefault();
                         setShowMoreMenu(!showMoreMenu);
                       }}
@@ -210,7 +210,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
 
       {/* Mobile Bottom Tab Bar: < sm */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-black/80 backdrop-blur-md border-t border-[#2f3336] z-50 flex items-center justify-around px-2 pb-safe">
-        {navItems.slice(0, 4).map((item) => {
+        {navItems.slice(0, 4).map((item: any) => {
           const isActive = location.pathname === item.href;
           const Icon = item.icon;
           return (

@@ -63,7 +63,7 @@ export const Confetti = forwardRef<ConfettiHandle, ConfettiProps>(
             }
 
             // Create particle elements
-            const particleElements = newParticles.map((p) => {
+            const particleElements = newParticles.map((p: any) => {
                 const el = document.createElement('div');
                 el.className = 'confetti-particle';
                 el.style.cssText = `

@@ -1,4 +1,4 @@
-﻿// Type definitions for QuizBuilderModal
+// Type definitions for QuizBuilderModal
 
 interface QuizBuilderModalProps {
   // Add prop types here
@@ -90,7 +90,7 @@ export default function QuizBuilderModal({ onClose, onInsert }) {
                         <input
                             type="text"
                             value={question}
-                            onChange={(e) => setQuestion(e.target.value)}
+                            onChange={(e: any) => setQuestion(e.target.value)}
                             placeholder="e.g. What is the complexity of binary search?"
                             className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-black focus:ring-0 transition-colors text-lg font-medium"
                             autoFocus
@@ -120,7 +120,7 @@ export default function QuizBuilderModal({ onClose, onInsert }) {
                                     <input
                                         type="text"
                                         value={option}
-                                        onChange={(e) => handleOptionChange(index, e.target.value)}
+                                        onChange={(e: any) => handleOptionChange(index, e.target.value)}
                                         placeholder={`Option ${index + 1}`}
                                         className={cn(
                                             "flex-1 px-4 py-3 rounded-xl border-2 focus:ring-0 transition-colors",
@@ -158,7 +158,7 @@ export default function QuizBuilderModal({ onClose, onInsert }) {
                         </label>
                         <textarea
                             value={explanation}
-                            onChange={(e) => setExplanation(e.target.value)}
+                            onChange={(e: any) => setExplanation(e.target.value)}
                             placeholder="Why is this the correct answer? Shown after submission."
                             className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-black focus:ring-0 transition-colors min-h-[100px]"
                         />

@@ -1,4 +1,4 @@
-﻿// Type definitions for GuideRecommendations
+// Type definitions for GuideRecommendations
 
 interface GuideRecommendationsProps {
   currentGuideSlug?: string | null;
@@ -64,7 +64,7 @@ export default function GuideRecommendations({
         // Get trending guides for non-logged in users
         await fetchTrendingGuides();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error fetching recommendations:", error);
       // Fallback to trending on error
       await fetchTrendingGuides();
@@ -83,12 +83,12 @@ export default function GuideRecommendations({
 
       // Filter out current guide if on guide page
       const filtered = currentGuideSlug
-        ? data.filter((g) => g.slug !== currentGuideSlug)
+        ? data.filter((g: any) => g.slug !== currentGuideSlug)
         : data;
 
       setRecommendations(filtered);
       fetchAvatarsForRecommendations(filtered);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error fetching trending guides:", error);
       setRecommendations([]);
     }
@@ -96,7 +96,7 @@ export default function GuideRecommendations({
 
   const fetchAvatarsForRecommendations = async (guides) => {
     const uniqueEmails = [
-      ...new Set(guides.map((g) => g.user_email).filter(Boolean)),
+      ...new Set(guides.map((g: any) => g.user_email).filter(Boolean)),
     ];
     const newAvatars = {};
 
@@ -161,7 +161,7 @@ export default function GuideRecommendations({
 
       {/* Recommendations Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {recommendations.map((guide) => (
+        {recommendations.map((guide: any) => (
           <Link
             key={guide.slug}
             to={`/guide/${guide.slug}`}

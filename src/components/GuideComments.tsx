@@ -146,9 +146,9 @@ export default function GuideComments({ guideId, onCommentPosted }: GuideComment
     }
   };
 
-  const rootComments = comments.filter((c) => !c.parent_id);
+  const rootComments = comments.filter((c: any) => !c.parent_id);
   const getReplies = (parentId: string) =>
-    comments.filter((c) => c.parent_id === parentId);
+    comments.filter((c: any) => c.parent_id === parentId);
 
   if (loading) {
     return (
@@ -162,10 +162,10 @@ export default function GuideComments({ guideId, onCommentPosted }: GuideComment
     <div className="space-y-8">
       {/* Add Comment Form */}
       {user && (
-        <form onSubmit={(e) => handleSubmit(e)} className="space-y-3">
+        <form onSubmit={(e: React.FormEvent<HTMLFormElement>) => handleSubmit(e)} className="space-y-3">
           <textarea
             value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setNewComment(e.target.value)}
             placeholder="Share your thoughts..."
             className="w-full p-4 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none resize-none min-h-[100px]"
           />
@@ -184,7 +184,7 @@ export default function GuideComments({ guideId, onCommentPosted }: GuideComment
 
       {/* Comments List */}
       <div className="space-y-6">
-        {rootComments.map((comment) => (
+        {rootComments.map((comment: any) => (
           <div key={comment.id} className="space-y-4">
             <div className="flex gap-4">
               <img
@@ -219,7 +219,7 @@ export default function GuideComments({ guideId, onCommentPosted }: GuideComment
             </div>
 
             {/* Replies */}
-            {getReplies(comment.id).map((reply) => (
+            {getReplies(comment.id).map((reply: any) => (
               <div key={reply.id} className="ml-10 space-y-2">
                 <div className="flex gap-4">
                   <img
@@ -250,10 +250,10 @@ export default function GuideComments({ guideId, onCommentPosted }: GuideComment
 
             {/* Reply Form */}
             {replyingTo === comment.id && (
-              <form onSubmit={(e) => handleSubmit(e, comment.id)} className="ml-10 space-y-2">
+              <form onSubmit={(e: React.FormEvent<HTMLFormElement>) => handleSubmit(e, comment.id)} className="ml-10 space-y-2">
                 <textarea
                   value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setReplyContent(e.target.value)}
                   placeholder="Write a reply..."
                   className="w-full p-3 border border-gray-200 rounded-lg focus:border-black focus:outline-none resize-none text-sm min-h-[80px]"
                 />

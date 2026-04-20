@@ -1,47 +1,82 @@
-﻿// Type definitions for TrendsSidebar
-
-interface TrendsSidebarProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
+// Type definitions for TrendsSidebar
 import { BadgeCheck, MoreHorizontal, Search, Users, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getAvatarForUser } from "../../lib/avatar";
 import { communityApi } from "../../lib/communityApi";
 
-export default function TrendsSidebar({ user }) {
+interface Trend {
+  id?: string | number;
+  name: string;
+  count?: number;
+  [key: string]: any;
+}
+
+interface NewsItem {
+  id?: string | number;
+  title: string;
+  description?: string;
+  [key: string]: any;
+}
+
+interface UserSuggestion {
+  id: string;
+  name: string;
+  email?: string;
+  avatar_url?: string;
+  bio?: string;
+  [key: string]: any;
+}
+
+interface UserProfile {
+  id?: string;
+  name?: string;
+  email?: string;
+  [key: string]: any;
+}
+
+interface Community {
+  id?: string | number;
+  name: string;
+  [key: string]: any;
+}
+
+interface TrendsSidebarProps {
+  user: UserProfile | null;
+}
+
+// Event handler types
+type HandleEvent = (e: React.SyntheticEvent<any>) => void;
+
+export default function TrendsSidebar({ user }: TrendsSidebarProps) {
   const navigate = useNavigate();
-  const [trends, setTrends] = useState([]);
-  const [news, setNews] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-  const [following, setFollowing] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [suggestionLimit, setSuggestionLimit] = useState(10);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [suggestedCommunities, setSuggestedCommunities] = useState([]);
+  const [trends, setTrends] = useState<Trend[]>([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [suggestions, setSuggestions] = useState<UserSuggestion[]>([]);
+  const [following, setFollowing] = useState<UserSuggestion[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [suggestionLimit, setSuggestionLimit] = useState<number>(10);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  const [suggestedCommunities, setSuggestedCommunities] = useState<Community[]>([]);
 
   // Search
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const searchRef = useRef(null);
-  const debounceRef = useRef(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchResults, setSearchResults] = useState<UserSuggestion[]>([]);
+  const [searchLoading, setSearchLoading] = useState<boolean>(false);
+  const [showSearch, setShowSearch] = useState<boolean>(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    console.log("🎯 [TrendsSidebar] useEffect triggered");
-    console.log("👤 [TrendsSidebar] User object:", user);
-    console.log("🆔 [TrendsSidebar] User ID:", user?.id);
+    console.log("?? [TrendsSidebar] useEffect triggered");
+    console.log("?? [TrendsSidebar] User object:", user);
+    console.log("?? [TrendsSidebar] User ID:", user?.id);
 
     const fetchData = async () => {
       try {
-        console.log("📡 [TrendsSidebar] Starting API calls...");
-        console.log("📏 [TrendsSidebar] Fetching with limit:", suggestionLimit);
+        console.log("?? [TrendsSidebar] Starting API calls...");
+        console.log("?? [TrendsSidebar] Fetching with limit:", suggestionLimit);
         const [trendsData, newsData, suggestionsData, followingData, commsData] = await Promise.all([
           communityApi.getTrends(),
           communityApi.getNews(),
@@ -49,23 +84,23 @@ export default function TrendsSidebar({ user }) {
           user?.id ? communityApi.getFollowing(user.id) : Promise.resolve([]),
           communityApi.getSuggestedCommunities(user?.id, 3),
         ]);
-        console.log("🎯 [TrendsSidebar] Trends:", trendsData);
-        console.log("📰 [TrendsSidebar] News:", newsData);
-        console.log("👥 [TrendsSidebar] Suggestions:", suggestionsData);
-        console.log("⭐ [TrendsSidebar] Following:", followingData);
-        console.log("🏘️  [TrendsSidebar] Communities:", commsData);
+        console.log("?? [TrendsSidebar] Trends:", trendsData);
+        console.log("?? [TrendsSidebar] News:", newsData);
+        console.log("?? [TrendsSidebar] Suggestions:", suggestionsData);
+        console.log("? [TrendsSidebar] Following:", followingData);
+        console.log("???  [TrendsSidebar] Communities:", commsData);
 
         setTrends(Array.isArray(trendsData) ? trendsData : []);
         setNews(Array.isArray(newsData) ? newsData : []);
         setSuggestions(Array.isArray(suggestionsData) ? suggestionsData : []);
         setFollowing(Array.isArray(followingData) ? followingData : []);
         setSuggestedCommunities(Array.isArray(commsData) ? commsData : []);
-      } catch (e) {
-        console.error("❌ [TrendsSidebar] Failed to load sidebar data", e);
+      } catch (e: unknown) {
+        console.error("? [TrendsSidebar] Failed to load sidebar data", e);
       } finally {
         setLoading(false);
         setLoadingMore(false);
-        console.log("✅ [TrendsSidebar] Loading complete");
+        console.log("? [TrendsSidebar] Loading complete");
       }
     };
     fetchData();
@@ -100,7 +135,7 @@ export default function TrendsSidebar({ user }) {
         try {
           const results = await communityApi.searchUsers(query);
           setSearchResults(results || []);
-        } catch (e) {
+        } catch (e: unknown) {
           console.error(e);
         } finally {
           setSearchLoading(false);
@@ -126,7 +161,7 @@ export default function TrendsSidebar({ user }) {
 
     // Prevent self-follow at button level
     if (!safeTargetId || safeTargetId === user.id) {
-      console.error("❌ Invalid follow request - targetId is missing or same as current user");
+      console.error("? Invalid follow request - targetId is missing or same as current user");
       toast.error("Unable to follow user", {
         style: {
           background: "#16181c",
@@ -140,7 +175,7 @@ export default function TrendsSidebar({ user }) {
     try {
       await communityApi.followUser(user.id, safeTargetId);
       // Remove from suggestions
-      setSuggestions((prev) => prev.filter((u) => (u.user_id || u.id) !== safeTargetId));
+      setSuggestions((prev) => prev.filter((u: any) => (u.user_id || u.id) !== safeTargetId));
       // Refresh following list
       const followingData = await communityApi.getFollowing(user.id);
       setFollowing(followingData || []);
@@ -151,7 +186,7 @@ export default function TrendsSidebar({ user }) {
           color: "#e7e9ea",
         },
       });
-    } catch (e) {
+    } catch (e: unknown) {
       console.error(e);
       toast.error(e?.message || "Failed to follow user", {
         style: {
@@ -177,7 +212,7 @@ export default function TrendsSidebar({ user }) {
 
     const safeTargetId = targetId || null;
     if (!safeTargetId) {
-      console.error("❌ Invalid unfollow request - targetId is missing");
+      console.error("? Invalid unfollow request - targetId is missing");
       toast.error("Unable to unfollow user - invalid data", {
         style: {
           background: "#16181c",
@@ -191,7 +226,7 @@ export default function TrendsSidebar({ user }) {
     try {
       await communityApi.unfollowUser(user.id, safeTargetId);
       // Remove from following list
-      setFollowing((prev) => prev.filter((u) => (u.user_id || u.id) !== safeTargetId));
+      setFollowing((prev) => prev.filter((u: any) => (u.user_id || u.id) !== safeTargetId));
       // Refresh suggestions to potentially show them again
       const suggestionsData = await communityApi.getWhoToFollow(
         user.id,
@@ -205,7 +240,7 @@ export default function TrendsSidebar({ user }) {
           color: "#e7e9ea",
         },
       });
-    } catch (e) {
+    } catch (e: unknown) {
       console.error(e);
       toast.error("Failed to unfollow user", {
         style: {
@@ -232,7 +267,7 @@ export default function TrendsSidebar({ user }) {
           </div>
           <input
             value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e: any) => handleSearch(e.target.value)}
             onFocus={() => searchQuery.trim() && setShowSearch(true)}
             placeholder="Search"
             className="w-full rounded-full border border-transparent bg-[#202327] py-2.5 pl-12 pr-10 text-[15px] text-[#e7e9ea] placeholder-[#71767b] focus:bg-black focus:border-[#1d9bf0] focus:outline-none focus:ring-1 focus:ring-[#1d9bf0] transition-all"
@@ -267,7 +302,7 @@ export default function TrendsSidebar({ user }) {
                 </div>
               </div>
             ) : (
-              searchResults.map((u) => (
+              searchResults.map((u: any) => (
                 <div
                   key={u.user_id || u.id}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] cursor-pointer transition-colors"
@@ -314,7 +349,7 @@ export default function TrendsSidebar({ user }) {
 
         {loading ? (
           <div className="px-4 py-3 space-y-4">
-            {[1, 2].map((i) => (
+            {[1, 2].map((i: any) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-3 w-1/2" />
@@ -340,7 +375,7 @@ export default function TrendsSidebar({ user }) {
                   <img src={item.source_image} alt="" className="w-4 h-4 rounded-full" />
                 )}
                 <span>1 day ago</span>
-                <span>· {item.category} ·</span>
+                <span>� {item.category} �</span>
                 <span>{item.posts_count} posts</span>
               </div>
             </div>
@@ -354,7 +389,7 @@ export default function TrendsSidebar({ user }) {
 
         {loading ? (
           <div className="px-4 py-3 space-y-4">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3].map((i: any) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="h-3 w-20" />
                 <Skeleton className="h-4 w-32" />
@@ -379,7 +414,7 @@ export default function TrendsSidebar({ user }) {
             >
               <div className="flex justify-between items-center text-[13px] text-[#71767b]">
                 <span>
-                  {idx + 1} · Trending
+                  {idx + 1} � Trending
                 </span>
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                   <MoreHorizontal
@@ -421,7 +456,7 @@ export default function TrendsSidebar({ user }) {
             </span>
           </div>
 
-          {following.slice(0, 5).map((u) => {
+          {following.slice(0, 5).map((u: any) => {
             const userId = u.user_id || u.id;
             return (
               <div
@@ -456,7 +491,7 @@ export default function TrendsSidebar({ user }) {
                   </div>
                 </div>
                 <button
-                  onClick={(e) => {
+                  onClick={(e: any) => {
                     e.stopPropagation();
                     handleUnfollow(userId, u.username);
                   }}
@@ -483,7 +518,7 @@ export default function TrendsSidebar({ user }) {
           <h2 className="px-4 py-3 text-[20px] font-extrabold text-[#e7e9ea]">
             Communities to join
           </h2>
-          {suggestedCommunities.map((c) => (
+          {suggestedCommunities.map((c: any) => (
             <div
               key={c.id}
               onClick={() => navigate(`/community/group/${c.id}`)}
@@ -523,7 +558,7 @@ export default function TrendsSidebar({ user }) {
 
         {loading ? (
           <div className="px-4 py-3 space-y-4">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3].map((i: any) => (
               <div key={i} className="flex items-center gap-3">
                 <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
                 <div className="flex-1 space-y-2">
@@ -543,8 +578,8 @@ export default function TrendsSidebar({ user }) {
           </div>
         ) : (
           suggestions
-            .filter((u) => (u.user_id || u.id) !== user?.id) // Filter out current user
-            .map((u) => (
+            .filter((u: any) => (u.user_id || u.id) !== user?.id) // Filter out current user
+            .map((u: any) => (
               <div
                 key={u.user_id || u.id}
                 className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] cursor-pointer transition-colors"
@@ -576,7 +611,7 @@ export default function TrendsSidebar({ user }) {
                   </div>
                 </div>
                 <button
-                  onClick={(e) => {
+                  onClick={(e: any) => {
                     e.stopPropagation();
                     handleFollow(u?.user_id || u?.id, u?.username || "User");
                   }}
@@ -611,7 +646,7 @@ export default function TrendsSidebar({ user }) {
         <a href="#" className="hover:underline">
           Accessibility
         </a>
-        <span>© 2026 Zetsu Corp.</span>
+        <span>� 2026 Zetsu Corp.</span>
       </div>
     </div>
   );

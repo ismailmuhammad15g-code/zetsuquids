@@ -1,4 +1,4 @@
-﻿// Type definitions for AIThinkingDemo
+// Type definitions for AIThinkingDemo
 
 interface AIThinkingDemoProps {
   // Add prop types here
@@ -14,8 +14,8 @@ import { processSSEStream } from '../lib/streamingUtils';
 import { LiveThinkingDisplay } from './ai-elements/LiveThinkingDisplay';
 
 /**
- * 🚀 Component متكامل - مثال على استخدام Live Thinking Stream
- * يوضح كيفية دمج الـ Hook والـ Component والـ Utility معاً
+ * ?? Component ?????? - ???? ??? ??????? Live Thinking Stream
+ * ???? ????? ??? ??? Hook ???? Component ???? Utility ????
  */
 export const AIThinkingDemo = () => {
     const thinkingStream = useThinkingStream();
@@ -24,18 +24,18 @@ export const AIThinkingDemo = () => {
     const abortControllerRef = useRef(null);
 
     /**
-     * معالج الرسالة - يرسل الرسالة للـ API ويبدأ معالجة البث
+     * ????? ??????? - ???? ??????? ??? API ????? ?????? ????
      */
     const handleSendMessage = useCallback(async (message) => {
         if (!message.trim() || isLoading) return;
 
-        // إعادة تعيين الحالة السابقة
+        // ????? ????? ?????? ???????
         thinkingStream.reset();
         setIsLoading(true);
         abortControllerRef.current = new AbortController();
 
         try {
-            // 1️⃣ إرسال الطلب للـ API
+            // 1?? ????? ????? ??? API
             const response = await fetch('/api/ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -43,10 +43,10 @@ export const AIThinkingDemo = () => {
                     model: 'google/gemini-2.0-flash-exp:free',
                     messages: [{ role: 'user', content: message }],
                     stream: true,
-                    // System prompt نموذجي - تأكد أنه يطلب التفكير
-                    systemPrompt: `أنت مساعد ذكي. فكر بعمق قبل الإجابة.
-ضع أفكارك داخل علامات <thinking> و </thinking>.
-ثم اكتب الرد النهائي خارج العلامات.`,
+                    // System prompt ?????? - ???? ??? ???? ???????
+                    systemPrompt: `??? ????? ???. ??? ???? ??? ???????.
+?? ?????? ???? ?????? <thinking> ? </thinking>.
+?? ???? ???? ??????? ???? ????????.`,
                 }),
                 signal: abortControllerRef.current.signal,
             });
@@ -55,29 +55,29 @@ export const AIThinkingDemo = () => {
                 throw new Error(`API Error: ${response.statusText}`);
             }
 
-            // 2️⃣ معالجة البث باستخدام الـ streaming utility
+            // 2?? ?????? ???? ???????? ??? streaming utility
             await processSSEStream(
                 response.body,
                 (chunk) => {
-                    // كل chunk يتم معالجته بواسطة useThinkingStream
+                    // ?? chunk ??? ??????? ?????? useThinkingStream
                     thinkingStream.processChunk(chunk);
-                    console.log('📨 Chunk received:', chunk);
+                    console.log('?? Chunk received:', chunk);
                 },
                 (error) => {
-                    console.error('❌ Stream error:', error);
+                    console.error('? Stream error:', error);
                     throw error;
                 }
             );
 
-            console.log('✅ Stream complete!');
-            console.log('📊 Final state:', {
+            console.log('? Stream complete!');
+            console.log('?? Final state:', {
                 thinking: thinkingStream.thinkingText,
                 response: thinkingStream.finalResponseText,
             });
-        } catch (error) {
+        } catch (error: unknown) {
             if (error.name !== 'AbortError') {
                 console.error('Error:', error);
-                // يمكنك عرض رسالة خطأ للمستخدم هنا
+                // ????? ??? ????? ??? ???????? ???
             }
         } finally {
             setIsLoading(false);
@@ -88,19 +88,19 @@ export const AIThinkingDemo = () => {
 
     return (
         <div className="w-full max-w-4xl mx-auto p-6 space-y-6">
-            {/* 📝 Input Area */}
+            {/* ?? Input Area */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
                 <div className="flex gap-3">
                     <input
                         type="text"
                         value={userMessage}
-                        onChange={(e) => setUserMessage(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setUserMessage(e.target.value)}
                         onKeyPress={(e) => {
                             if (e.key === 'Enter' && !isLoading) {
                                 handleSendMessage(userMessage);
                             }
                         }}
-                        placeholder="اسأل شيء ما..."
+                        placeholder="???? ??? ??..."
                         className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         disabled={isLoading}
                     />
@@ -112,19 +112,19 @@ export const AIThinkingDemo = () => {
                         {isLoading ? (
                             <>
                                 <Loader className="w-4 h-4 animate-spin" />
-                                جاري...
+                                ????...
                             </>
                         ) : (
                             <>
                                 <Send className="w-4 h-4" />
-                                إرسال
+                                ?????
                             </>
                         )}
                     </button>
                 </div>
             </div>
 
-            {/* 🎯 Display Area - عرض التفكير والرد */}
+            {/* ?? Display Area - ??? ??????? ????? */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 {isLoading || thinkingStream.finalResponseText || thinkingStream.thinkingText ? (
                     <LiveThinkingDisplay
@@ -134,12 +134,12 @@ export const AIThinkingDemo = () => {
                     />
                 ) : (
                     <p className="text-gray-500 text-center py-8">
-                        ابدأ بكتابة رسالة لترى كيفية عمل التفكير المباشر...
+                        ???? ?????? ????? ???? ????? ??? ??????? ???????...
                     </p>
                 )}
             </div>
 
-            {/* 🔍 Debug Info - معلومات التصحيح (اختياري) */}
+            {/* ?? Debug Info - ??????? ??????? (???????) */}
             {process.env.NODE_ENV === 'development' && (
                 <div className="bg-gray-900 text-gray-100 rounded-lg p-4 text-xs font-mono overflow-auto max-h-48">
                     <p className="text-yellow-400 mb-2">Debug Info:</p>

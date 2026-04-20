@@ -1,4 +1,4 @@
-﻿// Type definitions for pricing-section
+// Type definitions for pricing-section
 
 interface PricingSectionProps {
   // Add prop types here
@@ -31,7 +31,7 @@ export function PricingSection({
           <p className="text-muted-foreground">{subtitle}</p>
         </div>
         <div className="mx-auto flex w-fit rounded-full bg-muted p-1">
-          {frequencies.map((freq) => (
+          {frequencies.map((freq: any) => (
             <Tab
               key={freq}
               text={freq}
@@ -44,7 +44,7 @@ export function PricingSection({
       </div>
 
       <div className="grid w-full max-w-6xl gap-6 sm:grid-cols-2 xl:grid-cols-4 px-4">
-        {tiers.map((tier) => (
+        {tiers.map((tier: any) => (
           <PricingCard
             key={tier.name}
             tier={tier}

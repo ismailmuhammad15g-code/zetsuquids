@@ -1,4 +1,4 @@
-﻿// Type definitions for GuideAIChat
+// Type definitions for GuideAIChat
 
 interface GuideAIChatProps {
   // Add prop types here
@@ -63,7 +63,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
       if (!error && data) {
         setCredits(data.credits ?? 0);
       } else if (!error && !data) {
-        // No row yet — treat as zero credits
+        // No row yet � treat as zero credits
         setCredits(0);
       } else if (error) {
         // Log and fallback silently to 0
@@ -166,7 +166,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
               3. Be concise, professional, and helpful.
               4. Format code blocks properly.`,
             },
-            ...messages.map((msg) => ({
+            ...messages.map((msg: any) => ({
               role: msg.role,
               content: msg.content,
             })),
@@ -193,7 +193,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
         ...prev,
         { role: "assistant", content: aiResponse },
       ]);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("AI Chat error:", error);
       toast.error("Failed to get AI response");
       setIsTyping(false);
@@ -338,7 +338,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
                 ref={inputRef}
                 type="text"
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setInput(e.target.value)}
                 placeholder="Type your question..."
                 disabled={isLoading}
                 className="flex-1 px-5 py-4 text-base font-medium text-black placeholder:text-gray-400 border-3 border-black focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed bg-white"
@@ -357,7 +357,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
             </div>
             <div className="mt-3 flex items-center justify-between text-sm">
               <p className="text-gray-600 font-medium">
-                💡 <span className="font-bold">2 credits</span> per question
+                ?? <span className="font-bold">2 credits</span> per question
               </p>
               <p className="text-gray-500">
                 Press{" "}

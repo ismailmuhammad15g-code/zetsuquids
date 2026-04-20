@@ -53,7 +53,7 @@ export default function FollowButton({
       } else {
         setUserExists(true);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       setUserExists(false);
     } finally {
       setChecking(false);
@@ -103,7 +103,7 @@ export default function FollowButton({
       } else {
         setIsFollowing(false);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.debug("Follow status check skipped");
     }
   }
@@ -120,7 +120,7 @@ export default function FollowButton({
       if (!error && data !== null) {
         setFollowersCount(data as number);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.debug("Followers count skipped");
     }
   }
@@ -220,7 +220,7 @@ export default function FollowButton({
       } else {
         toast.success(`Unfollowed ${targetUserName || "user"}`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.debug("Follow action error:", (error as Error)?.message);
       toast.error("Failed to update follow status");
     } finally {

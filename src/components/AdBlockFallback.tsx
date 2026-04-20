@@ -1,4 +1,4 @@
-﻿// Type definitions for AdBlockFallback
+// Type definitions for AdBlockFallback
 
 interface AdBlockFallbackProps {
   // Add prop types here
@@ -142,7 +142,7 @@ export default function AdBlockFallback() {
 
         {/* Steps */}
         <div style={{ maxWidth: '64rem', width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px' }}>
-          {steps.map((step) => (
+          {steps.map((step: any) => (
             <div key={step.id} style={{
               display: 'flex',
               flexDirection: 'column',

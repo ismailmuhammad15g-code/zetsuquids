@@ -1,4 +1,4 @@
-﻿// Type definitions for GuideSummarizer
+// Type definitions for GuideSummarizer
 
 interface GuideSummarizerProps {
   // Add prop types here
@@ -133,7 +133,7 @@ Format the summary in a clear, easy-to-read structure.`,
       setSummary(aiSummary);
       markFreeTrialUsed();
 
-      toast.success("Summary generated successfully! 🎉", {
+      toast.success("Summary generated successfully! ??", {
         description: "This was your free trial. Upgrade for unlimited access.",
       });
 
@@ -144,7 +144,7 @@ Format the summary in a clear, easy-to-read structure.`,
         details: `Summarized guide: ${guide.title}`,
         credits_used: 0,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Summarizer error:", error);
       toast.error("Failed to generate summary");
     } finally {

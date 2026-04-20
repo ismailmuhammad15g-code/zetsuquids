@@ -41,7 +41,7 @@ export function AreaChart({
   // Calculate max value for scaling
   const maxValue = Math.max(
     1, // Minimum 1 to avoid division by zero
-    ...data.flatMap((item) => categories.map((cat) => Number(item[cat]) || 0)),
+    ...data.flatMap((item) => categories.map((cat: any) => Number(item[cat]) || 0)),
   );
 
   const points = Math.max(2, data.length); // Minimum 2 points
@@ -51,7 +51,7 @@ export function AreaChart({
 
   // Generate path for area chart
   const generatePath = (category: string, colorIndex: number): PathData => {
-    const categoryData = data.map((item) => Number(item[category]) || 0);
+    const categoryData = data.map((item: any) => Number(item[category]) || 0);
 
     const pathPoints: PathPoint[] = categoryData.map((value, i) => {
       const x =
@@ -65,7 +65,7 @@ export function AreaChart({
       };
     });
 
-    const linePath = `M ${pathPoints.map((p) => `${p.x},${p.y}`).join(" L ")}`;
+    const linePath = `M ${pathPoints.map((p: any) => `${p.x},${p.y}`).join(" L ")}`;
     const areaPath = `${linePath} L ${pathPoints[pathPoints.length - 1].x},${height - padding} L ${pathPoints[0].x},${height - padding} Z`;
 
     return { linePath, areaPath, pathPoints };

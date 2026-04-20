@@ -1,4 +1,4 @@
-﻿// Type definitions for DirectSupportChat
+// Type definitions for DirectSupportChat
 
 interface DirectSupportChatProps {
   // Add prop types here
@@ -71,10 +71,10 @@ export default function DirectSupportChat() {
 
     // Quick reply suggestions
     const quickReplies = [
-        { text: 'I need help with credits', icon: '💳' },
-        { text: 'How do I use the AI chat?', icon: '🤖' },
-        { text: 'Report a bug', icon: '🐛' },
-        { text: 'Feature request', icon: '✨' }
+        { text: 'I need help with credits', icon: '??' },
+        { text: 'How do I use the AI chat?', icon: '??' },
+        { text: 'Report a bug', icon: '??' },
+        { text: 'Feature request', icon: '?' }
     ]
 
     // Handle image selection with security checks
@@ -85,14 +85,14 @@ export default function DirectSupportChat() {
         // Security: Check file type
         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
         if (!allowedTypes.includes(file.type)) {
-            alert('⚠️ Only images (JPG, PNG, GIF, WebP) are allowed')
+            alert('?? Only images (JPG, PNG, GIF, WebP) are allowed')
             return
         }
 
         // Security: Check file size (max 5MB)
         const maxSize = 5 * 1024 * 1024 // 5MB
         if (file.size > maxSize) {
-            alert('⚠️ Image size must be less than 5MB')
+            alert('?? Image size must be less than 5MB')
             return
         }
 
@@ -120,7 +120,7 @@ export default function DirectSupportChat() {
 
             if (!IMGBB_API_KEY) {
                 console.error('ImgBB API key not found in .env')
-                alert('⚠️ Image upload is not configured.')
+                alert('?? Image upload is not configured.')
                 setUploadProgress(0)
                 resolve(null)
                 return
@@ -170,7 +170,7 @@ export default function DirectSupportChat() {
                             } else {
                                 throw new Error('Invalid response from ImgBB')
                             }
-                        } catch (error) {
+                        } catch (error: unknown) {
                             console.error(`Upload attempt ${retryCount + 1} failed:`, error)
 
                             // Retry up to 3 times
@@ -179,7 +179,7 @@ export default function DirectSupportChat() {
                                 await new Promise(r => setTimeout(r, 1500))
                                 return attemptUpload(retryCount + 1)
                             } else {
-                                alert('⚠️ Failed to upload image after 3 attempts. Please check your internet connection.')
+                                alert('?? Failed to upload image after 3 attempts. Please check your internet connection.')
                                 setUploadProgress(0)
                                 resolve(null)
                             }
@@ -189,9 +189,9 @@ export default function DirectSupportChat() {
                     // Start upload with retry
                     await attemptUpload(0)
 
-                } catch (error) {
+                } catch (error: unknown) {
                     console.error('Error processing image:', error)
-                    alert('⚠️ Failed to process image.')
+                    alert('?? Failed to process image.')
                     setUploadProgress(0)
                     resolve(null)
                 }
@@ -199,7 +199,7 @@ export default function DirectSupportChat() {
 
             reader.onerror = () => {
                 console.error('Failed to read file')
-                alert('⚠️ Failed to read file.')
+                alert('?? Failed to read file.')
                 setUploadProgress(0)
                 resolve(null)
             }
@@ -307,7 +307,7 @@ export default function DirectSupportChat() {
             } else {
                 setMessages([])
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Error initializing conversation:', error)
             setMessages([])
         }
@@ -354,7 +354,7 @@ export default function DirectSupportChat() {
             }
         }
 
-        const messageContent = inputValue.trim() || (imageUrl ? '📷 Image' : '')
+        const messageContent = inputValue.trim() || (imageUrl ? '?? Image' : '')
         const userMessage = {
             id: Date.now(),
             role: 'user',
@@ -411,7 +411,7 @@ export default function DirectSupportChat() {
                         user_email: user.email,
                         sender_type: 'user',
                         sender_name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'User',
-                        message: messageContent || '📷 Image'
+                        message: messageContent || '?? Image'
                     }
 
                     // Add image_url if exists (will be auto-deleted after 24h by DB trigger)
@@ -442,7 +442,7 @@ export default function DirectSupportChat() {
                         }, 1000)
                     }
                 }
-            } catch (error) {
+            } catch (error: unknown) {
                 console.error('Error saving to Supabase:', error)
             }
         }
@@ -488,7 +488,7 @@ export default function DirectSupportChat() {
             setMessages([])
             setConversationId(null)
 
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Failed to delete conversation:', error)
             alert('Could not delete conversation')
         } finally {
@@ -816,9 +816,9 @@ export default function DirectSupportChat() {
                                             {isUser && (
                                                 <div className="flex items-center justify-end gap-1 mt-1">
                                                     <span className="text-[10px] text-white/60">
-                                                        {msg.readStatus === 'sent' && '✓'}
-                                                        {msg.readStatus === 'delivered' && '✓✓'}
-                                                        {msg.readStatus === 'read' && <span className="text-blue-300">✓✓</span>}
+                                                        {msg.readStatus === 'sent' && '?'}
+                                                        {msg.readStatus === 'delivered' && '??'}
+                                                        {msg.readStatus === 'read' && <span className="text-blue-300">??</span>}
                                                     </span>
                                                 </div>
                                             )}
@@ -917,7 +917,7 @@ export default function DirectSupportChat() {
                             onClick={clearImageSelection}
                             className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold transition-colors"
                         >
-                            ✕
+                            ?
                         </button>
                         {uploadingImage && (
                             <div className="absolute inset-0 bg-black/70 rounded-lg flex flex-col items-center justify-center gap-2">
@@ -956,13 +956,13 @@ export default function DirectSupportChat() {
                         className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ml-1"
                         title="Attach image"
                     >
-                        <span className="text-lg">📎</span>
+                        <span className="text-lg">??</span>
                     </button>
 
                     <input
                         type="text"
                         value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setInputValue(e.target.value)}
                         placeholder="Type your message..."
                         className="flex-1 bg-transparent px-2 py-2 text-sm text-white placeholder-gray-500 focus:outline-none"
                     />

@@ -84,7 +84,7 @@ export function DailyGiftModal({ isOpen, onClose, onClaim }: DailyGiftModalProps
                 console.error('Failed to claim daily credits:', data.message)
                 onClose()
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Error claiming daily credits:', error)
             onClose()
         } finally {
@@ -254,7 +254,7 @@ export function useDailyCreditsCheck(): UseDailyCreditsCheckReturn {
                 setCanClaim(data.canClaim || false)
                 setHoursRemaining(data.hoursRemaining || 0)
                 setIsLoading(false)
-            } catch (error) {
+            } catch (error: unknown) {
                 console.error('Error checking daily credits:', error)
                 setCanClaim(false)
                 setIsLoading(false)
