@@ -1,5 +1,5 @@
+import { CheckCircle2, Circle, HelpCircle, Plus, Save, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import { X, Plus, Trash2, CheckCircle2, Circle, HelpCircle, Save } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 
@@ -186,4 +186,3 @@ export default function QuizBuilderModal({ onClose, onInsert }: QuizBuilderModal
         </div>
     );
 }
-

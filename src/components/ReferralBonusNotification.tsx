@@ -42,7 +42,7 @@ export default function ReferralBonusNotification() {
       });
 
     return () => {
-      supabase.removeChannel(channel).catch(() => {});
+      supabase.removeChannel(channel).catch(() => { });
     };
   }, [user?.email]);
 
@@ -99,4 +99,3 @@ export default function ReferralBonusNotification() {
     </div>
   );
 }
-

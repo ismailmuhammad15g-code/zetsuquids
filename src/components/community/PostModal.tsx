@@ -27,11 +27,11 @@ export default function PostModal({ isOpen, onClose, user, onPostCreated }: Post
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh] sm:pt-[10vh] pb-5 px-4 bg-white/[0.1] backdrop-blur-sm sm:bg-white/[0.05]">
       {/* Modal Overlay */}
-      <div 
+      <div
         className="absolute inset-0"
         onClick={onClose}
       />
-      
+
       {/* Modal Container */}
       <div className="relative w-full max-w-[600px] bg-black rounded-2xl flex flex-col shadow-[0_0_40px_rgba(255,255,255,0.05)] border border-[#2f3336] animate-modal-fade-in overflow-hidden">
         {/* Header */}
@@ -47,8 +47,8 @@ export default function PostModal({ isOpen, onClose, user, onPostCreated }: Post
         {/* Composer Content */}
         <div className="max-h-[70vh] overflow-y-auto w-full">
           {/* Using Composer directly. We pass onPostCreated to close modal */}
-          <Composer 
-            user={user} 
+          <Composer
+            user={user}
             onPostCreated={onPostCreated || onClose}
             isModal={true}
           />
@@ -57,4 +57,3 @@ export default function PostModal({ isOpen, onClose, user, onPostCreated }: Post
     </div>
   );
 }
-

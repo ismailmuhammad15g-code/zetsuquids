@@ -12,7 +12,7 @@ export default function CommunityPlaceholderPage({ title, message }: CommunityPl
 
     return (
         <div className="min-h-screen bg-black text-[#e7e9ea] flex justify-center font-sans subpixel-antialiased">
-            <CommunityLeftSidebar onPostClick={() => {}} />
+            <CommunityLeftSidebar onPostClick={() => { }} />
 
             {/* Main Feed Column */}
             <main className="w-full max-w-[600px] border-x border-[#2f3336] flex flex-col min-h-screen">

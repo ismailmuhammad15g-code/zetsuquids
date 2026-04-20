@@ -1,11 +1,11 @@
 
 
-import { Outlet } from "react-router-dom";
 import { useState } from "react";
+import { Outlet } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import CommunityLeftSidebar from "./CommunityLeftSidebar";
-import TrendsSidebar from "./TrendsSidebar";
 import PostModal from "./PostModal";
+import TrendsSidebar from "./TrendsSidebar";
 
 export default function CommunityLayout() {
   const { user } = useAuth();
@@ -14,13 +14,13 @@ export default function CommunityLayout() {
   return (
     <div className="min-h-screen bg-black text-[#e7e9ea] flex justify-center font-sans subpixel-antialiased">
       {/* Global Post Modal for Community routes */}
-      <PostModal 
-        isOpen={isPostModalOpen} 
-        onClose={() => setIsPostModalOpen(false)} 
+      <PostModal
+        isOpen={isPostModalOpen}
+        onClose={() => setIsPostModalOpen(false)}
         user={user as any}
         onPostCreated={() => {
           setIsPostModalOpen(false);
-          // Allow sub-pages to react via global events or contexts if needed, 
+          // Allow sub-pages to react via global events or contexts if needed,
           // or just assume they refetch on focus.
           window.dispatchEvent(new Event('postCreated'));
         }}
@@ -42,4 +42,3 @@ export default function CommunityLayout() {
     </div>
   );
 }
-

@@ -294,8 +294,8 @@ export function GuideAIChat({ guide, isOpen, onClose }: GuideAIChatProps) {
                     )}
                     <div
                       className={`max-w-[70%] px-5 py-3 border-3 border-black ${message.role === "user"
-                          ? "bg-black text-white"
-                          : "bg-white text-black"
+                        ? "bg-black text-white"
+                        : "bg-white text-black"
                         }`}
                     >
                       <p className="whitespace-pre-wrap break-words leading-relaxed font-medium">

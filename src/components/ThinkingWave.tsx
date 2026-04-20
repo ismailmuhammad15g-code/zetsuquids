@@ -22,4 +22,3 @@ export function ThinkingWave({ text = "Generating response...", className }: Thi
   );
 }
 export default ThinkingWave;
-

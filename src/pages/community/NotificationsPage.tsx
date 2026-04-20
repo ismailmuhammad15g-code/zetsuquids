@@ -1,10 +1,10 @@
 import { differenceInDays, differenceInHours, differenceInMinutes } from 'date-fns'
+import type { LucideIcon } from 'lucide-react'
 import { AtSign, Bell, Heart, MessageSquare, UserPlus } from 'lucide-react'
 import { ReactElement, useEffect, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getAvatarForUser } from '../../lib/avatar'
 import { communityApi } from '../../lib/communityApi'
-import type { ComponentType } from 'react'
 
 type NotificationType = 'like' | 'comment' | 'follow' | 'mention'
 
@@ -32,7 +32,7 @@ interface TypeConfig {
     fillIcon: boolean
     text: string
     color: string
-    icon: ComponentType<{ size?: number; fill?: string }>
+    icon: LucideIcon
 }
 
 const TYPE_CONFIG: Record<string, TypeConfig> = {

@@ -23,7 +23,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import GuideRecommendations from "../components/GuideRecommendations";
-import { useAuth } from "../contexts/AuthContext";
+// import { useAuth } from "../contexts/AuthContext";
 import { useGuides } from "../hooks/useGuides";
 import { getAvatarForUser } from "../lib/avatar";
 import { supabase } from "../lib/supabase";
@@ -34,7 +34,7 @@ interface OutletContextType {
 
 export default function AllGuidesPage() {
     const { openAddModal } = useOutletContext<OutletContextType>();
-    const { user } = useAuth();
+    // Removed unused user from useAuth
 
     // Use React Query hook for caching and data fetching
     const { data: guides = [], isLoading } = useGuides();
@@ -44,7 +44,7 @@ export default function AllGuidesPage() {
     const [selectedTag, setSelectedTag] = useState(null);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [tagSearch, setTagSearch] = useState("");
-    const [authorAvatars, setAuthorAvatars] = useState({}); // Cache for author avatars
+    const [authorAvatars, setAuthorAvatars] = useState<Record<string, string>>({}); // Cache for author avatars
     const [currentPage, setCurrentPage] = useState(1);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const GUIDES_PER_PAGE = 12;

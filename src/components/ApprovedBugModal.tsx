@@ -1,4 +1,4 @@
-import { Sparkles, X, Gift } from 'lucide-react'
+import { Gift, Sparkles, X } from 'lucide-react';
 
 interface ApprovedBugModalProps {
     onClose: () => void;
@@ -70,4 +70,3 @@ export default function ApprovedBugModal({ onClose }: ApprovedBugModalProps) {
         </div>
     )
 }
-

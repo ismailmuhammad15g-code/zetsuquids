@@ -10,8 +10,7 @@ import {
   useTransform,
   useVelocity,
 } from "framer-motion";
-import { ReactNode } from "react";
-import { useRef, useState } from "react";
+import { ReactNode, useRef, useState } from "react";
 
 // Helper to wrap value within a range
 const wrap = (min: number, max: number, v: number) => {

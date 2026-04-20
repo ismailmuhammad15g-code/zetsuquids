@@ -62,7 +62,7 @@ import { sanitizeContent } from "../lib/utils";
 // Type definitions
 interface TableOfContentsItem {
     id: string
-    title: string
+    text: string | null
     level: number
 }
 
@@ -113,8 +113,8 @@ const renderer = {
                 const encoded = btoa(
                     encodeURIComponent(jsonStr).replace(
                         /%([0-9A-F]{2})/g,
-                        function toSolidBytes(match, p1) {
-                            return String.fromCharCode("0x" + p1);
+                        function toSolidBytes(_match: string, p1: string) {
+                            return String.fromCharCode(parseInt(p1, 16));
                         },
                     ),
                 );
@@ -154,7 +154,7 @@ export default function GuidePage() {
     const { user } = useAuth(); // Get current user
 
     // Track interactions for recommendations
-    const { recordComment, recordRate } = useGuideInteraction(slug);
+    const { recordComment } = useGuideInteraction(slug);
 
     const [guide, setGuide] = useState<Guide | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
@@ -184,7 +184,7 @@ export default function GuidePage() {
     const moreMenuRef = useRef<HTMLDivElement>(null);
     const ttsRef = useRef<any>(null);
     const contentRef = useRef<HTMLDivElement>(null);
-    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Debounce search query for performance
     useEffect(() => {
@@ -335,7 +335,7 @@ export default function GuidePage() {
 
         // 2. Handle Markdown Content
         const markdownContent = guide.markdown || guide.content || "";
-        const html = marked.parse(markdownContent);
+        const html = marked.parse(markdownContent) as string;
         const sanitizedHtml = sanitizeContent(html);
 
         // Apply Search Highlighting (using debounced search for performance)
@@ -349,8 +349,7 @@ export default function GuidePage() {
             const walker = document.createTreeWalker(
                 doc.body,
                 NodeFilter.SHOW_TEXT,
-                null,
-                false,
+                null
             );
             const nodes = [];
             while (walker.nextNode()) nodes.push(walker.currentNode);
@@ -406,7 +405,7 @@ export default function GuidePage() {
             const parser = new DOMParser();
             const doc = parser.parseFromString(processedContent.content, "text/html");
             const headings = doc.querySelectorAll("h1, h2, h3, h4");
-            const tocItems = [];
+            const tocItems: TableOfContentsItem[] = [];
 
             headings.forEach((heading, index) => {
                 const id = `heading-${index}`;
@@ -467,10 +466,10 @@ export default function GuidePage() {
             setError(null);
 
             // Try to find by slug first
-            let guideData = await guidesApi.getBySlug(slug);
+            let guideData = await guidesApi.getBySlug(slug as string);
 
             // If not found by slug, try by ID (for backward compatibility)
-            if (!guideData && /^\d+$/.test(slug)) {
+            if (!guideData && slug && /^\d+$/.test(slug)) {
                 guideData = await guidesApi.getById(parseInt(slug));
             }
 
@@ -516,7 +515,7 @@ export default function GuidePage() {
                     );
                     setAuthorAvatar(avatarUrl);
                 } catch (err) {
-                    console.debug("Error fetching author avatar:", err.message);
+                    console.debug("Error fetching author avatar:", (err as Error).message);
                     setAuthorAvatar(getAvatarForUser(guideData.user_email, null));
                 }
             }
@@ -538,7 +537,7 @@ export default function GuidePage() {
             const { data, error } = await supabase
                 .from("guides")
                 .select("views_count")
-                .eq("id", guide.id)
+                .eq("id", guide?.id)
                 .single();
 
             if (error) throw error;
@@ -626,7 +625,7 @@ export default function GuidePage() {
             // Silently fail if views tracking is not set up yet
             console.log(
                 "Error recording view (views tracking may not be enabled yet):",
-                err.message,
+                err instanceof Error ? err.message : String(err),
             );
             setHasRecordedView(false); // Allow retry
         }
@@ -667,7 +666,7 @@ export default function GuidePage() {
         console.log("[GuidePage] Starting deletion process...");
 
         try {
-            await guidesApi.delete(guide.id);
+            await guidesApi.delete(guide.id!);
             console.log("[GuidePage] Guide deleted successfully!");
 
             // Show success toast
@@ -687,10 +686,7 @@ export default function GuidePage() {
         } catch (err) {
             console.error("[GuidePage] Deletion failed:", {
                 error: err,
-                message: err.message,
-                code: err.code,
-                details: err.details,
-                hint: err.hint,
+                message: err instanceof Error ? err.message : String(err),
                 guideId: guide.id,
                 userEmail: user?.email,
             });
@@ -699,17 +695,21 @@ export default function GuidePage() {
             let errorTitle = "Failed to delete guide";
             let errorMessage = "";
 
-            if (err.code === "42501" || err.message?.includes("permission")) {
-                errorMessage =
-                    "You do not have permission to delete this guide. Please check if you are the owner.";
-            } else if (
-                err.message?.includes("network") ||
-                err.message?.includes("fetch")
-            ) {
-                errorMessage =
-                    "Network error. Please check your connection and try again.";
+            if (err instanceof Error) {
+                if ('code' in err && (err as any).code === "42501" || err.message?.includes("permission")) {
+                    errorMessage =
+                        "You do not have permission to delete this guide. Please check if you are the owner.";
+                } else if (
+                    err.message?.includes("network") ||
+                    err.message?.includes("fetch")
+                ) {
+                    errorMessage =
+                        "Network error. Please check your connection and try again.";
+                } else {
+                    errorMessage = err.message || "Unknown error occurred.";
+                }
             } else {
-                errorMessage = err.message || "Unknown error occurred.";
+                errorMessage = "Unknown error occurred.";
             }
 
             // Show error toast
@@ -732,50 +732,7 @@ export default function GuidePage() {
         setTimeout(() => setCopied(false), 2000);
     }
 
-    // Parse HTML and inject inline comments
-    function parseContentWithInlineComments(htmlContent: string, inlineComments: any[], profilesData: any) {
-        if (!htmlContent || !inlineComments?.length) {
-            return (
-                <div
-                    className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800"
-                    dangerouslySetInnerHTML={{ __html: htmlContent }}
-                />
-            );
-        }
 
-        let processedHtml = htmlContent;
-
-        inlineComments.forEach((comment: any) => {
-            const selectedText = comment.selected_text;
-            if (!selectedText) return;
-
-            const escapedText = selectedText
-                .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-                .replace(/\n/g, "\\n");
-
-            const regex = new RegExp(`(${escapedText})`, "gi");
-
-            const profile = profilesData?.[comment.user_id];
-            const authorName = profile?.display_name || profile?.username || "User";
-            const avatarUrl = profile?.avatar_url || getAvatarForUser(null);
-
-            const commentHtml = `
-        <span class="relative bg-yellow-100/60 rounded px-1 group cursor-pointer" data-comment-id="${comment.id}">
-          $1
-        </span>
-      `;
-
-            processedHtml = processedHtml.replace(regex, commentHtml);
-        });
-
-        return (
-            <div
-                ref={contentRef}
-                className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800"
-                dangerouslySetInnerHTML={{ __html: processedHtml }}
-            />
-        );
-    }
 
     // Pure CSS approach: Find and wrap text with inline comments
     function renderContentWithComments(): JSX.Element | null {
@@ -787,7 +744,7 @@ export default function GuidePage() {
                     srcDoc={processedContent.content}
                     className="w-full min-h-[700px] border-2 border-black bg-white"
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
-                    title={guide.title}
+                    title={guide?.title || "Guide Document"}
                     style={{ display: "block" }}
                 />
             );
@@ -834,7 +791,7 @@ export default function GuidePage() {
                     srcDoc={processedContent.content}
                     className="w-full min-h-[700px] border-2 border-black bg-white"
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
-                    title={guide.title}
+                    title={guide?.title || "Guide Document"}
                     style={{ display: "block" }}
                 />
             );
@@ -958,7 +915,7 @@ export default function GuidePage() {
                     <div className="absolute left-0 top-0 h-1 w-full bg-gray-200/30 dark:bg-gray-700/30" />
                     <ScrollProgress
                         className="absolute top-0 h-1 bg-[linear-gradient(to_right,rgba(0,0,0,0),#000000_75%,#000000_100%)] dark:bg-[linear-gradient(to_right,rgba(255,255,255,0),#ffffff_75%,#ffffff_100%)]"
-                        springOptions={{ stiffness: 280, damping: 18, mass: 0.3 }}
+                        springOptions={{ stiffness: 280, damping: 18 }}
                     />
                 </div>
             </div>
@@ -1057,7 +1014,7 @@ export default function GuidePage() {
                     <div className="flex flex-wrap items-center gap-4 text-gray-500 dark:text-gray-400 mb-6">
                         <span className="flex items-center gap-2">
                             <Calendar size={16} />
-                            {new Date(guide.created_at).toLocaleDateString("en-US", {
+                            {new Date(guide.created_at || Date.now()).toLocaleDateString("en-US", {
                                 year: "numeric",
                                 month: "long",
                                 day: "numeric",
@@ -1573,14 +1530,15 @@ export default function GuidePage() {
 
                 {/* Inline Comments on Text */}
                 <GuideInlineComments
-                    guideId={guide.id}
-                    contentRef={contentRef}
-                    isGuideOwner={isOwner}
+                    guideId={guide.id!}
+                    isGuideOwner={!!isOwner}
                     onCommentsUpdated={loadGuide}
+                    commentCount={0}
+                    onCommentCountChange={() => {}}
                 />
 
                 {/* Comments Section */}
-                <GuideComments guideId={guide.id} onCommentPosted={recordComment} />
+                <GuideComments guideId={String(guide.id)} onCommentPosted={recordComment} />
 
                 {/* Recommendations Section */}
                 <div className="mt-16 mb-12">
@@ -1615,7 +1573,7 @@ export default function GuidePage() {
                 {/* History Modal */}
                 {showHistory && (
                     <GuideHistoryModal
-                        guideId={guide.id}
+                        guideId={String(guide.id)}
                         onClose={() => setShowHistory(false)}
                     />
                 )}
@@ -1646,9 +1604,9 @@ export default function GuidePage() {
                 {/* Guide Rating System */}
                 {guide && (
                     <GuideRating
-                        guideId={guide.id}
-                        authorId={guide.author_id}
-                        guideTitle={guide.title}
+                        guideId={String(guide.id)}
+                        authorId={guide.author_id!}
+                        guideTitle={guide.title || "Untitled Guide"}
                     />
                 )}
 

@@ -14,9 +14,8 @@ export default function FeedTabs({ activeTab, setActiveTab }: FeedTabsProps) {
         >
           <div className="relative h-full flex items-center">
             <span
-              className={`font-semibold text-[15px] transition-colors duration-200 ${
-                activeTab === tab ? "text-[#e7e9ea]" : "text-[#71767b]"
-              }`}
+              className={`font-semibold text-[15px] transition-colors duration-200 ${activeTab === tab ? "text-[#e7e9ea]" : "text-[#71767b]"
+                }`}
             >
               {tab}
             </span>
@@ -29,4 +28,3 @@ export default function FeedTabs({ activeTab, setActiveTab }: FeedTabsProps) {
     </div>
   );
 }
-

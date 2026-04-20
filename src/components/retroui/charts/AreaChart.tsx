@@ -50,7 +50,7 @@ export function AreaChart({
   const padding = 10;
 
   // Generate path for area chart
-  const generatePath = (category: string, colorIndex: number): PathData => {
+  const generatePath = (category: string): PathData => {
     const categoryData = data.map((item: any) => Number(item[category]) || 0);
 
     const pathPoints: PathPoint[] = categoryData.map((value, i) => {
@@ -110,10 +110,7 @@ export function AreaChart({
 
           {/* Area charts */}
           {categories.map((category, idx) => {
-            const { linePath, areaPath, pathPoints } = generatePath(
-              category,
-              idx,
-            );
+            const { linePath, areaPath, pathPoints } = generatePath(category);
             const color = colors[idx % colors.length];
 
             return (

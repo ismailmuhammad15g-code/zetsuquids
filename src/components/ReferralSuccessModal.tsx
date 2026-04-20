@@ -119,4 +119,3 @@ export default function ReferralSuccessModal({ onClose, bonusCredits = 5 }: Refe
         </AnimatePresence>
     )
 }
-

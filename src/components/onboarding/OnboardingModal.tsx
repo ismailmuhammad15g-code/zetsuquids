@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { Cpu, FileText, MessageSquare, Sparkles } from "lucide-react";
-import { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { MotionCarousel } from "./MotionCarousel";
 
@@ -236,4 +235,3 @@ export const OnboardingModal = () => {
     </div>
   );
 };
-

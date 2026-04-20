@@ -1,8 +1,7 @@
 import useEmblaCarousel from "embla-carousel-react";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { ReactNode } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { ReactNode, useCallback, useEffect, useState } from "react";
 
 // Simple cn utility if not imported
 function localCn(...classes: Array<string | undefined | false | null>) {
@@ -97,4 +96,3 @@ export const MotionCarousel = ({ slides, options, className }: MotionCarouselPro
     </div>
   );
 };
-

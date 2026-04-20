@@ -1,6 +1,7 @@
+import type { LucideIcon } from "lucide-react";
 import { Bell, Bookmark, Home, Mail, MoreHorizontal, Plus, Search, Sparkles, User, Users } from "lucide-react";
+import type { MouseEvent } from "react";
 import { useEffect, useState } from "react";
-import type { ComponentType, MouseEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { getAvatarForUser } from "../../lib/avatar";
@@ -12,7 +13,7 @@ interface CommunityLeftSidebarProps {
 
 interface NavItem {
   name: string;
-  icon: ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+  icon: LucideIcon;
   href: string;
 }
 

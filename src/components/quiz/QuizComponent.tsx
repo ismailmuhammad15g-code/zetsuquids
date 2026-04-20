@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
-import { Check, X, AlertCircle, HelpCircle } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle, Check, HelpCircle, X } from "lucide-react";
+import { useState } from "react";
 import { cn } from "../../lib/utils";
 
 interface QuizData {
@@ -186,4 +186,3 @@ export default function QuizComponent({ data }: { data: QuizData }) {
         </div>
     );
 }
-

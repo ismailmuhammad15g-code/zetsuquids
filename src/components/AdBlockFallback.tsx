@@ -226,4 +226,3 @@ export default function AdBlockFallback() {
 
   return createPortal(content, document.body);
 }
-

@@ -49,7 +49,7 @@ export default function ReportBugPage() {
         if (locationState?.prefilledDescription) {
             setFormData(prev => ({
                 ...prev,
-                description: locationState.prefilledDescription,
+                description: locationState.prefilledDescription || '',
                 issueType: locationState.issueType || 'technical_issue'
             }))
         }

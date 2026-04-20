@@ -32,10 +32,10 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
     const [speed, setSpeed] = useState(1);
     const [showControls, setShowControls] = useState(false);
     const [isEnglish, setIsEnglish] = useState(false);
-    const utteranceRef = useRef(null);
-    const intervalRef = useRef(null);
-    const chunksRef = useRef([]);
-    const currentChunkRef = useRef(0);
+    const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+    const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+    const chunksRef = useRef<string[]>([]);
+    const currentChunkRef = useRef<number>(0);
 
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
@@ -188,7 +188,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
       };
     }, []);
 
-    const extractText = (html) => {
+    const extractText = (html: string) => {
       // Remove HTML tags first
       const temp = document.createElement("div");
       temp.innerHTML = html;
@@ -251,7 +251,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
 
     const startSpeechInternal = () => {
       try {
-        const text = extractText(content);
+        const text = extractText(content || "");
 
         if (!text || text.trim().length === 0) {
           toast.warning("No text content to read");
@@ -362,7 +362,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
               );
               setProgress(progressPercent);
 
-              if (progressPercent >= 100) {
+              if (progressPercent >= 100 && intervalRef.current !== null) {
                 clearInterval(intervalRef.current);
               }
             }, 100);
@@ -484,7 +484,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
         setShowControls(false);
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
-          intervalRef.current = null;
+          intervalRef.current = undefined;
         }
         // Reset chunk tracking
         currentChunkRef.current = 0;
@@ -500,7 +500,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
       setTimeout(() => startSpeech(), 100);
     };
 
-    const changeSpeed = (newSpeed) => {
+    const changeSpeed = (newSpeed: number) => {
       const wasPlaying = isPlaying && !isPaused;
       const currentChunk = currentChunkRef.current;
 
@@ -526,7 +526,7 @@ const TextToSpeech = forwardRef<unknown, TextToSpeechProps>(
       }
     };
 
-    const continueFromChunk = (chunkIndex, speedRate) => {
+    const continueFromChunk = (chunkIndex: number, speedRate: number) => {
       if (chunkIndex >= chunksRef.current.length) {
         console.log("? No more chunks to read");
         stopSpeech();

@@ -20,7 +20,7 @@ interface PricingTier {
   cta: string;
   popular?: boolean;
   highlighted?: boolean;
-  planType: "free" | "paid" | "custom";
+  planType?: "free" | "paid" | "custom";
 }
 
 export const TIERS: PricingTier[] = [
