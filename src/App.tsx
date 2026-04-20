@@ -35,6 +35,9 @@ const VerifyEmailPage = lazy(() => import("./pages/VerifyEmailPage"));
 const ZetsuGuideAIPage = lazy(() => import("./pages/ZetsuGuideAIPage"));
 const CommunityLayout = lazy(() => import("./components/community/CommunityLayout"));
 const CommunityFeed = lazy(() => import("./pages/CommunityPage"));
+const CommunityExplorePage = lazy(() => import("./pages/community/ExplorePage"));
+const CommunityCommunitiesPage = lazy(() => import("./pages/community/CommunitiesPage"));
+const CommunityGroupPage = lazy(() => import("./pages/community/GroupPage"));
 const CommunityBookmarksPage = lazy(() => import("./pages/community/BookmarksPage"));
 const CommunityNotificationsPage = lazy(() => import("./pages/community/NotificationsPage"));
 const CommunityMessagesPage = lazy(() => import("./pages/community/MessagesPage"));
@@ -90,11 +93,15 @@ function App() {
                                 <Route path="faq" element={<FAQPage />} />
                                 <Route path="community" element={<CommunityLayout />}>
                                     <Route index element={<CommunityFeed />} />
+                                    <Route path="explore" element={<CommunityExplorePage />} />
+                                    <Route path="communities" element={<CommunityCommunitiesPage />} />
+                                    <Route path="group/:id" element={<CommunityGroupPage />} />
                                     <Route path="post/:id" element={<PostDetailsPage />} />
                                     <Route path="notifications" element={<CommunityNotificationsPage />} />
                                     <Route path="messages" element={<CommunityMessagesPage />} />
                                     <Route path="bookmarks" element={<CommunityBookmarksPage />} />
                                 </Route>
+
                             </Route>
 
                             <Route path="/auth" element={<AuthPage />} />
