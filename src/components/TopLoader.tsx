@@ -1,11 +1,25 @@
-
-
 "use client";
 
 import React from "react";
 import { cn } from "../lib/utils";
 
-const TopLoader = React.forwardRef(
+interface TopLoaderProps extends React.HTMLAttributes<HTMLDivElement> {
+  isLoading?: boolean;
+  color?: string;
+  height?: number;
+  speed?: number;
+  showSpinner?: boolean;
+  easing?: string;
+  minimum?: number;
+  parent?: string;
+  trickle?: boolean;
+  trickleRate?: number;
+  trickleSpeed?: number;
+  zIndex?: number;
+  progress?: number;
+}
+
+const TopLoader = React.forwardRef<HTMLDivElement, TopLoaderProps>(
   (
     {
       isLoading = false,
@@ -26,71 +40,77 @@ const TopLoader = React.forwardRef(
     },
     ref,
   ) => {
+    void parent;
     const [mounted, setMounted] = React.useState(false);
     const [currentProgress, setCurrentProgress] = React.useState(0);
     const progressRef = React.useRef(0);
     const isStartedRef = React.useRef(false);
-    const requestRef = React.useRef(null);
+    const requestRef = React.useRef<number | null>(null);
     const loaderIdRef = React.useRef(
       `top-loader-${Math.random().toString(36).substring(2, 9)}`,
     );
 
     const styles = React.useMemo(
-      () => ({
-        container: {
-          pointerEvents: "none",
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: `${height}px`,
-          zIndex: zIndex,
+      () =>
+        ({
+          container: {
+            pointerEvents: "none",
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: `${height}px`,
+            zIndex,
+          } as React.CSSProperties,
+          bar: {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            background: color,
+            boxShadow: `0 0 15px ${color}, 0 0 8px ${color}`,
+            transition: `transform ${speed}ms ${easing}`,
+            transform: `translate3d(-${100 - currentProgress * 100}%, 0, 0)`,
+            zIndex,
+          } as React.CSSProperties,
+          spinner: {
+            display: showSpinner ? "block" : "none",
+            position: "fixed",
+            top: "15px",
+            right: "15px",
+            width: "18px",
+            height: "25px",
+            boxSizing: "border-box",
+            border: "solid 2px transparent",
+            borderTopColor: color,
+            borderLeftColor: color,
+            borderRadius: "50%",
+            animation: "top-loader-spinner 400ms linear infinite",
+            zIndex,
+          } as React.CSSProperties,
+        }) satisfies {
+          container: React.CSSProperties;
+          bar: React.CSSProperties;
+          spinner: React.CSSProperties;
         },
-        bar: {
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          background: color,
-          boxShadow: `0 0 15px ${color}, 0 0 8px ${color}`,
-          transition: `transform ${speed}ms ${easing}`,
-          transform: `translate3d(-${100 - currentProgress * 100}%, 0, 0)`,
-          zIndex: zIndex,
-        },
-        spinner: {
-          display: showSpinner ? "block" : "none",
-          position: "fixed",
-          top: "15px",
-          right: "15px",
-          width: "18px",
-          height: "25px",
-          boxSizing: "border-box",
-          border: "solid 2px transparent",
-          borderTopColor: color,
-          borderLeftColor: color,
-          borderRadius: "50%",
-          animation: "top-loader-spinner 400ms linear infinite",
-          zIndex: zIndex,
-        },
-      }),
       [color, currentProgress, easing, height, showSpinner, speed, zIndex],
     );
 
-    const clamp = (n, min, max) => {
+    const clamp = (n: number, min: number, max: number): number => {
       if (n < min) return min;
       if (n > max) return max;
       return n;
     };
 
-    const set = React.useCallback(
-      (n) => {
-        n = clamp(n, minimum, 1);
-        progressRef.current = n;
-        setCurrentProgress(n);
+    const setProgress = React.useCallback(
+      (n: number) => {
+        const next = clamp(n, minimum, 1);
+        progressRef.current = next;
+        setCurrentProgress(next);
 
-        if (n === 1) {
-          setTimeout(() => {
+        if (next === 1) {
+          window.setTimeout(() => {
             setCurrentProgress(0);
             isStartedRef.current = false;
           }, speed);
@@ -102,22 +122,23 @@ const TopLoader = React.forwardRef(
     );
 
     const inc = React.useCallback(
-      (amount) => {
+      (amount?: number) => {
         let n = progressRef.current;
 
         if (!isStartedRef.current) {
-          set(minimum);
+          setProgress(minimum);
           return;
         }
 
-        if (typeof amount !== "number") {
-          amount = (1 - n) * clamp(Math.random() * n, 0.1, 0.95);
-        }
+        const delta =
+          typeof amount === "number"
+            ? amount
+            : (1 - n) * clamp(Math.random() * n, 0.1, 0.95);
 
-        n = clamp(n + amount, 0, 0.994);
-        set(n);
+        n = clamp(n + delta, 0, 0.994);
+        setProgress(n);
       },
-      [minimum, set],
+      [minimum, setProgress],
     );
 
     const trickleFunction = React.useCallback(() => {
@@ -128,7 +149,7 @@ const TopLoader = React.forwardRef(
       if (!mounted) return;
 
       if (progress !== undefined) {
-        set(progress);
+        setProgress(progress);
         return;
       }
 
@@ -137,7 +158,7 @@ const TopLoader = React.forwardRef(
           if (!isLoading) return;
           trickleFunction();
           requestRef.current = window.setTimeout(() => {
-            if (requestRef.current) {
+            if (requestRef.current !== null) {
               tick();
             }
           }, trickleSpeed);
@@ -146,7 +167,7 @@ const TopLoader = React.forwardRef(
         tick();
 
         return () => {
-          if (requestRef.current) {
+          if (requestRef.current !== null) {
             window.clearTimeout(requestRef.current);
             requestRef.current = null;
           }
@@ -156,7 +177,7 @@ const TopLoader = React.forwardRef(
       isLoading,
       mounted,
       progress,
-      set,
+      setProgress,
       trickle,
       trickleFunction,
       trickleSpeed,
@@ -171,7 +192,7 @@ const TopLoader = React.forwardRef(
 
       return () => {
         document.head.removeChild(style);
-        if (requestRef.current) {
+        if (requestRef.current !== null) {
           window.clearTimeout(requestRef.current);
         }
       };
@@ -182,12 +203,12 @@ const TopLoader = React.forwardRef(
 
       if (isLoading) {
         if (currentProgress === 0) {
-          set(minimum);
+          setProgress(minimum);
         }
       } else if (currentProgress > 0) {
-        set(1);
+        setProgress(1);
       }
-    }, [isLoading, mounted, currentProgress, minimum, set]);
+    }, [isLoading, mounted, currentProgress, minimum, setProgress]);
 
     if (!mounted) return null;
     if (!isLoading && currentProgress === 0) return null;
@@ -217,4 +238,3 @@ const TopLoader = React.forwardRef(
 TopLoader.displayName = "TopLoader";
 
 export { TopLoader };
-

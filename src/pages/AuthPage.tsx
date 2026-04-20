@@ -26,10 +26,10 @@ import {
   Mail,
   User,
 } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import celebrateAnimation from "../assets/celebrate.json";
-import { SocialButton, GithubIcon } from "../components/SocialButton";
+import { GithubIcon, SocialButton } from "../components/SocialButton";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/api";
 
@@ -78,10 +78,54 @@ const blurFadeImages = Array.from({ length: 9 }, (_, i) => {
   return `https://picsum.photos/seed/${i + 1}/${width}/${height}`;
 });
 
+type AuthMode = "login" | "register" | "forgot" | "reset";
+
+interface AuthFormData {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+interface AuthMessage {
+  type: "" | "success" | "error";
+  text: string;
+}
+
+interface OAuthUserLike {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown>;
+  app_metadata?: Record<string, unknown>;
+  aud?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface AuthContextUserShape {
+  id: string;
+  email: string;
+  user_metadata?: Record<string, unknown>;
+  app_metadata?: Record<string, unknown>;
+  aud?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+const toAuthContextUser = (user: OAuthUserLike): AuthContextUserShape => ({
+  id: user.id,
+  email: user.email ?? "",
+  user_metadata: user.user_metadata,
+  app_metadata: user.app_metadata,
+  aud: user.aud,
+  created_at: user.created_at,
+  updated_at: user.updated_at,
+});
+
 export default function AuthPage() {
-  const [mode, setMode] = useState("login"); // login, register, forgot, reset
+  const [mode, setMode] = useState<AuthMode>("login"); // login, register, forgot, reset
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<AuthFormData>({
     name: "",
     email: "",
     password: "",
@@ -89,7 +133,7 @@ export default function AuthPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ type: "", text: "" });
+  const [message, setMessage] = useState<AuthMessage>({ type: "", text: "" });
   const [referralCode, setReferralCode] = useState("");
   const [isValidReferral, setIsValidReferral] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -181,7 +225,7 @@ export default function AuthPage() {
           console.log("✅ OAuth login successful:", session.user.email);
 
           // Save to AuthContext
-          login(session.access_token, session.user);
+          login(session.access_token, toAuthContextUser(session.user));
 
           // Navigate to home
           setTimeout(() => {
@@ -218,7 +262,7 @@ export default function AuthPage() {
             console.log("✅ Session set successfully:", data.session.user.email);
 
             // Save to AuthContext
-            login(data.session.access_token, data.session.user);
+            login(data.session.access_token, toAuthContextUser(data.session.user));
 
             // Clean the URL hash
             window.history.replaceState(null, "", window.location.pathname);
@@ -237,12 +281,12 @@ export default function AuthPage() {
     };
   }, [navigate, login]);
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setMessage({ type: "", text: "" });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: "", text: "" });
@@ -282,7 +326,7 @@ export default function AuthPage() {
             const text = await response.text();
             try {
               result = JSON.parse(text);
-            } catch (e) {
+            } catch {
               // If not JSON, use the text as error message if response failed, or generic error
               console.error("Failed to parse registration response:", text);
               throw new Error(
@@ -291,8 +335,11 @@ export default function AuthPage() {
                   : text || "Server error",
               );
             }
-          } catch (e) {
-            throw new Error(e.message || "Network error during registration");
+          } catch (registrationError: unknown) {
+            const errorMessage = registrationError instanceof Error
+              ? registrationError.message
+              : "Network error during registration";
+            throw new Error(errorMessage);
           }
 
           if (!response.ok) {
@@ -322,7 +369,7 @@ export default function AuthPage() {
           if (signInError) throw signInError;
 
           if (signInData.user) {
-            login(signInData.session.access_token, signInData.user);
+            login(signInData.session.access_token, toAuthContextUser(signInData.user));
             navigate("/");
           }
           break;
@@ -368,23 +415,24 @@ export default function AuthPage() {
       console.error("Auth error:", error);
 
       let errorMessage = "Authentication failed";
+      const rawMessage = error instanceof Error ? error.message : "";
 
       // Handle specific Supabase errors
-      if (error.message.includes("Invalid login credentials")) {
+      if (rawMessage.includes("Invalid login credentials")) {
         errorMessage =
           "Incorrect email or password. Please check your credentials or create an account.";
-      } else if (error.message.includes("Email not confirmed")) {
+      } else if (rawMessage.includes("Email not confirmed")) {
         errorMessage =
           "Please check your email and click the verification link before signing in.";
-      } else if (error.message.includes("User already registered")) {
+      } else if (rawMessage.includes("User already registered")) {
         errorMessage =
           "An account with this email already exists. Please sign in instead.";
-      } else if (error.message.includes("Password should be at least")) {
+      } else if (rawMessage.includes("Password should be at least")) {
         errorMessage = "Password must be at least 6 characters long.";
-      } else if (error.message.includes("Unable to validate email address")) {
+      } else if (rawMessage.includes("Unable to validate email address")) {
         errorMessage = "Please enter a valid email address.";
-      } else if (error.message) {
-        errorMessage = error.message;
+      } else if (rawMessage) {
+        errorMessage = rawMessage;
       }
 
       setMessage({ type: "error", text: errorMessage });
@@ -403,12 +451,12 @@ export default function AuthPage() {
         ? "https://zetsuquids.vercel.app/auth"
         : `${window.location.origin}/auth`;
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "github",
         options: {
           redirectTo: redirectUrl,
           queryParams: {
-            prompt: 'consent', // Force consent screen to allow account switching
+            prompt: "consent", // Force consent screen to allow account switching
           }
         },
       });
@@ -420,7 +468,7 @@ export default function AuthPage() {
       console.error("GitHub OAuth error:", error);
       setMessage({
         type: "error",
-        text: error.message || "Failed to connect with GitHub",
+        text: error instanceof Error ? error.message : "Failed to connect with GitHub",
       });
       setLoading(false);
     }

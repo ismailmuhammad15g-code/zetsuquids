@@ -1,21 +1,24 @@
-
-
 import { AnimatePresence, motion } from "framer-motion";
 import { Clock } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import Counter from "./react-bits/Counter";
 
-export default function GuideTimer({ guideId, userId }) {
+interface GuideTimerProps {
+  guideId?: string | number;
+  userId?: string | null;
+}
+
+export default function GuideTimer({ guideId, userId }: GuideTimerProps) {
   const [seconds, setSeconds] = useState(0); // Time collected in this session
-  const [status, setStatus] = useState("waiting"); // waiting, countdown, tracking
+  const [status, setStatus] = useState<"waiting" | "countdown" | "tracking">("waiting"); // waiting, countdown, tracking
   const [countdown, setCountdown] = useState(5);
   const [isSticky, setIsSticky] = useState(false);
-  const containerRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Use refs for intervals to clear them easily
-  const timerInterval = useRef(null);
-  const saveInterval = useRef(null);
+  const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const saveInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastTick = useRef(Date.now());
 
   // Define start/stop refs to avoid dependency cycles in useEffect
@@ -23,7 +26,7 @@ export default function GuideTimer({ guideId, userId }) {
   // Actually, we can just define them in the scope and use them, ignoring the lint rule for the mount effect
   // or use a ref to track if we are mounted.
 
-  const stopTimerFunctions = () => {
+  const stopTimerFunctions = (): void => {
     if (timerInterval.current) {
       clearInterval(timerInterval.current);
       timerInterval.current = null;
@@ -34,7 +37,7 @@ export default function GuideTimer({ guideId, userId }) {
     }
   };
 
-  const saveCurrentProgress = () => {
+  const saveCurrentProgress = (): void => {
     // Calculate exact seconds passed since last save/start
     const now = Date.now();
     const secondsPassed = Math.round((now - lastTick.current) / 1000);
@@ -42,7 +45,7 @@ export default function GuideTimer({ guideId, userId }) {
     // Sanity check: cap at 300s (5m) per save to prevent massive jumps from hibernate/sleep
     // and ensure we are in a valid state
     if (secondsPassed > 0 && secondsPassed < 3000) {
-      saveProgress(secondsPassed);
+      void saveProgress(secondsPassed);
       lastTick.current = now;
     } else if (secondsPassed >= 3000) {
       // If huge jump (system sleep?), just reset tick, don't save crazy amount
@@ -89,21 +92,20 @@ export default function GuideTimer({ guideId, userId }) {
       const now = Date.now();
       const diff = Math.round((now - lastTick.current) / 1000);
       if (diff > 1 && diff < 3000) {
-        // Fire and forget with silent catch
-        supabase
-          .rpc("track_guide_time", {
-            p_guide_id: guideId,
-            p_duration_add: diff,
-          })
-          .then(({ error }) => {
-            // Only log logic errors, suppress network errors on unmount as page allows it
+        // Fire and forget with silent error handling on unmount
+        void (async () => {
+          try {
+            const { error } = await supabase.rpc("track_guide_time", {
+              p_guide_id: guideId,
+              p_duration_add: diff,
+            });
             if (error && !error.message?.includes("fetch")) {
-              // console.warn("Unmount save warning", error);
+              // Suppress noisy network-related unmount logs.
             }
-          })
-          .catch(() => {
-            // Totally ignore unmount errors as they are often due to cancelled requests
-          });
+          } catch {
+            // Ignore unmount request failures.
+          }
+        })();
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -143,18 +145,7 @@ export default function GuideTimer({ guideId, userId }) {
     }
   }, [status]);
 
-  // Cleanup these unused functions to avoid confusion (we inlined them)
-  const startTracking = () => {};
-  const stopTracking = () => {};
-
-  // Save on unmount (best effort)
-  useEffect(() => {
-    return () => {
-      stopTracking();
-    };
-  }, []);
-
-  const saveProgress = async (amount) => {
+  const saveProgress = async (amount: number): Promise<void> => {
     if (!userId || !guideId) return;
 
     // Skip if offline
@@ -180,48 +171,29 @@ export default function GuideTimer({ guideId, userId }) {
         }
         console.warn("Error saving time:", error.message);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       // Suppress network errors from console
+      if (err instanceof Error) {
+        if (
+          err.message?.includes("Failed to fetch") ||
+          err.message?.includes("NetworkError") ||
+          err.name === "TypeError"
+        ) {
+          return;
+        }
+      }
       if (
-        err.message?.includes("Failed to fetch") ||
-        err.message?.includes("NetworkError") ||
-        err.name === "TypeError"
+        typeof err === "object" &&
+        err !== null &&
+        "message" in err &&
+        typeof (err as { message?: string }).message === "string" &&
+        (((err as { message: string }).message.includes("Failed to fetch") ||
+          (err as { message: string }).message.includes("NetworkError")))
       ) {
         return;
       }
       console.warn("Failed to save time:", err);
     }
-  };
-
-  // Format for display
-  const formatTime = (secs) => {
-    const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60);
-    const s = secs % 60;
-
-    // Convert to string for Counter compatible format (e.g. 12:45)
-    // The Counter component expects a number or array of places.
-    // If we want to display H M S with colons, the Counter component might need adjustment
-    // or we use multiple Counters.
-    // However, the requested Usage was <Counter value={4.4} ... /> which implies numeric.
-    // The user said "1 2 3 4 ..." and "automatic counting".
-    // "No button".
-    // "Just counter".
-
-    // If we just want to show seconds ticking up:
-    return secs;
-  };
-
-  const getPlaces = (secs) => {
-    // Return place values for digits [100, 10, 1] etc based on magnitude
-    // But the component calculates it automatically if we pass value.
-    // We can also pass explicit places to formatting like 00:00
-    // But the component supports '.' for decimals, not ':' for time.
-    // User asked for "1 2 3 4 ..." so maybe just total seconds?
-    // Or maybe they want the time formatted.
-    // "Counter value={4.4}"
-    // Let's implement it as a simple seconds counter first as per "1 2 3 4 ..." request.
-    return undefined;
   };
 
   if (!userId) return null;
@@ -240,23 +212,23 @@ export default function GuideTimer({ guideId, userId }) {
             animate={
               isSticky
                 ? {
-                    position: "fixed",
-                    top: "6rem",
-                    right: "2rem",
-                    left: "auto",
-                    zIndex: 40,
-                    scale: 0.9,
-                    opacity: 1,
-                  }
+                  position: "fixed",
+                  top: "6rem",
+                  right: "2rem",
+                  left: "auto",
+                  zIndex: 40,
+                  scale: 0.9,
+                  opacity: 1,
+                }
                 : {
-                    position: "relative",
-                    top: "auto",
-                    right: "auto",
-                    left: "auto",
-                    zIndex: 10,
-                    scale: 1,
-                    opacity: 1,
-                  }
+                  position: "relative",
+                  top: "auto",
+                  right: "auto",
+                  left: "auto",
+                  zIndex: 10,
+                  scale: 1,
+                  opacity: 1,
+                }
             }
             transition={{
               type: "spring",
@@ -280,7 +252,7 @@ export default function GuideTimer({ guideId, userId }) {
                         padding={0}
                         gap={2}
                         textColor="white"
-                        fontWeight={700}
+                        fontWeight="700"
                         gradientHeight={4}
                         gradientFrom="#000000"
                         gradientTo="transparent"
@@ -301,7 +273,7 @@ export default function GuideTimer({ guideId, userId }) {
                     places={[10, 1]}
                     gap={2}
                     textColor="white"
-                    fontWeight={700}
+                    fontWeight="700"
                     gradientHeight={4}
                     gradientFrom="#000000"
                     gradientTo="transparent"
@@ -327,4 +299,3 @@ export default function GuideTimer({ guideId, userId }) {
     </>
   );
 }
-

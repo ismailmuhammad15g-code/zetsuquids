@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -15,11 +16,45 @@ import {
   Wand2,
   X,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { basicSearch, getAIEnhancement, isAIConfigured } from "../lib/ai";
 import { guidesApi } from "../lib/api";
 import AnimatedLoadingSkeleton from "./ui/animated-loading-skeleton";
+
+type SearchFilter = "all" | "guides" | "actions";
+type AiState = "idle" | "thinking" | "ready";
+
+interface SearchGuide {
+  id: string | number;
+  title: string;
+  slug: string;
+  keywords?: string[];
+  isAIResult?: boolean;
+}
+
+interface SearchAction {
+  id: string;
+  title: string;
+  icon: LucideIcon;
+  path: string;
+  color: string;
+  bg: string;
+  isAction: true;
+  keywords?: string[];
+}
+
+type SearchResultItem = SearchGuide | SearchAction;
+
+interface AiEnhancementResult {
+  aiInsight?: string;
+  results?: SearchGuide[];
+}
+
+function isSearchAction(item: SearchResultItem): item is SearchAction {
+  return (item as SearchAction).isAction === true;
+}
 
 // Blacklisted words - inappropriate content
 const BLACKLIST = [
@@ -88,18 +123,18 @@ function checkBlacklist(text: string): string[] {
 
 export default function SearchModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
-  const inputRef = useRef(null);
-  const aiTimeoutRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [recentSearches, setRecentSearches] = useState([]);
-  const [allGuides, setAllGuides] = useState([]);
+  const [recentSearches, setRecentSearches] = useState<SearchGuide[]>([]);
+  const [allGuides, setAllGuides] = useState<SearchGuide[]>([]);
 
   // Quick Actions Definition
-  const QUICK_ACTIONS = [
+  const QUICK_ACTIONS: SearchAction[] = [
     {
       id: "action-ai",
       title: "Ask ZetsuGuide AI",
@@ -107,6 +142,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
       path: "/zetsuguide-ai",
       color: "text-indigo-500",
       bg: "bg-indigo-50",
+      isAction: true,
     },
     {
       id: "action-add",
@@ -115,6 +151,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
       path: "modal:add",
       color: "text-green-500",
       bg: "bg-green-50",
+      isAction: true,
     },
     {
       id: "action-pro",
@@ -123,6 +160,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
       path: "/pricing",
       color: "text-black-500",
       bg: "bg-white-50",
+      isAction: true,
     },
     {
       id: "action-home",
@@ -131,13 +169,14 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
       path: "/",
       color: "text-blue-500",
       bg: "bg-blue-50",
+      isAction: true,
     },
   ];
 
   // Filter State
-  const [activeFilter, setActiveFilter] = useState("all"); // all, guides, actions
+  const [activeFilter, setActiveFilter] = useState<SearchFilter>("all"); // all, guides, actions
 
-  function handleActionClick(action: any): void {
+  function handleActionClick(action: SearchAction): void {
     if (action.path === "modal:add") {
       // Dispatch event for Layout to handle
       window.dispatchEvent(new CustomEvent("open-add-guide"));
@@ -149,17 +188,17 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
   }
 
   // Blacklist violation state
-  const [violations, setViolations] = useState([]);
+  const [violations, setViolations] = useState<string[]>([]);
 
   // AI States
-  const [aiState, setAiState] = useState("idle"); // idle, thinking, ready
-  const [aiResults, setAiResults] = useState(null);
+  const [aiState, setAiState] = useState<AiState>("idle"); // idle, thinking, ready
+  const [aiResults, setAiResults] = useState<AiEnhancementResult | null>(null);
   const [showAiPanel, setShowAiPanel] = useState(false);
 
   // Load guides on mount
   useEffect(() => {
     inputRef.current?.focus();
-    const recent = JSON.parse(localStorage.getItem("recentSearches") || "[]");
+    const recent = JSON.parse(localStorage.getItem("recentSearches") || "[]") as SearchGuide[];
     setRecentSearches(recent);
     loadGuides();
   }, []);
@@ -167,7 +206,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
   async function loadGuides() {
     try {
       const guides = await guidesApi.getAll();
-      setAllGuides(guides);
+      setAllGuides(guides as SearchGuide[]);
     } catch (err) {
       console.error("Failed to load guides:", err);
     }
@@ -224,27 +263,30 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
 
     try {
       // Step 1: Basic search (instant)
-      let basicResults = basicSearch(searchQuery, allGuides);
+      let basicResults = basicSearch(searchQuery, allGuides) as SearchGuide[];
 
       // Search Actions
-      const actionResults = QUICK_ACTIONS.filter((action: any) =>
+      const actionResults = QUICK_ACTIONS.filter((action) =>
         action.title.toLowerCase().includes(searchQuery.toLowerCase()),
-      ).map((action: any) => ({
+      ).map((action) => ({
         ...action,
-        isAction: true,
+        isAction: true as const,
         keywords: ["shortcut", "action"],
       }));
 
       // Combine (Actions first if they match)
-      basicResults = [...actionResults, ...basicResults];
+      const mergedResults: SearchResultItem[] = [
+        ...actionResults,
+        ...basicResults,
+      ];
 
-      setResults(basicResults);
+      setResults(mergedResults);
       setSelectedIndex(0);
       setLoading(false);
 
       // Step 2: If no results, trigger AI after 2 seconds
       if (
-        basicResults.length === 0 &&
+        mergedResults.length === 0 &&
         isAIConfigured() &&
         allGuides.length > 0
       ) {
@@ -253,7 +295,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
         }, 2000);
       }
       // Step 3: If results found but AI configured, enhance after 1.5 seconds
-      else if (basicResults.length > 0 && isAIConfigured()) {
+      else if (mergedResults.length > 0 && isAIConfigured()) {
         aiTimeoutRef.current = setTimeout(() => {
           enhanceWithAI(searchQuery);
         }, 1500);
@@ -270,7 +312,10 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
     setShowAiPanel(true);
 
     try {
-      const aiData = await getAIEnhancement(searchQuery, allGuides);
+      const aiData = (await getAIEnhancement(
+        searchQuery,
+        allGuides,
+      )) as AiEnhancementResult | null;
 
       if (aiData) {
         setAiResults(aiData);
@@ -278,7 +323,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
 
         // If AI found results, add them
         if (aiData.results && aiData.results.length > 0) {
-          setResults(aiData.results);
+          setResults(aiData.results as SearchResultItem[]);
         }
       } else {
         setAiState("idle");
@@ -294,7 +339,10 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
     setShowAiPanel(true); // Show skeleton immediately while thinking
 
     try {
-      const aiData = await getAIEnhancement(searchQuery, allGuides);
+      const aiData = (await getAIEnhancement(
+        searchQuery,
+        allGuides,
+      )) as AiEnhancementResult | null;
 
       if (aiData && aiData.aiInsight) {
         setAiResults(aiData);
@@ -304,8 +352,9 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
         // Merge AI results with basic results
         if (aiData.results && aiData.results.length > 0) {
           setResults((prev) => {
-            const existingIds = new Set(prev.map((r: any) => r.id));
-            const uniqueNewResults = aiData.results.filter((r: any) => !existingIds.has(r.id),
+            const existingIds = new Set(prev.map((r) => r.id));
+            const uniqueNewResults = aiData.results!.filter(
+              (r) => !existingIds.has(r.id),
             );
             return [...prev, ...uniqueNewResults];
           });
@@ -317,11 +366,11 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  function handleSelect(guide: any): void {
-    const recent = JSON.parse(localStorage.getItem("recentSearches") || "[]");
+  function handleSelect(guide: SearchGuide): void {
+    const recent = JSON.parse(localStorage.getItem("recentSearches") || "[]") as SearchGuide[];
     const updated = [
       { id: guide.id, title: guide.title, slug: guide.slug },
-      ...recent.filter((r: any) => r.id !== guide.id),
+      ...recent.filter((r) => r.id !== guide.id),
     ].slice(0, 5);
     localStorage.setItem("recentSearches", JSON.stringify(updated));
 
@@ -337,13 +386,18 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
       e.preventDefault();
       setSelectedIndex((i) => Math.max(i - 1, 0));
     } else if (e.key === "Enter" && results[selectedIndex]) {
-      handleSelect(results[selectedIndex]);
+      const selectedItem = results[selectedIndex];
+      if (isSearchAction(selectedItem)) {
+        handleActionClick(selectedItem);
+      } else {
+        handleSelect(selectedItem);
+      }
     } else if (e.key === "Escape") {
       onClose();
     }
   }
 
-  function highlightMatch(text: string, searchQuery: string): (string | JSX.Element)[] {
+  function highlightMatch(text: string, searchQuery: string): ReactNode {
     if (!searchQuery || !text) return text;
     try {
       const regex = new RegExp(
@@ -364,42 +418,6 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
       return text;
     }
   }
-
-  // AI Thinking Animation Component
-  const AIThinkingPanel = () => (
-    <div className="mx-4 mt-4 p-4 bg-gray-50 border border-gray-300 rounded-xl">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center">
-          <Brain className="w-5 h-5 text-white animate-pulse" />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-black">Searching</span>
-            <div className="flex gap-1">
-              <span
-                className="w-1.5 h-1.5 bg-black rounded-full animate-bounce"
-                style={{ animationDelay: "0ms" }}
-              />
-              <span
-                className="w-1.5 h-1.5 bg-black rounded-full animate-bounce"
-                style={{ animationDelay: "150ms" }}
-              />
-              <span
-                className="w-1.5 h-1.5 bg-black rounded-full animate-bounce"
-                style={{ animationDelay: "300ms" }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="mt-3 h-1 bg-gray-200 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-black rounded-full animate-pulse"
-          style={{ width: "60%" }}
-        />
-      </div>
-    </div>
-  );
 
   // AI Results Panel Component
   const AIResultsPanel = () => {
@@ -487,13 +505,13 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
             {/* Filter Tabs (Only show when searching) */}
             {query && !violations.length && (
               <div className="flex items-center gap-1 px-4 pb-0 overflow-x-auto scrollbar-hide">
-                {["all", "guides", "actions"].map((filter: any) => (
+                {["all", "guides", "actions"].map((filter) => (
                   <button
                     key={filter}
-                    onClick={() => setActiveFilter(filter)}
+                    onClick={() => setActiveFilter(filter as SearchFilter)}
                     className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeFilter === filter
-                        ? "border-black text-black"
-                        : "border-transparent text-gray-500 hover:text-gray-800"
+                      ? "border-black text-black"
+                      : "border-transparent text-gray-500 hover:text-gray-800"
                       }`}
                   >
                     {filter.charAt(0).toUpperCase() + filter.slice(1)}
@@ -571,7 +589,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                     Quick Actions
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {QUICK_ACTIONS.map((action: any) => (
+                    {QUICK_ACTIONS.map((action) => (
                       <button
                         key={action.id}
                         onClick={() => handleActionClick(action)}
@@ -598,7 +616,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                       Recent
                     </h3>
                     <div className="space-y-1">
-                      {recentSearches.map((item: any) => (
+                      {recentSearches.map((item) => (
                         <button
                           key={item.id}
                           onClick={() => handleSelect(item)}
@@ -628,42 +646,42 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
               results.length > 0 &&
               violations.length === 0 && (
                 <div className="p-2 space-y-1">
-                  {results.filter((item: any) => {
+                  {results.filter((item) => {
                     if (activeFilter === "all") return true;
-                    if (activeFilter === "guides") return !item.isAction;
-                    if (activeFilter === "actions") return item.isAction;
+                    if (activeFilter === "guides") return !isSearchAction(item);
+                    if (activeFilter === "actions") return isSearchAction(item);
                     return true;
                   }).length > 0 ? (
                     results
-                      .filter((item: any) => {
+                      .filter((item) => {
                         if (activeFilter === "all") return true;
-                        if (activeFilter === "guides") return !item.isAction;
-                        if (activeFilter === "actions") return item.isAction;
+                        if (activeFilter === "guides") return !isSearchAction(item);
+                        if (activeFilter === "actions") return isSearchAction(item);
                         return true;
                       })
                       .map((item, i) => (
                         <button
-                          key={item.id}
+                          key={String(item.id)}
                           onClick={() =>
-                            item.isAction
+                            isSearchAction(item)
                               ? handleActionClick(item)
                               : handleSelect(item)
                           }
                           className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all ${i === selectedIndex
-                              ? "bg-indigo-50/50 border border-indigo-100 shadow-sm"
-                              : "hover:bg-gray-50 border border-transparent"
+                            ? "bg-indigo-50/50 border border-indigo-100 shadow-sm"
+                            : "hover:bg-gray-50 border border-transparent"
                             }`}
                         >
                           {/* Icon Box */}
                           <div
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${item.isAction
-                                ? "bg-amber-100 text-amber-600"
-                                : item.isAIResult
-                                  ? "bg-indigo-100 text-indigo-600"
-                                  : "bg-gray-100 text-gray-500"
+                            className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${isSearchAction(item)
+                              ? "bg-amber-100 text-amber-600"
+                              : item.isAIResult
+                                ? "bg-indigo-100 text-indigo-600"
+                                : "bg-gray-100 text-gray-500"
                               }`}
                           >
-                            {item.isAction ? (
+                            {isSearchAction(item) ? (
                               <Command size={20} />
                             ) : item.isAIResult ? (
                               <Sparkles size={20} />
@@ -680,23 +698,23 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                               >
                                 {highlightMatch(item.title, query)}
                               </h4>
-                              {item.isAIResult && (
+                              {!isSearchAction(item) && item.isAIResult && (
                                 <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold uppercase rounded">
                                   AI
                                 </span>
                               )}
-                              {item.isAction && (
+                              {isSearchAction(item) && (
                                 <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold uppercase rounded">
                                   Command
                                 </span>
                               )}
                             </div>
-                            {item.keywords && !item.isAction && (
+                            {!isSearchAction(item) && item.keywords && (
                               <p className="text-sm text-gray-500 truncate mt-0.5">
                                 {item.keywords.slice(0, 3).join(", ")}
                               </p>
                             )}
-                            {item.isAction && (
+                            {isSearchAction(item) && (
                               <p className="text-sm text-gray-400 mt-0.5">
                                 Quick Action
                               </p>

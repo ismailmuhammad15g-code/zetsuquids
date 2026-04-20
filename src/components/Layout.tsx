@@ -1,19 +1,19 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    BarChart3,
-    BookOpen,
-    Bot,
-    Home,
-    LogIn,
-    LogOut,
-    Menu,
-    Plus,
-    Search,
-    Sparkles,
-    Users,
-    X,
+  BarChart3,
+  BookOpen,
+  Bot,
+  Home,
+  LogIn,
+  LogOut,
+  Menu,
+  Plus,
+  Search,
+  Sparkles,
+  Users,
+  X,
 } from "lucide-react";
-import { useEffect, useState, lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useLoading } from "../contexts/LoadingContext";
@@ -22,16 +22,21 @@ import { supabase } from "../lib/supabase";
 import AccountSetupModal from "./AccountSetupModal";
 import AddGuideModal from "./AddGuideModal";
 import ApprovedBugModal from "./ApprovedBugModal";
-const CookieConsent = lazy(() => import("./CookieConsent").catch(() => import("./AdBlockFallback")));
 import GlobalLoader from "./GlobalLoader";
-import ClickSpark from "./react-bits/ClickSpark";
 import ModernNav from "./ModernNav";
+import ClickSpark from "./react-bits/ClickSpark";
 import ReferralBonusNotification from "./ReferralBonusNotification";
 import ReferralSuccessModal from "./ReferralSuccessModal";
 import SearchModal from "./SearchModal";
 import SubscriptionRenewAd from "./SubscriptionRenewAd";
 import { TopLoader } from "./TopLoader";
 import TourCursor from "./TourCursor";
+const CookieConsent = lazy(() => import("./CookieConsent").catch(() => import("./AdBlockFallback")));
+
+interface UserProfileState {
+  avatar_url?: string | null;
+  [key: string]: unknown;
+}
 
 export default function Layout() {
   const location = useLocation();
@@ -44,10 +49,10 @@ export default function Layout() {
   const [showAccountSetup, setShowAccountSetup] = useState(false);
   const [accountDeleted, setAccountDeleted] = useState(false);
   const [showReferralSuccess, setShowReferralSuccess] = useState(false);
-  const [userProfile, setUserProfile] = useState(null);
+  const [userProfile, setUserProfile] = useState<UserProfileState | null>(null);
   const [checkingReferral, setCheckingReferral] = useState(true);
   const [showBugReward, setShowBugReward] = useState(false);
-  const [rewardReportId, setRewardReportId] = useState(null);
+  const [rewardReportId, setRewardReportId] = useState<string | number | null>(null);
 
   // Top loader for navigation / global actions
   const { isLoading } = useLoading();
@@ -68,8 +73,8 @@ export default function Layout() {
 
   // Also show top loader when internal links are clicked (improves perceived responsiveness)
   useEffect(() => {
-    const onClick = (e) => {
-      let el = e.target;
+    const onClick = (e: MouseEvent): void => {
+      let el = e.target as HTMLElement | null;
       while (el && el !== document.body) {
         if (el.tagName === "A") {
           const href = el.getAttribute("href");
@@ -88,7 +93,7 @@ export default function Layout() {
 
   // Keyboard shortcut for search
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
         e.preventDefault();
         setShowSearchModal(true);
@@ -104,6 +109,7 @@ export default function Layout() {
       setCheckingReferral(false);
       return;
     }
+    const userId = user.id;
 
     async function tryClaimReferral() {
       // Check if we even have a pending referral to claim
@@ -119,7 +125,7 @@ export default function Layout() {
         const response = await fetch("/api/payments?type=claim_referral", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user.id }),
+          body: JSON.stringify({ userId }),
         });
         const result = await response.json();
         console.log("Claim Result:", result);
@@ -132,9 +138,11 @@ export default function Layout() {
           console.log("Bonus not applied, marking as checked anyway");
           setCheckingReferral(false);
         }
-      } catch (err) {
+      } catch (err: unknown) {
+        const errName = err instanceof Error ? err.name : "";
+        const errMessage = err instanceof Error ? err.message : String(err);
         // If fetch aborted or network error, just log warning
-        if (err.name === "AbortError" || err.message?.includes("network")) {
+        if (errName === "AbortError" || errMessage.toLowerCase().includes("network")) {
           console.warn("Retry claim referral paused (network/abort):", err);
         } else {
           console.error("Retry claim referral failed:", err);
@@ -148,6 +156,7 @@ export default function Layout() {
   // Second: Check for user profile setup ONLY after referral check is done
   useEffect(() => {
     if (!user?.email || checkingReferral) return;
+    const userEmail = user.email;
 
     async function checkProfile() {
       // Parallel check: Get Profile AND Verify Auth Session
@@ -155,7 +164,7 @@ export default function Layout() {
         supabase
           .from("zetsuguide_user_profiles")
           .select("*")
-          .eq("user_email", user.email)
+          .eq("user_email", userEmail)
           .maybeSingle(),
         supabase.auth.getUser(),
       ]);
@@ -209,12 +218,13 @@ export default function Layout() {
   // Third: Check for approved bug reports with pending notifications
   useEffect(() => {
     if (!user?.id) return;
+    const userId = user.id;
 
     async function checkBugRewards() {
       const { data: reports } = await supabase
         .from("bug_reports")
         .select("id, issue_type")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .eq("status", "approved")
         .eq("notification_shown", false)
         .limit(1);
@@ -259,6 +269,21 @@ export default function Layout() {
       href: "/zetsuguide-ai",
     },
   ];
+
+  const getUserDisplayName = (): string => {
+    const fullName = user?.user_metadata?.full_name;
+    if (typeof fullName === "string" && fullName.trim().length > 0) {
+      return fullName;
+    }
+    if (user?.email) {
+      return user.email.split("@")[0];
+    }
+    return "User";
+  };
+
+  const getWorkspaceSlug = (): string => {
+    return getUserDisplayName().toLowerCase();
+  };
 
   return (
     <ClickSpark
@@ -341,7 +366,7 @@ export default function Layout() {
                         />
                       </div>
                       <span className="hidden sm:inline text-sm font-medium">
-                        {user?.name}
+                        {getUserDisplayName()}
                       </span>
                     </button>
 
@@ -366,7 +391,7 @@ export default function Layout() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="font-bold text-gray-900 truncate">
-                                  {user?.name}
+                                  {getUserDisplayName()}
                                 </p>
                                 <p className="text-xs text-gray-500 truncate">
                                   {user?.email}
@@ -376,7 +401,7 @@ export default function Layout() {
                           </div>
                           <div className="py-2 border-b border-gray-200">
                             <Link
-                              to={`/@${(user?.user_metadata?.full_name || user?.email?.split("@")[0]).toLowerCase()}/workspace`}
+                              to={`/@${getWorkspaceSlug()}/workspace`}
                               onClick={() => setShowUserMenu(false)}
                               className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
                             >
@@ -460,44 +485,40 @@ export default function Layout() {
                   <nav className="space-y-2">
                     <Link
                       to="/"
-                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${
-                        location.pathname === "/"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname === "/"
                           ? "bg-black text-white shadow-lg shadow-black/20"
                           : "text-gray-600 hover:bg-gray-100"
-                      }`}
+                        }`}
                     >
                       <Home size={22} />
                       <span>Home</span>
                     </Link>
                     <Link
                       to="/guides"
-                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${
-                        location.pathname.startsWith("/guide")
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname.startsWith("/guide")
                           ? "bg-black text-white shadow-lg shadow-black/20"
                           : "text-gray-600 hover:bg-gray-100"
-                      }`}
+                        }`}
                     >
                       <BookOpen size={22} />
                       <span>All Guides</span>
                     </Link>
                     <Link
                       to="/community"
-                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${
-                        location.pathname === "/community"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname === "/community"
                           ? "bg-black text-white shadow-lg shadow-black/20"
                           : "text-gray-600 hover:bg-gray-100"
-                      }`}
+                        }`}
                     >
                       <Users size={22} />
                       <span>Community</span>
                     </Link>
                     <Link
                       to="/zetsuguide-ai"
-                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all border-2 border-transparent ${
-                        location.pathname === "/zetsuguide-ai"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all border-2 border-transparent ${location.pathname === "/zetsuguide-ai"
                           ? "bg-black text-white shadow-lg shadow-black/20"
                           : "bg-gradient-to-r from-purple-50 to-pink-50 text-gray-900 border-purple-100"
-                      }`}
+                        }`}
                     >
                       <Bot
                         size={22}
@@ -532,7 +553,7 @@ export default function Layout() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-bold text-gray-900 truncate">
-                              {user?.name}
+                              {getUserDisplayName()}
                             </p>
                             <p className="text-xs text-gray-500 truncate">
                               {user?.email}
@@ -541,7 +562,7 @@ export default function Layout() {
                         </div>
 
                         <Link
-                          to={`/@${(user?.user_metadata?.full_name || user?.email?.split("@")[0]).toLowerCase()}/workspace`}
+                          to={`/@${getWorkspaceSlug()}/workspace`}
                           className="flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-gray-600 hover:bg-gray-100 transition-colors"
                         >
                           <BookOpen size={20} />
@@ -661,6 +682,7 @@ export default function Layout() {
             onComplete={() => {
               // Refresh profile data
               const checkProfile = async () => {
+                if (!user?.email) return;
                 const { data } = await supabase
                   .from("zetsuguide_user_profiles")
                   .select("*")
@@ -762,4 +784,3 @@ export default function Layout() {
     </ClickSpark>
   );
 }
-

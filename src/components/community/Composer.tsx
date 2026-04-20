@@ -12,12 +12,34 @@ import { uploadImageToImgBB } from "../../lib/imgbb";
 
 const MAX_CHARS = 280;
 
-export default function Composer({ user, onPostCreated, isModal = false, groupId = null, placeholder = "What is happening?!" }: { user?: any; onPostCreated?: (post: any) => void; isModal?: boolean; groupId?: string | null; placeholder?: string }) {
+interface ComposerUser {
+  id: string;
+  email?: string;
+}
+
+interface ComposerPost {
+  id: string | number;
+  [key: string]: unknown;
+}
+
+interface ComposerProps {
+  user?: ComposerUser | null;
+  onPostCreated?: (post: ComposerPost) => void;
+  isModal?: boolean;
+  groupId?: string | null;
+  placeholder?: string;
+}
+
+interface EmojiData {
+  emoji: string;
+}
+
+export default function Composer({ user, onPostCreated, isModal = false, groupId = null, placeholder = "What is happening?!" }: ComposerProps) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [tempPreview, setTempPreview] = useState(null);
+  const [tempPreview, setTempPreview] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Poll State
@@ -25,9 +47,9 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [pollDuration, setPollDuration] = useState(1); // Days
 
-  const textareaRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const emojiRef = useRef(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const emojiRef = useRef<HTMLDivElement | null>(null);
 
   const charCount = content.length;
   const charPercent = Math.min((charCount / MAX_CHARS) * 100, 100);
@@ -37,7 +59,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
   // Global click listener to close emoji picker
   useEffect(() => {
     const handleClick = (e: MouseEvent): void => {
-      if (emojiRef.current && !emojiRef.current.contains(e.target)) {
+      if (emojiRef.current && e.target instanceof Node && !emojiRef.current.contains(e.target)) {
         setShowEmojiPicker(false);
       }
     };
@@ -99,7 +121,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
           color: "#e7e9ea",
         },
       });
-      if (onPostCreated) onPostCreated();
+      if (onPostCreated && newPost) onPostCreated(newPost);
     } catch (error: unknown) {
       console.error(error);
       toast.error("Failed to send post");
@@ -157,7 +179,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
     setPollOptions(newOptions);
   };
 
-  const onEmojiClick = (emojiData: any): void => {
+  const onEmojiClick = (emojiData: EmojiData): void => {
     setContent(prev => prev + emojiData.emoji);
     textareaRef.current?.focus();
   };
@@ -200,13 +222,14 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
           <textarea
             ref={textareaRef}
             value={content}
-            onChange={(e: any) => setContent(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
             placeholder={placeholder}
             className="w-full resize-none border-none bg-transparent text-[20px] text-[#e7e9ea] placeholder-[#71767b] focus:ring-0 focus:outline-none min-h-[56px] scrollbar-none py-3"
             rows={isModal ? 3 : 1}
-            onInput={(e) => {
-              e.target.style.height = "auto";
-              e.target.style.height = e.target.scrollHeight + "px";
+            onInput={(e: React.FormEvent<HTMLTextAreaElement>) => {
+              const target = e.currentTarget;
+              target.style.height = "auto";
+              target.style.height = target.scrollHeight + "px";
             }}
           />
           {uploadingImage && (
@@ -230,7 +253,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
                     <input
                       type="text"
                       value={option}
-                      onChange={(e: any) => updatePollOption(idx, e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updatePollOption(idx, e.target.value)}
                       placeholder={`Choice ${idx + 1}`}
                       maxLength={25}
                       className="w-full bg-transparent border border-[#2f3336] rounded-md px-3 py-2 text-[#e7e9ea] focus:border-[#1d9bf0] focus:ring-1 focus:ring-[#1d9bf0] transition-all outline-none"
@@ -266,7 +289,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
                 <span className="text-sm">Poll length</span>
                 <select
                   value={pollDuration}
-                  onChange={(e: any) => setPollDuration(Number(e.target.value))}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setPollDuration(Number(e.target.value))}
                   className="bg-black text-[#e7e9ea] border-none focus:ring-0 text-sm font-bold cursor-pointer"
                 >
                   <option value={1}>1 day</option>

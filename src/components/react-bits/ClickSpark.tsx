@@ -1,4 +1,25 @@
+import type { MouseEvent, ReactNode } from "react";
 import { useCallback, useEffect, useRef } from "react";
+
+type EasingMode = "linear" | "ease-in" | "ease-in-out" | "ease-out";
+
+interface Spark {
+  x: number;
+  y: number;
+  angle: number;
+  startTime: number;
+}
+
+interface ClickSparkProps {
+  sparkColor?: string;
+  sparkSize?: number;
+  sparkRadius?: number;
+  sparkCount?: number;
+  duration?: number;
+  easing?: EasingMode;
+  extraScale?: number;
+  children?: ReactNode;
+}
 
 const ClickSpark = ({
   sparkColor = "#fff",
@@ -9,10 +30,10 @@ const ClickSpark = ({
   easing = "ease-out",
   extraScale = 1.0,
   children,
-}) => {
-  const canvasRef = useRef(null);
-  const sparksRef = useRef([]); // Stores active sparks
-  const startTimeRef = useRef(null); // Used for global timer if needed, but we use individual spark start times
+}: ClickSparkProps) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const sparksRef = useRef<Spark[]>([]); // Stores active sparks
+  const startTimeRef = useRef<number | null>(null); // Used for global timer if needed, but we use individual spark start times
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -21,7 +42,7 @@ const ClickSpark = ({
     const parent = canvas.parentElement;
     if (!parent) return;
 
-    let resizeTimeout;
+    let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
 
     const resizeCanvas = () => {
       // Use window dimensions if we want full screen, or parent dimensions
@@ -34,7 +55,9 @@ const ClickSpark = ({
     };
 
     const handleResize = () => {
-      clearTimeout(resizeTimeout);
+      if (resizeTimeout !== undefined) {
+        clearTimeout(resizeTimeout);
+      }
       resizeTimeout = setTimeout(resizeCanvas, 100);
     };
 
@@ -45,12 +68,14 @@ const ClickSpark = ({
 
     return () => {
       ro.disconnect();
-      clearTimeout(resizeTimeout);
+      if (resizeTimeout !== undefined) {
+        clearTimeout(resizeTimeout);
+      }
     };
   }, []);
 
   const easeFunc = useCallback(
-    (t) => {
+    (t: number): number => {
       switch (easing) {
         case "linear":
           return t;
@@ -69,10 +94,11 @@ const ClickSpark = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    let animationId;
+    let animationId = 0;
 
-    const draw = (timestamp) => {
+    const draw = (timestamp: number) => {
       if (!startTimeRef.current) {
         startTimeRef.current = timestamp;
       }
@@ -80,7 +106,7 @@ const ClickSpark = ({
       ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
 
       // Filter out expired sparks AND draw active ones
-      sparksRef.current = sparksRef.current.filter((spark: any) => {
+      sparksRef.current = sparksRef.current.filter((spark) => {
         const elapsed = timestamp - spark.startTime;
 
         // If finished, remove
@@ -129,7 +155,7 @@ const ClickSpark = ({
     extraScale,
   ]);
 
-  const handleClick = (e) => {
+  const handleClick = (e: MouseEvent<HTMLDivElement>) => {
     // We want to handle clicks on the container
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -181,4 +207,3 @@ const ClickSpark = ({
 };
 
 export default ClickSpark;
-
