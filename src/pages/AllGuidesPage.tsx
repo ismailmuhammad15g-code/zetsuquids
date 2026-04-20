@@ -37,7 +37,7 @@ export default function AllGuidesPage() {
     const { user } = useAuth();
 
     // Use React Query hook for caching and data fetching
-    const { data: guides = [] } = useGuides();
+    const { data: guides = [], isLoading } = useGuides();
 
     const [searchQuery, setSearchQuery] = useState("");
     const [viewMode, setViewMode] = useState("grid"); // grid or list
@@ -78,9 +78,9 @@ export default function AllGuidesPage() {
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
             filtered = filtered.filter((g: any) =>
-                    g.title.toLowerCase().includes(q) ||
-                    getKeywords(g).some((k) => k.toLowerCase().includes(q)) ||
-                    (g.markdown || g.content || "").toLowerCase().includes(q),
+                g.title.toLowerCase().includes(q) ||
+                getKeywords(g).some((k) => k.toLowerCase().includes(q)) ||
+                (g.markdown || g.content || "").toLowerCase().includes(q),
             );
         }
 
@@ -266,8 +266,8 @@ export default function AllGuidesPage() {
                         <button
                             onClick={() => setIsFilterOpen(!isFilterOpen)}
                             className={`flex items-center gap-2 px-4 py-3 border-2 border-black transition-colors min-w-[140px] justify-between ${isFilterOpen || selectedTag
-                                    ? "bg-black text-white"
-                                    : "bg-white hover:bg-gray-50"
+                                ? "bg-black text-white"
+                                : "bg-white hover:bg-gray-50"
                                 }`}
                         >
                             <div className="flex items-center gap-2">
@@ -325,8 +325,8 @@ export default function AllGuidesPage() {
                                             setIsFilterOpen(false);
                                         }}
                                         className={`w-full text-left px-3 py-2 text-sm rounded flex items-center justify-between group ${!selectedTag
-                                                ? "bg-purple-50 text-purple-700 font-bold"
-                                                : "hover:bg-gray-50"
+                                            ? "bg-purple-50 text-purple-700 font-bold"
+                                            : "hover:bg-gray-50"
                                             }`}
                                     >
                                         <span>All Guides</span>
@@ -345,8 +345,8 @@ export default function AllGuidesPage() {
                                                     setIsFilterOpen(false);
                                                 }}
                                                 className={`w-full text-left px-3 py-2 text-sm rounded flex items-center justify-between group ${selectedTag === tag
-                                                        ? "bg-purple-50 text-purple-700 font-bold"
-                                                        : "hover:bg-gray-50"
+                                                    ? "bg-purple-50 text-purple-700 font-bold"
+                                                    : "hover:bg-gray-50"
                                                     }`}
                                             >
                                                 <span className="truncate">{tag}</span>
@@ -371,8 +371,8 @@ export default function AllGuidesPage() {
                         <button
                             onClick={() => setViewMode("grid")}
                             className={`flex items-center gap-2 px-4 py-2 transition-colors ${viewMode === "grid"
-                                    ? "bg-black text-white"
-                                    : "hover:bg-gray-100"
+                                ? "bg-black text-white"
+                                : "hover:bg-gray-100"
                                 }`}
                         >
                             <Grid size={18} />
@@ -381,8 +381,8 @@ export default function AllGuidesPage() {
                         <button
                             onClick={() => setViewMode("list")}
                             className={`flex items-center gap-2 px-4 py-2 border-l-2 border-black transition-colors ${viewMode === "list"
-                                    ? "bg-black text-white"
-                                    : "hover:bg-gray-100"
+                                ? "bg-black text-white"
+                                : "hover:bg-gray-100"
                                 }`}
                         >
                             <List size={18} />

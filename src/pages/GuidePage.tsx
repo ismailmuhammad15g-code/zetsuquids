@@ -26,6 +26,7 @@ import {
     UserPlus,
     Volume2,
     VolumeX,
+    X,
 } from "lucide-react";
 import { marked } from "marked";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

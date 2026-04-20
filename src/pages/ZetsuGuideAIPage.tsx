@@ -858,7 +858,7 @@ function formatDate(dateStr: string | null): string {
   if (!dateStr) return "";
   const d = new Date(dateStr);
   const now = new Date();
-  const diff = now - d;
+  const diff = now.getTime() - d.getTime();
   if (diff < 86400000) return "Today";
   if (diff < 172800000) return "Yesterday";
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -1000,14 +1000,14 @@ function MessageContent({ text, isError, isThinking }: MessageContentProps) {
   if (isThinking && !text) {
     return (
       <div className="zg-ai-content prose prose-sm max-w-none" dir="auto">
-        <ReasoningBlock thought="" isStreaming={true} isInitialOpen={true} />
+        <ReasoningBlock thought="" duration={undefined} isStreaming={true} isInitialOpen={true} />
       </div>
     );
   }
 
   if (!text) return null;
 
-  const { thought, response, isStreaming } = parseThoughtAndResponse(text);
+  const { thought, response, isStreaming = false } = parseThoughtAndResponse(text);
 
   const hasThinkingStart = text.toLowerCase().includes("<thinking>");
   const hasThinkingEnd = text.toLowerCase().includes("</thinking>");
@@ -1020,6 +1020,7 @@ function MessageContent({ text, isError, isThinking }: MessageContentProps) {
       {showThought && (
         <ReasoningBlock
           thought={thought}
+          duration={undefined}
           isStreaming={isStreaming}
           isInitialOpen={true}
         />
@@ -1108,15 +1109,9 @@ interface ChatMessage {
 }
 
 interface Conversation {
-  id: string | number;
+  id: string;
   title: string;
   updated_at: string;
-}
-
-interface ReasoningStep {
-  duration?: number;
-  thought?: string;
-  isStreaming?: boolean;
 }
 
 interface Credits {
@@ -1131,10 +1126,11 @@ export default function ZetsuGuideAIPage() {
   const [input, setInput] = useState<string>("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState<boolean>(false);
+
   const [credits, setCredits] = useState<Credits | null>(null);
   const [creditsLoading, setCreditsLoading] = useState<boolean>(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [currentConvId, setCurrentConvId] = useState<string | number | null>(null);
+  const [currentConvId, setCurrentConvId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState<boolean>(true);
   const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
   const [isDeepReasoning, setIsDeepReasoning] = useState<boolean>(false);
@@ -1208,19 +1204,13 @@ export default function ZetsuGuideAIPage() {
 
     const query = input.trim();
     const userMsg: ChatMessage = { id: Date.now(), role: "user", content: query, timestamp: new Date().toISOString() };
-    const assistantMsg = { role: "assistant", content: "", timestamp: new Date().toISOString() };
+    const assistantMsg: ChatMessage = { id: Date.now() + 1, role: "assistant", content: "", timestamp: new Date().toISOString() };
     const newMessages = [...messages, userMsg, assistantMsg];
 
     setMessages(newMessages);
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setIsThinking(true);
-    setReasoningSteps([]);
-    setReasoningDuration(undefined);
-    setThinkingContent("");
-    setFinalResponseContent("");
-
-    const startTime = Date.now();
 
     try {
       // ── Smart Search: Fetch guides from Supabase for AI context ──
@@ -1425,15 +1415,12 @@ ${guidesContext}
 
       const finalAiContent = rawContent || aiContent;
 
-      const duration = Math.round((Date.now() - startTime) / 1000);
-      setReasoningDuration(duration);
-
       // Prepare final messages for saving
       // Note: For streaming, we already added an empty message. For non-streaming, we already added the complete message.
       // In both cases, the latest message already contains the AI content
       const finalMessages = messages.length > 0 && messages[messages.length - 1].role === "assistant"
         ? messages  // Use current messages state which already has the AI response
-        : [...newMessages, { role: "assistant", content: finalAiContent, timestamp: new Date().toISOString() }];  // Fallback
+        : [...newMessages, { id: Date.now() + 2, role: "assistant", content: finalAiContent, timestamp: new Date().toISOString() } as ChatMessage];  // Fallback
 
       // Deduct credit
       const creditBalance = credits?.balance ?? 5;
@@ -1489,10 +1476,6 @@ ${guidesContext}
   const startNewChat = (): void => {
     setMessages([]);
     setCurrentConvId(null);
-    setReasoningSteps([]);
-    setReasoningDuration(undefined);
-    setThinkingContent("");
-    setFinalResponseContent("");
     if (textareaRef.current) textareaRef.current.focus();
   };
 
@@ -1503,14 +1486,21 @@ ${guidesContext}
         .select("messages")
         .eq("id", conv.id)
         .single();
-      if (data) {
-        setMessages(data.messages || []);
+      if (data?.messages) {
+        const typedMessages: ChatMessage[] = (data.messages || []).map((msg: any) => ({
+          id: msg.id || Date.now(),
+          role: msg.role || 'assistant',
+          content: msg.content || '',
+          timestamp: msg.timestamp || new Date().toISOString(),
+          type: msg.type
+        }));
+        setMessages(typedMessages);
         setCurrentConvId(conv.id);
       }
     } catch { toast.error("Failed to load conversation."); }
   };
 
-  const deleteConversation = async (e: React.MouseEvent<HTMLButtonElement>, convId: string | number): Promise<void> => {
+  const deleteConversation = async (e: React.MouseEvent<HTMLButtonElement>, convId: string): Promise<void> => {
     e.stopPropagation();
     try {
       await supabase.from("zetsuguide_conversations").delete().eq("id", convId);
@@ -1620,7 +1610,7 @@ ${guidesContext}
           {auth && (
             <div className="zg-sidebar-footer">
               <div className="zg-user-row">
-                <div className="zg-avatar">{getInitials(user?.email)}</div>
+                <div className="zg-avatar">{getInitials(user?.email ?? null)}</div>
                 <div className="zg-user-info">
                   <div className="zg-user-name">{user?.email?.split("@")[0]}</div>
                   <div className="zg-credits-badge">
@@ -1793,7 +1783,7 @@ ${guidesContext}
                               </Link>
                             </div>
                           )}
-                          {!msg.isError && (
+                          {msg.role === 'assistant' && (
                             <div className="zg-ai-actions">
                               <button
                                 className="zg-action-btn"

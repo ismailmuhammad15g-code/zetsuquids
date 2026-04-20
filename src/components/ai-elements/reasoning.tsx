@@ -4,7 +4,14 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
-const ReasoningContext = createContext(null);
+type ReasoningContextValue = {
+  isStreaming: boolean;
+  isOpen: boolean;
+  setOpen: (val: boolean) => void;
+  duration?: number;
+};
+
+const ReasoningContext = createContext<ReasoningContextValue | undefined>(undefined);
 
 export const useReasoning = () => {
   const ctx = useContext(ReasoningContext);
@@ -41,9 +48,9 @@ export const Reasoning = ({
   className?: string;
 }) => {
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
-  const [elapsed, setElapsed] = useState(undefined);
-  const startRef = useRef(null);
-  const tickRef = useRef(null);
+  const [elapsed, setElapsed] = useState<number | undefined>(undefined);
+  const startRef = useRef<number | null>(null);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const controlled = open !== undefined;
   const isOpen = controlled ? open : internalOpen;
@@ -57,12 +64,15 @@ export const Reasoning = ({
     if (isStreaming) {
       setOpen(true);
       startRef.current = Date.now();
+      if (tickRef.current) clearInterval(tickRef.current);
       tickRef.current = setInterval(() => {
-        setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+        if (startRef.current !== null) {
+          setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+        }
       }, 1000);
     } else {
-      clearInterval(tickRef.current);
-      if (startRef.current) {
+      if (tickRef.current) clearInterval(tickRef.current);
+      if (startRef.current !== null) {
         setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
         startRef.current = null;
       }
@@ -70,7 +80,9 @@ export const Reasoning = ({
       const t = setTimeout(() => setOpen(false), 600);
       return () => clearTimeout(t);
     }
-    return () => clearInterval(tickRef.current);
+    return () => {
+      if (tickRef.current) clearInterval(tickRef.current);
+    };
   }, [isStreaming]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (

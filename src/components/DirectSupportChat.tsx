@@ -104,7 +104,8 @@ export default function DirectSupportChat() {
         // Create preview
         const reader = new FileReader()
         reader.onloadend = () => {
-            setImagePreview(reader.result)
+            const preview = typeof reader.result === 'string' ? reader.result : null
+            setImagePreview(preview)
         }
         reader.readAsDataURL(file)
     }
@@ -296,16 +297,16 @@ export default function DirectSupportChat() {
                 .order('created_at', { ascending: true })
 
             if (existingMessages && existingMessages.length > 0) {
-                const formattedMessages = existingMessages.map(msg => ({
+                const formattedMessages: ChatMessage[] = existingMessages.map(msg => ({
                     id: msg.id,
-                    role: msg.sender_type === 'user' ? 'user' : 'support',
+                    role: msg.sender_type === 'user' ? 'user' : 'support' as ChatMessage['role'],
                     content: msg.message,
                     timestamp: new Date(msg.created_at),
                     senderType: msg.sender_type,
                     senderName: msg.sender_name,
                     staffProfileId: msg.staff_profile_id,
                     imageUrl: msg.image_url,
-                    readStatus: msg.read_status || (msg.sender_type === 'user' ? 'delivered' : null)
+                    readStatus: msg.read_status || (msg.sender_type === 'user' ? 'delivered' : undefined)
                 }))
                 setMessages(formattedMessages)
             } else {
@@ -360,7 +361,7 @@ export default function DirectSupportChat() {
         }
 
         const messageContent = inputValue.trim() || (imageUrl ? '?? Image' : '')
-        const userMessage = {
+        const userMessage: ChatMessage = {
             id: Date.now(),
             role: 'user',
             content: messageContent,
@@ -410,12 +411,16 @@ export default function DirectSupportChat() {
                 }
 
                 if (convId) {
+                    const senderName = typeof user?.user_metadata?.name === 'string'
+                        ? user.user_metadata.name
+                        : (user?.email?.split('@')[0] || 'User')
+
                     // Save message to database with image URL
                     const messageData: Record<string, string | number> = {
                         conversation_id: convId,
                         user_email: user.email,
                         sender_type: 'user',
-                        sender_name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'User',
+                        sender_name: senderName,
                         message: messageContent || '?? Image'
                     }
 
@@ -486,6 +491,10 @@ export default function DirectSupportChat() {
 
     // Actual delete logic
     const confirmDelete = async () => {
+        if (!conversationId) {
+            setShowDeleteConfirm(false)
+            return
+        }
         setIsDeleting(true)
         try {
             await supportApi.deleteConversation(conversationId)
@@ -706,7 +715,6 @@ export default function DirectSupportChat() {
                     const senderLabel = getSenderLabel(msg)
                     // FIX: Use senderType instead of role for accurate user detection
                     const isUser = msg.senderType === 'user'
-                    const isFirstInGroup = showHeader
                     const isLastInGroup = index === messages.length - 1 || shouldShowHeader(messages[index + 1], index + 1)
 
                     // Date Divider Logic
@@ -796,7 +804,7 @@ export default function DirectSupportChat() {
                                                         src={msg.imageUrl}
                                                         alt="Attachment"
                                                         className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
-                                                        onClick={() => window.open(msg.imageUrl, '_blank')}
+                                                        onClick={() => { if (msg.imageUrl) window.open(msg.imageUrl, '_blank') }}
                                                         loading="lazy"
                                                     />
                                                 </div>

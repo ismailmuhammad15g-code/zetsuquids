@@ -1,8 +1,9 @@
 
 
 // Using framer-motion as it is installed as 'framer-motion'
-import { MotionValue } from "framer-motion";
-import { CSSProperties } from "react";
+import { motion, MotionValue, useSpring, useTransform } from "framer-motion";
+import { CSSProperties, useEffect } from "react";
+import "./Counter.css";
 
 function Number({ mv, number, height }: { mv: MotionValue<number>; number: number; height: number }) {
   let y = useTransform(mv, (latest) => {
@@ -24,7 +25,7 @@ function Number({ mv, number, height }: { mv: MotionValue<number>; number: numbe
 function Digit({ place, value, height, digitStyle }: { place: number | string; value: number; height: number; digitStyle?: CSSProperties }) {
   const isDecimal = place === ".";
   // Round to place to avoid float issues
-  const valueRoundedToPlace = isDecimal ? 0 : Math.floor(value / place); // This works for integers "1 2 3"
+  const valueRoundedToPlace = typeof place === "number" ? Math.floor(value / place) : 0; // This works for integers "1 2 3"
   const animatedValue = useSpring(valueRoundedToPlace, {
     stiffness: 100,
     damping: 30,
