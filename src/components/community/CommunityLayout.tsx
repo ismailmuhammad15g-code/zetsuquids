@@ -1,8 +1,3 @@
-﻿// Type definitions for CommunityLayout
-
-interface CommunityLayoutProps {
-  // Add prop types here
-}
 
 
 import { Outlet } from "react-router-dom";

@@ -1,8 +1,3 @@
-﻿// Type definitions for pixel-trail
-
-interface PixelTrailProps {
-  // Add prop types here
-}
 
 
 "use client";

@@ -1,12 +1,3 @@
-// Type definitions for OnboardingModal
-
-interface OnboardingModalProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { motion } from "framer-motion";
 import { Cpu, FileText, MessageSquare, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";

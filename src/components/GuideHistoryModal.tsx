@@ -1,12 +1,3 @@
-// Type definitions for GuideHistoryModal
-
-interface GuideHistoryModalProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { Calendar, Clock, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { guidesApi } from "../lib/api";

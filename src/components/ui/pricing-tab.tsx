@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 interface TabProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     text: string;
-    selected: string;
+    selected: boolean;
     setSelected: (text: string) => void;
     discount?: boolean;
 }

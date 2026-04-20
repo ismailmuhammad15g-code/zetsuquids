@@ -1,12 +1,3 @@
-// Type definitions for QuizBuilderModal
-
-interface QuizBuilderModalProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { useState } from "react";
 import { X, Plus, Trash2, CheckCircle2, Circle, HelpCircle, Save } from "lucide-react";
 import { toast } from "sonner";

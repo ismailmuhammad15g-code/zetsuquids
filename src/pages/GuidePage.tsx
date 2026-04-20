@@ -58,6 +58,19 @@ import { getAvatarForUser } from "../lib/avatar";
 import { supabase } from "../lib/supabase";
 import { sanitizeContent } from "../lib/utils";
 
+// Type definitions
+interface TableOfContentsItem {
+    id: string
+    title: string
+    level: number
+}
+
+interface InlineComment {
+    id: string
+    text: string
+    position: number
+}
+
 // Configure marked
 const renderer = {
     code(code, language) {
@@ -140,35 +153,32 @@ export default function GuidePage() {
     const [guide, setGuide] = useState<Guide | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    const [copied, setCopied] = useState(false);
-    const [deleting, setDeleting] = useState(false);
-    const [authorAvatar, setAuthorAvatar] = useState(null);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [showHistory, setShowHistory] = useState(false);
-    const [showDownloadModal, setShowDownloadModal] = useState(false);
-    const [showMoreMenu, setShowMoreMenu] = useState(false);
-    const [isPlayingTTS, setIsPlayingTTS] = useState(false);
-    const [isFocusMode, setIsFocusMode] = useState(false); // Focus Mode
-    const { isDarkMode, toggleTheme } = useTheme(); // Dark Mode
-    const [searchQuery, setSearchQuery] = useState("");
-    const [inlineComments, setInlineComments] = useState([]);
-    const [debouncedSearch, setDebouncedSearch] = useState(""); // Debounced search for performance
-    const [viewsCount, setViewsCount] = useState(0);
-    const [hasRecordedView, setHasRecordedView] = useState(false);
-    // AI Tools Modals
-    const [showAIChat, setShowAIChat] = useState(false);
-    const [showSummarizer, setShowSummarizer] = useState(false);
-    const [showTranslator, setShowTranslator] = useState(false);
-    const [aiToolsExpanded, setAiToolsExpanded] = useState(false);
-    // Table of Contents
-    const [showTOC, setShowTOC] = useState(false);
-    const [tableOfContents, setTableOfContents] = useState([]);
-    // HTML content that includes heading IDs for in-page anchors
-    const [contentWithAnchors, setContentWithAnchors] = useState(null);
+    const [copied, setCopied] = useState<boolean>(false);
+    const [deleting, setDeleting] = useState<boolean>(false);
+    const [authorAvatar, setAuthorAvatar] = useState<string | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+    const [showHistory, setShowHistory] = useState<boolean>(false);
+    const [showDownloadModal, setShowDownloadModal] = useState<boolean>(false);
+    const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
+    const [isPlayingTTS, setIsPlayingTTS] = useState<boolean>(false);
+    const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
+    const { isDarkMode, toggleTheme } = useTheme();
+    const [searchQuery, setSearchQuery] = useState<string>("");
+    const [inlineComments, setInlineComments] = useState<InlineComment[]>([]);
+    const [debouncedSearch, setDebouncedSearch] = useState<string>("");
+    const [viewsCount, setViewsCount] = useState<number>(0);
+    const [hasRecordedView, setHasRecordedView] = useState<boolean>(false);
+    const [showAIChat, setShowAIChat] = useState<boolean>(false);
+    const [showSummarizer, setShowSummarizer] = useState<boolean>(false);
+    const [showTranslator, setShowTranslator] = useState<boolean>(false);
+    const [aiToolsExpanded, setAiToolsExpanded] = useState<boolean>(false);
+    const [showTOC, setShowTOC] = useState<boolean>(false);
+    const [tableOfContents, setTableOfContents] = useState<TableOfContentsItem[]>([]);
+    const [contentWithAnchors, setContentWithAnchors] = useState<string | null>(null);
     const moreMenuRef = useRef<HTMLDivElement>(null);
     const ttsRef = useRef<any>(null);
     const contentRef = useRef<HTMLDivElement>(null);
-    const searchTimeoutRef = useRef<any>(null); // For debouncing search
+    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Debounce search query for performance
     useEffect(() => {
@@ -184,6 +194,7 @@ export default function GuidePage() {
             }
         };
     }, [searchQuery]);
+
 
     // Initialize Mermaid dynamically
     useEffect(() => {
@@ -236,18 +247,18 @@ export default function GuidePage() {
 
     // Close More menu when clicking outside
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        const handleClickOutside = (event: Event) => {
+            if (moreMenuRef.current && event.target && !moreMenuRef.current.contains(event.target as Node)) {
                 setShowMoreMenu(false);
             }
         };
 
         if (showMoreMenu) {
-            document.addEventListener("mousedown", handleClickOutside);
+            document.addEventListener('mousedown', handleClickOutside);
         }
 
         return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [showMoreMenu]);
 

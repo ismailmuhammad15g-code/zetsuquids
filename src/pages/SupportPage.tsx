@@ -1,12 +1,19 @@
 import { AlertCircle, ArrowLeft, Loader2, MessageSquare, Phone, Send, Sparkles, Tag, User } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+
+interface SupportFormData {
+    email: string
+    phone: string
+    category: string
+    message: string
+}
 
 export default function SupportPage() {
     const { user, isAuthenticated } = useAuth()
     const navigate = useNavigate()
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<SupportFormData>({
         email: '',
         phone: '',
         category: 'general',
@@ -14,7 +21,7 @@ export default function SupportPage() {
     })
     const [submitting, setSubmitting] = useState(false)
     const [submitted, setSubmitted] = useState(false)
-    const [error, setError] = useState(null)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
         if (user?.email) {
@@ -54,7 +61,7 @@ export default function SupportPage() {
         )
     }
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         setSubmitting(true)
         setError(null)
@@ -74,8 +81,8 @@ export default function SupportPage() {
             if (!response.ok) throw new Error(data.error || 'Failed to submit ticket')
 
             setSubmitted(true)
-        } catch (err) {
-            setError(err.message)
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to submit ticket')
         } finally {
             setSubmitting(false)
         }
@@ -162,7 +169,7 @@ export default function SupportPage() {
                                     type="email"
                                     required
                                     value={formData.email}
-                                    onChange={(e: any) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                                    onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                                     className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
                                     placeholder="your@email.com"
                                 />
@@ -176,7 +183,7 @@ export default function SupportPage() {
                                 <input
                                     type="tel"
                                     value={formData.phone}
-                                    onChange={(e: any) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                                    onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                                     className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
                                     placeholder="+1 234 567 890"
                                 />
@@ -191,7 +198,7 @@ export default function SupportPage() {
                             <select
                                 required
                                 value={formData.category}
-                                onChange={(e: any) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                                onChange={(e: ChangeEvent<HTMLSelectElement>) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                                 className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium appearance-none cursor-pointer"
                             >
                                 <option value="general">General Inquiry</option>
@@ -211,7 +218,7 @@ export default function SupportPage() {
                                 required
                                 rows={6}
                                 value={formData.message}
-                                onChange={(e: any) => setFormData(prev => ({ ...prev, message: e.target.value }))}
+                                onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setFormData(prev => ({ ...prev, message: e.target.value }))}
                                 className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium resize-none"
                                 placeholder="Please describe your issue in detail..."
                             />

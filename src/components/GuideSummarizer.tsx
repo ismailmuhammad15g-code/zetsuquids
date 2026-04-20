@@ -1,12 +1,3 @@
-// Type definitions for GuideSummarizer
-
-interface GuideSummarizerProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import {
   CheckCircle,
   Crown,

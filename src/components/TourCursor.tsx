@@ -1,12 +1,3 @@
-﻿// Type definitions for TourCursor
-
-interface TourCursorProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { useState, useEffect } from 'react';
 
 const TOUR_STEPS = [

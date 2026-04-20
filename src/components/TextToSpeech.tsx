@@ -6,10 +6,6 @@ interface TextToSpeechProps {
   onClose?: () => void;
   hideButton?: boolean;
 }
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import {
   Gauge,
   Pause,

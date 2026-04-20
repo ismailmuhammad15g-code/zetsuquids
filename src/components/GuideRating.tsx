@@ -1,28 +1,19 @@
-// Type definitions for GuideRating
-
-interface GuideRatingProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { Loader2, Star } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
-import { Star, Loader2 } from 'lucide-react';
+import { getAvatarForUser } from '../lib/avatar';
+import { supabase } from '../lib/supabase';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
-import { toast } from 'sonner';
-import { getAvatarForUser } from '../lib/avatar';
 
-function AvatarImg({ userId, userEmail, profiles, size = "w-10 h-10" }) {
+function AvatarImg({ userId, userEmail, profiles, size = "w-10 h-10" }: { userId: string; userEmail?: string; profiles?: any[]; size?: string }) {
     const profile = profiles?.find(p => p.user_id === userId);
     const avatarUrl = profile?.avatar_url || getAvatarForUser(userEmail || `user-${userId}`);
-    
+
     return (
-        <img 
-            src={avatarUrl} 
+        <img
+            src={avatarUrl}
             alt="User avatar"
             className={`${size} rounded-full object-cover flex-shrink-0 bg-gray-200`}
             onError={(e) => {
@@ -41,24 +32,24 @@ function AvatarFallback({ size = "w-10 h-10" }) {
     );
 }
 
-function StarIcon({ filled, size = "w-5 h-5" }) {
+function StarIcon({ filled, size = "w-5 h-5" }: { filled: boolean; size?: string }) {
     return (
-        <Star 
-            className={`${size} ${filled ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}`} 
+        <Star
+            className={`${size} ${filled ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}`}
         />
     );
 }
 
-function ReviewCard({ review, profiles, darkMode }) {
+function ReviewCard({ review, profiles, darkMode }: { review: any; profiles?: any[]; darkMode?: boolean }) {
     return (
-        <div className={`p-4 rounded-xl border transition-all hover:shadow-md ${darkMode 
-            ? 'bg-gray-800/50 border-gray-700' 
+        <div className={`p-4 rounded-xl border transition-all hover:shadow-md ${darkMode
+            ? 'bg-gray-800/50 border-gray-700'
             : 'bg-white border-gray-200'}`}>
             <div className="flex items-start gap-3">
                 <div className="relative">
-                    <AvatarImg 
-                        userId={review.user_id} 
-                        userEmail={review.user_email} 
+                    <AvatarImg
+                        userId={review.user_id}
+                        userEmail={review.user_email}
                         profiles={profiles}
                     />
                 </div>
@@ -91,7 +82,7 @@ function ReviewCard({ review, profiles, darkMode }) {
     );
 }
 
-export default function GuideRating({ guideId, authorId, guideTitle }) {
+export default function GuideRating({ guideId, authorId, guideTitle }: { guideId: string; authorId: string; guideTitle: string }) {
     const { user } = useAuth();
     const [rating, setRating] = useState(0);
     const [hoverRating, setHoverRating] = useState(0);
@@ -104,12 +95,12 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
     const [visibleCount, setVisibleCount] = useState(5);
     const [avgRating, setAvgRating] = useState(0);
     const [totalRatings, setTotalRatings] = useState(0);
-    
+
     const isDarkMode = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
     const fetchAllReviews = useCallback(async () => {
         if (!guideId) return;
-        
+
         setLoadingReviews(true);
         try {
             const { data: reviewsData, error } = await supabase
@@ -133,13 +124,13 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
 
             const userIds = reviewsData.map(r => r.user_id).filter(Boolean);
             let userProfiles = [];
-            
+
             if (userIds.length > 0) {
                 const { data: profilesData } = await supabase
                     .from('zetsuguide_user_profiles')
                     .select('user_id, avatar_url, display_name, username')
                     .in('user_id', userIds);
-                
+
                 userProfiles = profilesData || [];
                 setProfiles(userProfiles);
             }
@@ -211,7 +202,7 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
             }
 
             toast.success(hasRated ? "Rating updated!" : "Thank you for your feedback!");
-            
+
             fetchAllReviews();
         } catch (error: unknown) {
             console.error('Error submitting rating:', error);
@@ -239,8 +230,8 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
                 {/* Average Rating Display */}
                 {totalRatings > 0 && (
                     <div className="mb-8">
-                        <div className={`rounded-2xl p-6 ${isDarkMode 
-                            ? 'bg-gradient-to-br from-gray-800 to-gray-900' 
+                        <div className={`rounded-2xl p-6 ${isDarkMode
+                            ? 'bg-gradient-to-br from-gray-800 to-gray-900'
                             : 'bg-gradient-to-br from-gray-50 to-white'} border border-gray-200 dark:border-gray-700`}>
                             <div className="flex items-center justify-between flex-wrap gap-6">
                                 <div className="flex items-center gap-4">
@@ -266,8 +257,8 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
                                             <div key={star} className="flex flex-col items-center gap-1">
                                                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{star}</span>
                                                 <div className="w-6 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                                    <div 
-                                                        className="h-full bg-yellow-400 rounded-full transition-all" 
+                                                    <div
+                                                        className="h-full bg-yellow-400 rounded-full transition-all"
                                                         style={{ width: `${percent}%` }}
                                                     />
                                                 </div>
@@ -288,9 +279,9 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
                         </h4>
                         <div className="space-y-3">
                             {visibleReviews.map((review: any) => (
-                                <ReviewCard 
-                                    key={review.id} 
-                                    review={review} 
+                                <ReviewCard
+                                    key={review.id}
+                                    review={review}
                                     profiles={profiles}
                                     darkMode={isDarkMode}
                                 />
@@ -316,8 +307,8 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
 
                 {/* Rating Form for Eligible Users */}
                 {canRate && (
-                    <div className={`rounded-2xl p-6 ${isDarkMode 
-                        ? 'bg-gray-800 border border-gray-700' 
+                    <div className={`rounded-2xl p-6 ${isDarkMode
+                        ? 'bg-gray-800 border border-gray-700'
                         : 'bg-white border border-gray-200'} shadow-sm`}>
                         {hasRated ? (
                             <div className="text-center">
@@ -401,8 +392,8 @@ export default function GuideRating({ guideId, authorId, guideTitle }) {
 
                 {/* Prompt for Guests */}
                 {!user && totalRatings > 0 && (
-                    <div className={`mt-6 p-4 rounded-xl ${isDarkMode 
-                        ? 'bg-gray-800/50 border-gray-700' 
+                    <div className={`mt-6 p-4 rounded-xl ${isDarkMode
+                        ? 'bg-gray-800/50 border-gray-700'
                         : 'bg-gray-50 border border-gray-200'} text-center`}>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                             <a href="/auth" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">

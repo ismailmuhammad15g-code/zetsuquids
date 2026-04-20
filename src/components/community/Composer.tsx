@@ -1,20 +1,10 @@
-// Type definitions for Composer
-
-interface ComposerProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import EmojiPicker, { Theme } from "emoji-picker-react";
-import { useRef, useState, useEffect } from "react";
-import { FaRegFaceSmile, FaCalendarCheck } from "react-icons/fa6";
+import { BarChart3, Clock, Loader2, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { FaRegFaceSmile } from "react-icons/fa6";
 import { IoLocationOutline } from "react-icons/io5";
 import { RiCalendarScheduleLine } from "react-icons/ri";
-import { RxCross2 } from "react-icons/rx";
 import { TbPhoto } from "react-icons/tb";
-import { Loader2, BarChart3, Plus, Trash2, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { getAvatarForUser } from "../../lib/avatar";
 import { communityApi } from "../../lib/communityApi";
@@ -22,14 +12,14 @@ import { uploadImageToImgBB } from "../../lib/imgbb";
 
 const MAX_CHARS = 280;
 
-export default function Composer({ user, onPostCreated, isModal = false, groupId = null, placeholder = "What is happening?!" }) {
+export default function Composer({ user, onPostCreated, isModal = false, groupId = null, placeholder = "What is happening?!" }: { user?: any; onPostCreated?: (post: any) => void; isModal?: boolean; groupId?: string | null; placeholder?: string }) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [tempPreview, setTempPreview] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  
+
   // Poll State
   const [showPoll, setShowPoll] = useState(false);
   const [pollOptions, setPollOptions] = useState(["", ""]);
@@ -46,7 +36,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
 
   // Global click listener to close emoji picker
   useEffect(() => {
-    const handleClick = (e) => {
+    const handleClick = (e: MouseEvent): void => {
       if (emojiRef.current && !emojiRef.current.contains(e.target)) {
         setShowEmojiPicker(false);
       }
@@ -57,14 +47,14 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
 
   const handleSubmit = async () => {
     const isPollValid = showPoll ? pollOptions.every(opt => opt.trim().length > 0) && pollOptions.length >= 2 : true;
-    
+
     if (!content.trim() && !showPoll) return;
     if (isOverLimit) return;
     if (showPoll && !isPollValid) {
       toast.error("Please fill in all poll options");
       return;
     }
-    
+
     if (!user) {
       toast.error("Please login to post");
       return;
@@ -101,7 +91,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
       setShowEmojiPicker(false);
       setShowPoll(false);
       setPollOptions(["", ""]);
-      
+
       toast.success("Your post was sent!", {
         style: {
           background: "#16181c",
@@ -118,7 +108,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
     }
   };
 
-  const handleImageUpload = async (e) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -126,7 +116,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
     setUploadProgress(0);
     const localUrl = URL.createObjectURL(file);
     setTempPreview(localUrl);
-    
+
     try {
       const imageUrl = await uploadImageToImgBB(file, (percent) => setUploadProgress(percent));
       setContent(prev => prev + (prev.endsWith("\n") || prev === "" ? "" : "\n\n") + `![Image](${imageUrl})\n`);
@@ -153,7 +143,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
     }
   };
 
-  const removePollOption = (index) => {
+  const removePollOption = (index: number): void => {
     if (pollOptions.length > 2) {
       const newOptions = [...pollOptions];
       newOptions.splice(index, 1);
@@ -161,13 +151,13 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
     }
   };
 
-  const updatePollOption = (index, value) => {
+  const updatePollOption = (index: number, value: string): void => {
     const newOptions = [...pollOptions];
     newOptions[index] = value;
     setPollOptions(newOptions);
   };
 
-  const onEmojiClick = (emojiData) => {
+  const onEmojiClick = (emojiData: any): void => {
     setContent(prev => prev + emojiData.emoji);
     textareaRef.current?.focus();
   };
@@ -186,8 +176,8 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
     return (
       <div className="relative flex items-center justify-center mr-3">
         <svg width={size} height={size} className="-rotate-90">
-          <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="#2f3336" strokeWidth={strokeWidth} />
-          <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-200" />
+          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#2f3336" strokeWidth={strokeWidth} />
+          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-200" />
         </svg>
         {charsRemaining <= 20 && (
           <span className={`absolute text-[11px] font-medium ${isOverLimit ? "text-[#f4212e]" : "text-[#71767b]"}`}>
@@ -250,7 +240,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
                     </span>
                   </div>
                   {pollOptions.length > 2 && (
-                    <button 
+                    <button
                       onClick={() => removePollOption(idx)}
                       className="text-[#f4212e] p-2 hover:bg-[#f4212e]/10 rounded-full transition-colors"
                     >
@@ -259,9 +249,9 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
                   )}
                 </div>
               ))}
-              
+
               {pollOptions.length < 4 && (
-                <button 
+                <button
                   onClick={addPollOption}
                   className="w-full flex items-center justify-center gap-2 py-2 text-[#1d9bf0] hover:bg-[#1d9bf0]/10 rounded-md transition-colors text-sm font-bold"
                 >
@@ -269,12 +259,12 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
                 </button>
               )}
             </div>
-            
+
             <div className="px-4 py-3 border-t border-[#2f3336] flex items-center justify-between">
               <div className="flex items-center gap-2 text-[#71767b]">
                 <Clock size={16} />
                 <span className="text-sm">Poll length</span>
-                <select 
+                <select
                   value={pollDuration}
                   onChange={(e: any) => setPollDuration(Number(e.target.value))}
                   className="bg-black text-[#e7e9ea] border-none focus:ring-0 text-sm font-bold cursor-pointer"
@@ -284,7 +274,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
                   <option value={7}>7 days</option>
                 </select>
               </div>
-              <button 
+              <button
                 onClick={() => setShowPoll(false)}
                 className="text-[#f4212e] text-sm font-bold hover:underline"
               >
@@ -353,4 +343,3 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
     </div>
   );
 }
-

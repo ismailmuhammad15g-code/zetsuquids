@@ -1,8 +1,3 @@
-﻿// Type definitions for ThinkingWave
-
-interface ThinkingWaveProps {
-  // Add prop types here
-}
 
 
 import { TextShimmerWave } from "@/components/ui/text-shimmer-wave";

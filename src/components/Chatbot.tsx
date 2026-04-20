@@ -1,12 +1,3 @@
-// Type definitions for Chatbot
-
-interface ChatbotProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import "highlight.js/styles/github-dark.css";
 import {
   ChevronDown,

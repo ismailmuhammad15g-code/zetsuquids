@@ -1,7 +1,6 @@
 // Type declaration for react-syntax-highlighter
 declare module 'react-syntax-highlighter' {
-  import { ReactNode } from 'react';
-  
+
   export interface SyntaxHighlighterProps {
     children: string;
     language?: string;
@@ -15,7 +14,7 @@ declare module 'react-syntax-highlighter' {
     className?: string;
     [key: string]: any;
   }
-  
+
   export const Prism: React.ComponentType<SyntaxHighlighterProps>;
 }
 

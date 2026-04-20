@@ -587,6 +587,9 @@ export interface Ad {
     id?: number | string;
     title?: string;
     content?: string;
+    text?: string;
+    link_url?: string;
+    button_text?: string;
     is_active?: boolean;
     created_at?: string;
 }
@@ -997,5 +1000,4 @@ export const promptsApi = {
 
 
 // Backward compatibility alias
-export const creditsApi = dailyCreditsApi;
 export const creditsApi = dailyCreditsApi;

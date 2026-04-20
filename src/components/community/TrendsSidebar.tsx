@@ -1,6 +1,6 @@
 // Type definitions for TrendsSidebar
 import { BadgeCheck, MoreHorizontal, Search, Users, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getAvatarForUser } from "../../lib/avatar";
@@ -45,10 +45,6 @@ interface Community {
 interface TrendsSidebarProps {
   user: UserProfile | null;
 }
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 export default function TrendsSidebar({ user }: TrendsSidebarProps) {
   const navigate = useNavigate();
   const [trends, setTrends] = useState<Trend[]>([]);
@@ -108,17 +104,17 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
 
   // Close search dropdown on outside click
   useEffect(() => {
-    const handleClick = (e) => {
-      if (searchRef.current && !searchRef.current.contains(e.target)) {
+    const handleClick = (e: MouseEvent) => {
+      if (searchRef.current && e.target instanceof Node && !searchRef.current.contains(e.target)) {
         setShowSearch(false);
       }
     };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("mousedown", handleClick as EventListener);
+    return () => document.removeEventListener("mousedown", handleClick as EventListener);
   }, []);
 
   const handleSearch = useCallback(
-    (query) => {
+    (query: string) => {
       setSearchQuery(query);
       if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -145,7 +141,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
     [],
   );
 
-  const handleFollow = async (targetId, targetName) => {
+  const handleFollow = async (targetId: string | number | null, targetName: string) => {
     if (!user?.id) {
       toast.error("Please login to follow users", {
         style: {
@@ -175,7 +171,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
     try {
       await communityApi.followUser(user.id, safeTargetId);
       // Remove from suggestions
-      setSuggestions((prev) => prev.filter((u: any) => (u.user_id || u.id) !== safeTargetId));
+      setSuggestions((prev) => prev.filter((u: UserSuggestion) => (u.id) !== safeTargetId));
       // Refresh following list
       const followingData = await communityApi.getFollowing(user.id);
       setFollowing(followingData || []);
@@ -188,7 +184,8 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
       });
     } catch (e: unknown) {
       console.error(e);
-      toast.error(e?.message || "Failed to follow user", {
+      const errorMsg = e instanceof Error ? e.message : "Failed to follow user";
+      toast.error(errorMsg, {
         style: {
           background: "#16181c",
           border: "1px solid #1f2937",
@@ -375,7 +372,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
                   <img src={item.source_image} alt="" className="w-4 h-4 rounded-full" />
                 )}
                 <span>1 day ago</span>
-                <span>· {item.category} ·</span>
+                <span>ï¿½ {item.category} ï¿½</span>
                 <span>{item.posts_count} posts</span>
               </div>
             </div>
@@ -414,7 +411,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
             >
               <div className="flex justify-between items-center text-[13px] text-[#71767b]">
                 <span>
-                  {idx + 1} · Trending
+                  {idx + 1} ï¿½ Trending
                 </span>
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                   <MoreHorizontal
@@ -646,9 +643,8 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
         <a href="#" className="hover:underline">
           Accessibility
         </a>
-        <span>© 2026 Zetsu Corp.</span>
+        <span>ï¿½ 2026 Zetsu Corp.</span>
       </div>
     </div>
   );
 }
-

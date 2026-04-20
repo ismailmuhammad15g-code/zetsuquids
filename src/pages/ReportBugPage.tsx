@@ -1,13 +1,36 @@
 import { AlertCircle, ArrowLeft, Bug, CheckCircle, Gift, Lightbulb, Loader2, Monitor, Send } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+
+type BugIssueType = 'ui_glitch' | 'functional_error' | 'performance' | 'content' | 'security' | 'other' | 'technical_issue'
+
+interface ReportFormData {
+    issueType: BugIssueType
+    description: string
+    improvements: string
+}
+
+interface ReportBugLocationState {
+    prefilledDescription?: string
+    issueType?: BugIssueType
+}
+
+const ISSUE_TYPES: Array<{ id: Exclude<BugIssueType, 'technical_issue'>; label: string }> = [
+    { id: 'ui_glitch', label: 'UI/Visual Glitch' },
+    { id: 'functional_error', label: 'Functionality Error' },
+    { id: 'performance', label: 'Performance / Lag' },
+    { id: 'content', label: 'Typo / Content' },
+    { id: 'security', label: 'Security Concern' },
+    { id: 'other', label: 'Other' }
+]
 
 export default function ReportBugPage() {
     const { user, isAuthenticated } = useAuth()
     const location = useLocation()
+    const locationState = location.state as ReportBugLocationState | null
     const navigate = useNavigate()
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<ReportFormData>({
         issueType: 'ui_glitch',
         description: '',
         improvements: ''
@@ -15,7 +38,7 @@ export default function ReportBugPage() {
     const [browserInfo, setBrowserInfo] = useState('')
     const [submitting, setSubmitting] = useState(false)
     const [submitted, setSubmitted] = useState(false)
-    const [error, setError] = useState(null)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
         // Auto-detect browser info
@@ -23,17 +46,17 @@ export default function ReportBugPage() {
         setBrowserInfo(info)
 
         // Handle auto-filled report from global error handler
-        if (location.state?.prefilledDescription) {
+        if (locationState?.prefilledDescription) {
             setFormData(prev => ({
                 ...prev,
-                description: location.state.prefilledDescription,
-                issueType: location.state.issueType || 'technical_issue'
+                description: locationState.prefilledDescription,
+                issueType: locationState.issueType || 'technical_issue'
             }))
         }
-    }, [location.state])
+    }, [locationState])
 
     // التحقق من تسجيل الدخول
-    if (!isAuthenticated()) {
+    if (!isAuthenticated() || !user) {
         return (
             <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
                 <div className="max-w-md w-full text-center">
@@ -64,7 +87,7 @@ export default function ReportBugPage() {
         )
     }
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         setSubmitting(true)
         setError(null)
@@ -86,8 +109,8 @@ export default function ReportBugPage() {
             if (!response.ok) throw new Error(data.error || 'Failed to submit report')
 
             setSubmitted(true)
-        } catch (err) {
-            setError(err.message)
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to submit report')
         } finally {
             setSubmitting(false)
         }
@@ -193,14 +216,7 @@ export default function ReportBugPage() {
                                 <Bug size={16} /> Issue Classification
                             </label>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                                {[
-                                    { id: 'ui_glitch', label: 'UI/Visual Glitch' },
-                                    { id: 'functional_error', label: 'Functionality Error' },
-                                    { id: 'performance', label: 'Performance / Lag' },
-                                    { id: 'content', label: 'Typo / Content' },
-                                    { id: 'security', label: 'Security Concern' },
-                                    { id: 'other', label: 'Other' }
-                                ].map((type: any) => (
+                                {ISSUE_TYPES.map((type) => (
                                     <label
                                         key={type.id}
                                         className={`
@@ -216,7 +232,7 @@ export default function ReportBugPage() {
                                             name="issueType"
                                             value={type.id}
                                             checked={formData.issueType === type.id}
-                                            onChange={(e: any) => setFormData(prev => ({ ...prev, issueType: e.target.value }))}
+                                            onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, issueType: e.target.value as BugIssueType }))}
                                             className="hidden"
                                         />
                                         {type.label}
@@ -234,7 +250,7 @@ export default function ReportBugPage() {
                                 required
                                 rows={6}
                                 value={formData.description}
-                                onChange={(e: any) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                                onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                                 className="w-full bg-[#111] border border-white/10 text-white rounded-xl p-4 sm:p-5 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none text-base leading-relaxed placeholder:text-gray-600"
                                 placeholder="Describe the steps to reproduce the issue..."
                             />
@@ -248,7 +264,7 @@ export default function ReportBugPage() {
                             <textarea
                                 rows={4}
                                 value={formData.improvements}
-                                onChange={(e: any) => setFormData(prev => ({ ...prev, improvements: e.target.value }))}
+                                onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setFormData(prev => ({ ...prev, improvements: e.target.value }))}
                                 className="w-full bg-[#111] border border-white/10 text-white rounded-xl p-5 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all resize-none text-base leading-relaxed placeholder:text-gray-600"
                                 placeholder="How do you think we should fix this?"
                             />

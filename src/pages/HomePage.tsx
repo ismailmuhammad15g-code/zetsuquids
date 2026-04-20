@@ -1,13 +1,13 @@
 import {
-    ArrowRight,
-    BookOpen,
-    ChevronDown,
-    FileText,
-    ImageIcon,
-    Plus,
-    Search,
-    Sparkles,
-    Zap,
+  ArrowRight,
+  BookOpen,
+  ChevronDown,
+  FileText,
+  ImageIcon,
+  Plus,
+  Search,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
@@ -22,22 +22,24 @@ import { Spotlight } from "../components/ui/spotlight";
 import { StickyBanner } from "../components/ui/sticky-banner";
 import { useAuth } from "../contexts/AuthContext";
 import { useGuides } from "../hooks/useGuides";
-import { guidesApi, initializeSampleData, adsApi } from "../lib/api";
+import { adsApi, guidesApi, initializeSampleData, type Ad } from "../lib/api";
 import { cn } from "../lib/utils";
 
+interface OutletContextType {
+  openAddModal: () => void;
+}
+
 export default function HomePage() {
-  const { openAddModal } = useOutletContext();
+  const { openAddModal } = useOutletContext<OutletContextType>();
   const { user } = useAuth();
   const [showGallery, setShowGallery] = useState(false);
-  const [activeAd, setActiveAd] = useState(null);
+  const [activeAd, setActiveAd] = useState<Ad | null>(null);
 
   // Use the cached hook
   const { data: allGuides = [], isLoading: loading } = useGuides();
 
   // Derived state for recent guides - ensure it's always an array
   const recentGuides = Array.isArray(allGuides) ? allGuides.slice(0, 6) : [];
-
-  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     // Sync in background without blocking UI
@@ -49,30 +51,11 @@ export default function HomePage() {
     initializeSampleData().catch(console.error);
 
     // Fetch active ad
-    adsApi.getActiveAd().then(setActiveAd).catch(console.error);
+    adsApi
+      .getActiveAd()
+      .then((ad) => setActiveAd(ad))
+      .catch(console.error);
   }, [user]);
-
-  async function handleSync() {
-    setSyncing(true);
-    try {
-      const result = await guidesApi.syncToSupabase(user?.email);
-      if (result.synced > 0) {
-        alert(`تم مزامنة ${result.synced} دليل بنجاح!`);
-        // Invalidate cache to show new data
-        // Access queryClient via hook if needed, or rely on auto-refetch if we implemented invalidate
-        window.location.reload(); // Simple reload for now to refresh cache
-      } else if (result.failed > 0) {
-        alert(`فشل في مزامنة ${result.failed} دليل`);
-      } else {
-        alert("لا توجد أدلة جديدة للمزامنة");
-      }
-    } catch (err) {
-      console.error("Sync error:", err);
-      alert("حدث خطأ أثناء المزامنة");
-    } finally {
-      setSyncing(false);
-    }
-  }
 
   return (
     <div>
@@ -88,16 +71,16 @@ export default function HomePage() {
                 <strong className="font-semibold text-white">
                   {activeAd.title}
                 </strong>{" "}
-                - {activeAd.text}
+                - {activeAd.text ?? activeAd.content}
               </span>
-{activeAd.link_url && (
-                  <Link
-                    to={activeAd.link_url}
-                    className="ml-2 px-3 py-1 bg-white text-black text-xs font-medium rounded-full hover:bg-gray-200 transition-all"
-                  >
-                    {activeAd.button_text || "Try it →"}
-                  </Link>
-                )}
+              {activeAd.link_url && (
+                <Link
+                  to={activeAd.link_url}
+                  className="ml-2 px-3 py-1 bg-white text-black text-xs font-medium rounded-full hover:bg-gray-200 transition-all"
+                >
+                  {activeAd.button_text || "Try it →"}
+                </Link>
+              )}
             </span>
           </p>
         </StickyBanner>
@@ -155,7 +138,7 @@ export default function HomePage() {
               </span>
             </h1>
             <p className="text-lg text-neutral-300 max-w-2xl mx-auto mb-8">
-              <ComicText fontSize={1.5} className="mr-2">
+              <ComicText fontSize={2} className="mr-2">
                 DevVault
               </ComicText>
               is your personal space to store guides, tutorials, and
@@ -205,9 +188,8 @@ export default function HomePage() {
 
         {/* Expandable Gallery Content */}
         <div
-          className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${
-            showGallery ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-          }`}
+          className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${showGallery ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+            }`}
         >
           <div className="overflow-hidden">
             {showGallery && <ProgrammingMarquee />}
@@ -289,7 +271,7 @@ export default function HomePage() {
 
           {loading ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i: any) => (
+              {[1, 2, 3].map((i) => (
                 <div
                   key={i}
                   className="animate-pulse border-2 border-gray-200 p-6"
@@ -320,21 +302,23 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {recentGuides.map((guide: any) => (
+              {recentGuides.map((guide) => (
                 <Link
-                  key={guide.id}
-                  to={`/guide/${guide.slug}`}
+                  key={guide.id ?? guide.slug ?? guide.title}
+                  to={`/guide/${guide.slug ?? ""}`}
                   className="group border-2 border-black p-6 hover:shadow-lg transition-all hover:-translate-y-1"
                 >
                   <h3 className="text-xl font-bold mb-2 group-hover:underline">
                     {guide.title}
                   </h3>
                   <p className="text-sm text-gray-500 mb-4">
-                    {new Date(guide.created_at).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {guide.created_at
+                      ? new Date(guide.created_at).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })
+                      : ""}
                   </p>
                   {guide.keywords && guide.keywords.length > 0 && (
                     <div className="flex flex-wrap gap-2">

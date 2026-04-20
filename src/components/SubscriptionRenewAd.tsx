@@ -1,12 +1,3 @@
-﻿// Type definitions for SubscriptionRenewAd
-
-interface SubscriptionRenewAdProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import adminProfile from '../assets/customarserviceprofiles/admin_profile.png';

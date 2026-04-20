@@ -1,17 +1,10 @@
-﻿// Type definitions for Counter
-
-interface CounterProps {
-  // Add prop types here
-}
 
 
 // Using framer-motion as it is installed as 'framer-motion'
-import { motion, useSpring, useTransform } from "framer-motion";
-import { useEffect } from "react";
+import { MotionValue } from "framer-motion";
+import { CSSProperties } from "react";
 
-import "./Counter.css";
-
-function Number({ mv, number, height }) {
+function Number({ mv, number, height }: { mv: MotionValue<number>; number: number; height: number }) {
   let y = useTransform(mv, (latest) => {
     let placeValue = latest % 10;
     let offset = (10 + number - placeValue) % 10;
@@ -28,7 +21,7 @@ function Number({ mv, number, height }) {
   );
 }
 
-function Digit({ place, value, height, digitStyle }) {
+function Digit({ place, value, height, digitStyle }: { place: number | string; value: number; height: number; digitStyle?: CSSProperties }) {
   const isDecimal = place === ".";
   // Round to place to avoid float issues
   const valueRoundedToPlace = isDecimal ? 0 : Math.floor(value / place); // This works for integers "1 2 3"
@@ -82,6 +75,24 @@ export default function Counter({
   gradientTo = "transparent",
   topGradientStyle,
   bottomGradientStyle,
+}: {
+  value: number;
+  fontSize?: number;
+  padding?: number;
+  places?: (number | string)[];
+  gap?: number;
+  borderRadius?: number;
+  horizontalPadding?: number;
+  textColor?: string;
+  fontWeight?: string;
+  containerStyle?: CSSProperties;
+  counterStyle?: CSSProperties;
+  digitStyle?: CSSProperties;
+  gradientHeight?: number;
+  gradientFrom?: string;
+  gradientTo?: string;
+  topGradientStyle?: CSSProperties;
+  bottomGradientStyle?: CSSProperties;
 }) {
   // If places is not provided, generate roughly enough for the number
   // For seconds counter "1 2 3", we want 1s, 10s, 100s, 1000s etc
@@ -146,4 +157,3 @@ export default function Counter({
     </span>
   );
 }
-

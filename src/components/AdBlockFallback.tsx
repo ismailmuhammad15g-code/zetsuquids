@@ -1,12 +1,3 @@
-// Type definitions for AdBlockFallback
-
-interface AdBlockFallbackProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { RefreshCw, ShieldAlert } from "lucide-react";
 import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";

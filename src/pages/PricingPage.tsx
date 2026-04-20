@@ -6,9 +6,24 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-export const PAYMENT_FREQUENCIES = ["monthly", "yearly"];
+export const PAYMENT_FREQUENCIES = ["monthly", "yearly"] as const;
 
-export const TIERS = [
+type PaymentFrequency = (typeof PAYMENT_FREQUENCIES)[number];
+
+interface PricingTier {
+  id: string;
+  name: string;
+  price: Record<PaymentFrequency, number | string>;
+  credits?: number;
+  description: string;
+  features: string[];
+  cta: string;
+  popular?: boolean;
+  highlighted?: boolean;
+  planType: "free" | "paid" | "custom";
+}
+
+export const TIERS: PricingTier[] = [
   {
     id: "individuals",
     name: "Individuals",
@@ -100,7 +115,7 @@ export default function PricingPage() {
       if (user?.email) {
         setLoadingCredits(true);
         try {
-          const { data, error } = await supabase
+          const { data } = await supabase
             .from("zetsuguide_credits")
             .select("credits")
             .eq("user_email", user.email.toLowerCase())
@@ -142,7 +157,7 @@ export default function PricingPage() {
     fetchCredits();
   }, [user]);
 
-  const handleAction = async (tier) => {
+  const handleAction = async (tier: PricingTier) => {
     // 1. Handle Free Plan
     if (tier.planType === "free") {
       if (!isAuthenticated()) {
@@ -169,6 +184,13 @@ export default function PricingPage() {
         return;
       }
 
+      const userEmail = user?.email;
+      if (!userEmail) {
+        toast.error("Please login to purchase a plan");
+        navigate("/auth");
+        return;
+      }
+
       setProcessingPayment(true);
       const toastId = toast.loading("Processing payment request...");
 
@@ -177,7 +199,7 @@ export default function PricingPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userEmail: user.email,
+            userEmail,
             amount: tier.price.monthly, // Using monthly price for this demo
             credits: tier.credits || 100, // Default credits if not specified
           }),

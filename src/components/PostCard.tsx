@@ -1,12 +1,3 @@
-// Type definitions for PostCard
-
-interface PostCardProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, formatDistanceToNow } from "date-fns";
 import {
   BadgeCheck,
@@ -96,7 +87,7 @@ export default function PostCard({ post, onDeleted }) {
     ? `@${authorProfile.username}`
     : `@${(authorProfile?.user_email?.split("@")[0] || "anon").toLowerCase().replace(/\s+/g, "")}`;
 
-  const navigateToProfile = (e) => {
+  const navigateToProfile = (e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
     if (authorProfile?.username) {
       navigate(`/community/profile/${authorProfile.username}`);
@@ -112,7 +103,7 @@ export default function PostCard({ post, onDeleted }) {
   const isVerified = authorProfile?.is_verified;
 
   // X.com-style time formatting
-  const formatTimeAgo = (date) => {
+  const formatTimeAgo = (date: string | Date): string => {
     const seconds = differenceInSeconds(new Date(), new Date(date));
     const minutes = differenceInMinutes(new Date(), new Date(date));
     const hours = differenceInHours(new Date(), new Date(date));
@@ -135,7 +126,7 @@ export default function PostCard({ post, onDeleted }) {
     return 0;
   }, [post.views_count]);
 
-  const handleLike = async (e) => {
+  const handleLike = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     if (!user) {
       toast.error("Please sign in to like posts");
@@ -161,9 +152,9 @@ export default function PostCard({ post, onDeleted }) {
     navigate(`/community/post/${post.id}`);
   };
 
-  const stopProp = (e) => e.stopPropagation();
+  const stopProp = (e: React.MouseEvent<HTMLElement>): void => e.stopPropagation();
 
-  const handleBookmark = async (e) => {
+  const handleBookmark = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     if (!user) { toast.error("Please sign in to bookmark posts"); return; }
     const next = !bookmarked;
@@ -222,7 +213,7 @@ export default function PostCard({ post, onDeleted }) {
     }
   };
 
-  const formatCount = (num) => {
+  const formatCount = (num: number): string => {
     if (!num || num === 0) return "";
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
     if (num >= 1000) return (num / 1000).toFixed(1) + "K";
@@ -288,7 +279,7 @@ export default function PostCard({ post, onDeleted }) {
             const textChildren = [];
             const nonTextElements = [];
 
-            const flattenChildren = (items) => {
+            const flattenChildren = (items: React.ReactNode): React.ReactNode[] => {
               return Array.isArray(items)
                 ? items.flat()
                 : [items];
@@ -304,7 +295,7 @@ export default function PostCard({ post, onDeleted }) {
             });
 
             // Process text children to highlight hashtags
-            const processTextChildren = (items) => {
+            const processTextChildren = (items: (string | React.ReactNode)[]): React.ReactNode[] => {
               return items.map((child, i) => {
                 if (typeof child === "string") {
                   return child
@@ -391,7 +382,7 @@ export default function PostCard({ post, onDeleted }) {
         })}
         <div className="flex gap-2 text-[14px] text-[#71767b] pt-1">
           <span>{totalVotes.toLocaleString()} votes</span>
-          <span>·</span>
+          <span>ï¿½</span>
           <span>
             {isExpired ? "Final results" : `${formatDistanceToNow(new Date(localPollData.ends_at))} left`}
           </span>
@@ -440,7 +431,7 @@ export default function PostCard({ post, onDeleted }) {
                 />
               )}
               <span className="text-[#71767b] truncate">{authorHandle}</span>
-              <span className="text-[#71767b]">·</span>
+              <span className="text-[#71767b]">ï¿½</span>
               <span className="text-[#71767b] hover:underline whitespace-nowrap text-[15px]">
                 {formatTimeAgo(post.created_at)}
               </span>
@@ -473,7 +464,7 @@ export default function PostCard({ post, onDeleted }) {
             )}
           </div>
 
-          {/* Post Body — no separate title, just content */}
+          {/* Post Body ï¿½ no separate title, just content */}
           <div className="text-[#e7e9ea] text-[15px] leading-[20px] mt-0.5 whitespace-pre-wrap break-words">
             {renderContent()}
           </div>
@@ -604,4 +595,3 @@ export default function PostCard({ post, onDeleted }) {
     </>
   );
 }
-

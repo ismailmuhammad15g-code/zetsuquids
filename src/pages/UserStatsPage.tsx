@@ -1,10 +1,10 @@
 import {
-    ArrowLeft,
-    BarChart3,
-    Calendar,
-    Clock,
-    Eye,
-    Star
+  ArrowLeft,
+  BarChart3,
+  Calendar,
+  Clock,
+  Eye,
+  Star
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -12,16 +12,66 @@ import { AreaChart } from "../components/retroui/charts/AreaChart";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
 
+type ActiveTab = "overview" | "analytics";
+
+interface GuideSummary {
+  id: string | number;
+  title: string;
+  slug: string;
+}
+
+interface GuideTimeLogRow {
+  duration_seconds: number;
+  last_updated: string;
+  guides: GuideSummary | null;
+}
+
+interface GuideRatingRow {
+  id: string | number;
+  guide_id: string | number;
+  user_id: string;
+  rating: number | string | null;
+  comment?: string | null;
+  created_at: string;
+}
+
+interface ReviewerProfile {
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+interface AnalyticsItem extends GuideRatingRow {
+  guide?: GuideSummary;
+  reviewer: {
+    display_name: string;
+    avatar_url: string | null;
+  };
+}
+
+interface ViewsChartPoint {
+  [key: string]: string | number;
+  name: string;
+  views: number;
+}
+
+interface RatingsChartPoint {
+  [key: string]: string | number;
+  name: string;
+  ratings: number;
+  count: number;
+}
+
 export default function UserStatsPage() {
   const { user } = useAuth();
-  const [stats, setStats] = useState([]);
+  const [stats, setStats] = useState<GuideTimeLogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalTime, setTotalTime] = useState(0);
-  const [activeTab, setActiveTab] = useState("overview"); // 'overview' or 'analytics'
-  const [analyticsData, setAnalyticsData] = useState([]);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("overview"); // 'overview' or 'analytics'
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsItem[]>([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [viewsChartData, setViewsChartData] = useState([]);
-  const [ratingsChartData, setRatingsChartData] = useState([]);
+  const [viewsChartData, setViewsChartData] = useState<ViewsChartPoint[]>([]);
+  const [ratingsChartData, setRatingsChartData] = useState<RatingsChartPoint[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -34,6 +84,8 @@ export default function UserStatsPage() {
   }, [user, activeTab]);
 
   const fetchStats = async () => {
+    if (!user?.id) return;
+
     try {
       setLoading(true);
 
@@ -56,15 +108,13 @@ export default function UserStatsPage() {
 
       if (error) throw error;
 
-      setStats(data || []);
+      const rows = ((data || []) as unknown) as GuideTimeLogRow[];
+      setStats(rows);
 
       // Calculate total time
-      const total = (data || []).reduce(
-        (acc, curr) => acc + curr.duration_seconds,
-        0,
-      );
+      const total = rows.reduce((acc, curr) => acc + (Number(curr.duration_seconds) || 0), 0);
       setTotalTime(total);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error fetching stats:", err);
     } finally {
       setLoading(false);
@@ -72,6 +122,8 @@ export default function UserStatsPage() {
   };
 
   const fetchAnalytics = async () => {
+    if (!user?.id) return;
+
     try {
       setAnalyticsLoading(true);
 
@@ -81,7 +133,9 @@ export default function UserStatsPage() {
         .select("id, title, slug")
         .eq("author_id", user.id);
 
-      if (!myGuides || myGuides.length === 0) {
+      const guides = (myGuides || []) as GuideSummary[];
+
+      if (guides.length === 0) {
         setAnalyticsData([]);
         setViewsChartData([]);
         setRatingsChartData([]);
@@ -89,9 +143,11 @@ export default function UserStatsPage() {
         return;
       }
 
-      const guideIds = myGuides.map((g: any) => g.id);
-      const guideMap = {};
-      myGuides.forEach((g: any) => (guideMap[g.id] = g));
+      const guideIds = guides.map((g) => g.id);
+      const guideMap: Record<string, GuideSummary> = {};
+      guides.forEach((g) => {
+        guideMap[String(g.id)] = g;
+      });
 
       // 2. Get ratings for these guides
       const { data: ratings, error } = await supabase
@@ -102,8 +158,10 @@ export default function UserStatsPage() {
 
       if (error) throw error;
 
+      const ratingsRows = (ratings || []) as GuideRatingRow[];
+
       // If no ratings, set empty arrays and return
-      if (!ratings || ratings.length === 0) {
+      if (ratingsRows.length === 0) {
         setAnalyticsData([]);
         setViewsChartData([]);
         setRatingsChartData([]);
@@ -112,22 +170,25 @@ export default function UserStatsPage() {
       }
 
       // 3. Get reviewer profiles
-      const userIds = [...new Set(ratings.map((r: any) => r.user_id))];
+      const userIds = [...new Set(ratingsRows.map((r) => r.user_id))];
       const { data: profiles } = await supabase
         .from("zetsuguide_user_profiles")
         .select("user_id, display_name, avatar_url")
         .in("user_id", userIds);
 
-      const profileMap = {};
-      profiles?.forEach((p: any) => (profileMap[p.user_id] = p));
+      const profileMap: Record<string, ReviewerProfile> = {};
+      (profiles || []).forEach((p) => {
+        const profile = p as ReviewerProfile;
+        profileMap[profile.user_id] = profile;
+      });
 
       // 4. Combine data
-      const fullData = ratings.map((r: any) => ({
+      const fullData: AnalyticsItem[] = ratingsRows.map((r) => ({
         ...r,
-        guide: guideMap[r.guide_id],
-        reviewer: profileMap[r.user_id] || {
-          display_name: "Unknown User",
-          avatar_url: null,
+        guide: guideMap[String(r.guide_id)],
+        reviewer: {
+          display_name: profileMap[r.user_id]?.display_name || "Unknown User",
+          avatar_url: profileMap[r.user_id]?.avatar_url || null,
         },
       }));
 
@@ -143,8 +204,8 @@ export default function UserStatsPage() {
 
         if (!viewsError && viewsData) {
           // Group views by date
-          const viewsByDate = {};
-          viewsData.forEach((view: any) => {
+          const viewsByDate: Record<string, number> = {};
+          (viewsData as Array<{ created_at: string; guide_id: string | number }>).forEach((view) => {
             const date = new Date(view.created_at).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -153,7 +214,7 @@ export default function UserStatsPage() {
           });
 
           // Get last 7 days
-          const last7Days = [];
+          const last7Days: ViewsChartPoint[] = [];
           for (let i = 6; i >= 0; i--) {
             const date = new Date();
             date.setDate(date.getDate() - i);
@@ -171,14 +232,14 @@ export default function UserStatsPage() {
           // Fallback: empty data if table doesn't exist
           setViewsChartData([]);
         }
-      } catch (viewsErr) {
+      } catch (viewsErr: unknown) {
         console.log("Views table not available yet, skipping views chart");
         setViewsChartData([]);
       }
 
       // 6. Generate charts data for ratings
-      const ratingsByDate = {};
-      ratings?.forEach((rating: any) => {
+      const ratingsByDate: Record<string, { total: number; count: number }> = {};
+      ratingsRows.forEach((rating) => {
         const date = new Date(rating.created_at).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
@@ -190,7 +251,7 @@ export default function UserStatsPage() {
         ratingsByDate[date].count += 1;
       });
 
-      const ratingsLast7Days = [];
+      const ratingsLast7Days: RatingsChartPoint[] = [];
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
@@ -208,14 +269,14 @@ export default function UserStatsPage() {
         });
       }
       setRatingsChartData(ratingsLast7Days);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error fetching analytics:", err);
     } finally {
       setAnalyticsLoading(false);
     }
   };
 
-  const formatDuration = (seconds) => {
+  const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
 
@@ -225,7 +286,7 @@ export default function UserStatsPage() {
     return `${minutes}m`;
   };
 
-  const formatJoinDate = (dateString) => {
+  const formatJoinDate = (dateString?: string): string => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -330,9 +391,9 @@ export default function UserStatsPage() {
                   No activity recorded yet. Start reading guides!
                 </div>
               ) : (
-                stats.map((stat: any) => (
+                stats.map((stat) => (
                   <div
-                    key={stat.guides?.id || Math.random()}
+                    key={stat.guides?.id ?? `${stat.last_updated}-${stat.duration_seconds}`}
                     className="p-4 flex flex-col hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                   >
                     <div className="flex items-center justify-between w-full">
@@ -390,7 +451,7 @@ export default function UserStatsPage() {
               <div className="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                 <p className="text-gray-500 font-medium mb-1">5-Star Ratings</p>
                 <h2 className="text-4xl font-black text-green-600">
-                  {analyticsData.filter((r: any) => Number(r.rating) === 5).length}
+                  {analyticsData.filter((r) => Number(r.rating) === 5).length}
                 </h2>
               </div>
             </div>
@@ -425,7 +486,7 @@ export default function UserStatsPage() {
                   Average Ratings (Last 7 Days)
                 </h3>
                 {ratingsChartData.length > 0 &&
-                ratingsChartData.some((d) => d.count > 0) ? (
+                  ratingsChartData.some((d) => d.count > 0) ? (
                   <AreaChart
                     data={ratingsChartData}
                     index="name"
@@ -457,7 +518,7 @@ export default function UserStatsPage() {
                   </p>
                 </div>
               ) : (
-                analyticsData.map((review: any) => (
+                analyticsData.map((review) => (
                   <div
                     key={review.id}
                     className="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:translate-y-[-2px]"

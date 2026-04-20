@@ -1,15 +1,6 @@
-﻿// Type definitions for reasoning
-
-interface reasoningProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
-import { useState, useEffect, useRef, createContext, useContext } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { BrainCircuit, ChevronUp } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -40,6 +31,14 @@ export const Reasoning = ({
   duration,
   children,
   className = "",
+}: {
+  isStreaming?: boolean;
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  duration?: number;
+  children?: React.ReactNode;
+  className?: string;
 }) => {
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
   const [elapsed, setElapsed] = useState(undefined);
@@ -49,7 +48,7 @@ export const Reasoning = ({
   const controlled = open !== undefined;
   const isOpen = controlled ? open : internalOpen;
 
-  const setOpen = (val) => {
+  const setOpen = (val: boolean): void => {
     if (!controlled) setInternalOpen(val);
     onOpenChange?.(val);
   };
@@ -94,16 +93,16 @@ export const Reasoning = ({
  * @param {Object} props
  * @param {(isStreaming: boolean, duration?: number) => React.ReactNode} [props.getThinkingMessage]
  */
-export const ReasoningTrigger = ({ getThinkingMessage, className = "", ...rest }) => {
+export const ReasoningTrigger = ({ getThinkingMessage, className = "", ...rest }: { getThinkingMessage?: (isStreaming: boolean, duration?: number) => React.ReactNode; className?: string;[key: string]: any }) => {
   const { isStreaming, isOpen, setOpen, duration } = useReasoning();
 
   const label = getThinkingMessage
     ? getThinkingMessage(isStreaming, duration)
     : isStreaming
-    ? "Thinking…"
-    : duration !== undefined
-    ? `Thought for ${duration}s`
-    : "View reasoning";
+      ? "Thinking…"
+      : duration !== undefined
+        ? `Thought for ${duration}s`
+        : "View reasoning";
 
   return (
     <button
@@ -148,7 +147,7 @@ export const ReasoningTrigger = ({ getThinkingMessage, className = "", ...rest }
  * @param {Object} props
  * @param {string} props.children  – reasoning text to display
  */
-export const ReasoningContent = ({ children, className = "", ...rest }) => {
+export const ReasoningContent = ({ children, className = "", ...rest }: { children?: React.ReactNode; className?: string;[key: string]: any }) => {
   const { isOpen } = useReasoning();
 
   return (
@@ -187,10 +186,9 @@ export const ReasoningContent = ({ children, className = "", ...rest }) => {
  * Usage:
  *   <ReasoningBlock isStreaming={isStreaming} text={reasoningText} />
  */
-export const ReasoningBlock = ({ isStreaming, text, className = "" }) => (
+export const ReasoningBlock = ({ isStreaming, text, className = "" }: { isStreaming?: boolean; text?: string; className?: string }) => (
   <Reasoning isStreaming={isStreaming} className={className}>
     <ReasoningTrigger />
     <ReasoningContent>{text}</ReasoningContent>
   </Reasoning>
 );
-

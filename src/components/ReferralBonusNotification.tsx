@@ -1,12 +1,3 @@
-﻿// Type definitions for ReferralBonusNotification
-
-interface ReferralBonusNotificationProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { Gift, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";

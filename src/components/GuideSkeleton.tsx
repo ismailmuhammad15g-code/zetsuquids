@@ -1,8 +1,3 @@
-﻿// Type definitions for GuideSkeleton
-
-interface GuideSkeletonProps {
-  // Add prop types here
-}
 
 
 /**

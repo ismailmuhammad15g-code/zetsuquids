@@ -1,12 +1,3 @@
-// Type definitions for ClickSpark
-
-interface ClickSparkProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { useCallback, useEffect, useRef } from "react";
 
 const ClickSpark = ({

@@ -1,12 +1,3 @@
-// Type definitions for GuideAIChat
-
-interface GuideAIChatProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { Bot, Loader2, MessageCircle, Send, X, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -63,7 +54,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
       if (!error && data) {
         setCredits(data.credits ?? 0);
       } else if (!error && !data) {
-        // No row yet — treat as zero credits
+        // No row yet ï¿½ treat as zero credits
         setCredits(0);
       } else if (error) {
         // Log and fallback silently to 0

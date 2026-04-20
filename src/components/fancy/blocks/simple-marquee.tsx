@@ -1,8 +1,3 @@
-﻿// Type definitions for simple-marquee
-
-interface SimpleMarqueeProps {
-  // Add prop types here
-}
 
 
 import { cn } from "@/lib/utils"; // Adjust if valid path

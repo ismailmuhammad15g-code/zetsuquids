@@ -1,12 +1,3 @@
-// Type definitions for FeedTabs
-
-interface FeedTabsProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { Settings } from "lucide-react";
 
 export default function FeedTabs({ activeTab, setActiveTab }) {

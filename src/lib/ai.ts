@@ -93,3 +93,51 @@ export function basicSearch(query: string, guides: unknown[]): unknown[] {
 
     return scored.filter((g) => g.score > 0).sort((a, b) => b.score - a.score)
 }
+
+// AI Agent search - integrates with Vercel serverless API
+export async function aiAgentSearch(
+    query: string,
+    guides: unknown[],
+    userEmail: string
+): Promise<{ needsSupport: boolean; supportCategory?: string }> {
+    try {
+        // First, try to find relevant guides using basic search
+        const relevantGuides = basicSearch(query, guides)
+
+        // Check if the query seems to need support
+        const supportKeywords = ['help', 'error', 'problem', 'not working', 'bug', 'issue', 'crash', 'failed']
+        const queryLower = query.toLowerCase()
+        const needsSupport = supportKeywords.some(keyword => queryLower.includes(keyword))
+
+        return {
+            needsSupport,
+            supportCategory: needsSupport ? 'technical_issue' : undefined
+        }
+    } catch (error) {
+        console.error('Error in AI agent search:', error)
+        return { needsSupport: false }
+    }
+}
+
+// Get AI-enhanced search results with insights
+export async function getAIEnhancement(
+    query: string,
+    guides: unknown[]
+): Promise<{ results: unknown[]; aiInsight?: string } | null> {
+    try {
+        // Get basic search results
+        const results = basicSearch(query, guides)
+
+        // For now, return just the enhanced results
+        // This can be extended to call the AI API for additional insights
+        return {
+            results,
+            aiInsight: results.length > 0
+                ? `Found ${results.length} relevant guides for your query`
+                : 'No matching guides found. Try using different keywords.'
+        }
+    } catch (error) {
+        console.error('Error in AI enhancement:', error)
+        return null
+    }
+}

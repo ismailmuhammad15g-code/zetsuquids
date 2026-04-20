@@ -1,5 +1,5 @@
 import { ArrowLeft, Eye, EyeOff, Lock, MessageSquare } from 'lucide-react'
-import { useState } from 'react'
+import { type ChangeEvent, type FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 export default function StaffLogin() {
@@ -12,7 +12,7 @@ export default function StaffLogin() {
     // Staff password from env
     const STAFF_PASSWORD = import.meta.env.VITE_STAFF_PASSWORD || 'staff2024'
 
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         setLoading(true)
         setError('')
@@ -52,7 +52,7 @@ export default function StaffLogin() {
                         <input
                             type={showPassword ? 'text' : 'password'}
                             value={password}
-                            onChange={(e: any) => setPassword(e.target.value)}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                             placeholder="كلمة المرور"
                             required
                             dir="ltr"

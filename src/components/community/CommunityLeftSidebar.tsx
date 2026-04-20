@@ -1,12 +1,3 @@
-// Type definitions for CommunityLeftSidebar
-
-interface CommunityLeftSidebarProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { Bell, Bookmark, Home, Mail, MoreHorizontal, Search, Sparkles, User, Users, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";

@@ -1,22 +1,26 @@
 import Lottie from 'lottie-react'
 import {
-    ArrowLeft, ChevronDown, ChevronUp,
-    Clock,
-    LogOut,
-    Mail,
-    MessageSquare,
-    RefreshCw,
-    Send,
-    User,
+    ArrowLeft,
     BookOpen,
     CheckCircle,
-    XCircle,
-    Eye
+    ChevronDown, ChevronUp,
+    Clock,
+    Eye,
+    LogOut,
+    Mail,
+    Megaphone,
+    MessageSquare,
+    Plus,
+    RefreshCw,
+    Send,
+    ToggleLeft, ToggleRight,
+    Trash2,
+    User,
+    XCircle
 } from 'lucide-react'
-import { useEffect, useRef, useState, ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase, adminGuidesApi, adsApi, Guide, Ad } from '../lib/api'
-import { Megaphone, Trash2, Plus, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Ad, adminGuidesApi, adsApi, Guide, supabase } from '../lib/api'
 import { supportApi } from '../lib/supportApi'
 
 // Type definitions
@@ -97,7 +101,7 @@ export default function StaffConsole() {
     const [loadingMessages, setLoadingMessages] = useState<boolean>(false)
     const [replyText, setReplyText] = useState<string>('')
     const [sendingReply, setSendingReply] = useState<boolean>(false)
-    
+
     // Ads Management State
     const [ads, setAds] = useState<Ad[]>([])
     const [loadingAds, setLoadingAds] = useState<boolean>(false)
@@ -318,7 +322,7 @@ export default function StaffConsole() {
     const handleCreateAd = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         if (!newAd.title || !newAd.text) return
-        
+
         setCreatingAd(true)
         try {
             await adsApi.createAd({
@@ -849,10 +853,10 @@ export default function StaffConsole() {
                                 <button
                                     className="add-ad-btn"
                                     onClick={() => setShowAdModal(true)}
-                                    style={{ 
-                                        display: 'flex', alignItems: 'center', gap: '6px', 
-                                        backgroundColor: '#10b981', color: 'white', 
-                                        padding: '6px 14px', borderRadius: '8px', fontWeight: 'bold' 
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '6px',
+                                        backgroundColor: '#10b981', color: 'white',
+                                        padding: '6px 14px', borderRadius: '8px', fontWeight: 'bold'
                                     }}
                                 >
                                     <Plus size={16} />
@@ -890,9 +894,9 @@ export default function StaffConsole() {
                                         <div className="ad-body" style={{ padding: '16px', flex: 1 }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
                                                 <h3 style={{ fontSize: '18px', fontWeight: 'bold' }}>{ad.title}</h3>
-                                                <span 
-                                                    style={{ 
-                                                        fontSize: '10px', padding: '2px 8px', borderRadius: '9999px', 
+                                                <span
+                                                    style={{
+                                                        fontSize: '10px', padding: '2px 8px', borderRadius: '9999px',
                                                         backgroundColor: ad.is_active ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.1)',
                                                         color: ad.is_active ? '#10b981' : '#888',
                                                         border: `1px solid ${ad.is_active ? '#10b981' : '#444'}`
@@ -939,39 +943,39 @@ export default function StaffConsole() {
                     <div className="profile-selector-modal" style={{ maxWidth: '500px', textAlign: 'right' }}>
                         <h2 style={{ marginBottom: '10px' }}>إنشاء إعلان جديد</h2>
                         <p style={{ marginBottom: '20px' }}>أدخل تفاصيل الإعلان ليظهر في الشريط العلوي للموقع</p>
-                        
+
                         <form onSubmit={handleCreateAd} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 <label style={{ fontSize: '14px', color: '#888' }}>عنوان الإعلان (مثلاً: New!)</label>
-                                <input 
-                                    type="text" 
-                                    value={newAd.title} 
-                                    onChange={e => setNewAd({...newAd, title: e.target.value})}
+                                <input
+                                    type="text"
+                                    value={newAd.title}
+                                    onChange={e => setNewAd({ ...newAd, title: e.target.value })}
                                     placeholder="مثلاً: جديد!"
                                     style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}
                                     dir="rtl"
                                     required
                                 />
                             </div>
-                            
+
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 <label style={{ fontSize: '14px', color: '#888' }}>نص الإعلان</label>
-                                <textarea 
-                                    value={newAd.text} 
-                                    onChange={e => setNewAd({...newAd, text: e.target.value})}
+                                <textarea
+                                    value={newAd.text}
+                                    onChange={e => setNewAd({ ...newAd, text: e.target.value })}
                                     placeholder="اكتب وصف الإعلان هنا..."
                                     style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white', minHeight: '80px' }}
                                     dir="rtl"
                                     required
                                 />
                             </div>
-                            
+
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 <label style={{ fontSize: '14px', color: '#888' }}>الرابط (اختياري)</label>
-                                <input 
-                                    type="text" 
-                                    value={newAd.link_url} 
-                                    onChange={e => setNewAd({...newAd, link_url: e.target.value})}
+                                <input
+                                    type="text"
+                                    value={newAd.link_url}
+                                    onChange={e => setNewAd({ ...newAd, link_url: e.target.value })}
                                     placeholder="مثلاً: /community"
                                     style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}
                                 />
@@ -979,10 +983,10 @@ export default function StaffConsole() {
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 <label style={{ fontSize: '14px', color: '#888' }}>رابط الصورة (اختياري)</label>
-                                <input 
-                                    type="text" 
-                                    value={newAd.image_url} 
-                                    onChange={e => setNewAd({...newAd, image_url: e.target.value})}
+                                <input
+                                    type="text"
+                                    value={newAd.image_url}
+                                    onChange={e => setNewAd({ ...newAd, image_url: e.target.value })}
                                     placeholder="https://..."
                                     style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}
                                 />
@@ -990,10 +994,10 @@ export default function StaffConsole() {
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 <label style={{ fontSize: '14px', color: '#888' }}>نص الزر (اختياري)</label>
-                                <input 
-                                    type="text" 
-                                    value={newAd.button_text || ''} 
-                                    onChange={e => setNewAd({...newAd, button_text: e.target.value})}
+                                <input
+                                    type="text"
+                                    value={newAd.button_text || ''}
+                                    onChange={e => setNewAd({ ...newAd, button_text: e.target.value })}
                                     placeholder="مثلاً: اكتشف المزيد"
                                     style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}
                                     dir="rtl"
@@ -1001,15 +1005,15 @@ export default function StaffConsole() {
                             </div>
 
                             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                                <button 
-                                    type="submit" 
+                                <button
+                                    type="submit"
                                     disabled={creatingAd}
                                     style={{ flex: 1, backgroundColor: '#1d9bf0', color: 'white', padding: '12px', borderRadius: '12px', fontWeight: 'bold' }}
                                 >
                                     {creatingAd ? <RefreshCw className="spin" size={20} /> : 'نشر الإعلان'}
                                 </button>
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     onClick={() => setShowAdModal(false)}
                                     style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', padding: '12px', borderRadius: '12px' }}
                                 >
@@ -1457,7 +1461,7 @@ export default function StaffConsole() {
                 .select-profile-btn:hover {
                     background: rgba(255,255,255,0.15);
                 }
-                
+
                 /* Tabs */
                 .staff-tabs {
                     display: flex;

@@ -1,5 +1,5 @@
 import { ArrowLeft, Check, Eye, EyeOff, Loader2, Lock } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 export default function ResetPasswordPage() {
@@ -21,7 +21,7 @@ export default function ResetPasswordPage() {
         }
     }, [token])
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault()
 
         if (password !== confirmPassword) {

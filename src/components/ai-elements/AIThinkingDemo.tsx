@@ -1,17 +1,8 @@
-// Type definitions for AIThinkingDemo
-
-interface AIThinkingDemoProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { Loader, Send } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
-import { useThinkingStream } from '../hooks/useThinkingStream';
-import { processSSEStream } from '../lib/streamingUtils';
-import { LiveThinkingDisplay } from './ai-elements/LiveThinkingDisplay';
+import { type ChangeEvent, type KeyboardEvent, useCallback, useRef, useState } from 'react';
+import { useThinkingStream } from '../../hooks/useThinkingStream';
+import { processSSEStream } from '../../lib/streamingUtils';
+import { LiveThinkingDisplay } from './LiveThinkingDisplay';
 
 /**
  * ?? Component ?????? - ???? ??? ??????? Live Thinking Stream
@@ -21,12 +12,12 @@ export const AIThinkingDemo = () => {
     const thinkingStream = useThinkingStream();
     const [isLoading, setIsLoading] = useState(false);
     const [userMessage, setUserMessage] = useState('');
-    const abortControllerRef = useRef(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     /**
      * ????? ??????? - ???? ??????? ??? API ????? ?????? ????
      */
-    const handleSendMessage = useCallback(async (message) => {
+    const handleSendMessage = useCallback(async (message: string) => {
         if (!message.trim() || isLoading) return;
 
         // ????? ????? ?????? ???????
@@ -55,17 +46,21 @@ export const AIThinkingDemo = () => {
                 throw new Error(`API Error: ${response.statusText}`);
             }
 
+            if (!response.body) {
+                throw new Error('Empty response stream');
+            }
+
             // 2?? ?????? ???? ???????? ??? streaming utility
             await processSSEStream(
                 response.body,
-                (chunk) => {
+                (chunk: string) => {
                     // ?? chunk ??? ??????? ?????? useThinkingStream
                     thinkingStream.processChunk(chunk);
                     console.log('?? Chunk received:', chunk);
                 },
-                (error) => {
-                    console.error('? Stream error:', error);
-                    throw error;
+                (streamError: unknown) => {
+                    console.error('? Stream error:', streamError);
+                    throw streamError;
                 }
             );
 
@@ -75,7 +70,7 @@ export const AIThinkingDemo = () => {
                 response: thinkingStream.finalResponseText,
             });
         } catch (error: unknown) {
-            if (error.name !== 'AbortError') {
+            if (!(error instanceof DOMException && error.name === 'AbortError')) {
                 console.error('Error:', error);
                 // ????? ??? ????? ??? ???????? ???
             }
@@ -94,8 +89,8 @@ export const AIThinkingDemo = () => {
                     <input
                         type="text"
                         value={userMessage}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setUserMessage(e.target.value)}
-                        onKeyPress={(e) => {
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setUserMessage(e.target.value)}
+                        onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
                             if (e.key === 'Enter' && !isLoading) {
                                 handleSendMessage(userMessage);
                             }
@@ -140,7 +135,7 @@ export const AIThinkingDemo = () => {
             </div>
 
             {/* ?? Debug Info - ??????? ??????? (???????) */}
-            {process.env.NODE_ENV === 'development' && (
+            {import.meta.env.DEV && (
                 <div className="bg-gray-900 text-gray-100 rounded-lg p-4 text-xs font-mono overflow-auto max-h-48">
                     <p className="text-yellow-400 mb-2">Debug Info:</p>
                     <p>
@@ -174,4 +169,3 @@ export const AIThinkingDemo = () => {
 };
 
 export default AIThinkingDemo;
-

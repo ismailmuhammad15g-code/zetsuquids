@@ -1,12 +1,3 @@
-﻿// Type definitions for PostModal
-
-interface PostModalProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { X } from "lucide-react";
 import { useEffect } from "react";
 import Composer from "./Composer";

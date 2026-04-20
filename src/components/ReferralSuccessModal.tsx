@@ -1,12 +1,3 @@
-﻿// Type definitions for ReferralSuccessModal
-
-interface ReferralSuccessModalProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { AnimatePresence, motion } from 'framer-motion'
 import Lottie from 'lottie-react'
 import { Sparkles } from 'lucide-react'

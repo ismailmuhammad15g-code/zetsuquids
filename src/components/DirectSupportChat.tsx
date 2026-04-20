@@ -1,33 +1,36 @@
-// Type definitions for DirectSupportChat
-
-interface DirectSupportChatProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
-import Lottie from 'lottie-react'
-import { Loader2, Send, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { useAuth } from '../contexts/AuthContext'
-import { isSupabaseConfigured, supabase } from '../lib/api'
-import supportApi from '../lib/supportApi'; // Import the unified api
-import BotIcon from './BotIcon'
+import Lottie from 'lottie-react';
+import { Loader2, Send, Trash2 } from 'lucide-react';
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { isSupabaseConfigured, supabase } from '../lib/api';
+import { supportApi } from '../lib/supportApi'; // Import the unified api
+import BotIcon from './BotIcon';
 
 // Import staff profile animations
-import adminProfileImg from '../assets/customarserviceprofiles/admin_profile.png'
-import profile1Animation from '../assets/customarserviceprofiles/profile1.json'
-import profile2Animation from '../assets/customarserviceprofiles/profile2.json'
-import profile3Animation from '../assets/customarserviceprofiles/profile3.json'
-import profile4Animation from '../assets/customarserviceprofiles/profile4.json'
-import directSupportBgAnimation from '../assets/Directsupportbg.json'
-import staffTypingAnimation from '../assets/stufftyping....json'
+import adminProfileImg from '../assets/customarserviceprofiles/admin_profile.png';
+import profile1Animation from '../assets/customarserviceprofiles/profile1.json';
+import profile2Animation from '../assets/customarserviceprofiles/profile2.json';
+import profile3Animation from '../assets/customarserviceprofiles/profile3.json';
+import profile4Animation from '../assets/customarserviceprofiles/profile4.json';
+import directSupportBgAnimation from '../assets/Directsupportbg.json';
+import staffTypingAnimation from '../assets/stufftyping....json';
+
+// Message interface
+interface ChatMessage {
+    id: string | number;
+    role: 'user' | 'support' | 'staff' | 'admin';
+    content: string;
+    timestamp: Date;
+    senderType?: 'user' | 'staff' | 'admin';
+    senderName?: string;
+    staffProfileId?: string;
+    imageUrl?: string | null;
+    readStatus?: 'sent' | 'delivered' | 'read';
+}
 
 // Detect if text contains Arabic characters
-function isArabicText(text) {
+function isArabicText(text: string | null): boolean {
     if (!text) return false
-    const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/
     // Count Arabic vs Latin characters
     const arabicMatches = (text.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g) || []).length
     const latinMatches = (text.match(/[a-zA-Z]/g) || []).length
@@ -41,29 +44,29 @@ const STAFF_PROFILES = {
     'staff2': { name: 'Ahmed', animation: profile2Animation, color: '#10b981' },
     'staff3': { name: 'Layla', animation: profile3Animation, color: '#f59e0b' },
     'staff4': { name: 'Mohammed', animation: profile4Animation, color: '#ef4444' },
-}
+} as const;
 
 export default function DirectSupportChat() {
     const { user } = useAuth()
-    const [messages, setMessages] = useState([])
+    const [messages, setMessages] = useState<ChatMessage[]>([])
     const [inputValue, setInputValue] = useState('')
     const [isSending, setIsSending] = useState(false)
-    const [conversationId, setConversationId] = useState(null)
+    const [conversationId, setConversationId] = useState<string | null>(null)
     const [loading, setLoading] = useState(true)
     const [isDeleting, setIsDeleting] = useState(false)
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [isStaffTyping, setIsStaffTyping] = useState(false)
-    const typingTimeoutRef = useRef(null)
-    const messagesEndRef = useRef(null)
+    const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const messagesEndRef = useRef<HTMLDivElement>(null)
 
     // New features state
-    const [selectedImage, setSelectedImage] = useState(null)
-    const [imagePreview, setImagePreview] = useState(null)
+    const [selectedImage, setSelectedImage] = useState<File | null>(null)
+    const [imagePreview, setImagePreview] = useState<string | null>(null)
     const [uploadingImage, setUploadingImage] = useState(false)
     const [uploadProgress, setUploadProgress] = useState(0)
     const [showQuickReplies, setShowQuickReplies] = useState(true)
-    const fileInputRef = useRef(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -78,7 +81,7 @@ export default function DirectSupportChat() {
     ]
 
     // Handle image selection with security checks
-    const handleImageSelect = (e) => {
+    const handleImageSelect = (e: ChangeEvent<HTMLInputElement>): void => {
         const file = e.target.files?.[0]
         if (!file) return
 
@@ -114,7 +117,7 @@ export default function DirectSupportChat() {
     }
 
     // Upload image to ImgBB (FREE unlimited storage!)
-    const uploadImageToStorage = async (file) => {
+    const uploadImageToStorage = async (file: File): Promise<string | null> => {
         return new Promise((resolve) => {
             const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY
 
@@ -132,7 +135,8 @@ export default function DirectSupportChat() {
             const reader = new FileReader()
             reader.onload = async () => {
                 try {
-                    const base64String = reader.result.split(',')[1]
+                    const result = reader.result as string
+                    const base64String = result.split(',')[1]
                     setUploadProgress(20)
 
                     // Retry logic with 3 attempts
@@ -209,7 +213,7 @@ export default function DirectSupportChat() {
     }
 
     // Handle quick reply click
-    const handleQuickReply = (text) => {
+    const handleQuickReply = (text: string): void => {
         setInputValue(text)
         setShowQuickReplies(false)
     }
@@ -334,7 +338,8 @@ export default function DirectSupportChat() {
         }
     }, [conversationId, messages])
 
-    const handleSend = async (e) => {
+    const handleSend = async (e?: FormEvent<HTMLFormElement>): Promise<void> => {
+        if (!e) return
         e.preventDefault()
         if ((!inputValue.trim() && !selectedImage) || isSending) return
 
@@ -406,7 +411,7 @@ export default function DirectSupportChat() {
 
                 if (convId) {
                     // Save message to database with image URL
-                    const messageData = {
+                    const messageData: Record<string, string | number> = {
                         conversation_id: convId,
                         user_email: user.email,
                         sender_type: 'user',
@@ -459,7 +464,8 @@ export default function DirectSupportChat() {
     // Play notification sound
     const playNotificationSound = () => {
         try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext
+            const audioContext = new AudioContext()
             const oscillator = audioContext.createOscillator()
             const gainNode = audioContext.createGain()
 
@@ -563,7 +569,7 @@ export default function DirectSupportChat() {
     }, [conversationId])
 
     // Get avatar component for message
-    const getMessageAvatar = (msg) => {
+    const getMessageAvatar = (msg: any): string | JSX.Element => {
         if (msg.senderType === 'user') {
             return (
                 <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center flex-shrink-0">
@@ -589,7 +595,7 @@ export default function DirectSupportChat() {
         }
 
         if (msg.senderType === 'staff' && msg.staffProfileId) {
-            const profile = STAFF_PROFILES[msg.staffProfileId]
+            const profile = STAFF_PROFILES[msg.staffProfileId as keyof typeof STAFF_PROFILES]
             if (profile) {
                 return (
                     <div
@@ -615,19 +621,18 @@ export default function DirectSupportChat() {
     }
 
     // Get sender label
-    const getSenderLabel = (msg) => {
+    const getSenderLabel = (msg: ChatMessage): string => {
         if (msg.senderType === 'user') return 'You'
-        if (msg.senderType === 'bot') return 'ZetsuBot'
         if (msg.senderType === 'admin') return 'Admin'
         if (msg.senderType === 'staff' && msg.staffProfileId) {
-            const profile = STAFF_PROFILES[msg.staffProfileId]
+            const profile = STAFF_PROFILES[msg.staffProfileId as keyof typeof STAFF_PROFILES]
             return profile?.name || msg.senderName || 'Support'
         }
         return msg.senderName || 'Support'
     }
 
     // Check if should show avatar/name (first message or different sender)
-    const shouldShowHeader = (msg, index) => {
+    const shouldShowHeader = (msg: ChatMessage, index: number): boolean => {
         if (index === 0) return true
         const prevMsg = messages[index - 1]
 
@@ -1041,4 +1046,3 @@ if (typeof document !== 'undefined') {
     styleElement.textContent = styles
     document.head.appendChild(styleElement)
 }
-

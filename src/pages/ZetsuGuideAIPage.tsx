@@ -803,7 +803,7 @@ const styles = `
   .zg-reasoning-content p:last-child {
     margin-bottom: 0;
   }
-  
+
   /* Streaming state */
   .zg-reasoning.streaming {
     border-color: #d1d5db;
@@ -825,7 +825,7 @@ const styles = `
 
 // ─── Components & Helpers ───────────────────────────────────────────────────
 
-function ChevronDownIcon({ isOpen }) {
+function ChevronDownIcon({ isOpen }: { isOpen: boolean }) {
   return (
     <svg
       width="14" height="14"
@@ -848,13 +848,13 @@ function MessageSquareIcon({ size = 16 }) {
   );
 }
 
-function getInitials(email) {
+function getInitials(email: string | null): string {
   if (!email) return "U";
   const name = email.split("@")[0];
   return name.slice(0, 2).toUpperCase();
 }
 
-function formatDate(dateStr) {
+function formatDate(dateStr: string | null): string {
   if (!dateStr) return "";
   const d = new Date(dateStr);
   const now = new Date();
@@ -864,12 +864,12 @@ function formatDate(dateStr) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function MermaidChart({ chart }) {
-  const containerRef = useRef(null);
+function MermaidChart({ chart }: { chart: string }): JSX.Element {
+  const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (containerRef.current && chart) {
       try {
-        containerRef.current.innerHTML = chart;
+        if (containerRef.current) containerRef.current.innerHTML = chart;
         mermaid.init(undefined, containerRef.current);
       } catch (err) {
         console.error("Mermaid format error:", err);
@@ -885,7 +885,7 @@ function MermaidChart({ chart }) {
   );
 }
 
-function parseThoughtAndResponse(text) {
+function parseThoughtAndResponse(text: string): { thought: string; response: string; isStreaming?: boolean } {
   if (!text) return { thought: "", response: "" };
 
   const textLower = text.toLowerCase();
@@ -910,10 +910,10 @@ function parseThoughtAndResponse(text) {
   if (thinkingStart !== -1 && thinkingEnd === -1) {
     const thoughtContent = text.substring(thinkingStart + 10);
     const responseBefore = text.substring(0, thinkingStart);
-    return { 
-      thought: thoughtContent, 
-      response: responseBefore, 
-      isStreaming: true 
+    return {
+      thought: thoughtContent,
+      response: responseBefore,
+      isStreaming: true
     };
   }
 
@@ -921,17 +921,24 @@ function parseThoughtAndResponse(text) {
   return { thought: "", response: text };
 }
 
-function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true }) {
+interface ReasoningBlockProps {
+  thought: string;
+  duration?: number;
+  isStreaming: boolean;
+  isInitialOpen?: boolean;
+}
+
+function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true }: ReasoningBlockProps) {
   const [isOpen, setIsOpen] = useState(isInitialOpen);
-  
+
   useEffect(() => {
     if (isStreaming) setIsOpen(true);
   }, [isStreaming]);
 
   return (
     <div className={`zg-reasoning ${isOpen ? "open" : ""} ${isStreaming ? "streaming" : ""}`} style={{ marginBottom: "16px", border: "1px solid #e5e7eb", borderRadius: "12px" }}>
-      <button 
-        className="zg-reasoning-trigger" 
+      <button
+        className="zg-reasoning-trigger"
         onClick={() => setIsOpen(!isOpen)}
         title={isOpen ? "Hide thinking process" : "Show thinking process"}
         style={{ background: "#f9fafb", width: "100%", textAlign: "left" }}
@@ -952,8 +959,8 @@ function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true }
         <ChevronDownIcon isOpen={isOpen} />
       </button>
       <div className={`zg-reasoning-body ${isOpen ? "open" : ""}`} style={{ maxHeight: isOpen ? "500px" : "0", overflow: "hidden", transition: "max-height 0.3s ease" }}>
-        <div className="zg-reasoning-content" dir="ltr" style={{ 
-          padding: "12px 16px", 
+        <div className="zg-reasoning-content" dir="ltr" style={{
+          padding: "12px 16px",
           background: "#fff",
           fontSize: "13px",
           lineHeight: "1.6",
@@ -961,10 +968,10 @@ function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true }
           borderTop: "1px solid #f3f4f6"
         }}>
           {thought ? (
-            <pre style={{ 
-              whiteSpace: "pre-wrap", 
-              wordBreak: "break-word", 
-              margin: 0, 
+            <pre style={{
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              margin: 0,
               fontFamily: "inherit",
               background: "#f9fafb",
               padding: "8px",
@@ -982,7 +989,13 @@ function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true }
   );
 }
 
-function MessageContent({ text, isError, isThinking }) {
+interface MessageContentProps {
+  text: string;
+  isError?: boolean;
+  isThinking?: boolean;
+}
+
+function MessageContent({ text, isError, isThinking }: MessageContentProps) {
   // If the AI is expected to think but hasn't sent text yet, show a placeholder
   if (isThinking && !text) {
     return (
@@ -995,23 +1008,23 @@ function MessageContent({ text, isError, isThinking }) {
   if (!text) return null;
 
   const { thought, response, isStreaming } = parseThoughtAndResponse(text);
-  
+
   const hasThinkingStart = text.toLowerCase().includes("<thinking>");
   const hasThinkingEnd = text.toLowerCase().includes("</thinking>");
   const hasThinkingTag = hasThinkingStart || hasThinkingEnd;
-  
+
   const showThought = hasThinkingTag || thought !== "" || isStreaming || isThinking;
 
   return (
     <div className={`zg-ai-content prose prose-sm max-w-none ${isError ? "text-red-600" : ""}`} dir="auto">
       {showThought && (
-        <ReasoningBlock 
-          thought={thought} 
-          isStreaming={isStreaming} 
-          isInitialOpen={true} 
+        <ReasoningBlock
+          thought={thought}
+          isStreaming={isStreaming}
+          isInitialOpen={true}
         />
       )}
-      
+
       {response && (
         <FilteredMarkdown content={response} />
       )}
@@ -1021,29 +1034,33 @@ function MessageContent({ text, isError, isThinking }) {
 }
 
 // Custom component to filter thinking tags from rendered markdown
-function FilteredMarkdown({ content }) {
+interface FilteredMarkdownProps {
+  content: string;
+}
+
+function FilteredMarkdown({ content }: FilteredMarkdownProps) {
   // Aggressive cleaning of thinking tags from content
   let cleanContent = content;
-  
+
   // Remove all thinking tag patterns (case insensitive, global)
   cleanContent = cleanContent.replace(/<thinking>[\s\S]*?<\/thinking>/gi, "");
   cleanContent = cleanContent.replace(/<thinking>[\s\S]*?$/gi, "");
   cleanContent = cleanContent.replace(/^[\s\S]*?<thinking>/gi, "");
   cleanContent = cleanContent.replace(/<\/thinking>[\s\S]*/gi, "");
-  
+
   // Also handle any remaining angle bracket patterns that look like thinking
   cleanContent = cleanContent.replace(/<think[\s\S]*?>/gi, "");
   cleanContent = cleanContent.replace(/<\/think[\s\S]*?>/gi, "");
-  
+
   cleanContent = cleanContent.trim();
-  
+
   if (!cleanContent) return null;
-  
+
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       components={{
-        code({ node, inline, className, children, ...props }) {
+        code({ node, inline, className, children, ...props }: any) {
           const match = /language-(\w+)/.exec(className || "");
           const lang = match ? match[1] : "";
           if (!inline && lang === "mermaid") {
@@ -1114,11 +1131,6 @@ export default function ZetsuGuideAIPage() {
   const [input, setInput] = useState<string>("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState<boolean>(false);
-  const [thinkingLabel, setThinkingLabel] = useState<string>("Thinking");
-  const [reasoningSteps, setReasoningSteps] = useState<ReasoningStep[]>([]);
-  const [reasoningDuration, setReasoningDuration] = useState<number | undefined>(undefined);
-  const [thinkingContent, setThinkingContent] = useState<string>("");
-  const [finalResponseContent, setFinalResponseContent] = useState<string>("");
   const [credits, setCredits] = useState<Credits | null>(null);
   const [creditsLoading, setCreditsLoading] = useState<boolean>(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -1138,7 +1150,7 @@ export default function ZetsuGuideAIPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
-  const handleInput = (e) => {
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     e.target.style.height = "auto";
     e.target.style.height = Math.min(e.target.scrollHeight, 180) + "px";
@@ -1166,8 +1178,8 @@ export default function ZetsuGuideAIPage() {
         .select("credits")
         .eq("user_email", user.email.toLowerCase())
         .maybeSingle();
-      setCredits(data?.credits ?? 5);
-    } catch { setCredits(5); }
+      setCredits({ balance: data?.credits ?? 5 });
+    } catch { setCredits({ balance: 5 }); }
     finally { setCreditsLoading(false); }
   }
 
@@ -1185,20 +1197,20 @@ export default function ZetsuGuideAIPage() {
     setIsLoadingHistory(false);
   }
 
-  const handleSend = async (e) => {
+  const handleSend = async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
     if (!input.trim() || isThinking) return;
     if (!isAuthenticated()) { navigate("/auth"); return; }
-    if (credits !== null && credits <= 0) {
+    if (credits !== null && credits.balance !== undefined && credits.balance <= 0) {
       toast.error("You're out of credits! Please top up to continue.");
       return;
     }
 
     const query = input.trim();
-    const userMsg = { role: "user", content: query, timestamp: new Date().toISOString() };
+    const userMsg: ChatMessage = { id: Date.now(), role: "user", content: query, timestamp: new Date().toISOString() };
     const assistantMsg = { role: "assistant", content: "", timestamp: new Date().toISOString() };
     const newMessages = [...messages, userMsg, assistantMsg];
-    
+
     setMessages(newMessages);
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
@@ -1317,7 +1329,7 @@ ${guidesContext}
       if (!response.ok) {
         const errText = await response.text();
         let errorMessage = "The AI service is temporarily unavailable. Please try again.";
-        
+
         try {
           const errorData = JSON.parse(errText);
           if (errorData.error?.message?.includes("503") || errorData.error?.message?.includes("unavailable")) {
@@ -1326,7 +1338,7 @@ ${guidesContext}
         } catch (e: unknown) {
           // Not JSON, use default message
         }
-        
+
         throw new Error(errorMessage);
       }
 
@@ -1342,6 +1354,9 @@ ${guidesContext}
         console.log("📊 Receiving STREAMING response from AI...");
 
         // Streaming reader setup
+        if (!response.body) {
+          throw new Error("Response body is null");
+        }
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
 
@@ -1421,34 +1436,36 @@ ${guidesContext}
         : [...newMessages, { role: "assistant", content: finalAiContent, timestamp: new Date().toISOString() }];  // Fallback
 
       // Deduct credit
-      const newCredits = Math.max(0, (credits ?? 5) - 1);
-      setCredits(newCredits);
-      await supabase
-        .from("zetsuguide_credits")
-        .update({ credits: newCredits })
-        .eq("user_email", user.email.toLowerCase());
+      const creditBalance = credits?.balance ?? 5;
+      const newCredits = Math.max(0, creditBalance - 1);
+      setCredits({ balance: newCredits });
+      if (user?.email) {
+        await supabase
+          .from("zetsuguide_credits")
+          .update({ credits: newCredits })
+          .eq("user_email", user.email.toLowerCase());
+      }
 
       // Save conversation
       await saveConversation(finalMessages);
 
-    } catch (err) {
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
       setMessages(prev => {
         const newMsgs = [...prev];
         const lastMsg = newMsgs[newMsgs.length - 1];
         if (lastMsg && lastMsg.role === "assistant") {
-          lastMsg.content = err.message;
-          lastMsg.isError = true;
+          lastMsg.content = errorMsg;
         }
         return newMsgs;
       });
-      toast.error(err.message);
+      toast.error(errorMsg);
     } finally {
       setIsThinking(false);
-      setThinkingLabel("Thinking");
     }
   };
 
-  async function saveConversation(msgs) {
+  async function saveConversation(msgs: ChatMessage[]): Promise<void> {
     if (!user?.email) return;
     try {
       const title = msgs.find(m => m.role === "user")?.content?.substring(0, 50) || "New Chat";
@@ -1469,7 +1486,7 @@ ${guidesContext}
     } catch { }
   }
 
-  const startNewChat = () => {
+  const startNewChat = (): void => {
     setMessages([]);
     setCurrentConvId(null);
     setReasoningSteps([]);
@@ -1479,7 +1496,7 @@ ${guidesContext}
     if (textareaRef.current) textareaRef.current.focus();
   };
 
-  const loadConversation = async (conv) => {
+  const loadConversation = async (conv: Conversation): Promise<void> => {
     try {
       const { data } = await supabase
         .from("zetsuguide_conversations")
@@ -1493,7 +1510,7 @@ ${guidesContext}
     } catch { toast.error("Failed to load conversation."); }
   };
 
-  const deleteConversation = async (e, convId) => {
+  const deleteConversation = async (e: React.MouseEvent<HTMLButtonElement>, convId: string | number): Promise<void> => {
     e.stopPropagation();
     try {
       await supabase.from("zetsuguide_conversations").delete().eq("id", convId);
@@ -1502,7 +1519,7 @@ ${guidesContext}
     } catch { toast.error("Failed to delete."); }
   };
 
-  const copyMessage = (text, idx) => {
+  const copyMessage = (text: string, idx: number): void => {
     navigator.clipboard.writeText(text).then(() => {
       setCopiedIdx(idx);
       setTimeout(() => setCopiedIdx(null), 1800);
@@ -1608,7 +1625,7 @@ ${guidesContext}
                   <div className="zg-user-name">{user?.email?.split("@")[0]}</div>
                   <div className="zg-credits-badge">
                     <Zap size={11} style={{ color: "#f59e0b" }} />
-                    {creditsLoading ? "..." : credits} credits
+                    {creditsLoading ? "..." : credits?.balance ?? 0} credits
                   </div>
                 </div>
               </div>
@@ -1636,8 +1653,8 @@ ${guidesContext}
             <button className="zg-icon-btn" onClick={startNewChat} title="New chat">
               <SquarePen size={16} />
             </button>
-            <button 
-              className="zg-icon-btn" 
+            <button
+              className="zg-icon-btn"
               onClick={() => setShowApiSettings(!showApiSettings)}
               title="API Settings"
               style={{ color: showApiSettings ? "#111" : "#6b7280" }}
@@ -1759,8 +1776,8 @@ ${guidesContext}
                         <div className="zg-ai-avatar"><Bot size={16} /></div>
                         <div className="zg-ai-body">
                           <div className="zg-ai-name">ZetsuGuide AI</div>
-                          <MessageContent text={msg.content} isError={msg.isError} isThinking={idx === messages.length - 1 && isThinking} />
-                          {msg.isError && (
+                          <MessageContent text={msg.content} isThinking={idx === messages.length - 1 && isThinking} />
+                          {false && (
                             <div className="zg-error-actions">
                               <button className="zg-retry-btn" onClick={retryLastMessage}>
                                 <RefreshCw size={13} /> Try again
@@ -1813,7 +1830,7 @@ ${guidesContext}
           {auth && (
             <div className="zg-input-area">
               <div className="zg-input-shell">
-                {credits !== null && credits <= 0 && (
+                {credits !== null && credits.balance !== undefined && credits.balance <= 0 && (
                   <div className="zg-no-credits">
                     ⚡ You have no credits left. Please purchase more to continue chatting.
                   </div>
@@ -1860,7 +1877,7 @@ ${guidesContext}
                       <button
                         type="submit"
                         className="zg-send-btn"
-                        disabled={!input.trim() || isThinking || credits === 0}
+                        disabled={!input.trim() || isThinking || (credits?.balance ?? 5) === 0}
                         title="Send"
                       >
                         <Send size={16} />
@@ -1879,4 +1896,3 @@ ${guidesContext}
     </>
   );
 }
-

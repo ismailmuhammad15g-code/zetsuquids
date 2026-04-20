@@ -1,28 +1,19 @@
-// Type definitions for SearchModal
-
-interface SearchModalProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import {
-    AlertTriangle,
-    ArrowRight,
-    Brain,
-    Clock,
-    Command,
-    CreditCard,
-    FileText,
-    Home,
-    LayoutGrid,
-    Loader2,
-    Plus,
-    Search,
-    Sparkles,
-    Wand2,
-    X,
+  AlertTriangle,
+  ArrowRight,
+  Brain,
+  Clock,
+  Command,
+  CreditCard,
+  FileText,
+  Home,
+  LayoutGrid,
+  Loader2,
+  Plus,
+  Search,
+  Sparkles,
+  Wand2,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -75,7 +66,7 @@ const BLACKLIST = [
 ];
 
 // Check if query contains blacklisted words
-function checkBlacklist(text) {
+function checkBlacklist(text: string): string[] {
   const words = text.toLowerCase().split(/\s+/);
   const violations = [];
 
@@ -95,7 +86,7 @@ function checkBlacklist(text) {
   return [...new Set(violations)];
 }
 
-export default function SearchModal({ onClose }) {
+export default function SearchModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const inputRef = useRef(null);
   const aiTimeoutRef = useRef(null);
@@ -146,7 +137,7 @@ export default function SearchModal({ onClose }) {
   // Filter State
   const [activeFilter, setActiveFilter] = useState("all"); // all, guides, actions
 
-  function handleActionClick(action) {
+  function handleActionClick(action: any): void {
     if (action.path === "modal:add") {
       // Dispatch event for Layout to handle
       window.dispatchEvent(new CustomEvent("open-add-guide"));
@@ -183,7 +174,7 @@ export default function SearchModal({ onClose }) {
   }
 
   // Handle query change with blacklist check
-  function handleQueryChange(e) {
+  function handleQueryChange(e: React.ChangeEvent<HTMLInputElement>): void {
     const newQuery = e.target.value;
     setQuery(newQuery);
 
@@ -216,7 +207,7 @@ export default function SearchModal({ onClose }) {
     return () => clearTimeout(timer);
   }, [query, allGuides, violations]);
 
-  async function performSearch(searchQuery) {
+  async function performSearch(searchQuery: string): Promise<void> {
     if (!searchQuery.trim()) {
       setResults([]);
       setAiState("idle");
@@ -274,7 +265,7 @@ export default function SearchModal({ onClose }) {
     }
   }
 
-  async function triggerAISearch(searchQuery) {
+  async function triggerAISearch(searchQuery: string): Promise<void> {
     setAiState("thinking");
     setShowAiPanel(true);
 
@@ -298,7 +289,7 @@ export default function SearchModal({ onClose }) {
     }
   }
 
-  async function enhanceWithAI(searchQuery) {
+  async function enhanceWithAI(searchQuery: string): Promise<void> {
     setAiState("thinking");
     setShowAiPanel(true); // Show skeleton immediately while thinking
 
@@ -326,7 +317,7 @@ export default function SearchModal({ onClose }) {
     }
   }
 
-  function handleSelect(guide) {
+  function handleSelect(guide: any): void {
     const recent = JSON.parse(localStorage.getItem("recentSearches") || "[]");
     const updated = [
       { id: guide.id, title: guide.title, slug: guide.slug },
@@ -338,7 +329,7 @@ export default function SearchModal({ onClose }) {
     navigate(`/guide/${guide.slug}`);
   }
 
-  function handleKeyDown(e) {
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelectedIndex((i) => Math.min(i + 1, results.length - 1));
@@ -352,7 +343,7 @@ export default function SearchModal({ onClose }) {
     }
   }
 
-  function highlightMatch(text, searchQuery) {
+  function highlightMatch(text: string, searchQuery: string): (string | JSX.Element)[] {
     if (!searchQuery || !text) return text;
     try {
       const regex = new RegExp(
@@ -500,11 +491,10 @@ export default function SearchModal({ onClose }) {
                   <button
                     key={filter}
                     onClick={() => setActiveFilter(filter)}
-                    className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                      activeFilter === filter
+                    className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeFilter === filter
                         ? "border-black text-black"
                         : "border-transparent text-gray-500 hover:text-gray-800"
-                    }`}
+                      }`}
                   >
                     {filter.charAt(0).toUpperCase() + filter.slice(1)}
                   </button>
@@ -659,21 +649,19 @@ export default function SearchModal({ onClose }) {
                               ? handleActionClick(item)
                               : handleSelect(item)
                           }
-                          className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all ${
-                            i === selectedIndex
+                          className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all ${i === selectedIndex
                               ? "bg-indigo-50/50 border border-indigo-100 shadow-sm"
                               : "hover:bg-gray-50 border border-transparent"
-                          }`}
+                            }`}
                         >
                           {/* Icon Box */}
                           <div
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                              item.isAction
+                            className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${item.isAction
                                 ? "bg-amber-100 text-amber-600"
                                 : item.isAIResult
                                   ? "bg-indigo-100 text-indigo-600"
                                   : "bg-gray-100 text-gray-500"
-                            }`}
+                              }`}
                           >
                             {item.isAction ? (
                               <Command size={20} />
@@ -807,4 +795,3 @@ export default function SearchModal({ onClose }) {
     </div>
   );
 }
-

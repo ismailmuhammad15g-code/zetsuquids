@@ -104,4 +104,5 @@ const FAQ: React.FC = () => {
     );
 }
 
+export { FAQ };
 export default FAQ;

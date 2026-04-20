@@ -1,8 +1,3 @@
-﻿// Type definitions for SEOHelmet_Examples
-
-interface SEOHelmet_ExamplesProps {
-  // Add prop types here
-}
 
 
 // =========================================

@@ -172,4 +172,29 @@ export const supportApi = {
             return { success: false, error: errorMsg }
         }
     },
+
+    // Delete a conversation and all its messages
+    async deleteConversation(conversationId: string): Promise<boolean> {
+        try {
+            // Delete all messages first (cascade would handle this, but explicit is safer)
+            const { error: msgError } = await supabase
+                .from('support_messages')
+                .delete()
+                .eq('conversation_id', conversationId)
+
+            if (msgError) throw msgError
+
+            // Then delete the conversation
+            const { error: convError } = await supabase
+                .from('support_conversations')
+                .delete()
+                .eq('id', conversationId)
+
+            if (convError) throw convError
+            return true
+        } catch (error) {
+            console.error('Error deleting conversation:', error)
+            return false
+        }
+    }
 };

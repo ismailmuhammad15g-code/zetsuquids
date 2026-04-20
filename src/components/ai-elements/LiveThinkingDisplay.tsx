@@ -1,34 +1,27 @@
-﻿// Type definitions for LiveThinkingDisplay
-
-interface LiveThinkingDisplayProps {
-  // Add prop types here
-}
 
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader } from 'lucide-react';
+import { ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
 
-/**
- * Component لعرض التفكير المباشر والرد النهائي
- * ✨ يستخدم Framer Motion لانتقالات سلسة
- *
- * @param {Object} props
- * @param {boolean} props.isThinking - هل تجري عملية التفكير؟
- * @param {string} props.thinkingText - نص التفكير
- * @param {string} props.finalResponseText - الرد النهائي
- */
+interface LiveThinkingDisplayProps {
+    isThinking?: boolean;
+    thinkingText?: string;
+    finalResponseText?: string;
+}
+
 export const LiveThinkingDisplay = ({
     isThinking = false,
     thinkingText = '',
     finalResponseText = '',
-}) => {
+}: LiveThinkingDisplayProps) => {
     // Markdown config for final response
     const markdownComponents = {
-        code: ({ node, inline, className, children, ...props }) => {
+        code: ({ node, inline, className, children, ...props }: { node?: any; inline?: boolean; className?: string; children?: ReactNode;[key: string]: any }) => {
             const match = /language-(\w+)/.exec(className || '');
             const lang = match ? match[1] : 'text';
 
@@ -50,7 +43,7 @@ export const LiveThinkingDisplay = ({
                 </SyntaxHighlighter>
             );
         },
-        a: ({ href, children, ...props }) => (
+        a: ({ href, children, ...props }: { href?: string; children?: ReactNode;[key: string]: any }) => (
             <a
                 href={href}
                 className="text-blue-500 hover:underline"
@@ -61,31 +54,31 @@ export const LiveThinkingDisplay = ({
                 {children}
             </a>
         ),
-        p: ({ children }) => <p className="mb-2">{children}</p>,
-        ul: ({ children }) => (
+        p: ({ children }: { children?: ReactNode }) => <p className="mb-2">{children}</p>,
+        ul: ({ children }: { children?: ReactNode }) => (
             <ul className="list-disc list-inside mb-2 ml-2">{children}</ul>
         ),
-        ol: ({ children }) => (
+        ol: ({ children }: { children?: ReactNode }) => (
             <ol className="list-decimal list-inside mb-2 ml-2">{children}</ol>
         ),
-        li: ({ children }) => <li className="mb-1">{children}</li>,
-        blockquote: ({ children }) => (
+        li: ({ children }: { children?: ReactNode }) => <li className="mb-1">{children}</li>,
+        blockquote: ({ children }: { children?: ReactNode }) => (
             <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-600 my-2">
                 {children}
             </blockquote>
         ),
-        table: ({ children }) => (
+        table: ({ children }: { children?: ReactNode }) => (
             <table className="border-collapse border border-gray-300 my-2">
                 {children}
             </table>
         ),
-        tr: ({ children }) => (
+        tr: ({ children }: { children?: ReactNode }) => (
             <tr className="border border-gray-300">{children}</tr>
         ),
-        td: ({ children }) => (
+        td: ({ children }: { children?: ReactNode }) => (
             <td className="border border-gray-300 px-2 py-1">{children}</td>
         ),
-        th: ({ children }) => (
+        th: ({ children }: { children?: ReactNode }) => (
             <th className="border border-gray-300 px-2 py-1 bg-gray-100">{children}</th>
         ),
     };
@@ -177,4 +170,3 @@ export const LiveThinkingDisplay = ({
 };
 
 export default LiveThinkingDisplay;
-

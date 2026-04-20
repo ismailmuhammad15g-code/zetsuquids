@@ -1,8 +1,3 @@
-﻿// Type definitions for TopLoader
-
-interface TopLoaderProps {
-  // Add prop types here
-}
 
 
 "use client";

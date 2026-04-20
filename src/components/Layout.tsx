@@ -1,12 +1,3 @@
-﻿// Type definitions for Layout
-
-interface LayoutProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { AnimatePresence, motion } from "framer-motion";
 import {
     BarChart3,

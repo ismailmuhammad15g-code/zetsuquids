@@ -1,19 +1,20 @@
 import { BookOpen, Calendar, Edit2, Loader2, Mail, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type ChangeEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import FollowButton from "../components/FollowButton";
-import VerifiedBadge from "../components/VerifiedBadge";
 import Toast from "../components/Toast";
+import VerifiedBadge from "../components/VerifiedBadge";
 import { useAuth } from "../contexts/AuthContext";
 import { getAllAvatars, getAvatarForUser } from "../lib/avatar";
 import { supabase } from "../lib/supabase";
-import { GuideMetadata, User, ApiResponse } from "../types";
+import { GuideMetadata } from "../types";
 
 interface UserProfile {
   user_id?: string;
   user_email?: string;
   author_name?: string;
   author_email?: string;
+  author_id?: string | null;
   bio?: string;
   avatar_url?: string;
   created_at?: string;
@@ -26,13 +27,17 @@ interface ToastMessage {
   type: 'success' | 'error';
 }
 
+interface WorkspaceGuide extends GuideMetadata {
+  user_email?: string;
+}
+
 export default function UserWorkspacePage() {
   const { username: rawUsername } = useParams();
   const { user } = useAuth();
   // Remove @ prefix if it exists
   const username = rawUsername?.replace(/^@/, "") || "";
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [userGuides, setUserGuides] = useState<GuideMetadata[]>([]);
+  const [userGuides, setUserGuides] = useState<WorkspaceGuide[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -85,7 +90,7 @@ export default function UserWorkspacePage() {
 
       // PRIORITY: Fetch ONLY from Supabase (authoritative source)
       // Ignore localStorage to prevent inconsistencies
-      let supabaseGuides = [];
+      let supabaseGuides: WorkspaceGuide[] = [];
       try {
         const { data, error: fetchError } = await supabase
           .from("guides")
@@ -110,10 +115,10 @@ export default function UserWorkspacePage() {
       }
 
       // Filter guides by matching username/email
-      const matchingGuides = supabaseGuides.filter((guide: any) => {
+      const matchingGuides = supabaseGuides.filter((guide) => {
         const userEmail = guide.user_email || "";
         const authorName = guide.author_name || "";
-        const emailPrefix = userEmail.split("@")[0].toLowerCase();
+        const emailPrefix = userEmail.split("@")[0]?.toLowerCase() || "";
 
         return (
           userEmail.toLowerCase().includes(username.toLowerCase()) ||
@@ -134,15 +139,15 @@ export default function UserWorkspacePage() {
 
       // Get user profile from the first guide (they all have same author)
       const firstGuide = matchingGuides[0];
-      const profile = {
+      const profile: UserProfile = {
         author_name:
           firstGuide.author_name ||
           firstGuide.user_email?.split("@")[0] ||
           "Anonymous",
-        author_email: firstGuide.user_email,
+        author_email: firstGuide.user_email || firstGuide.author_email,
         author_id: firstGuide.author_id,
         guides_count: matchingGuides.length,
-        created_at: matchingGuides[matchingGuides.length - 1].created_at, // Earliest guide date
+        created_at: matchingGuides[matchingGuides.length - 1]?.created_at, // Earliest guide date
       };
 
       // Fetch complete user profile with avatar and bio from database
@@ -152,7 +157,7 @@ export default function UserWorkspacePage() {
         const { data: profileData } = await supabase
           .from("zetsuguide_user_profiles")
           .select("avatar_url, bio")
-          .eq("user_email", firstGuide.user_email)
+          .eq("user_email", firstGuide.user_email || firstGuide.author_email || "")
           .maybeSingle();
 
         if (profileData?.avatar_url) {
@@ -167,7 +172,7 @@ export default function UserWorkspacePage() {
 
       // Get avatar: from profile, or deterministic hash based on email
       const finalAvatarUrl = getAvatarForUser(
-        firstGuide.user_email,
+        firstGuide.user_email || firstGuide.author_email || "",
         userAvatarUrl,
       );
       setAvatarUrl(finalAvatarUrl);
@@ -180,12 +185,12 @@ export default function UserWorkspacePage() {
       setUserProfile(profile);
       setUserGuides(
         matchingGuides.sort(
-          (a, b) => new Date(b.created_at) - new Date(a.created_at),
+          (a, b) => new Date(b.created_at || "").getTime() - new Date(a.created_at || "").getTime(),
         ),
       );
       setEditBio(userBio || "");
       setSelectedAvatar(userAvatarUrl || null);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error loading workspace:", err);
       setError("Failed to load workspace");
     } finally {
@@ -255,11 +260,12 @@ export default function UserWorkspacePage() {
       setAvatarUrl(getAvatarForUser(user.email, selectedAvatar));
       setShowEditModal(false);
       setToast({ type: "success", message: "Profile updated successfully!" });
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Save error:", err);
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
       setToast({
         type: "error",
-        message: "Error saving profile: " + err.message,
+        message: "Error saving profile: " + errorMessage,
       });
     } finally {
       setSavingProfile(false);
@@ -354,6 +360,10 @@ export default function UserWorkspacePage() {
     );
   }
 
+  const memberYears = userProfile.created_at
+    ? new Date().getFullYear() - new Date(userProfile.created_at).getFullYear()
+    : 0;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Profile Header */}
@@ -364,7 +374,7 @@ export default function UserWorkspacePage() {
             {avatarUrl ? (
               <img
                 src={avatarUrl}
-                alt={userProfile?.author_name}
+                alt={userProfile?.author_name || "User avatar"}
                 className="w-24 h-24 rounded-full flex-shrink-0 object-cover"
               />
             ) : (
@@ -378,7 +388,7 @@ export default function UserWorkspacePage() {
               <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4 mb-4">
                 <h1 className="text-3xl sm:text-4xl font-black break-all flex items-center">
                   @{userProfile?.author_name}
-                  <VerifiedBadge userEmail={userProfile?.author_email} />
+                  <VerifiedBadge userEmail={userProfile?.author_email || ""} />
                 </h1>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   {!isOwnWorkspace && userProfile?.author_email && (
@@ -465,17 +475,17 @@ export default function UserWorkspacePage() {
                     {Array.from(
                       new Map(
                         userGuides
-                          .flatMap((g) => (g.keywords || []).map((k: any) => [k, 1]))
+                          .flatMap((g) => (g.keywords || []).map((k) => [k, 1] as const))
                           .reduce(
                             (acc, [k, v]) => acc.set(k, (acc.get(k) || 0) + v),
-                            new Map(),
+                            new Map<string, number>(),
                           )
                           .entries(),
                       ),
                     )
                       .sort((a, b) => b[1] - a[1])
                       .slice(0, 5)
-                      .map(([keyword, count]) => (
+                      .map(([keyword]) => (
                         <span
                           key={keyword}
                           className="px-3 py-1 bg-black text-white text-xs font-medium rounded"
@@ -505,13 +515,7 @@ export default function UserWorkspacePage() {
                     </p>
                     <p>
                       <span className="font-bold">
-                        {new Date().getFullYear() -
-                          new Date(userProfile?.created_at).getFullYear() ===
-                          0
-                          ? "This Year"
-                          : new Date().getFullYear() -
-                          new Date(userProfile?.created_at).getFullYear() +
-                          " Years"}
+                        {memberYears === 0 ? "This Year" : `${memberYears} Years`}
                       </span>{" "}
                       Member
                     </p>
@@ -526,7 +530,7 @@ export default function UserWorkspacePage() {
                       new Set(
                         userGuides
                           .flatMap((g) => g.keywords || [])
-                          .filter((k: any) =>
+                          .filter((k) =>
                             [
                               "python",
                               "javascript",
@@ -540,7 +544,7 @@ export default function UserWorkspacePage() {
                       ),
                     )
                       .slice(0, 4)
-                      .map((lang: any) => (
+                      .map((lang) => (
                         <span
                           key={lang}
                           className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded"
@@ -571,7 +575,7 @@ export default function UserWorkspacePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {userGuides.map((guide: any) => (
+              {userGuides.map((guide) => (
                 <a
                   key={guide.id || guide.slug}
                   href={`/guide/${guide.slug}`}
@@ -584,7 +588,7 @@ export default function UserWorkspacePage() {
 
                     {guide.keywords && guide.keywords.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-4">
-                        {guide.keywords.slice(0, 3).map((keyword, idx) => (
+                        {guide.keywords.slice(0, 3).map((keyword: string, idx: number) => (
                           <span
                             key={idx}
                             className="px-2 py-1 text-xs bg-gray-200 text-gray-700 group-hover:bg-gray-700 group-hover:text-white transition-colors rounded"
@@ -610,14 +614,13 @@ export default function UserWorkspacePage() {
 
                     <div className="flex items-center justify-between pt-4 border-t-2 border-gray-200 group-hover:border-gray-700 transition-colors">
                       <span className="text-xs text-gray-500 group-hover:text-gray-400">
-                        {new Date(guide.created_at).toLocaleDateString(
-                          "en-US",
-                          {
+                        {guide.created_at
+                          ? new Date(guide.created_at).toLocaleDateString("en-US", {
                             month: "short",
                             day: "numeric",
                             year: "numeric",
-                          },
-                        )}
+                          })
+                          : "Unknown date"}
                       </span>
                       <span className="text-sm font-bold text-gray-400 group-hover:text-white transition-colors">
                         Read →
@@ -651,7 +654,7 @@ export default function UserWorkspacePage() {
                 <div>
                   <h3 className="font-bold text-lg mb-4">Choose Your Avatar</h3>
                   <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
-                    {getAllAvatars().map((avatarPath: any) => (
+                    {getAllAvatars().map((avatarPath: string) => (
                       <button
                         key={avatarPath}
                         onClick={() => setSelectedAvatar(avatarPath)}
@@ -675,7 +678,7 @@ export default function UserWorkspacePage() {
                   <label className="block font-bold text-lg mb-2">Bio</label>
                   <textarea
                     value={editBio}
-                    onChange={(e: any) => setEditBio(e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditBio(e.target.value)}
                     placeholder="Tell us about yourself..."
                     maxLength={200}
                     className="w-full p-3 border-2 border-gray-300 rounded focus:border-black outline-none resize-none"

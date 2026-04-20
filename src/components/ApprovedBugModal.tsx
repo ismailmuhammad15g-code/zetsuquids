@@ -1,12 +1,3 @@
-﻿// Type definitions for ApprovedBugModal
-
-interface ApprovedBugModalProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { useState, useEffect } from 'react'
 import { Sparkles, X, Gift } from 'lucide-react'
 

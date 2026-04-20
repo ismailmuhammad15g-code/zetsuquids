@@ -1,20 +1,11 @@
-﻿// Type definitions for PromptInputWithActions
-
-interface PromptInputWithActionsProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 "use client";
 
 import { Button } from "@/components/ui/button";
 import {
-    PromptInput,
-    PromptInputAction,
-    PromptInputActions,
-    PromptInputTextarea,
+  PromptInput,
+  PromptInputAction,
+  PromptInputActions,
+  PromptInputTextarea,
 } from "@/components/ui/prompt-input";
 import { ArrowUp, Paperclip, Square, X } from "lucide-react";
 import { useRef, useState } from "react";
@@ -27,6 +18,14 @@ export default function PromptInputWithActions({
   value,
   onChange,
   startActions,
+}: {
+  onSend?: (input: string, files: File[]) => void;
+  isLoading?: boolean;
+  onFileSelect?: (files: File[]) => void;
+  placeholder?: string;
+  value?: string;
+  onChange?: (value: string) => void;
+  startActions?: React.ReactNode;
 }) {
   const [internalInput, setInternalInput] = useState("");
   const [files, setFiles] = useState([]);
@@ -49,7 +48,7 @@ export default function PromptInputWithActions({
     }
   };
 
-  const handleFileChange = (event) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
     if (event.target.files) {
       const newFiles = Array.from(event.target.files);
       setFiles((prev) => [...prev, ...newFiles]);
@@ -57,7 +56,7 @@ export default function PromptInputWithActions({
     }
   };
 
-  const handleRemoveFile = (index) => {
+  const handleRemoveFile = (index: number): void => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
     if (uploadInputRef?.current) {
       uploadInputRef.current.value = "";
@@ -126,11 +125,10 @@ export default function PromptInputWithActions({
           <Button
             variant="default"
             size="icon"
-            className={`h-9 w-9 rounded-xl transition-all duration-300 shadow-lg ${
-              (input && input.trim()) || files.length > 0
+            className={`h-9 w-9 rounded-xl transition-all duration-300 shadow-lg ${(input && input.trim()) || files.length > 0
                 ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20 translate-y-0 opacity-100"
                 : "bg-white/5 text-gray-600 cursor-not-allowed shadow-none"
-            }`}
+              }`}
             onClick={handleSubmit}
             disabled={(!input?.trim() && files.length === 0) || isLoading}
           >
@@ -145,4 +143,3 @@ export default function PromptInputWithActions({
     </PromptInput>
   );
 }
-

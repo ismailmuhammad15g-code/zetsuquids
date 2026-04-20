@@ -1,12 +1,3 @@
-// Type definitions for GuideTranslator
-
-interface GuideTranslatorProps {
-  // Add prop types here
-}
-
-// Event handler types
-type HandleEvent = (e: React.SyntheticEvent<any>) => void;
-
 import { CheckCircle, Globe, Languages, Loader2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -217,7 +208,7 @@ Text to translate:`,
                 </button>
 
                 <p className="text-center text-sm text-gray-500 mt-4 font-medium">
-                  ? Free translation • Auto-detect language • No credits
+                  ? Free translation ï¿½ Auto-detect language ï¿½ No credits
                   required
                 </p>
               </div>

@@ -1,8 +1,3 @@
-﻿// Type definitions for GuideTimer
-
-interface GuideTimerProps {
-  // Add prop types here
-}
 
 
 import { AnimatePresence, motion } from "framer-motion";

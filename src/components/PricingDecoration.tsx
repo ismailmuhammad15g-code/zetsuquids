@@ -1,8 +1,3 @@
-﻿// Type definitions for PricingDecoration
-
-interface PricingDecorationProps {
-  // Add prop types here
-}
 
 
 export default function PricingDecoration() {
