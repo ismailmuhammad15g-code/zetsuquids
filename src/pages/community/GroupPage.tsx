@@ -1,4 +1,4 @@
-import { ArrowLeft, Calendar, Globe, Loader2, Users } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Calendar, Camera, Globe, Loader2, Settings, Trash2, Users, X } from "lucide-react";
 import { ReactElement, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -6,6 +6,7 @@ import PostCard from "../../components/PostCard";
 import Composer from "../../components/community/Composer";
 import { useAuth } from "../../contexts/AuthContext";
 import { communityApi } from "../../lib/communityApi";
+import { uploadImageToImgBB } from "../../lib/imgbb";
 
 type Group = {
     id: string | number;
@@ -42,6 +43,17 @@ export default function GroupPage(): ReactElement {
     const [joined, setJoined] = useState<boolean>(false);
     const [actionLoading, setActionLoading] = useState<boolean>(false);
     const [activeTab, setActiveTab] = useState<"posts" | "members" | "about">("posts");
+    const [showEditModal, setShowEditModal] = useState<boolean>(false);
+    const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+    const [editName, setEditName] = useState<string>("");
+    const [editDescription, setEditDescription] = useState<string>("");
+    const [editAvatar, setEditAvatar] = useState<string>("");
+    const [editBanner, setEditBanner] = useState<string>("");
+    const [savingEdit, setSavingEdit] = useState<boolean>(false);
+    const [uploadingAvatar, setUploadingAvatar] = useState<boolean>(false);
+    const [uploadingBanner, setUploadingBanner] = useState<boolean>(false);
+    const [confirmDeleteText, setConfirmDeleteText] = useState<string>("");
+    const [deletingGroup, setDeletingGroup] = useState<boolean>(false);
 
     const groupId = id || "";
 
@@ -70,6 +82,10 @@ export default function GroupPage(): ReactElement {
             setGroup(groupData as Group);
             setPosts((groupPosts || []) as GroupPost[]);
             setMembers((memberList || []) as Member[]);
+            setEditName(groupData.name || "");
+            setEditDescription(groupData.description || "");
+            setEditAvatar(groupData.avatar_url || "");
+            setEditBanner((groupData as any).banner_url || "");
 
             const currentId = String(groupData.id);
             const isJoined = (joinedIds || []).some((gid) => String(gid) === currentId);
@@ -131,6 +147,80 @@ export default function GroupPage(): ReactElement {
         });
     }, [group?.created_at]);
 
+    const isAdmin = Boolean(user?.id && group?.creator_id && user.id === group.creator_id);
+
+    const handleUploadAvatar = async (file: File): Promise<void> => {
+        setUploadingAvatar(true);
+        try {
+            const url = await uploadImageToImgBB(file);
+            setEditAvatar(url);
+        } catch (error: unknown) {
+            console.error("Avatar upload failed:", error);
+            toast.error("Avatar upload failed");
+        } finally {
+            setUploadingAvatar(false);
+        }
+    };
+
+    const handleUploadBanner = async (file: File): Promise<void> => {
+        setUploadingBanner(true);
+        try {
+            const url = await uploadImageToImgBB(file);
+            setEditBanner(url);
+        } catch (error: unknown) {
+            console.error("Banner upload failed:", error);
+            toast.error("Banner upload failed");
+        } finally {
+            setUploadingBanner(false);
+        }
+    };
+
+    const handleSaveEdit = async (): Promise<void> => {
+        if (!group || !isAdmin) return;
+        if (!editName.trim()) {
+            toast.error("Community name is required");
+            return;
+        }
+
+        setSavingEdit(true);
+        try {
+            const updated = await communityApi.updateCommunity(group.id, {
+                name: editName.trim(),
+                description: editDescription.trim(),
+                avatar_url: editAvatar,
+                banner_url: editBanner,
+            } as any);
+            setGroup(updated as Group);
+            setShowEditModal(false);
+            toast.success("Community updated");
+        } catch (error: unknown) {
+            console.error("Failed to update community:", error);
+            toast.error("Failed to update community");
+        } finally {
+            setSavingEdit(false);
+        }
+    };
+
+    const handleDeleteGroup = async (): Promise<void> => {
+        if (!group || !isAdmin) return;
+        if (confirmDeleteText !== group.name) {
+            toast.error("Type the exact community name to confirm");
+            return;
+        }
+
+        setDeletingGroup(true);
+        try {
+            await communityApi.deleteCommunity(group.id);
+            toast.success("Community deleted");
+            navigate("/community/communities");
+        } catch (error: unknown) {
+            console.error("Failed to delete community:", error);
+            toast.error("Failed to delete community");
+        } finally {
+            setDeletingGroup(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center items-center py-16">
@@ -190,6 +280,24 @@ export default function GroupPage(): ReactElement {
                         </div>
 
                         <div className="ml-auto pt-3 flex gap-2">
+                            {isAdmin && (
+                                <button
+                                    onClick={() => setShowEditModal(true)}
+                                    className="p-2 rounded-full border border-[#536471] hover:bg-white/[0.08] text-[#e7e9ea]"
+                                    title="Community settings"
+                                >
+                                    <Settings size={18} />
+                                </button>
+                            )}
+                            {isAdmin && (
+                                <button
+                                    onClick={() => setShowDeleteModal(true)}
+                                    className="p-2 rounded-full border border-[#536471] hover:bg-red-500/10 hover:border-red-500/40 text-[#e7e9ea] hover:text-red-500"
+                                    title="Delete community"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            )}
                             <button
                                 onClick={handleJoinToggle}
                                 disabled={actionLoading}
@@ -316,6 +424,136 @@ export default function GroupPage(): ReactElement {
                     </div>
                 )}
             </div>
+
+            {showEditModal && isAdmin && (
+                <div className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-start justify-center pt-[6vh] px-4 pb-8 overflow-y-auto">
+                    <div className="w-full max-w-[640px] rounded-2xl bg-black border border-[#2f3336] overflow-hidden">
+                        <div className="px-4 py-3 border-b border-[#2f3336] flex items-center justify-between">
+                            <h3 className="text-[#e7e9ea] font-extrabold text-lg">Community Settings</h3>
+                            <button onClick={() => setShowEditModal(false)} className="p-2 rounded-full hover:bg-white/[0.08]">
+                                <X size={18} className="text-[#e7e9ea]" />
+                            </button>
+                        </div>
+
+                        <div className="p-4 space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <label className="block">
+                                    <span className="text-[#71767b] text-sm">Avatar</span>
+                                    <label className="mt-2 h-28 rounded-xl border border-[#2f3336] bg-[#16181c] flex items-center justify-center cursor-pointer overflow-hidden">
+                                        {editAvatar ? (
+                                            <img src={editAvatar} alt="avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="text-[#71767b] text-sm flex items-center gap-2">
+                                                {uploadingAvatar ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                                                Upload avatar
+                                            </div>
+                                        )}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleUploadAvatar(file);
+                                            }}
+                                        />
+                                    </label>
+                                </label>
+
+                                <label className="block">
+                                    <span className="text-[#71767b] text-sm">Banner</span>
+                                    <label className="mt-2 h-28 rounded-xl border border-[#2f3336] bg-[#16181c] flex items-center justify-center cursor-pointer overflow-hidden">
+                                        {editBanner ? (
+                                            <img src={editBanner} alt="banner" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="text-[#71767b] text-sm flex items-center gap-2">
+                                                {uploadingBanner ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                                                Upload banner
+                                            </div>
+                                        )}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleUploadBanner(file);
+                                            }}
+                                        />
+                                    </label>
+                                </label>
+                            </div>
+
+                            <label className="block">
+                                <span className="text-[#71767b] text-sm">Community Name</span>
+                                <input
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    className="mt-2 w-full rounded-lg bg-[#111] border border-[#2f3336] px-3 py-2.5 text-[#e7e9ea] focus:outline-none focus:border-[#1d9bf0]"
+                                />
+                            </label>
+
+                            <label className="block">
+                                <span className="text-[#71767b] text-sm">Description</span>
+                                <textarea
+                                    value={editDescription}
+                                    onChange={(e) => setEditDescription(e.target.value)}
+                                    rows={4}
+                                    className="mt-2 w-full rounded-lg bg-[#111] border border-[#2f3336] px-3 py-2.5 text-[#e7e9ea] focus:outline-none focus:border-[#1d9bf0] resize-none"
+                                />
+                            </label>
+
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={handleSaveEdit}
+                                    disabled={savingEdit || !editName.trim() || uploadingAvatar || uploadingBanner}
+                                    className="rounded-full bg-[#eff3f4] text-black hover:bg-[#d7dbdc] disabled:opacity-60 px-5 py-2 font-bold inline-flex items-center gap-2"
+                                >
+                                    {savingEdit && <Loader2 size={16} className="animate-spin" />}
+                                    {savingEdit ? "Saving..." : "Save Changes"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showDeleteModal && isAdmin && (
+                <div className="fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center px-4">
+                    <div className="w-full max-w-[420px] rounded-2xl bg-black border border-[#2f3336] p-6">
+                        <div className="flex flex-col items-center text-center">
+                            <AlertTriangle size={34} className="text-red-500 mb-3" />
+                            <h3 className="text-[#e7e9ea] text-xl font-extrabold mb-2">Delete community?</h3>
+                            <p className="text-[#71767b] text-sm mb-4">
+                                Type <span className="text-[#e7e9ea] font-bold">{group.name}</span> to confirm permanent deletion.
+                            </p>
+
+                            <input
+                                value={confirmDeleteText}
+                                onChange={(e) => setConfirmDeleteText(e.target.value)}
+                                className="w-full rounded-lg bg-[#111] border border-[#2f3336] px-3 py-2.5 text-[#e7e9ea] focus:outline-none focus:border-red-500"
+                                placeholder="Type community name"
+                            />
+
+                            <button
+                                onClick={handleDeleteGroup}
+                                disabled={deletingGroup || confirmDeleteText !== group.name}
+                                className="mt-4 w-full rounded-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 disabled:opacity-60 inline-flex items-center justify-center gap-2"
+                            >
+                                {deletingGroup && <Loader2 size={16} className="animate-spin" />}
+                                {deletingGroup ? "Deleting..." : "Delete Permanently"}
+                            </button>
+
+                            <button
+                                onClick={() => setShowDeleteModal(false)}
+                                className="mt-2 text-[#e7e9ea] text-sm hover:underline"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

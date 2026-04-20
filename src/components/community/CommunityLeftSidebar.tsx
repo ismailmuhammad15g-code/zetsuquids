@@ -1,5 +1,5 @@
-import { Bell, Bookmark, Home, Mail, MoreHorizontal, Search, Sparkles, User, Users, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Bell, Bookmark, Home, Mail, MoreHorizontal, Plus, Search, Sparkles, User, Users } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { getAvatarForUser } from "../../lib/avatar";
@@ -19,7 +19,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
       setUnreadNotifications(count);
     };
     checkUnread();
-    
+
     // Poll every 30 seconds for new notifications
     const interval = setInterval(checkUnread, 30000);
     return () => clearInterval(interval);
@@ -50,7 +50,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
             to="/"
             className="flex items-center justify-center w-12 h-12 rounded-full hover:bg-white/10 transition-colors xl:ml-2 mb-2"
           >
-           <Sparkles className="text-[#e7e9ea]" size={28} />
+            <Sparkles className="text-[#e7e9ea]" size={28} />
           </Link>
 
           {/* Nav Links */}
@@ -91,9 +91,8 @@ export default function CommunityLeftSidebar({ onPostClick }) {
                         className="text-[#e7e9ea]"
                       />
                       <span
-                        className={`hidden xl:block ml-4 text-[20px] ${
-                          isActive ? "font-bold" : "font-normal"
-                        } text-[#e7e9ea]`}
+                        className={`hidden xl:block ml-4 text-[20px] ${isActive ? "font-bold" : "font-normal"
+                          } text-[#e7e9ea]`}
                       >
                         {item.name}
                       </span>
@@ -122,9 +121,8 @@ export default function CommunityLeftSidebar({ onPostClick }) {
                   </div>
                   <span
 
-                    className={`hidden xl:block ml-4 text-[20px] ${
-                      Math.abs(isActive - 1) < 0.1 || location.pathname.startsWith(item.href) && item.href !== "/community" ? "font-bold" : "font-normal"
-                    } text-[#e7e9ea]`}
+                    className={`hidden xl:block ml-4 text-[20px] ${Math.abs(isActive - 1) < 0.1 || location.pathname.startsWith(item.href) && item.href !== "/community" ? "font-bold" : "font-normal"
+                      } text-[#e7e9ea]`}
                   >
                     {item.name}
                   </span>
@@ -134,7 +132,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
           </nav>
 
           {/* Post Button */}
-          <button 
+          <button
             onClick={onPostClick}
             className="mt-6 w-14 h-14 xl:w-[225px] xl:h-[52px] bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white rounded-full flex items-center justify-center font-bold text-[17px] transition-colors shadow-sm"
           >
@@ -146,10 +144,21 @@ export default function CommunityLeftSidebar({ onPostClick }) {
             </svg>
           </button>
 
+          <Link
+            to="/community/communities?create=1"
+            className="mt-3 w-14 h-14 xl:w-[225px] xl:h-[52px] border border-[#2f3336] hover:bg-[#181818] text-[#e7e9ea] rounded-full flex items-center justify-center font-bold text-[16px] transition-colors"
+          >
+            <span className="hidden xl:flex items-center gap-2">
+              <Plus size={18} />
+              Create Group
+            </span>
+            <Plus size={24} className="xl:hidden" />
+          </Link>
+
           {/* User Profile Mini */}
           {user && (
             <div className="mt-auto mb-4 w-full flex justify-center xl:justify-start relative">
-              
+
               {/* User Menu Popup */}
               {showMenu && (
                 <>
@@ -158,7 +167,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
                     <button className="w-full text-left px-4 py-3 hover:bg-white/[0.03] text-[#e7e9ea] font-bold text-[15px] transition-colors">
                       Add an existing account
                     </button>
-                    <button 
+                    <button
                       onClick={() => {
                         logout();
                         setShowMenu(false);
@@ -171,7 +180,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
                 </>
               )}
 
-              <div 
+              <div
                 onClick={() => setShowMenu(!showMenu)}
                 className="flex items-center gap-3 p-3 rounded-full hover:bg-[#181818] transition-colors cursor-pointer w-fit xl:w-[250px]"
               >
@@ -189,9 +198,9 @@ export default function CommunityLeftSidebar({ onPostClick }) {
                   </span>
                 </div>
                 <div className="hidden xl:block text-[#e7e9ea]">
-                   <svg viewBox="0 0 24 24" className="w-[18.75px] h-[18.75px] fill-current">
-                     <g><path d="M3 12c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm9 2c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm7 0c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"></path></g>
-                   </svg>
+                  <svg viewBox="0 0 24 24" className="w-[18.75px] h-[18.75px] fill-current">
+                    <g><path d="M3 12c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm9 2c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm7 0c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"></path></g>
+                  </svg>
                 </div>
               </div>
             </div>
@@ -221,7 +230,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
       </nav>
 
       {/* Mobile Floating Post Button */}
-      <button 
+      <button
         onClick={onPostClick}
         className="sm:hidden fixed right-4 bottom-20 w-14 h-14 bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white rounded-full shadow-[0_4px_12px_rgba(29,155,240,0.5)] flex items-center justify-center transition-colors z-[49]"
       >
@@ -234,4 +243,3 @@ export default function CommunityLeftSidebar({ onPostClick }) {
     </>
   );
 }
-

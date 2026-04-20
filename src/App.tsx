@@ -38,6 +38,8 @@ const CommunityFeed = lazy(() => import("./pages/CommunityPage"));
 const CommunityExplorePage = lazy(() => import("./pages/community/ExplorePage"));
 const CommunityCommunitiesPage = lazy(() => import("./pages/community/CommunitiesPage"));
 const CommunityGroupPage = lazy(() => import("./pages/community/GroupPage"));
+const CommunityPeoplePage = lazy(() => import("./pages/community/PeoplePage"));
+const CommunityProfilePage = lazy(() => import("./pages/community/ProfilePage"));
 const CommunityBookmarksPage = lazy(() => import("./pages/community/BookmarksPage"));
 const CommunityNotificationsPage = lazy(() => import("./pages/community/NotificationsPage"));
 const CommunityMessagesPage = lazy(() => import("./pages/community/MessagesPage"));
@@ -96,6 +98,8 @@ function App() {
                                     <Route path="explore" element={<CommunityExplorePage />} />
                                     <Route path="communities" element={<CommunityCommunitiesPage />} />
                                     <Route path="group/:id" element={<CommunityGroupPage />} />
+                                    <Route path="people" element={<CommunityPeoplePage />} />
+                                    <Route path="profile/:username" element={<CommunityProfilePage />} />
                                     <Route path="post/:id" element={<PostDetailsPage />} />
                                     <Route path="notifications" element={<CommunityNotificationsPage />} />
                                     <Route path="messages" element={<CommunityMessagesPage />} />

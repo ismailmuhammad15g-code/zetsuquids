@@ -1,8 +1,9 @@
-import { Loader2, Search, Users } from 'lucide-react'
+import { Camera, Loader2, Plus, Search, Users, X } from 'lucide-react'
 import { ReactElement, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { communityApi } from '../../lib/communityApi'
+import { uploadImageToImgBB } from '../../lib/imgbb'
 
 type CommunityItem = {
     id: string | number
@@ -15,11 +16,20 @@ type CommunityItem = {
 export default function CommunitiesPage(): ReactElement {
     const { user } = useAuth()
     const navigate = useNavigate()
+    const [searchParams, setSearchParams] = useSearchParams()
     const [query, setQuery] = useState<string>('')
     const [loading, setLoading] = useState<boolean>(true)
     const [actionLoadingId, setActionLoadingId] = useState<string | number | null>(null)
     const [communities, setCommunities] = useState<CommunityItem[]>([])
     const [joinedIds, setJoinedIds] = useState<Set<string | number>>(new Set())
+    const [showCreateModal, setShowCreateModal] = useState<boolean>(false)
+    const [createName, setCreateName] = useState<string>('')
+    const [createDescription, setCreateDescription] = useState<string>('')
+    const [createAvatar, setCreateAvatar] = useState<string>('')
+    const [createBanner, setCreateBanner] = useState<string>('')
+    const [creating, setCreating] = useState<boolean>(false)
+    const [uploadingAvatar, setUploadingAvatar] = useState<boolean>(false)
+    const [uploadingBanner, setUploadingBanner] = useState<boolean>(false)
 
     useEffect(() => {
         let active = true
@@ -47,6 +57,15 @@ export default function CommunitiesPage(): ReactElement {
             active = false
         }
     }, [user?.id])
+
+    useEffect(() => {
+        if (searchParams.get('create') === '1') {
+            setShowCreateModal(true)
+            const next = new URLSearchParams(searchParams)
+            next.delete('create')
+            setSearchParams(next, { replace: true })
+        }
+    }, [searchParams, setSearchParams])
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase()
@@ -101,11 +120,90 @@ export default function CommunitiesPage(): ReactElement {
         navigate(`/community/group/${communityId}`)
     }
 
+    const resetCreateState = (): void => {
+        setCreateName('')
+        setCreateDescription('')
+        setCreateAvatar('')
+        setCreateBanner('')
+        setUploadingAvatar(false)
+        setUploadingBanner(false)
+    }
+
+    const handleCreateCommunity = async (): Promise<void> => {
+        if (!user?.id) {
+            return
+        }
+
+        if (!createName.trim()) {
+            return
+        }
+
+        setCreating(true)
+        try {
+            const created = await communityApi.createCommunity(
+                createName.trim(),
+                createDescription.trim(),
+                createAvatar,
+                user.id,
+            )
+
+            if (createBanner) {
+                await communityApi.updateCommunity(created.id, { banner_url: createBanner } as any)
+            }
+
+            setCommunities((prev) => [{ ...created, banner_url: createBanner }, ...prev])
+            setJoinedIds((prev) => {
+                const next = new Set(prev)
+                next.add(created.id)
+                return next
+            })
+
+            setShowCreateModal(false)
+            resetCreateState()
+            navigate(`/community/group/${created.id}`)
+        } catch (error: unknown) {
+            console.error('Failed to create community:', error)
+        } finally {
+            setCreating(false)
+        }
+    }
+
+    const handleUploadAvatar = async (file: File): Promise<void> => {
+        setUploadingAvatar(true)
+        try {
+            const url = await uploadImageToImgBB(file)
+            setCreateAvatar(url)
+        } catch (error: unknown) {
+            console.error('Avatar upload failed:', error)
+        } finally {
+            setUploadingAvatar(false)
+        }
+    }
+
+    const handleUploadBanner = async (file: File): Promise<void> => {
+        setUploadingBanner(true)
+        try {
+            const url = await uploadImageToImgBB(file)
+            setCreateBanner(url)
+        } catch (error: unknown) {
+            console.error('Banner upload failed:', error)
+        } finally {
+            setUploadingBanner(false)
+        }
+    }
+
     return (
         <div className="flex flex-col min-h-screen">
             <div className="sticky top-0 z-10 bg-black/80 backdrop-blur-md border-b border-[#2f3336]">
-                <div className="px-4 py-3">
+                <div className="px-4 py-3 flex items-center justify-between gap-3">
                     <h1 className="text-xl font-bold text-[#e7e9ea]">Communities</h1>
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-sm font-bold px-4 py-2 inline-flex items-center gap-1.5"
+                    >
+                        <Plus size={16} />
+                        Create
+                    </button>
                 </div>
 
                 <div className="px-4 pb-3">
@@ -190,6 +288,107 @@ export default function CommunitiesPage(): ReactElement {
                             </div>
                         )
                     })}
+                </div>
+            )}
+
+            {showCreateModal && (
+                <div className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-start justify-center pt-[6vh] px-4 pb-8 overflow-y-auto">
+                    <div className="w-full max-w-[620px] rounded-2xl bg-black border border-[#2f3336] overflow-hidden">
+                        <div className="px-4 py-3 border-b border-[#2f3336] flex items-center justify-between">
+                            <h2 className="text-[#e7e9ea] font-extrabold text-lg">Create Community</h2>
+                            <button
+                                onClick={() => {
+                                    setShowCreateModal(false)
+                                    resetCreateState()
+                                }}
+                                className="p-2 rounded-full hover:bg-white/[0.08]"
+                            >
+                                <X size={18} className="text-[#e7e9ea]" />
+                            </button>
+                        </div>
+
+                        <div className="p-4 space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <label className="block">
+                                    <span className="text-[#71767b] text-sm">Avatar</span>
+                                    <label className="mt-2 h-28 rounded-xl border border-[#2f3336] bg-[#16181c] flex items-center justify-center cursor-pointer overflow-hidden">
+                                        {createAvatar ? (
+                                            <img src={createAvatar} alt="avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="text-[#71767b] text-sm flex items-center gap-2">
+                                                {uploadingAvatar ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                                                Upload avatar
+                                            </div>
+                                        )}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0]
+                                                if (file) handleUploadAvatar(file)
+                                            }}
+                                        />
+                                    </label>
+                                </label>
+
+                                <label className="block">
+                                    <span className="text-[#71767b] text-sm">Banner</span>
+                                    <label className="mt-2 h-28 rounded-xl border border-[#2f3336] bg-[#16181c] flex items-center justify-center cursor-pointer overflow-hidden">
+                                        {createBanner ? (
+                                            <img src={createBanner} alt="banner" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="text-[#71767b] text-sm flex items-center gap-2">
+                                                {uploadingBanner ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                                                Upload banner
+                                            </div>
+                                        )}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0]
+                                                if (file) handleUploadBanner(file)
+                                            }}
+                                        />
+                                    </label>
+                                </label>
+                            </div>
+
+                            <label className="block">
+                                <span className="text-[#71767b] text-sm">Community Name</span>
+                                <input
+                                    value={createName}
+                                    onChange={(e) => setCreateName(e.target.value)}
+                                    placeholder="Type community name"
+                                    className="mt-2 w-full rounded-lg bg-[#111] border border-[#2f3336] px-3 py-2.5 text-[#e7e9ea] focus:outline-none focus:border-[#1d9bf0]"
+                                />
+                            </label>
+
+                            <label className="block">
+                                <span className="text-[#71767b] text-sm">Description</span>
+                                <textarea
+                                    value={createDescription}
+                                    onChange={(e) => setCreateDescription(e.target.value)}
+                                    rows={4}
+                                    placeholder="What is this community about?"
+                                    className="mt-2 w-full rounded-lg bg-[#111] border border-[#2f3336] px-3 py-2.5 text-[#e7e9ea] focus:outline-none focus:border-[#1d9bf0] resize-none"
+                                />
+                            </label>
+
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={handleCreateCommunity}
+                                    disabled={creating || !createName.trim() || uploadingAvatar || uploadingBanner}
+                                    className="rounded-full bg-[#eff3f4] text-black hover:bg-[#d7dbdc] disabled:opacity-60 px-5 py-2 font-bold inline-flex items-center gap-2"
+                                >
+                                    {creating && <Loader2 size={16} className="animate-spin" />}
+                                    {creating ? 'Creating...' : 'Create Community'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

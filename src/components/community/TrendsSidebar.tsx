@@ -6,6 +6,16 @@ import { toast } from "sonner";
 import { getAvatarForUser } from "../../lib/avatar";
 import { communityApi } from "../../lib/communityApi";
 
+const FOLLOW_CHANGE_EVENT = "community:follow-change";
+
+function getEntityId(entity: any): string {
+  return String(entity?.user_id ?? entity?.id ?? "");
+}
+
+function getEntityUsername(entity: any): string {
+  return String(entity?.username ?? "").trim();
+}
+
 interface Trend {
   id?: string | number;
   name: string;
@@ -64,6 +74,12 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
+  const navigateToProfile = (entity: any): void => {
+    const username = getEntityUsername(entity);
+    if (!username) return;
+    navigate(`/community/profile/${username}`);
+  };
+
   useEffect(() => {
     console.log("?? [TrendsSidebar] useEffect triggered");
     console.log("?? [TrendsSidebar] User object:", user);
@@ -86,10 +102,20 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
         console.log("? [TrendsSidebar] Following:", followingData);
         console.log("???  [TrendsSidebar] Communities:", commsData);
 
+        const safeSuggestions = Array.isArray(suggestionsData) ? suggestionsData : [];
+        const safeFollowing = Array.isArray(followingData) ? followingData : [];
+        const followingIds = new Set<string>(safeFollowing.map((u: any) => getEntityId(u)).filter(Boolean));
+        const filteredSuggestions = safeSuggestions.filter((u: any) => {
+          const id = getEntityId(u);
+          if (!id) return false;
+          if (id === String(user?.id || "")) return false;
+          return !followingIds.has(id);
+        });
+
         setTrends(Array.isArray(trendsData) ? trendsData : []);
         setNews(Array.isArray(newsData) ? newsData : []);
-        setSuggestions(Array.isArray(suggestionsData) ? suggestionsData : []);
-        setFollowing(Array.isArray(followingData) ? followingData : []);
+        setSuggestions(filteredSuggestions);
+        setFollowing(safeFollowing);
         setSuggestedCommunities(Array.isArray(commsData) ? commsData : []);
       } catch (e: unknown) {
         console.error("? [TrendsSidebar] Failed to load sidebar data", e);
@@ -101,6 +127,44 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
     };
     fetchData();
   }, [user, suggestionLimit]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const onFollowChange = (evt: Event) => {
+      const detail = (evt as CustomEvent<{ action?: string; targetId?: string; source?: string }>).detail;
+      if (!detail || detail.source === "trends") return;
+
+      const targetId = String(detail.targetId || "");
+      if (!targetId) return;
+
+      if (detail.action === "follow") {
+        setSuggestions((prev) => prev.filter((u: UserSuggestion) => getEntityId(u) !== targetId));
+        void communityApi.getFollowing(user.id).then((data) => {
+          setFollowing(Array.isArray(data) ? data : []);
+        });
+        return;
+      }
+
+      if (detail.action === "unfollow") {
+        setFollowing((prev) => prev.filter((u: UserSuggestion) => getEntityId(u) !== targetId));
+        void communityApi.getWhoToFollow(user.id, suggestionLimit).then((data) => {
+          const safeData = Array.isArray(data) ? data : [];
+          const followingIds = new Set<string>(following.map((u: any) => getEntityId(u)).filter(Boolean));
+          const next = safeData.filter((u: any) => {
+            const id = getEntityId(u);
+            if (!id) return false;
+            if (id === String(user.id)) return false;
+            return !followingIds.has(id);
+          });
+          setSuggestions(next);
+        });
+      }
+    };
+
+    window.addEventListener(FOLLOW_CHANGE_EVENT, onFollowChange as EventListener);
+    return () => window.removeEventListener(FOLLOW_CHANGE_EVENT, onFollowChange as EventListener);
+  }, [following, suggestionLimit, user?.id]);
 
   // Close search dropdown on outside click
   useEffect(() => {
@@ -153,10 +217,10 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
       return;
     }
 
-    const safeTargetId = targetId || null;
+    const safeTargetId = String(targetId || "");
 
     // Prevent self-follow at button level
-    if (!safeTargetId || safeTargetId === user.id) {
+    if (!safeTargetId || safeTargetId === String(user.id)) {
       console.error("? Invalid follow request - targetId is missing or same as current user");
       toast.error("Unable to follow user", {
         style: {
@@ -171,10 +235,14 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
     try {
       await communityApi.followUser(user.id, safeTargetId);
       // Remove from suggestions
-      setSuggestions((prev) => prev.filter((u: UserSuggestion) => (u.id) !== safeTargetId));
+      setSuggestions((prev) => prev.filter((u: UserSuggestion) => getEntityId(u) !== safeTargetId));
       // Refresh following list
       const followingData = await communityApi.getFollowing(user.id);
-      setFollowing(followingData || []);
+      setFollowing(Array.isArray(followingData) ? followingData : []);
+
+      window.dispatchEvent(new CustomEvent(FOLLOW_CHANGE_EVENT, {
+        detail: { action: "follow", targetId: safeTargetId, source: "trends" },
+      }));
       toast.success(`Following @${targetName}`, {
         style: {
           background: "#16181c",
@@ -195,7 +263,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
     }
   };
 
-  const handleUnfollow = async (targetId, targetName) => {
+  const handleUnfollow = async (targetId: string | number | null, targetName: string) => {
     if (!user?.id) {
       toast.error("Please login to manage follows", {
         style: {
@@ -207,7 +275,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
       return;
     }
 
-    const safeTargetId = targetId || null;
+    const safeTargetId = String(targetId || "");
     if (!safeTargetId) {
       console.error("? Invalid unfollow request - targetId is missing");
       toast.error("Unable to unfollow user - invalid data", {
@@ -223,13 +291,17 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
     try {
       await communityApi.unfollowUser(user.id, safeTargetId);
       // Remove from following list
-      setFollowing((prev) => prev.filter((u: any) => (u.user_id || u.id) !== safeTargetId));
+      setFollowing((prev) => prev.filter((u: any) => getEntityId(u) !== safeTargetId));
       // Refresh suggestions to potentially show them again
       const suggestionsData = await communityApi.getWhoToFollow(
         user.id,
         suggestionLimit
       );
       setSuggestions(Array.isArray(suggestionsData) ? suggestionsData : []);
+
+      window.dispatchEvent(new CustomEvent(FOLLOW_CHANGE_EVENT, {
+        detail: { action: "unfollow", targetId: safeTargetId, source: "trends" },
+      }));
       toast.success(`Unfollowed @${targetName}`, {
         style: {
           background: "#16181c",
@@ -302,6 +374,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
               searchResults.map((u: any) => (
                 <div
                   key={u.user_id || u.id}
+                  onClick={() => navigateToProfile(u)}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] cursor-pointer transition-colors"
                 >
                   <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-800 flex-shrink-0">
@@ -458,6 +531,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
             return (
               <div
                 key={userId}
+                onClick={() => navigateToProfile(u)}
                 className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] cursor-pointer transition-colors"
               >
                 <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-800 flex-shrink-0">
@@ -579,6 +653,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
             .map((u: any) => (
               <div
                 key={u.user_id || u.id}
+                onClick={() => navigateToProfile(u)}
                 className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] cursor-pointer transition-colors"
               >
                 <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-800 flex-shrink-0">
@@ -622,7 +697,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
 
         {suggestions.length > 0 && (
           <button
-            onClick={() => navigate("/community/explore")}
+            onClick={() => navigate("/community/people")}
             className="w-full cursor-pointer p-4 text-[15px] text-[#1d9bf0] hover:bg-white/[0.03] transition-colors text-left"
           >
             Show more

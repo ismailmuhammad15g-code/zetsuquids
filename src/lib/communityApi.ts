@@ -543,6 +543,27 @@ export const communityApi = {
         return combined.slice(0, limit);
     },
 
+    async getAllUsers(limit: number = 500): Promise<UserProfile[]> {
+        if (!isSupabaseConfigured()) return [];
+
+        const { data, error } = await supabase
+            .from("zetsuguide_user_profiles")
+            .select("*")
+            .limit(limit);
+
+        if (error) {
+            console.error("Error fetching all users:", error);
+            return [];
+        }
+
+        const users = (data || []) as UserProfile[];
+        return users.sort((a, b) => {
+            const aName = (a.display_name || a.username || "").toLowerCase();
+            const bName = (b.display_name || b.username || "").toLowerCase();
+            return aName.localeCompare(bName);
+        });
+    },
+
     async getTrends(limit: number = 5): Promise<Trend[]> {
         if (!isSupabaseConfigured()) return [];
 
