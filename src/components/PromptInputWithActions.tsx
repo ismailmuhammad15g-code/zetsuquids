@@ -3,8 +3,7 @@
 import { Button } from "@/components/ui/button";
 import {
   PromptInput,
-  PromptInputAction,
-  PromptInputActions,
+  PromptInputButton,
   PromptInputTextarea,
 } from "@/components/ui/prompt-input";
 import { ArrowUp, Paperclip, Square, X } from "lucide-react";
@@ -27,13 +26,13 @@ export default function PromptInputWithActions({
   onChange?: (value: string) => void;
   startActions?: React.ReactNode;
 }) {
-  const [internalInput, setInternalInput] = useState("");
-  const [files, setFiles] = useState([]);
-  const uploadInputRef = useRef(null);
+  const [internalInput, setInternalInput] = useState<string>("");
+  const [files, setFiles] = useState<File[]>([]);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
   // Handle controlled vs uncontrolled input
   const input = value !== undefined ? value : internalInput;
-  const setInput = onChange || setInternalInput;
+  const setInput = onChange ? onChange : setInternalInput;
 
   const handleSubmit = () => {
     if ((input && input.trim()) || files.length > 0) {
@@ -57,7 +56,7 @@ export default function PromptInputWithActions({
   };
 
   const handleRemoveFile = (index: number): void => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+    setFiles((prev: File[]) => prev.filter((_, i: number) => i !== index));
     if (uploadInputRef?.current) {
       uploadInputRef.current.value = "";
     }
@@ -96,11 +95,11 @@ export default function PromptInputWithActions({
         </div>
       )}
 
-      <PromptInputActions className="flex items-center justify-between gap-2 pt-2 px-3 pb-2 border-t border-white/5 mt-1">
+      <div className="flex items-center justify-between gap-2 pt-2 px-3 pb-2 border-t border-white/5 mt-1">
         <div className="flex items-center gap-2">
           {startActions}
 
-          <PromptInputAction tooltip="Attach files">
+          <div>
             <label
               htmlFor="file-upload"
               className="hover:bg-white/5 flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl transition-all duration-200 text-gray-400 hover:text-white active:scale-95"
@@ -116,18 +115,19 @@ export default function PromptInputWithActions({
 
               <Paperclip className="size-5" />
             </label>
-          </PromptInputAction>
+          </div>
         </div>
 
-        <PromptInputAction
-          tooltip={isLoading ? "Stop generation" : "Send message"}
+        <PromptInputButton
+          title={isLoading ? "Stop generation" : "Send message"}
+          className="!bg-transparent !p-0"
         >
           <Button
             variant="default"
             size="icon"
             className={`h-9 w-9 rounded-xl transition-all duration-300 shadow-lg ${(input && input.trim()) || files.length > 0
-                ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20 translate-y-0 opacity-100"
-                : "bg-white/5 text-gray-600 cursor-not-allowed shadow-none"
+              ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20 translate-y-0 opacity-100"
+              : "bg-white/5 text-gray-600 cursor-not-allowed shadow-none"
               }`}
             onClick={handleSubmit}
             disabled={(!input?.trim() && files.length === 0) || isLoading}
@@ -138,8 +138,8 @@ export default function PromptInputWithActions({
               <ArrowUp className="size-5" />
             )}
           </Button>
-        </PromptInputAction>
-      </PromptInputActions>
+        </PromptInputButton>
+      </div>
     </PromptInput>
   );
 }

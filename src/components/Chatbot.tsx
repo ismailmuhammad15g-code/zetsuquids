@@ -1,3 +1,4 @@
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import "highlight.js/styles/github-dark.css";
 import {
   ChevronDown,
@@ -17,17 +18,43 @@ import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "../contexts/AuthContext";
 import { aiAgentSearch, isAIConfigured } from "../lib/ai";
-import { guidesApi } from "../lib/api";
+import { Guide, guidesApi } from "../lib/api";
 import { supabase } from "../lib/supabase";
 import { supportApi } from "../lib/supportApi";
 import BotIcon from "./BotIcon";
 import DirectSupportChat from "./DirectSupportChat";
 
+type ChatRole = "user" | "bot" | "assistant" | "system";
+type ChatMessageType = "text" | "error" | "limit_reached";
+
+interface ChatMessage {
+  id: string | number;
+  role: ChatRole;
+  content: string;
+  type: ChatMessageType;
+  guideId?: string | number;
+  relatedGuides?: unknown[];
+}
+
+interface SupportFormData {
+  email: string;
+  phone: string;
+  category: string;
+  message: string;
+}
+
+type WindowWithWebkitAudio = Window & typeof globalThis & {
+  webkitAudioContext?: typeof AudioContext;
+};
+
+type AiResponseWithOptionalData = Awaited<ReturnType<typeof aiAgentSearch>> & {
+  aiInsight?: string;
+  results?: unknown[];
+};
+
 // Detect if text contains Arabic characters
-function isArabicText(text) {
+function isArabicText(text: string) {
   if (!text) return false;
-  const arabicRegex =
-    /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
   // Count Arabic vs Latin characters
   const arabicMatches = (
     text.match(
@@ -40,7 +67,7 @@ function isArabicText(text) {
 }
 
 // Markdown Message Component with Typing Animation
-function MarkdownMessage({ content, isTyping = false }) {
+function MarkdownMessage({ content, isTyping = false }: { content: string; isTyping?: boolean }) {
   const [displayedContent, setDisplayedContent] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
@@ -92,9 +119,9 @@ function MarkdownMessage({ content, isTyping = false }) {
             />
           ),
           li: ({ node, ...props }) => <li className="ml-2" {...props} />,
-          code: ({ node, inline, className, children, ...props }) => {
-            const match = /language-(\w+)/.exec(className || "");
-            return !inline ? (
+          code: ({ node, className, children, ...props }) => {
+            const isBlock = Boolean(className);
+            return isBlock ? (
               <pre className="bg-black/50 rounded-lg p-3 my-2 overflow-x-auto border border-white/10">
                 <code className={className} {...props}>
                   {children}
@@ -172,15 +199,15 @@ export default function Chatbot() {
   const [showSupportForm, setShowSupportForm] = useState(false);
   const [awaitingSupportConfirmation, setAwaitingSupportConfirmation] =
     useState(false);
-  const [pendingSupportCategory, setPendingSupportCategory] = useState(null);
-  const [supportFormData, setSupportFormData] = useState({
+  const [pendingSupportCategory, setPendingSupportCategory] = useState<string | null>(null);
+  const [supportFormData, setSupportFormData] = useState<SupportFormData>({
     email: "",
     phone: "",
     category: "other",
     message: "",
   });
   const [supportSubmitting, setSupportSubmitting] = useState(false);
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
       role: "bot",
@@ -191,9 +218,8 @@ export default function Chatbot() {
   ]);
   const [userInput, setUserInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [guides, setGuides] = useState([]);
-  const messagesEndRef = useRef(null);
-  const [hasUnread, setHasUnread] = useState(true);
+  const [guides, setGuides] = useState<Guide[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Auth & Usage States
   const { user, isAuthenticated } = useAuth();
@@ -217,19 +243,21 @@ export default function Chatbot() {
       return;
     }
 
+    const currentUser = user;
+
     async function initUsage() {
       setLoadingUsage(true);
       try {
         let { data, error } = await supabase
           .from("user_chatbot_usage")
           .select("*")
-          .eq("user_id", user.id)
+          .eq("user_id", currentUser.id)
           .maybeSingle();
 
         if (!data && !error) {
           const { data: newData, error: insertError } = await supabase
             .from("user_chatbot_usage")
-            .insert([{ user_id: user.id, tokens_left: 30 }])
+            .insert([{ user_id: currentUser.id, tokens_left: 30 }])
             .select()
             .single();
           if (!insertError) data = newData;
@@ -238,7 +266,8 @@ export default function Chatbot() {
         if (data) {
           const lastReset = new Date(data.last_reset_at);
           const now = new Date();
-          const diffHours = (now - lastReset) / (1000 * 60 * 60);
+          const diffHours =
+            (now.getTime() - lastReset.getTime()) / (1000 * 60 * 60);
 
           if (diffHours >= 24) {
             await supabase
@@ -247,7 +276,7 @@ export default function Chatbot() {
                 tokens_left: 30,
                 last_reset_at: now.toISOString(),
               })
-              .eq("user_id", user.id);
+              .eq("user_id", currentUser.id);
             setTokensLeft(30);
           } else {
             setTokensLeft(data.tokens_left);
@@ -284,9 +313,10 @@ export default function Chatbot() {
   const playNotificationSound = () => {
     try {
       // Create audio context for notification
-      const audioContext = new (
-        window.AudioContext || window.webkitAudioContext
-      )();
+      const AudioCtx =
+        window.AudioContext || (window as WindowWithWebkitAudio).webkitAudioContext;
+      if (!AudioCtx) return;
+      const audioContext = new AudioCtx();
 
       // Create oscillator for notification beep
       const oscillator = audioContext.createOscillator();
@@ -348,7 +378,7 @@ export default function Chatbot() {
   useEffect(() => {
     if (!user?.email) return;
 
-    let subscription = null;
+    let subscription: RealtimeChannel | null = null;
 
 
 
@@ -382,7 +412,11 @@ export default function Chatbot() {
               filter: `conversation_id=eq.${conv.id}`,
             },
             (payload) => {
-              const newMsg = payload.new;
+              const newMsg = payload.new as {
+                sender_type?: string;
+                sender_name?: string;
+                message?: string;
+              };
               // Notify for admin OR staff messages
               if (
                 newMsg.sender_type === "admin" ||
@@ -404,7 +438,7 @@ export default function Chatbot() {
                         ? "Admin"
                         : newMsg.sender_name || "Support";
                     new Notification(`New message from ${senderName}! ??`, {
-                      body: newMsg.message.substring(0, 100),
+                      body: (newMsg.message || "").substring(0, 100),
                       icon: "/favicon.ico",
                     });
                   }
@@ -472,7 +506,7 @@ export default function Chatbot() {
     if (!user?.email) return;
 
     async function checkUnread() {
-      const count = await supportApi.getUnreadCount(user.email);
+      const count = await supportApi.getUnreadCount();
       setUnreadSupportCount(count);
     }
 
@@ -483,7 +517,7 @@ export default function Chatbot() {
     return () => clearInterval(interval);
   }, [user]);
 
-  async function handleSend(e) {
+  async function handleSend(e: React.FormEvent<HTMLFormElement>) {
     e?.preventDefault();
     if (!userInput.trim()) return;
 
@@ -495,6 +529,10 @@ export default function Chatbot() {
     // Check Tokens
     if (tokensLeft <= 0) {
       setShowUpgrade(true);
+      return;
+    }
+
+    if (!user) {
       return;
     }
 
@@ -512,35 +550,35 @@ export default function Chatbot() {
       }));
 
       // Add confirmation message
-      const confirmMsg = {
+      const confirmMsg: ChatMessage = {
         id: Date.now(),
         role: "user",
         content: text,
         type: "text",
       };
-      setMessages((prev) => [...prev, confirmMsg]);
+      setMessages((prev) => [...prev, confirmMsg] as ChatMessage[]);
 
-      const botMsg = {
+      const botMsg: ChatMessage = {
         id: Date.now() + 1,
         role: "bot",
         content:
           "? Great! Please fill out the support form below and our team will get back to you shortly.",
         type: "text",
       };
-      setMessages((prev) => [...prev, botMsg]);
+      setMessages((prev) => [...prev, botMsg] as ChatMessage[]);
       return;
     }
 
     setUserInput("");
 
     // Add user message
-    const userMsg = {
+    const userMsg: ChatMessage = {
       id: Date.now(),
       role: "user",
       content: text,
       type: "text",
     };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg] as ChatMessage[]);
     setIsTyping(true);
 
     // Optimistic UI update
@@ -587,7 +625,7 @@ export default function Chatbot() {
         text,
         guides,
         user?.email || "chatbot-user",
-      );
+      ) as AiResponseWithOptionalData;
 
       // Check if AI detected support need
       if (response.needsSupport) {
@@ -596,7 +634,7 @@ export default function Chatbot() {
       }
 
       // Format response
-      const botMsg = {
+      const botMsg: ChatMessage = {
         id: Date.now() + 1,
         role: "bot",
         content:
@@ -606,7 +644,7 @@ export default function Chatbot() {
         type: "text",
       };
 
-      setMessages((prev) => [...prev, botMsg]);
+      setMessages((prev) => [...prev, botMsg] as ChatMessage[]);
     } catch (error: unknown) {
       console.error("Chat error:", error);
       setMessages((prev) => [
@@ -618,7 +656,7 @@ export default function Chatbot() {
             "I encountered an error while processing your request. Please try again.",
           type: "error",
         },
-      ]);
+      ] as ChatMessage[]);
     } finally {
       clearTimeout(loadingTimeout);
       setIsTyping(false);
@@ -642,7 +680,7 @@ export default function Chatbot() {
   }
 
   // Handle support form submission
-  async function handleSupportSubmit(e) {
+  async function handleSupportSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (!supportFormData.email || !supportFormData.message) {
@@ -670,14 +708,14 @@ export default function Chatbot() {
 
       if (data.success) {
         // Add success message
-        const successMsg = {
+        const successMsg: ChatMessage = {
           id: Date.now(),
           role: "bot",
           content:
             "? **Support ticket sent successfully!**\n\nOur team will review your request and get back to you via email within 24 hours. Thank you for your patience!",
           type: "text",
         };
-        setMessages((prev) => [...prev, successMsg]);
+        setMessages((prev) => [...prev, successMsg] as ChatMessage[]);
 
         // Reset form and close
         setShowSupportForm(false);
@@ -1044,7 +1082,7 @@ export default function Chatbot() {
                     )}
 
                     {/* Messages */}
-                    {messages.map((msg: any) => {
+                    {messages.map((msg) => {
                       const isArabic = isArabicText(msg.content);
                       return (
                         <div
@@ -1160,7 +1198,7 @@ export default function Chatbot() {
                       <input
                         type="text"
                         value={userInput}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setUserInput(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUserInput(e.target.value)}
                         placeholder={
                           isAuthenticated()
                             ? tokensLeft > 0
@@ -1302,7 +1340,7 @@ export default function Chatbot() {
                           type="email"
                           required
                           value={supportFormData.email}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             setSupportFormData((prev) => ({
                               ...prev,
                               email: e.target.value,
@@ -1321,7 +1359,7 @@ export default function Chatbot() {
                         <input
                           type="tel"
                           value={supportFormData.phone}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             setSupportFormData((prev) => ({
                               ...prev,
                               phone: e.target.value,
@@ -1340,7 +1378,7 @@ export default function Chatbot() {
                         <select
                           required
                           value={supportFormData.category}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                             setSupportFormData((prev) => ({
                               ...prev,
                               category: e.target.value,
@@ -1365,7 +1403,7 @@ export default function Chatbot() {
                         <textarea
                           required
                           value={supportFormData.message}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                             setSupportFormData((prev) => ({
                               ...prev,
                               message: e.target.value,
@@ -1449,4 +1487,3 @@ if (typeof document !== "undefined") {
     document.head.appendChild(styleElement);
   }
 }
-

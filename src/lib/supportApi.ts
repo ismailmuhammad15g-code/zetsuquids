@@ -151,6 +151,7 @@ export const supportApi = {
         staffName: string
     ): Promise<SupportResult> {
         try {
+            void staffId
             const { data, error } = await supabase
                 .from('support_messages')
                 .insert({

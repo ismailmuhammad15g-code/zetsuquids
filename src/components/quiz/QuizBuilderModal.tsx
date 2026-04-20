@@ -3,13 +3,24 @@ import { X, Plus, Trash2, CheckCircle2, Circle, HelpCircle, Save } from "lucide-
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 
-export default function QuizBuilderModal({ onClose, onInsert }) {
+interface QuizBuilderModalProps {
+    onClose: () => void;
+    onInsert: (quizData: {
+        type: string;
+        question: string;
+        options: string[];
+        answer: number;
+        explanation: string;
+    }) => void;
+}
+
+export default function QuizBuilderModal({ onClose, onInsert }: QuizBuilderModalProps) {
     const [question, setQuestion] = useState("");
     const [options, setOptions] = useState(["", ""]);
     const [correctAnswer, setCorrectAnswer] = useState(0);
     const [explanation, setExplanation] = useState("");
 
-    const handleOptionChange = (index, value) => {
+    const handleOptionChange = (index: number, value: string) => {
         const newOptions = [...options];
         newOptions[index] = value;
         setOptions(newOptions);
@@ -23,7 +34,7 @@ export default function QuizBuilderModal({ onClose, onInsert }) {
         setOptions([...options, ""]);
     };
 
-    const removeOption = (index) => {
+    const removeOption = (index: number) => {
         if (options.length <= 2) {
             toast.error("Minimum 2 options required");
             return;

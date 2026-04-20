@@ -1,17 +1,24 @@
 import useEmblaCarousel from "embla-carousel-react";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 
 // Simple cn utility if not imported
-function localCn(...classes) {
+function localCn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
 }
 
-export const MotionCarousel = ({ slides, options, className }) => {
+interface MotionCarouselProps {
+  slides: ReactNode[];
+  options?: any;
+  className?: string;
+}
+
+export const MotionCarousel = ({ slides, options, className }: MotionCarouselProps) => {
   const [emblaRef, emblaApi] = useEmblaCarousel(options);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [scrollSnaps, setScrollSnaps] = useState([]);
+  const [selectedIndex, setSelectedIndex] = useState<number>(0);
+  const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -39,7 +46,7 @@ export const MotionCarousel = ({ slides, options, className }) => {
     <div className={localCn("relative group", className)}>
       <div className="overflow-hidden rounded-xl bg-background" ref={emblaRef}>
         <div className="flex touch-pan-y">
-          {slides.map((slide, index) => (
+          {slides.map((slide: ReactNode, index: number) => (
             <div className="min-w-0 flex-[0_0_100%] relative" key={index}>
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}

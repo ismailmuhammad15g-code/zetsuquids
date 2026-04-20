@@ -2,7 +2,14 @@ import { X } from "lucide-react";
 import { useEffect } from "react";
 import Composer from "./Composer";
 
-export default function PostModal({ isOpen, onClose, user }) {
+interface PostModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  user: any;
+  onPostCreated?: () => void;
+}
+
+export default function PostModal({ isOpen, onClose, user, onPostCreated }: PostModalProps) {
   // Prevent body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
@@ -42,7 +49,7 @@ export default function PostModal({ isOpen, onClose, user }) {
           {/* Using Composer directly. We pass onPostCreated to close modal */}
           <Composer 
             user={user} 
-            onPostCreated={onClose}
+            onPostCreated={onPostCreated || onClose}
             isModal={true}
           />
         </div>

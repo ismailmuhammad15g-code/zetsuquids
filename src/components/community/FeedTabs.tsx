@@ -1,6 +1,9 @@
-import { Settings } from "lucide-react";
+interface FeedTabsProps {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+}
 
-export default function FeedTabs({ activeTab, setActiveTab }) {
+export default function FeedTabs({ activeTab, setActiveTab }: FeedTabsProps) {
   return (
     <div className="grid grid-cols-2 bg-black/60 backdrop-blur-md">
       {["For you", "Following"].map((tab: any) => (

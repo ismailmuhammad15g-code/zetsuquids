@@ -4,15 +4,26 @@ import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/api";
 
-export function GuideAIChat({ guide, isOpen, onClose }) {
+interface ChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
+interface GuideAIChatProps {
+  guide: any;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function GuideAIChat({ guide, isOpen, onClose }: GuideAIChatProps) {
   const { user } = useAuth();
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [credits, setCredits] = useState(null);
-  const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
+  const [credits, setCredits] = useState<number | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -69,7 +80,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
     }
   };
 
-  const deductCredits = async (amount) => {
+  const deductCredits = async (amount: number) => {
     if (!user) return false;
 
     try {
@@ -111,7 +122,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
@@ -129,7 +140,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
 
     const userMessage = input.trim();
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setMessages((prev: ChatMessage[]) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
     setIsTyping(true);
 
@@ -149,7 +160,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
               content: `You are ZetsuGuide AI, a helpful and intelligent assistant for a developer documentation platform.
 
               CONTEXT:
-              ${context}
+              ${guide.markdown_content || guide.content || ""}
 
               INSTRUCTIONS:
               1. Answer the user's question based on the provided guide content.
@@ -157,11 +168,11 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
               3. Be concise, professional, and helpful.
               4. Format code blocks properly.`,
             },
-            ...messages.map((msg: any) => ({
+            ...messages.map((msg: ChatMessage) => ({
               role: msg.role,
               content: msg.content,
             })),
-            { role: "user", content: userMessage },
+            { role: "user" as const, content: userMessage },
           ],
           skipCreditDeduction: true,
         }),
@@ -172,7 +183,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
       }
 
       const data = await response.json();
-      const aiResponse =
+      const aiResponse: string =
         data.choices[0]?.message?.content ||
         "Sorry, I couldn't generate a response.";
 
@@ -180,7 +191,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
       setIsTyping(false);
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      setMessages((prev) => [
+      setMessages((prev: ChatMessage[]) => [
         ...prev,
         { role: "assistant", content: aiResponse },
       ]);
@@ -188,7 +199,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
       console.error("AI Chat error:", error);
       toast.error("Failed to get AI response");
       setIsTyping(false);
-      setMessages((prev) => [
+      setMessages((prev: ChatMessage[]) => [
         ...prev,
         {
           role: "assistant",
@@ -270,12 +281,11 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
               </div>
             ) : (
               <div className="space-y-4">
-                {messages.map((message, index) => (
+                {messages.map((message: ChatMessage, index: number) => (
                   <div
                     key={index}
-                    className={`flex gap-3 ${
-                      message.role === "user" ? "justify-end" : "justify-start"
-                    }`}
+                    className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"
+                      }`}
                   >
                     {message.role === "assistant" && (
                       <div className="w-10 h-10 bg-black flex items-center justify-center flex-shrink-0">
@@ -283,11 +293,10 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
                       </div>
                     )}
                     <div
-                      className={`max-w-[70%] px-5 py-3 border-3 border-black ${
-                        message.role === "user"
+                      className={`max-w-[70%] px-5 py-3 border-3 border-black ${message.role === "user"
                           ? "bg-black text-white"
                           : "bg-white text-black"
-                      }`}
+                        }`}
                     >
                       <p className="whitespace-pre-wrap break-words leading-relaxed font-medium">
                         {message.content}
@@ -329,7 +338,7 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
                 ref={inputRef}
                 type="text"
                 value={input}
-                onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setInput(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
                 placeholder="Type your question..."
                 disabled={isLoading}
                 className="flex-1 px-5 py-4 text-base font-medium text-black placeholder:text-gray-400 border-3 border-black focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed bg-white"
@@ -364,4 +373,3 @@ export function GuideAIChat({ guide, isOpen, onClose }) {
     </>
   );
 }
-

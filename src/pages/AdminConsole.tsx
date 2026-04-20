@@ -1,30 +1,74 @@
-import { useEffect, useState, useRef } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import {
-    Shield, LogOut, Users, FileText, MessageSquare, Send,
-    Activity, Database, Settings, RefreshCw, ArrowLeft,
-    Eye, ChevronDown, ChevronUp, Mail, Clock
+    Activity,
+    ArrowLeft,
+    ChevronDown, ChevronUp,
+    Clock,
+    Database,
+    Eye,
+    FileText,
+    LogOut,
+    Mail,
+    MessageSquare,
+    RefreshCw,
+    Send,
+    Settings,
+    Shield,
+    Users
 } from 'lucide-react'
-import { supabase, isSupabaseConfigured } from '../lib/api'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { isSupabaseConfigured, supabase } from '../lib/api'
 import { supportApi } from '../lib/supportApi'
+
+type StatValue = number | '—'
+
+interface AdminStats {
+    totalUsers: StatValue
+    totalGuides: StatValue
+    totalConversations: number
+    totalPrompts: number
+}
+
+interface RecentGuideActivity {
+    type: 'guide'
+    title: string
+    time: string
+    author: string
+}
+
+interface AdminSupportConversation {
+    id: string
+    user_email: string
+    unread_count?: number
+    last_message_at?: string
+    status?: string
+}
+
+interface AdminSupportMessage {
+    id: string | number
+    sender_type: 'user' | 'staff' | 'admin'
+    message: string
+    created_at?: string
+}
 
 export default function AdminConsole() {
     const navigate = useNavigate()
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [loading, setLoading] = useState(true)
-    const [stats, setStats] = useState({
+    const [stats, setStats] = useState<AdminStats>({
         totalUsers: 0,
         totalGuides: 0,
         totalConversations: 0,
         totalPrompts: 0
     })
-    const [recentActivity, setRecentActivity] = useState([])
+    const [recentActivity, setRecentActivity] = useState<RecentGuideActivity[]>([])
 
     // Support Messages State
-    const [conversations, setConversations] = useState([])
+    const [conversations, setConversations] = useState<AdminSupportConversation[]>([])
     const [loadingConversations, setLoadingConversations] = useState(false)
-    const [expandedConversation, setExpandedConversation] = useState(null)
-    const [conversationMessages, setConversationMessages] = useState([])
+    const [expandedConversation, setExpandedConversation] = useState<string | null>(null)
+    const [conversationMessages, setConversationMessages] = useState<AdminSupportMessage[]>([])
     const [loadingMessages, setLoadingMessages] = useState(false)
     const [replyText, setReplyText] = useState('')
     const [sendingReply, setSendingReply] = useState(false)
@@ -51,7 +95,7 @@ export default function AdminConsole() {
     }, [navigate])
 
     // Broadcast typing logic
-    const activeChannelRef = useRef(null)
+    const activeChannelRef = useRef<RealtimeChannel | null>(null)
     const lastTypingTimeRef = useRef(0)
 
     useEffect(() => {
@@ -67,7 +111,7 @@ export default function AdminConsole() {
         }
     }, [expandedConversation, isAuthenticated])
 
-    const handleTyping = (text) => {
+    const handleTyping = (text: string) => {
         setReplyText(text)
 
         const now = Date.now()
@@ -82,8 +126,8 @@ export default function AdminConsole() {
     }
 
     const loadDashboardData = async () => {
-        let usersCount = 0
-        let guidesCount = 0
+        let usersCount: StatValue = 0
+        let guidesCount: StatValue = 0
         let conversationsCount = 0
         let localPromptsCount = 0
 
@@ -94,7 +138,7 @@ export default function AdminConsole() {
                 const parsed = JSON.parse(storedConversations)
                 conversationsCount = Array.isArray(parsed) ? parsed.length : Object.keys(parsed).length
             }
-        } catch (e) {
+        } catch {
             console.log('Could not count local conversations')
         }
 
@@ -105,7 +149,7 @@ export default function AdminConsole() {
                 const parsed = JSON.parse(storedPrompts)
                 localPromptsCount = Array.isArray(parsed) ? parsed.length : 0
             }
-        } catch (e) {
+        } catch {
             console.log('Could not count local prompts')
         }
 
@@ -126,8 +170,9 @@ export default function AdminConsole() {
                     .from('guides')
                     .select('user_email')
                 usersCount = uniqueUsers ? [...new Set(uniqueUsers.map(u => u.user_email).filter(Boolean))].length : 0
-            } catch (e) {
-                console.log('Could not count users:', e.message)
+            } catch (e: unknown) {
+                const message = e instanceof Error ? e.message : String(e)
+                console.log('Could not count users:', message)
             }
 
             // Get guides count
@@ -138,8 +183,9 @@ export default function AdminConsole() {
                 if (!error) {
                     guidesCount = count || 0
                 }
-            } catch (e) {
-                console.log('guides table error:', e.message)
+            } catch (e: unknown) {
+                const message = e instanceof Error ? e.message : String(e)
+                console.log('guides table error:', message)
             }
 
             setStats({
@@ -165,8 +211,9 @@ export default function AdminConsole() {
                         author: g.user_email
                     })))
                 }
-            } catch (e) {
-                console.log('Could not load recent guides:', e.message)
+            } catch (e: unknown) {
+                const message = e instanceof Error ? e.message : String(e)
+                console.log('Could not load recent guides:', message)
             }
         } catch (error: unknown) {
             console.error('Error loading dashboard data:', error)
@@ -179,7 +226,7 @@ export default function AdminConsole() {
         try {
             const result = await supportApi.getAllConversations()
             if (result.success) {
-                setConversations(result.data)
+                setConversations((result.data || []) as AdminSupportConversation[])
             }
         } catch (error: unknown) {
             console.error('Error loading conversations:', error)
@@ -188,12 +235,12 @@ export default function AdminConsole() {
     }
 
     // Load messages for a conversation
-    const loadMessages = async (conversationId) => {
+    const loadMessages = async (conversationId: string) => {
         setLoadingMessages(true)
         try {
             const result = await supportApi.getConversationMessages(conversationId)
             if (result.success) {
-                setConversationMessages(result.data)
+                setConversationMessages((result.data || []) as AdminSupportMessage[])
             }
             // Mark as read
             await supportApi.markAsRead(conversationId)
@@ -204,7 +251,7 @@ export default function AdminConsole() {
     }
 
     // Toggle conversation expansion
-    const toggleConversation = async (conversation) => {
+    const toggleConversation = async (conversation: AdminSupportConversation) => {
         if (expandedConversation === conversation.id) {
             setExpandedConversation(null)
             setConversationMessages([])
@@ -218,15 +265,17 @@ export default function AdminConsole() {
     const handleSendReply = async () => {
         if (!replyText.trim() || !expandedConversation) return
 
-        const conversation = conversations.find(c => c.id === expandedConversation)
+        const conversation = conversations.find((c) => c.id === expandedConversation)
         if (!conversation) return
 
         setSendingReply(true)
         try {
-            const result = await supportApi.sendAdminReply(
+            const result = await supportApi.sendStaffReply(
                 expandedConversation,
                 replyText.trim(),
-                conversation.user_email
+                conversation.user_email,
+                'admin-console',
+                'Admin'
             )
 
             if (result.success) {
@@ -249,7 +298,7 @@ export default function AdminConsole() {
         navigate('/admin/login')
     }
 
-    const formatTime = (timestamp) => {
+    const formatTime = (timestamp: string | null | undefined) => {
         if (!timestamp) return ''
         const date = new Date(timestamp)
         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -370,7 +419,7 @@ export default function AdminConsole() {
                                             <div className="conversation-user">
                                                 <Mail size={16} />
                                                 <span className="user-email">{conv.user_email}</span>
-                                                {conv.unread_count > 0 && (
+                                                {(conv.unread_count || 0) > 0 && (
                                                     <span className="unread-badge">{conv.unread_count}</span>
                                                 )}
                                             </div>
@@ -410,7 +459,7 @@ export default function AdminConsole() {
                                                                     className={`message-bubble ${msg.sender_type}`}
                                                                 >
                                                                     <div className="message-sender">
-                                                                        {msg.sender_type === 'admin' ? '👨‍💻 Admin' : '👤 User'}
+                                                                        {msg.sender_type === 'staff' || msg.sender_type === 'admin' ? '👨‍💻 Admin' : '👤 User'}
                                                                     </div>
                                                                     <div className="message-content">
                                                                         {msg.message}
@@ -429,8 +478,8 @@ export default function AdminConsole() {
                                                             type="text"
                                                             placeholder="Type your reply..."
                                                             value={replyText}
-                                                            onChange={(e: any) => handleTyping(e.target.value)}
-                                                            onKeyPress={(e) => e.key === 'Enter' && handleSendReply()}
+                                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleTyping(e.target.value)}
+                                                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleSendReply()}
                                                             disabled={sendingReply}
                                                         />
                                                         <button

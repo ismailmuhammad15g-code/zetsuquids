@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react'
 import { Sparkles, X, Gift } from 'lucide-react'
 
-export default function ApprovedBugModal({ onClose }) {
+interface ApprovedBugModalProps {
+    onClose: () => void;
+}
+
+export default function ApprovedBugModal({ onClose }: ApprovedBugModalProps) {
     // In a real app, we would fetch pending notifications from DB here.
     // For this demo, we can assume 'isOpen' is controlled by parent using localStorage or similar check.
     // BUT, user asked for automatic check.

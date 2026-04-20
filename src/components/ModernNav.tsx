@@ -1,11 +1,22 @@
-import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import "./ModernNav.css";
 
-const ModernNav = ({ items }) => {
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  isActive?: boolean;
+}
+
+interface ModernNavProps {
+  items: NavItem[];
+}
+
+const ModernNav = ({ items }: ModernNavProps) => {
   const location = useLocation();
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState<number>(0);
 
   // Sync active index with current route
   useEffect(() => {
@@ -25,17 +36,17 @@ const ModernNav = ({ items }) => {
     <div className="modern-nav-container">
       {items.map((item, index) => {
         const isActive = activeIndex === index;
-        
+
         return (
           <Link
             key={item.href}
             to={item.href}
-            className={`modern-nav-item ${isActive ? "active" : ""}`}
+            className="modern-nav-item"
             onClick={() => setActiveIndex(index)}
           >
             {item.icon}
             <span>{item.label}</span>
-            
+
             {isActive && (
               <motion.div
                 layoutId="modern-pill"
@@ -55,4 +66,3 @@ const ModernNav = ({ items }) => {
 };
 
 export default ModernNav;
-

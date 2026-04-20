@@ -9,7 +9,9 @@ import { v4 as uuidv4 } from "uuid";
 import { useDimensions } from "@/hooks/use-dimensions";
 import { cn } from "@/lib/utils";
 
-const PixelDot = React.memo(({ id, size, fadeDuration, delay, className }) => {
+type PixelElement = HTMLElement & { __animatePixel?: () => void };
+
+const PixelDot = React.memo(({ id, size, fadeDuration, delay, className }: { id: string; size: number; fadeDuration: number; delay: number; className?: string }) => {
   const controls = useAnimationControls();
 
   const animatePixel = useCallback(() => {
@@ -21,9 +23,9 @@ const PixelDot = React.memo(({ id, size, fadeDuration, delay, className }) => {
 
   // Attach the animatePixel function to the DOM element
   const ref = useCallback(
-    (node) => {
+    (node: HTMLElement | null) => {
       if (node) {
-        node.__animatePixel = animatePixel;
+        (node as any).__animatePixel = animatePixel;
       }
     },
     [animatePixel],
@@ -52,14 +54,20 @@ const PixelTrail = ({
   delay = 0,
   className,
   pixelClassName,
+}: {
+  pixelSize?: number;
+  fadeDuration?: number;
+  delay?: number;
+  className?: string;
+  pixelClassName?: string;
 }) => {
-  const containerRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const dimensions = useDimensions(containerRef);
   // Use a stable ID for this trail instance
   const trailId = useRef(uuidv4());
 
   const handleMouseMove = useCallback(
-    (e) => {
+    (e: React.MouseEvent<HTMLDivElement>) => {
       if (!containerRef.current) return;
 
       const rect = containerRef.current.getBoundingClientRect();
@@ -73,7 +81,7 @@ const PixelTrail = ({
 
       if (pixelElement) {
         // Call the animation method attached to the DOM element
-        const animatePixel = pixelElement.__animatePixel;
+        const animatePixel = (pixelElement as PixelElement).__animatePixel;
         if (animatePixel) animatePixel();
       }
     },

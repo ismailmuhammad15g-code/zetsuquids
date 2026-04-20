@@ -2,15 +2,26 @@ import { Calendar, Clock, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { guidesApi } from "../lib/api";
 
-export default function GuideHistoryModal({ guideId, onClose }) {
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
+interface GuideHistoryModalProps {
+  guideId: string;
+  onClose: () => void;
+}
+
+interface GuideVersion {
+  id: string | number;
+  created_at: string;
+  title: string;
+}
+
+export default function GuideHistoryModal({ guideId, onClose }: GuideHistoryModalProps) {
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     loadHistory();
   }, [guideId]);
 
-  async function loadHistory() {
+  async function loadHistory(): Promise<void> {
     try {
       const data = await guidesApi.getHistory(guideId);
       setHistory(data);
@@ -53,29 +64,31 @@ export default function GuideHistoryModal({ guideId, onClose }) {
               No previous versions found.
             </div>
           ) : (
-            history.map((version: any) => (
-              <div
-                key={version.id}
-                className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors group"
-              >
-                <div className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-                  {version.title}
+            <>
+              {history.map((version: GuideVersion) => (
+                <div
+                  key={version.id}
+                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors group"
+                >
+                  <div className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                    {version.title}
+                  </div>
+                  <div className="text-sm text-gray-500 flex items-center gap-4 mt-2">
+                    <span className="flex items-center gap-1">
+                      <Calendar size={14} />
+                      {new Date(version.created_at).toLocaleDateString()}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock size={14} />
+                      {new Date(version.created_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-500 flex items-center gap-4 mt-2">
-                  <span className="flex items-center gap-1">
-                    <Calendar size={14} />
-                    {new Date(version.created_at).toLocaleDateString()}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock size={14} />
-                    {new Date(version.created_at).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </div>
-              </div>
-            ))
+              ))}
+            </>
           )}
         </div>
 
@@ -86,4 +99,3 @@ export default function GuideHistoryModal({ guideId, onClose }) {
     </div>
   );
 }
-

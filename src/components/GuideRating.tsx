@@ -16,19 +16,12 @@ function AvatarImg({ userId, userEmail, profiles, size = "w-10 h-10" }: { userId
             src={avatarUrl}
             alt="User avatar"
             className={`${size} rounded-full object-cover flex-shrink-0 bg-gray-200`}
-            onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling && (e.target.nextSibling.style.display = '');
+            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                target.nextSibling && ((target.nextSibling as HTMLElement).style.display = '');
             }}
         />
-    );
-}
-
-function AvatarFallback({ size = "w-10 h-10" }) {
-    return (
-        <div className={`${size} rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white font-bold flex-shrink-0`}>
-            <span className="text-sm">?</span>
-        </div>
     );
 }
 
@@ -83,14 +76,15 @@ function ReviewCard({ review, profiles, darkMode }: { review: any; profiles?: an
 }
 
 export default function GuideRating({ guideId, authorId, guideTitle }: { guideId: string; authorId: string; guideTitle: string }) {
+    void guideTitle;
     const { user } = useAuth();
     const [rating, setRating] = useState(0);
     const [hoverRating, setHoverRating] = useState(0);
     const [comment, setComment] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [hasRated, setHasRated] = useState(false);
-    const [allReviews, setAllReviews] = useState([]);
-    const [profiles, setProfiles] = useState([]);
+    const [allReviews, setAllReviews] = useState<any[]>([]);
+    const [profiles, setProfiles] = useState<any[]>([]);
     const [loadingReviews, setLoadingReviews] = useState(true);
     const [visibleCount, setVisibleCount] = useState(5);
     const [avgRating, setAvgRating] = useState(0);
@@ -123,7 +117,7 @@ export default function GuideRating({ guideId, authorId, guideTitle }: { guideId
             }
 
             const userIds = reviewsData.map(r => r.user_id).filter(Boolean);
-            let userProfiles = [];
+            let userProfiles: any[] = [];
 
             if (userIds.length > 0) {
                 const { data: profilesData } = await supabase

@@ -28,9 +28,9 @@ export default function GuideRecommendations({
   limit = 6,
 }: GuideRecommendationsProps) {
   const { user } = useAuth();
-  const [recommendations, setRecommendations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [authorAvatars, setAuthorAvatars] = useState({});
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [authorAvatars, setAuthorAvatars] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchRecommendations();
@@ -94,11 +94,11 @@ export default function GuideRecommendations({
     }
   };
 
-  const fetchAvatarsForRecommendations = async (guides) => {
-    const uniqueEmails = [
+  const fetchAvatarsForRecommendations = async (guides: any[]): Promise<void> => {
+    const uniqueEmails: string[] = [
       ...new Set(guides.map((g: any) => g.user_email).filter(Boolean)),
     ];
-    const newAvatars = {};
+    const newAvatars: Record<string, string> = {};
 
     for (const email of uniqueEmails) {
       try {
@@ -108,9 +108,9 @@ export default function GuideRecommendations({
           .eq("user_email", email)
           .maybeSingle();
 
-        newAvatars[email] = getAvatarForUser(email, profileData?.avatar_url);
+        newAvatars[email] = getAvatarForUser(email, profileData?.avatar_url as string | undefined);
       } catch (err) {
-        newAvatars[email] = getAvatarForUser(email, null);
+        newAvatars[email] = getAvatarForUser(email, undefined);
       }
     }
 
@@ -118,7 +118,7 @@ export default function GuideRecommendations({
   };
 
   // Helper to get reason icon
-  const getReasonIcon = (reason) => {
+  const getReasonIcon = (reason: string | undefined) => {
     if (reason?.includes("follow")) return <User className="w-3 h-3" />;
     if (reason?.includes("Similar")) return <Lightbulb className="w-3 h-3" />;
     if (reason?.includes("Popular") || reason?.includes("Trending"))
@@ -220,7 +220,7 @@ export default function GuideRecommendations({
             {/* Tags */}
             {guide.keywords && guide.keywords.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">
-                {guide.keywords.slice(0, 3).map((kw, i) => (
+                {guide.keywords.slice(0, 3).map((kw: string, i: number) => (
                   <span
                     key={i}
                     className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 text-xs font-medium border border-purple-200"

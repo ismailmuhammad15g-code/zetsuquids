@@ -10,7 +10,7 @@ import { communityApi } from "../lib/communityApi";
 export default function CommunityFeed() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("For you");
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -20,11 +20,11 @@ export default function CommunityFeed() {
       try {
         let data;
         if (activeTab === "For you") {
-          data = await communityApi.getSmartFeed(user?.id);
+          data = await communityApi.getSmartFeed(user?.id ?? "");
         } else if (activeTab === "Following") {
-          data = await communityApi.getPosts("Following", user?.id);
+          data = await communityApi.getPosts("Following", user?.id ?? "");
         } else {
-          data = await communityApi.getPosts("All", user?.id);
+          data = await communityApi.getPosts("All", user?.id ?? "");
         }
         setPosts(data || []);
       } catch (error: unknown) {
@@ -99,7 +99,7 @@ export default function CommunityFeed() {
       ) : (
         <div>
           {posts.map((post: any) => (
-            <PostCard key={post.id} post={post} onDeleted={id => setPosts(p => p.filter(x => x.id !== id))} />
+            <PostCard key={post.id} post={post} onDeleted={(id: string | number) => setPosts((p) => p.filter((x) => x.id !== id))} />
           ))}
 
           <div className="py-10 flex flex-col items-center gap-3 border-t border-gray-800">

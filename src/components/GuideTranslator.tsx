@@ -2,8 +2,8 @@ import { CheckCircle, Globe, Languages, Loader2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { extractGuideContent } from "../lib/utils";
 import { supabase } from "../lib/api";
+import { extractGuideContent } from "../lib/utils";
 
 const LANGUAGES = [
   { code: "ar", name: "Arabic", flag: "????" },
@@ -21,11 +21,17 @@ const LANGUAGES = [
   { code: "tr", name: "Turkish", flag: "????" },
 ];
 
-export function GuideTranslator({ guide, isOpen, onClose }) {
+interface GuideTranslatorProps {
+  guide: any;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function GuideTranslator({ guide, isOpen, onClose }: GuideTranslatorProps) {
   const { user } = useAuth();
-  const [translation, setTranslation] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState("");
+  const [translation, setTranslation] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("");
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -49,7 +55,11 @@ export function GuideTranslator({ guide, isOpen, onClose }) {
     setTranslation("");
 
     try {
-      const targetLang = LANGUAGES.find((l) => l.code === selectedLanguage);
+      const targetLang = LANGUAGES.find((l: any) => l.code === selectedLanguage);
+      if (!targetLang) {
+        toast.error("Please select a language");
+        return;
+      }
 
       // Use AI for translation - more reliable and complete
       const fullText = `# ${guide.title}\n\n${extractGuideContent(guide)}`;
@@ -268,4 +278,3 @@ Text to translate:`,
     </>
   );
 }
-

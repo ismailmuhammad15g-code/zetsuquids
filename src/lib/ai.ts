@@ -103,6 +103,8 @@ export async function aiAgentSearch(
     try {
         // First, try to find relevant guides using basic search
         const relevantGuides = basicSearch(query, guides)
+        void userEmail
+        void relevantGuides
 
         // Check if the query seems to need support
         const supportKeywords = ['help', 'error', 'problem', 'not working', 'bug', 'issue', 'crash', 'failed']

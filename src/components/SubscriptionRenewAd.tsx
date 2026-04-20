@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react';
+import { Sparkles, UserPlus, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import adminProfile from '../assets/customarserviceprofiles/admin_profile.png';
-import { X, Sparkles, UserPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function SubscriptionRenewAd() {
-    const [isVisible, setIsVisible] = useState(false);
-    const [adContent, setAdContent] = useState(null);
+    const [isVisible, setIsVisible] = useState<boolean>(false);
+    const [adContent, setAdContent] = useState<any>(null);
     const { user } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
-        let timer;
+        let timer: ReturnType<typeof setTimeout> | null = null;
 
         // Determine which ad to show based on auth state
         if (user) {
@@ -49,11 +49,11 @@ export default function SubscriptionRenewAd() {
         }
 
         return () => {
-            if (timer) clearTimeout(timer);
+            if (timer !== null) clearTimeout(timer);
         };
     }, [user, navigate]);
 
-    const handleClose = (e) => {
+    const handleClose = (e?: React.MouseEvent<HTMLButtonElement>) => {
         if (e) e.stopPropagation();
         setIsVisible(false);
         if (adContent?.id) {
@@ -101,4 +101,3 @@ export default function SubscriptionRenewAd() {
         </div>
     );
 };
-

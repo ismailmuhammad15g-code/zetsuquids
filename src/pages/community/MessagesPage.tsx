@@ -4,16 +4,9 @@ import { useAuth } from '../../contexts/AuthContext'
 import { communityApi } from '../../lib/communityApi'
 import { supabase } from '../../lib/supabase'
 
-interface Conversation {
-    id: string
-    otherUser?: any
-    lastMessage?: any
-    [key: string]: any
-}
-
 export default function MessagesPage(): ReactElement {
     const { user } = useAuth()
-    const [conversations, setConversations] = useState<Conversation[]>([])
+    const [conversations, setConversations] = useState<any[]>([])
     const [loading, setLoading] = useState<boolean>(true)
 
     // Real-time listener for new messages
@@ -90,7 +83,7 @@ export default function MessagesPage(): ReactElement {
             ) : (
                 /* Conversations List */
                 <div className="divide-y divide-[#2f3336]">
-                    {conversations.map((conv: Conversation) => (
+                    {conversations.map((conv: any) => (
                         <div key={conv.id} className="flex gap-3 px-4 py-4 hover:bg-white/[0.03] cursor-pointer transition-colors">
                             <img
                                 src={conv.otherUser?.avatar_url || `https://ui-avatars.com/api/?name=${conv.otherUser?.username}&background=random&color=fff`}

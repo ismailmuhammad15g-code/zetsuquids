@@ -206,7 +206,8 @@ export default function FollowButton({
 
         // Trigger confetti
         try {
-          const confettiMod = await import("canvas-confetti");          // @ts-ignore - canvas-confetti module exists but may lack types          const confetti = confettiMod.default || confettiMod;
+          const confettiMod = await import("canvas-confetti");
+          const confetti = confettiMod.default || confettiMod;
           if (buttonRef.current && confetti) {
             const rect = buttonRef.current.getBoundingClientRect();
             const x = (rect.left + rect.width / 2) / window.innerWidth;

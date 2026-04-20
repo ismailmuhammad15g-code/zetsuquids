@@ -1,5 +1,5 @@
 import { RefreshCw, ShieldAlert } from "lucide-react";
-import React, { useEffect, useRef } from "react";
+import { CSSProperties, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 export default function AdBlockFallback() {
@@ -26,7 +26,7 @@ export default function AdBlockFallback() {
     };
   }, []);
 
-  const handleRefresh = (e) => {
+  const handleRefresh = (e?: React.MouseEvent<HTMLButtonElement>) => {
     if (e) e.preventDefault();
     window.location.reload();
   };
@@ -80,7 +80,7 @@ export default function AdBlockFallback() {
     },
   ];
 
-  const overlayStyle = {
+  const overlayStyle: CSSProperties = {
     position: 'fixed',
     top: 0,
     left: 0,

@@ -17,7 +17,7 @@ export default function CommunityLayout() {
       <PostModal 
         isOpen={isPostModalOpen} 
         onClose={() => setIsPostModalOpen(false)} 
-        user={user}
+        user={user as any}
         onPostCreated={() => {
           setIsPostModalOpen(false);
           // Allow sub-pages to react via global events or contexts if needed, 
@@ -37,7 +37,7 @@ export default function CommunityLayout() {
         </main>
 
         {/* Right Sidebar */}
-        <TrendsSidebar user={user} />
+        <TrendsSidebar user={user as any} />
       </div>
     </div>
   );

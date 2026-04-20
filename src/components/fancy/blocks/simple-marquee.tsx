@@ -10,13 +10,24 @@ import {
   useTransform,
   useVelocity,
 } from "framer-motion";
+import { ReactNode } from "react";
 import { useRef, useState } from "react";
 
 // Helper to wrap value within a range
-const wrap = (min, max, v) => {
+const wrap = (min: number, max: number, v: number) => {
   const rangeSize = max - min;
   return ((((v - min) % rangeSize) + rangeSize) % rangeSize) + min;
 };
+
+interface SimpleMarqueeProps {
+  children: ReactNode;
+  baseVelocity?: number;
+  direction?: "left" | "right";
+  scrollAwareDirection?: boolean;
+  slowdownOnHover?: boolean;
+  className?: string;
+  [x: string]: any;
+}
 
 export default function SimpleMarquee({
   children,
@@ -26,7 +37,7 @@ export default function SimpleMarquee({
   slowdownOnHover = false,
   className,
   ...props
-}) {
+}: SimpleMarqueeProps) {
   const baseX = useMotionValue(0);
   const { scrollY } = useScroll();
   const scrollVelocity = useVelocity(scrollY);
@@ -51,7 +62,7 @@ export default function SimpleMarquee({
   const directionFactor = useRef(1);
   const [isHovered, setIsHovered] = useState(false);
 
-  useAnimationFrame((t, delta) => {
+  useAnimationFrame((_t, delta) => {
     // Calculate movement based on time
     let moveBy = directionFactor.current * baseVelocity * (delta / 1000);
 

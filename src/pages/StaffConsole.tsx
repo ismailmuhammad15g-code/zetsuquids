@@ -1,3 +1,4 @@
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import Lottie from 'lottie-react'
 import {
     ArrowLeft,
@@ -23,12 +24,26 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Ad, adminGuidesApi, adsApi, Guide, supabase } from '../lib/api'
 import { supportApi } from '../lib/supportApi'
 
+type LottieAnimationData = object
+
+type CssVarStyle = React.CSSProperties & {
+    '--profile-color': string
+}
+
+type StaffAd = Ad & {
+    image_url?: string
+}
+
+type WindowWithWebkitAudio = Window & typeof globalThis & {
+    webkitAudioContext?: typeof AudioContext
+}
+
 // Type definitions
 interface StaffProfile {
     id: string
     name: string
     nameEn: string
-    animation: any
+    animation: LottieAnimationData
     color: string
 }
 
@@ -38,16 +53,20 @@ interface SupportConversation {
     user_name?: string
     last_message?: string
     updated_at?: string
+    last_message_at?: string
     unread_count?: number
+    status?: string
 }
 
 interface SupportMessage {
     id?: string | number
-    conversation_id: string
+    conversation_id?: string
     user_email?: string
-    sender_type: 'user' | 'staff'
-    sender_name: string
+    sender_type?: 'user' | 'staff' | 'admin'
+    sender_name?: string
+    staff_profile_id?: string
     message: string
+    image_url?: string
     created_at?: string
 }
 
@@ -57,12 +76,6 @@ interface NewAd {
     link_url: string
     image_url: string
     button_text: string
-}
-
-interface ApiResponse<T = any> {
-    success: boolean
-    data?: T
-    error?: string
 }
 
 // Import staff profile animations
@@ -103,14 +116,29 @@ export default function StaffConsole() {
     const [sendingReply, setSendingReply] = useState<boolean>(false)
 
     // Ads Management State
-    const [ads, setAds] = useState<Ad[]>([])
+    const [ads, setAds] = useState<StaffAd[]>([])
     const [loadingAds, setLoadingAds] = useState<boolean>(false)
     const [showAdModal, setShowAdModal] = useState<boolean>(false)
     const [creatingAd, setCreatingAd] = useState<boolean>(false)
     const [newAd, setNewAd] = useState<NewAd>({ title: '', text: '', link_url: '', image_url: '', button_text: '' })
     const messagesEndRef = useRef<HTMLDivElement>(null)
-    const activeChannelRef = useRef<any>(null)
+    const activeChannelRef = useRef<RealtimeChannel | null>(null)
     const lastTypingTimeRef = useRef<number>(0)
+
+    const normalizeSupportMessage = (raw: Record<string, unknown>): SupportMessage => ({
+        id: typeof raw.id === 'string' || typeof raw.id === 'number' ? raw.id : undefined,
+        conversation_id: typeof raw.conversation_id === 'string' ? raw.conversation_id : undefined,
+        user_email: typeof raw.user_email === 'string' ? raw.user_email : undefined,
+        sender_type:
+            raw.sender_type === 'user' || raw.sender_type === 'staff' || raw.sender_type === 'admin'
+                ? raw.sender_type
+                : undefined,
+        sender_name: typeof raw.sender_name === 'string' ? raw.sender_name : undefined,
+        staff_profile_id: typeof raw.staff_profile_id === 'string' ? raw.staff_profile_id : undefined,
+        message: typeof raw.message === 'string' ? raw.message : '',
+        image_url: typeof raw.image_url === 'string' ? raw.image_url : undefined,
+        created_at: typeof raw.created_at === 'string' ? raw.created_at : undefined,
+    })
 
     // Check authentication
     useEffect(() => {
@@ -163,7 +191,7 @@ export default function StaffConsole() {
                     table: 'support_messages'
                 },
                 (payload) => {
-                    const newMsg = payload.new
+                    const newMsg = normalizeSupportMessage(payload.new as Record<string, unknown>)
                     console.log('📨 Staff Console: New message received', newMsg.sender_type)
 
                     // If from user, refresh conversations list
@@ -171,7 +199,7 @@ export default function StaffConsole() {
                         loadConversations()
 
                         // If this conversation is expanded, add the message
-                        if (expandedConversation === newMsg.conversation_id) {
+                        if (expandedConversation && expandedConversation === newMsg.conversation_id) {
                             setConversationMessages(prev => [...prev, newMsg])
                         }
 
@@ -229,7 +257,8 @@ export default function StaffConsole() {
     // Notification sound for staff
     const playStaffNotification = () => {
         try {
-            const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+            const AudioCtx = window.AudioContext || (window as WindowWithWebkitAudio).webkitAudioContext
+            if (!AudioCtx) return
             const audioContext = new AudioCtx()
             const oscillator = audioContext.createOscillator()
             const gainNode = audioContext.createGain()
@@ -287,7 +316,7 @@ export default function StaffConsole() {
         try {
             const result = await supportApi.getConversationMessages(conversationId)
             if (result.success && result.data) {
-                setConversationMessages(result.data)
+                setConversationMessages(result.data as SupportMessage[])
             }
             await supportApi.markAsRead(conversationId)
         } catch (error: unknown) {
@@ -312,7 +341,7 @@ export default function StaffConsole() {
         setLoadingAds(true)
         try {
             const data = await adsApi.getAllAds()
-            setAds(data || [])
+            setAds((data || []) as StaffAd[])
         } catch (error: unknown) {
             console.error('Error loading ads:', error)
         }
@@ -325,10 +354,11 @@ export default function StaffConsole() {
 
         setCreatingAd(true)
         try {
-            await adsApi.createAd({
+            const adPayload: StaffAd = {
                 ...newAd,
                 is_active: true
-            } as any)
+            }
+            await adsApi.createAd(adPayload)
             setNewAd({ title: '', text: '', link_url: '', image_url: '', button_text: '' })
             setShowAdModal(false)
             loadAds()
@@ -360,7 +390,7 @@ export default function StaffConsole() {
         if (!guide || !selectedProfile) return
         setProcessingGuideId(guide.id || null)
         try {
-            const success = await adminGuidesApi.approveGuide(guide.id || 0, selectedProfile.id)
+            const success = await adminGuidesApi.approveGuide(guide.id || 0)
             if (success) {
                 // Remove from list
                 setPendingGuides(prev => prev.filter(g => g.id !== guide.id))
@@ -447,14 +477,14 @@ export default function StaffConsole() {
         navigate('/staff/login')
     }
 
-    const formatTime = (timestamp) => {
+    const formatTime = (timestamp: string | null | undefined) => {
         if (!timestamp) return ''
         const date = new Date(timestamp)
         return date.toLocaleDateString('ar-EG') + ' ' + date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
     }
 
     // Get avatar for message
-    const getMessageAvatar = (msg) => {
+    const getMessageAvatar = (msg: SupportMessage) => {
         if (msg.sender_type === 'user') {
             return null // User avatar handled separately
         }
@@ -499,7 +529,7 @@ export default function StaffConsole() {
                                     key={profile.id}
                                     className="profile-card"
                                     onClick={() => selectProfile(profile)}
-                                    style={{ '--profile-color': profile.color }}
+                                    style={{ '--profile-color': profile.color } as CssVarStyle}
                                 >
                                     <div className="profile-avatar">
                                         <Lottie
@@ -560,7 +590,7 @@ export default function StaffConsole() {
                 >
                     <MessageSquare size={18} />
                     <span>الدعم الفني</span>
-                    {conversations.some(c => c.unread_count > 0) && <span className="tab-badge" />}
+                    {conversations.some(c => (c.unread_count || 0) > 0) && <span className="tab-badge" />}
                 </button>
                 <button
                     className={`tab-btn ${activeTab === 'guides' ? 'active' : ''}`}
@@ -620,13 +650,13 @@ export default function StaffConsole() {
                                                 <div className="conversation-user">
                                                     <User size={16} />
                                                     <span className="user-email">{conv.user_email}</span>
-                                                    {conv.unread_count > 0 && (
+                                                    {(conv.unread_count || 0) > 0 && (
                                                         <span className="unread-badge">{conv.unread_count}</span>
                                                     )}
                                                 </div>
                                                 <div className="conversation-meta">
                                                     <Clock size={12} />
-                                                    <span>{formatTime(conv.last_message_at)}</span>
+                                                    <span>{formatTime(conv.last_message_at || conv.updated_at)}</span>
                                                 </div>
                                             </div>
                                             <div className="expand-icon">
@@ -693,9 +723,12 @@ export default function StaffConsole() {
                                                                                                     display: 'block'
                                                                                                 }}
                                                                                                 onClick={() => window.open(msg.image_url, '_blank')}
-                                                                                                onError={(e) => {
-                                                                                                    e.target.style.display = 'none'
-                                                                                                    e.target.parentElement.innerHTML = '<span style="color: #ff6b6b; font-size: 12px;">📷 Image expired (24h)</span>'
+                                                                                                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                                                                                    const target = e.currentTarget
+                                                                                                    target.style.display = 'none'
+                                                                                                    if (target.parentElement) {
+                                                                                                        target.parentElement.innerHTML = '<span style="color: #ff6b6b; font-size: 12px;">📷 Image expired (24h)</span>'
+                                                                                                    }
                                                                                                 }}
                                                                                             />
                                                                                         </div>
@@ -734,8 +767,8 @@ export default function StaffConsole() {
                                                                         type="text"
                                                                         placeholder="اكتب ردك..."
                                                                         value={replyText}
-                                                                        onChange={(e: any) => handleTyping(e.target.value)}
-                                                                        onKeyPress={(e) => e.key === 'Enter' && handleSendReply()}
+                                                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleTyping(e.target.value)}
+                                                                        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleSendReply()}
                                                                         disabled={sendingReply}
                                                                         dir="rtl"
                                                                     />
@@ -799,7 +832,7 @@ export default function StaffConsole() {
                                     <div key={guide.id} className="guide-review-card">
                                         <div className="guide-header">
                                             <h3>{guide.title}</h3>
-                                            <span className="guide-date">{new Date(guide.created_at).toLocaleDateString()}</span>
+                                            <span className="guide-date">{guide.created_at ? new Date(guide.created_at).toLocaleDateString() : ''}</span>
                                         </div>
                                         <div className="guide-meta">
                                             <div className="guide-author">
@@ -915,14 +948,22 @@ export default function StaffConsole() {
                                             )}
                                             <div className="ad-actions" style={{ marginTop: 'auto', display: 'flex', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
                                                 <button
-                                                    onClick={() => handleToggleAd(ad.id, ad.is_active)}
+                                                    onClick={() => {
+                                                        if (ad.id !== undefined) {
+                                                            handleToggleAd(ad.id, !!ad.is_active)
+                                                        }
+                                                    }}
                                                     style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)' }}
                                                 >
                                                     {ad.is_active ? <ToggleRight size={18} className="text-[#10b981]" /> : <ToggleLeft size={18} />}
                                                     {ad.is_active ? 'تعطيل' : 'تفعيل'}
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDeleteAd(ad.id)}
+                                                    onClick={() => {
+                                                        if (ad.id !== undefined) {
+                                                            handleDeleteAd(ad.id)
+                                                        }
+                                                    }}
                                                     style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}
                                                 >
                                                     <Trash2 size={18} />

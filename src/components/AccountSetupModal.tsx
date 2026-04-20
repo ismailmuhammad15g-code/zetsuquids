@@ -59,16 +59,6 @@ const SocialIcon = ({ name, icon, staticIcon: StaticIcon, isSelected, onClick }:
         }
     }, [isHovered, isSelected, icon])
 
-    // Helper to show the static full icon (Last Frame) - only needed if Lottie runs
-    const _showStaticIcon = () => {
-        if (lottieRef.current) {
-            const duration = lottieRef.current.getDuration(true)
-            if (duration > 0) {
-                lottieRef.current.goToAndStop(duration - 1, true)
-            }
-        }
-    }
-
     useEffect(() => {
         if (!lottieRef.current) return
 
@@ -133,10 +123,17 @@ interface AccountSetupModalProps {
     onComplete?: () => void
 }
 
+interface SetupData {
+    accountType: 'individual' | 'company'
+    companySize: string
+    avatarUrl: string | null
+    referralSource: string | null
+}
+
 export default function AccountSetupModal({ user, onClose, onComplete }: AccountSetupModalProps) {
     const [step, setStep] = useState(1)
     const [loading, setLoading] = useState(false)
-    const [setupData, setSetupData] = useState({
+    const [setupData, setSetupData] = useState<SetupData>({
         accountType: 'individual', // or 'company'
         companySize: '1-10',
         avatarUrl: null,

@@ -1,12 +1,13 @@
 import { motion } from "framer-motion";
 import { Cpu, FileText, MessageSquare, Sparkles } from "lucide-react";
+import { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { MotionCarousel } from "./MotionCarousel";
 
 // --- Generated Visuals (React Components) ---
 
-const VisualContainer = ({ children, step }) => (
+const VisualContainer = ({ children, step }: { children: ReactNode; step: number }) => (
   <div className="w-full h-full bg-white flex flex-col items-center justify-center p-8 border-2 border-gray-100 rounded-xl relative overflow-hidden group">
     <div className="absolute top-4 left-4 text-xs font-mono text-gray-400">
       STEP 0{step}

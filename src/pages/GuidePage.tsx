@@ -72,9 +72,14 @@ interface InlineComment {
     position: number
 }
 
+interface ProcessedContent {
+    type: "html" | "markdown"
+    content: string
+}
+
 // Configure marked
 const renderer = {
-    code(code, language) {
+    code(code: string | { text: string; lang: string }, language?: string): string {
         // Handle newer marked versions passing object
         let text = code;
         let lang = language;
@@ -292,7 +297,7 @@ export default function GuidePage() {
     }, [guide]);
 
     // Process content with memoization to avoid Hook violations and performance issues
-    const processedContent = useMemo((): string | null => {
+    const processedContent = useMemo((): ProcessedContent | null => {
         if (!guide) return null;
 
         // 1. Handle HTML Content Type
@@ -633,9 +638,9 @@ export default function GuidePage() {
             user: user?.email,
         });
 
-        if (!guide.user_email) {
+        if (!guide || !guide.user_email) {
             console.error("[GuidePage] Cannot delete: Guide has no owner", {
-                guideId: guide.id,
+                guideId: guide?.id,
             });
             alert("Cannot delete legacy guides or guides without owner.");
             return;
@@ -657,6 +662,7 @@ export default function GuidePage() {
     async function handleDeleteConfirm() {
         console.log("[GuidePage] User confirmed deletion, proceeding...");
 
+        if (!guide) return;
         setDeleting(true);
         console.log("[GuidePage] Starting deletion process...");
 
@@ -727,7 +733,7 @@ export default function GuidePage() {
     }
 
     // Parse HTML and inject inline comments
-    function parseContentWithInlineComments(htmlContent, inlineComments, profilesData) {
+    function parseContentWithInlineComments(htmlContent: string, inlineComments: any[], profilesData: any) {
         if (!htmlContent || !inlineComments?.length) {
             return (
                 <div
@@ -772,7 +778,7 @@ export default function GuidePage() {
     }
 
     // Pure CSS approach: Find and wrap text with inline comments
-    function renderContentWithComments() {
+    function renderContentWithComments(): JSX.Element | null {
         if (!processedContent) return null;
 
         if (processedContent.type === "html") {
@@ -790,7 +796,7 @@ export default function GuidePage() {
         let html = contentWithAnchors || processedContent.content;
 
         // Inject inline comments using Pure CSS - wrap matching text in span with FigmaComment
-        inlineComments.forEach(comment => {
+        inlineComments.forEach((comment: any) => {
             if (!comment.selected_text) return;
             const escaped = comment.selected_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const regex = new RegExp(`(${escaped})`, 'gi');
@@ -819,7 +825,7 @@ export default function GuidePage() {
     }
 
     // Legacy render - without injection (works)
-    function renderContent() {
+    function renderContent(): JSX.Element | null {
         if (!processedContent) return null;
 
         if (processedContent.type === "html") {

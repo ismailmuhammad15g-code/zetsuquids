@@ -1,10 +1,17 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
-import { Check, X, Trophy, AlertCircle, HelpCircle } from "lucide-react";
+import { Check, X, AlertCircle, HelpCircle } from "lucide-react";
 import { cn } from "../../lib/utils";
 
-export default function QuizComponent({ data }) {
+interface QuizData {
+    question: string;
+    options: string[];
+    answer: number;
+    explanation?: string;
+}
+
+export default function QuizComponent({ data }: { data: QuizData }) {
     // Graceful fallback for invalid data
     if (!data || !data.question || !Array.isArray(data.options)) {
         return (
@@ -16,7 +23,7 @@ export default function QuizComponent({ data }) {
     }
 
     const { question, options, answer, explanation } = data;
-    const [selected, setSelected] = useState(null);
+    const [selected, setSelected] = useState<number | null>(null);
     const [submitted, setSubmitted] = useState(false);
 
     const isCorrect = selected === answer;
@@ -31,7 +38,7 @@ export default function QuizComponent({ data }) {
             const animationEnd = Date.now() + duration;
             const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
 
-            const randomInRange = (min, max) => Math.random() * (max - min) + min;
+            const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
             const interval = setInterval(function () {
                 const timeLeft = animationEnd - Date.now();
@@ -78,7 +85,7 @@ export default function QuizComponent({ data }) {
                 {/* Options */}
                 <div className="p-8 space-y-4">
                     <div className="grid gap-3">
-                        {options.map((option, index) => {
+                        {options.map((option: string, index: number) => {
                             const isSelected = selected === index;
                             const isAnswer = answer === index;
 

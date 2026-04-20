@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 export default function NetworkStatusMonitor() {
   const [showModal, setShowModal] = useState<boolean>(!navigator.onLine);
+  const [, setLatency] = useState<number>(0);
   const slowConnectionToastRef = useRef<any>(null);
 
   const checkLatency = async (): Promise<boolean> => {

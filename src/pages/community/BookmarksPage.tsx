@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { communityApi } from '../../lib/communityApi'
 
 interface Post {
-    id: string
+    id: string | number
     [key: string]: any
 }
 
@@ -18,7 +18,7 @@ export default function BookmarksPage(): ReactElement {
 
     useEffect(() => {
         if (!user) { setLoading(false); return }
-        communityApi.getBookmarkedPosts(user.id).then((p: Post[] | null) => {
+        communityApi.getBookmarkedPosts(user.id).then((p: any[] | null) => {
             setPosts(p || [])
             setLoading(false)
         })
@@ -93,7 +93,7 @@ export default function BookmarksPage(): ReactElement {
                         <PostCard
                             key={post.id}
                             post={post}
-                            onDeleted={(id: string) => setPosts(p => p.filter(x => x.id !== id))}
+                            onDeleted={(id: string | number) => setPosts(p => p.filter(x => x.id !== id))}
                         />
                     ))}
                 </div>

@@ -5,9 +5,14 @@ import { useRef, useState } from 'react'
 import celebrationAnimation from '../assets/celebrationreffreleffect.json'
 import giftAnimation from '../assets/reffrelgift.json'
 
-export default function ReferralSuccessModal({ onClose, bonusCredits = 5 }) {
+interface ReferralSuccessModalProps {
+    onClose: () => void;
+    bonusCredits?: number;
+}
+
+export default function ReferralSuccessModal({ onClose, bonusCredits = 5 }: ReferralSuccessModalProps) {
     const [isOpened, setIsOpened] = useState(false)
-    const celebrationRef = useRef(null)
+    const celebrationRef = useRef<any>(null)
 
     const handleOpenGift = () => {
         setIsOpened(true)

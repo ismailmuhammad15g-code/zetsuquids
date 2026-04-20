@@ -11,17 +11,28 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { extractGuideContent, sanitizeContent } from "../lib/utils";
 import { supabase } from "../lib/api";
+import { extractGuideContent } from "../lib/utils";
 
 const SUMMARIZER_FREE_TRIAL_KEY = "guide_summarizer_free_trial_used";
 
-export function GuideSummarizer({ guide, isOpen, onClose }) {
+interface Guide {
+  title: string;
+  content?: string;
+}
+
+interface GuideSummarizerProps {
+  guide: Guide;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function GuideSummarizer({ guide, isOpen, onClose }: GuideSummarizerProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [summary, setSummary] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasUsedFreeTrial, setHasUsedFreeTrial] = useState(false);
+  const [summary, setSummary] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [hasUsedFreeTrial, setHasUsedFreeTrial] = useState<boolean>(false);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -301,4 +312,3 @@ Format the summary in a clear, easy-to-read structure.`,
     </>
   );
 }
-

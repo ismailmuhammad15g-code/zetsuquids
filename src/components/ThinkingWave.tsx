@@ -2,7 +2,12 @@
 
 import { TextShimmerWave } from "@/components/ui/text-shimmer-wave";
 
-export function ThinkingWave({ text = "Generating response...", className }) {
+interface ThinkingWaveProps {
+  text?: string;
+  className?: string;
+}
+
+export function ThinkingWave({ text = "Generating response...", className }: ThinkingWaveProps) {
   return (
     <TextShimmerWave
       className={`[--base-color:#0D74CE] [--base-gradient-color:#5EB1EF] text-sm md:text-base font-medium ${className || ""}`}

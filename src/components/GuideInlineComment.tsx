@@ -44,7 +44,13 @@ function formatTime(date: string | Date): string {
   return `${days}d ago`;
 }
 
-const CLOSED_SIZE = 32;
+interface InlineCommentPosData {
+  approved?: boolean;
+  adminReply?: string;
+  pageX?: number;
+  pageY?: number;
+  viewportY?: number;
+}
 
 interface FigmaCommentInlineProps {
   message: string
@@ -57,7 +63,7 @@ interface FigmaCommentInlineProps {
   isGuideOwner?: boolean
   onDelete?: (id: string | number) => void
   onEdit?: (id: string | number, newMessage: string) => void
-  onApprove?: (id: string | number) => void
+  onApprove?: (id: string | number, replyText: string) => void
   approvedStatus?: boolean
   adminReply?: string
 }
@@ -124,22 +130,24 @@ export function FigmaCommentInline({
   const msg = message || '';
 
   const handleEditSubmit = () => {
-    if (editVal.trim()) {
+    if (editVal.trim() && onEdit) {
       onEdit(id, editVal.trim());
       setIsEditing(false);
     }
   };
 
   const handleReplySubmit = () => {
-    onApprove(id, replyVal.trim());
-    setIsReplying(false);
+    if (onApprove) {
+      onApprove(id, replyVal.trim());
+      setIsReplying(false);
+    }
   };
 
   return (
     <div
       className={`figma-comment-container absolute top-0 left-0 cursor-pointer bg-white shadow-[0_4px_16px_rgba(0,0,0,0.15)] border border-gray-200 pointer-events-auto transition-all duration-300 z-[99999] origin-top-left ${isExpanded
-          ? 'w-[280px] rounded-2xl rounded-tl-none p-3.5 opacity-100 scale-100'
-          : `w-7 h-7 rounded-full rounded-tl-none opacity-90 hover:opacity-100 hover:scale-110 hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] scale-100 ${approvedStatus ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`
+        ? 'w-[280px] rounded-2xl rounded-tl-none p-3.5 opacity-100 scale-100'
+        : `w-7 h-7 rounded-full rounded-tl-none opacity-90 hover:opacity-100 hover:scale-110 hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] scale-100 ${approvedStatus ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`
         }`}
       onClick={(e: React.MouseEvent<HTMLElement>) => {
         if (!isExpanded) {
@@ -170,7 +178,7 @@ export function FigmaCommentInline({
                   <button onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); setIsEditing(true); }} className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-black transition-colors" title="Edit">
                     <Edit2 size={14} />
                   </button>
-                  <button onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); onDelete(id); }} className="p-1 hover:bg-red-50 rounded text-gray-500 hover:text-red-500 transition-colors" title="Delete">
+                  <button onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); onDelete?.(id); }} className="p-1 hover:bg-red-50 rounded text-gray-500 hover:text-red-500 transition-colors" title="Delete">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -242,16 +250,24 @@ export function FigmaCommentInline({
   );
 }
 
-export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsUpdated, commentCount, onCommentCountChange }) {
+interface GuideInlineCommentsProps {
+  guideId: string | number;
+  isGuideOwner: boolean;
+  onCommentsUpdated: () => Promise<void>;
+  commentCount: number;
+  onCommentCountChange: (count: number) => void;
+}
+
+export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsUpdated, commentCount, onCommentCountChange }: GuideInlineCommentsProps) {
   const { user } = useAuth();
-  const [comments, setComments] = useState([]);
+  void commentCount;
+  const [comments, setComments] = useState<any[]>([]);
   const [showMenu, setShowMenu] = useState(false);
-  const [selectedText, setSelectedText] = useState(null);
+  const [selectedText, setSelectedText] = useState<{ text: string } | null>(null);
   const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
   const [showAddModal, setShowAddModal] = useState(false);
   const [commentInput, setCommentInput] = useState('');
-  const [selectionCoords, setSelectionCoords] = useState(null);
-  const [showAllComments, setShowAllComments] = useState(false);
+  const [selectionCoords, setSelectionCoords] = useState<{ pageX: number; pageY: number; viewportY: number } | null>(null);
   const [forceRender, setForceRender] = useState(0);
 
   console.log('[GuideInlineComments] Loaded comments:', comments.length);
@@ -326,27 +342,33 @@ export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsU
   }, [comments, guideId]);
 
   useEffect(() => {
-    const handleDocumentClick = (e) => {
-      const commentEl = e.target.closest('[data-comment-id]');
+    const handleDocumentClick = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      const commentEl = target?.closest('[data-comment-id]');
       if (commentEl) {
         const id = commentEl.getAttribute('data-comment-id');
-        window.dispatchEvent(new CustomEvent('open-inline-comment', { detail: id }));
+        if (id) {
+          window.dispatchEvent(new CustomEvent('open-inline-comment', { detail: id }));
+        }
       }
     };
 
-    const handleRightClick = (e) => {
+    const handleRightClick = (e: Event) => {
+      const event = e as MouseEvent;
       const selection = window.getSelection();
-      const text = selection.toString().trim();
+      const text = selection?.toString().trim() || '';
 
       if (text && text.length > 0) {
-        e.preventDefault();
+        event.preventDefault();
         setSelectedText({ text: text.trim() });
-        setMenuPosition({ left: e.clientX, top: e.clientY });
+        setMenuPosition({ left: event.clientX, top: event.clientY });
         setShowMenu(true);
 
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-        setSelectionCoords({ pageX: rect.left, pageY: rect.top, viewportY: rect.bottom });
+        const range = selection?.getRangeAt(0);
+        if (range) {
+          const rect = range.getBoundingClientRect();
+          setSelectionCoords({ pageX: rect.left, pageY: rect.top, viewportY: rect.bottom });
+        }
       }
     };
 
@@ -364,7 +386,7 @@ export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsU
     setShowAddModal(true);
   };
 
-  const handleDeleteComment = async (commentId) => {
+  const handleDeleteComment = async (commentId: string | number) => {
     try {
       const { error } = await supabase.from('guide_inline_comments').delete().eq('id', commentId);
       if (error) throw error;
@@ -377,7 +399,7 @@ export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsU
     }
   };
 
-  const handleEditComment = async (commentId, newText) => {
+  const handleEditComment = async (commentId: string | number, newText: string) => {
     try {
       const { error } = await supabase.from('guide_inline_comments').update({ comment: newText }).eq('id', commentId);
       if (error) throw error;
@@ -389,12 +411,12 @@ export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsU
     }
   };
 
-  const handleApproveComment = async (commentId, replyText) => {
+  const handleApproveComment = async (commentId: string | number, replyText: string) => {
     try {
       const commentToApprove = comments.find(c => c.id === commentId);
       if (!commentToApprove) return;
 
-      let posData = {};
+      let posData: InlineCommentPosData = {};
       try {
         posData = typeof commentToApprove.position_json === 'string' ? JSON.parse(commentToApprove.position_json) : (commentToApprove.position_json || {});
       } catch (e: unknown) { }
@@ -524,7 +546,7 @@ export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsU
           avatarUrl = comment.zetsuguide_user_profiles.avatar_url;
         }
 
-        let posData = {};
+        let posData: InlineCommentPosData = {};
         try {
           posData = typeof comment.position_json === 'string' ? JSON.parse(comment.position_json) : (comment.position_json || {});
         } catch (e: unknown) { }
@@ -546,7 +568,7 @@ export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsU
               isGuideOwner={isGuideOwner}
               onDelete={handleDeleteComment}
               onEdit={handleEditComment}
-              onApprove={(id, reply) => handleApproveComment(id, reply)}
+              onApprove={handleApproveComment}
               approvedStatus={!!posData.approved}
               adminReply={posData.adminReply || ''}
             />

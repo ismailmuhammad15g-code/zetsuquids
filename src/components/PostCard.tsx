@@ -14,20 +14,24 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { useNavigate } from "react-router-dom";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvatarForUser } from "../lib/avatar";
 import { communityApi } from "../lib/communityApi";
 import { supabase } from "../lib/supabase";
 
-export default function PostCard({ post, onDeleted }) {
+interface PostCardProps {
+  post: any;
+  onDeleted?: (postId: string | number) => void;
+}
+
+export default function PostCard({ post, onDeleted }: PostCardProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [liked, setLiked] = useState(post.has_liked ?? false);
-  const [likes, setLikes] = useState(post.likes_count ?? 0);
-  const [repliesCount, setRepliesCount] = useState(post.comments_count ?? 0);
-  const [bookmarked, setBookmarked] = useState(false);
+  const [liked, setLiked] = useState<boolean>(post.has_liked ?? false);
+  const [likes, setLikes] = useState<number>(post.likes_count ?? 0);
+  const repliesCount = post.comments_count ?? 0;
+  const [bookmarked, setBookmarked] = useState<boolean>(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -35,7 +39,7 @@ export default function PostCard({ post, onDeleted }) {
 
   // Poll State
   const poll = post.community_polls?.[0];
-  const [votedOptionId, setVotedOptionId] = useState(null);
+  const [votedOptionId, setVotedOptionId] = useState<string | null>(null);
   const [localPollData, setLocalPollData] = useState(poll);
   const [voting, setVoting] = useState(false);
 
@@ -63,14 +67,15 @@ export default function PostCard({ post, onDeleted }) {
 
   // Check if user has voted
   useEffect(() => {
-    if (!poll || !user) return;
+    const currentUserId = user?.id;
+    if (!poll || !currentUserId) return;
 
     async function checkVote() {
       const { data } = await supabase
         .from("community_poll_votes")
         .select("option_id")
         .eq("poll_id", poll.id)
-        .eq("user_id", user.id)
+        .eq("user_id", currentUserId)
         .maybeSingle();
 
       if (data) setVotedOptionId(data.option_id);
@@ -148,7 +153,7 @@ export default function PostCard({ post, onDeleted }) {
 
   const handleCardClick = () => {
     const selection = window.getSelection();
-    if (selection.toString().length > 0) return;
+    if ((selection?.toString().length || 0) > 0) return;
     navigate(`/community/post/${post.id}`);
   };
 
@@ -171,6 +176,7 @@ export default function PostCard({ post, onDeleted }) {
   };
 
   const handleDelete = async () => {
+    if (!user) return;
     setDeleting(true);
     try {
       await communityApi.deletePost(post.id, user.id);
@@ -186,7 +192,7 @@ export default function PostCard({ post, onDeleted }) {
     }
   };
 
-  const handleVote = async (e, optionId) => {
+  const handleVote = async (e: React.MouseEvent<HTMLButtonElement>, optionId: string) => {
     e.stopPropagation();
     if (!user) {
       toast.error("Please login to vote");
@@ -200,7 +206,7 @@ export default function PostCard({ post, onDeleted }) {
       setVotedOptionId(optionId);
 
       // Update local counts
-      const updatedOptions = localPollData.community_poll_options.map(opt =>
+      const updatedOptions = (localPollData?.community_poll_options || []).map((opt: any) =>
         opt.id === optionId ? { ...opt, votes_count: opt.votes_count + 1 } : opt
       );
       setLocalPollData({ ...localPollData, community_poll_options: updatedOptions });
@@ -228,14 +234,13 @@ export default function PostCard({ post, onDeleted }) {
       <ReactMarkdown
         children={content}
         components={{
-          code({ node, inline, className, children, ...props }) {
+          code({ node, inline, className, children, ...props }: any) {
             const match = /language-(\w+)/.exec(className || "");
             return !inline && match ? (
               <div onClick={stopProp} className="my-2">
                 <SyntaxHighlighter
                   {...props}
                   children={String(children).replace(/\n$/, "")}
-                  style={atomDark}
                   language={match[1]}
                   PreTag="div"
                   customStyle={{
@@ -256,7 +261,7 @@ export default function PostCard({ post, onDeleted }) {
               </code>
             );
           },
-          a: ({ node, ...props }) => (
+          a: ({ node, ...props }: any) => (
             <a
               {...props}
               onClick={stopProp}
@@ -265,7 +270,7 @@ export default function PostCard({ post, onDeleted }) {
               rel="noopener noreferrer"
             />
           ),
-          img: ({ node, ...props }) => (
+          img: ({ node, ...props }: any) => (
             <figure className="mt-3 mb-3 overflow-hidden rounded-2xl border border-[#2f3336]">
               <img
                 {...props}
@@ -274,10 +279,10 @@ export default function PostCard({ post, onDeleted }) {
               />
             </figure>
           ),
-          p: ({ node, children, ...props }) => {
+          p: ({ node, children, ...props }: any) => {
             // Separate text children from non-text elements (like images)
-            const textChildren = [];
-            const nonTextElements = [];
+            const textChildren: (string | React.ReactNode)[] = [];
+            const nonTextElements: React.ReactNode[] = [];
 
             const flattenChildren = (items: React.ReactNode): React.ReactNode[] => {
               return Array.isArray(items)
@@ -285,9 +290,9 @@ export default function PostCard({ post, onDeleted }) {
                 : [items];
             };
 
-            flattenChildren(children).forEach((child, idx) => {
+            flattenChildren(children).forEach((child) => {
               // Check if child is a React element (JSX)
-              if (child && typeof child === "object" && child.type) {
+              if (child && typeof child === "object" && "type" in child) {
                 nonTextElements.push(child);
               } else {
                 textChildren.push(child);
@@ -341,7 +346,7 @@ export default function PostCard({ post, onDeleted }) {
   const renderPoll = () => {
     if (!localPollData) return null;
 
-    const totalVotes = localPollData.community_poll_options.reduce((acc, opt) => acc + opt.votes_count, 0);
+    const totalVotes = (localPollData?.community_poll_options || []).reduce((acc: number, opt: any) => acc + (opt.votes_count || 0), 0);
     const isExpired = new Date(localPollData.ends_at) < new Date();
     const showResults = votedOptionId || isExpired;
 
@@ -370,7 +375,7 @@ export default function PostCard({ post, onDeleted }) {
                 </div>
               ) : (
                 <button
-                  onClick={(e: React.MouseEvent<HTMLElement>) => handleVote(e, option.id)}
+                  onClick={(e: React.MouseEvent<HTMLButtonElement>) => handleVote(e, option.id)}
                   disabled={voting}
                   className="w-full h-9 flex items-center justify-center rounded-full border border-[#1d9bf0] text-[#1d9bf0] font-bold text-[14px] hover:bg-[#1d9bf0]/10 transition-colors disabled:opacity-50"
                 >

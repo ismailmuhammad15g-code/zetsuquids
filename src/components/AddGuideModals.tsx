@@ -209,7 +209,7 @@ export function CodeModalForm({ onInsert, onClose }: CodeModalFormProps) {
     <div className="px-6 py-4 space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
-        <select value={language} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setLanguage(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent">
+        <select value={language} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setLanguage(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent">
           {languages.map(lang => <option key={lang} value={lang}>{lang}</option>)}
         </select>
       </div>

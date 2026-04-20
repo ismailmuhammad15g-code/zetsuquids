@@ -2,12 +2,17 @@ import CommunityLeftSidebar from "../components/community/CommunityLeftSidebar";
 import TrendsSidebar from "../components/community/TrendsSidebar";
 import { useAuth } from "../contexts/AuthContext";
 
-export default function CommunityPlaceholderPage({ title, message }) {
+interface CommunityPlaceholderPageProps {
+    title: string;
+    message?: string;
+}
+
+export default function CommunityPlaceholderPage({ title, message }: CommunityPlaceholderPageProps) {
     const { user } = useAuth();
 
     return (
         <div className="min-h-screen bg-black text-[#e7e9ea] flex justify-center font-sans subpixel-antialiased">
-            <CommunityLeftSidebar />
+            <CommunityLeftSidebar onPostClick={() => {}} />
 
             {/* Main Feed Column */}
             <main className="w-full max-w-[600px] border-x border-[#2f3336] flex flex-col min-h-screen">
@@ -27,7 +32,7 @@ export default function CommunityPlaceholderPage({ title, message }) {
                 </div>
             </main>
 
-            <TrendsSidebar user={user} />
+            <TrendsSidebar user={user as any} />
         </div>
     );
 }

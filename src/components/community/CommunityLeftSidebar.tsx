@@ -1,11 +1,22 @@
 import { Bell, Bookmark, Home, Mail, MoreHorizontal, Plus, Search, Sparkles, User, Users } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { ComponentType, MouseEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { getAvatarForUser } from "../../lib/avatar";
 import { communityApi } from "../../lib/communityApi";
 
-export default function CommunityLeftSidebar({ onPostClick }) {
+interface CommunityLeftSidebarProps {
+  onPostClick: () => void;
+}
+
+interface NavItem {
+  name: string;
+  icon: ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+  href: string;
+}
+
+export default function CommunityLeftSidebar({ onPostClick }: CommunityLeftSidebarProps) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [showMenu, setShowMenu] = useState(false);
@@ -25,7 +36,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
     return () => clearInterval(interval);
   }, [user, location.pathname]); // Re-check when path changes (e.g. visiting notifications marks them read)
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { name: "Home", icon: Home, href: "/community" },
     { name: "Explore", icon: Search, href: "/community/explore" },
     { name: "Notifications", icon: Bell, href: "/community/notifications" },
@@ -35,7 +46,9 @@ export default function CommunityLeftSidebar({ onPostClick }) {
     {
       name: "Profile",
       icon: User,
-      href: user ? `/@${(user?.user_metadata?.full_name || user?.email?.split("@")[0] || "user").toLowerCase()}/workspace` : "/auth",
+      href: user
+        ? `/@${String(user?.user_metadata?.full_name || user?.email?.split("@")[0] || "user").toLowerCase()}/workspace`
+        : "/auth",
     },
     { name: "More", icon: MoreHorizontal, href: "#" },
   ];
@@ -55,7 +68,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
 
           {/* Nav Links */}
           <nav className="flex flex-col gap-2 w-full mt-2">
-            {navItems.map((item: any) => {
+            {navItems.map((item) => {
               const isActive = location.pathname === item.href;
               const Icon = item.icon;
               if (item.name === "More") {
@@ -79,7 +92,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
                       </>
                     )}
                     <button
-                      onClick={(e: any) => {
+                      onClick={(e: MouseEvent<HTMLButtonElement>) => {
                         e.preventDefault();
                         setShowMoreMenu(!showMoreMenu);
                       }}
@@ -121,7 +134,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
                   </div>
                   <span
 
-                    className={`hidden xl:block ml-4 text-[20px] ${Math.abs(isActive - 1) < 0.1 || location.pathname.startsWith(item.href) && item.href !== "/community" ? "font-bold" : "font-normal"
+                    className={`hidden xl:block ml-4 text-[20px] ${(isActive || (location.pathname.startsWith(item.href) && item.href !== "/community")) ? "font-bold" : "font-normal"
                       } text-[#e7e9ea]`}
                   >
                     {item.name}
@@ -191,7 +204,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
                 />
                 <div className="hidden xl:flex flex-col overflow-hidden min-w-0 flex-1">
                   <span className="font-bold text-[#e7e9ea] text-[15px] truncate">
-                    {user.user_metadata?.full_name || user.email?.split("@")[0]}
+                    {String(user.user_metadata?.full_name || user.email?.split("@")[0] || "user")}
                   </span>
                   <span className="text-[#71767b] text-[15px] truncate">
                     @{user.email?.split("@")[0]}
@@ -210,7 +223,7 @@ export default function CommunityLeftSidebar({ onPostClick }) {
 
       {/* Mobile Bottom Tab Bar: < sm */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-black/80 backdrop-blur-md border-t border-[#2f3336] z-50 flex items-center justify-around px-2 pb-safe">
-        {navItems.slice(0, 4).map((item: any) => {
+        {navItems.slice(0, 4).map((item) => {
           const isActive = location.pathname === item.href;
           const Icon = item.icon;
           return (

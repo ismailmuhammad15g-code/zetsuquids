@@ -4,10 +4,13 @@ import { ReactElement, useEffect, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getAvatarForUser } from '../../lib/avatar'
 import { communityApi } from '../../lib/communityApi'
+import type { ComponentType } from 'react'
 
-interface Notification {
+type NotificationType = 'like' | 'comment' | 'follow' | 'mention'
+
+interface NotificationItem {
     id: string
-    type: 'like' | 'comment' | 'follow' | 'mention'
+    type: NotificationType
     actor?: any
     post?: any
     created_at: string
@@ -29,7 +32,7 @@ interface TypeConfig {
     fillIcon: boolean
     text: string
     color: string
-    icon: any
+    icon: ComponentType<{ size?: number; fill?: string }>
 }
 
 const TYPE_CONFIG: Record<string, TypeConfig> = {
@@ -65,7 +68,7 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
 
 export default function NotificationsPage(): ReactElement {
     const { user } = useAuth()
-    const [notifications, setNotifications] = useState<Notification[]>([])
+    const [notifications, setNotifications] = useState<any[]>([])
     const [loading, setLoading] = useState<boolean>(true)
     const [activeTab, setActiveTab] = useState<string>("All")
 
@@ -73,7 +76,7 @@ export default function NotificationsPage(): ReactElement {
         if (!user) { setLoading(false); return }
 
         let isMounted = true
-        communityApi.getNotifications(user.id).then((n: Notification[] | null) => {
+        communityApi.getNotifications(user.id).then((n: any[] | null) => {
             if (isMounted) {
                 setNotifications(n || [])
                 setLoading(false)
@@ -86,7 +89,7 @@ export default function NotificationsPage(): ReactElement {
         return () => { isMounted = false }
     }, [user])
 
-    const filtered: Notification[] = activeTab === "Mentions"
+    const filtered: any[] = activeTab === "Mentions"
         ? notifications.filter(n => n.type === "mention")
         : notifications
 
@@ -144,7 +147,7 @@ export default function NotificationsPage(): ReactElement {
                 </div>
             ) : (
                 <div className="divide-y divide-[#2f3336]">
-                    {filtered.map((n: Notification) => {
+                    {filtered.map((n: NotificationItem) => {
                         const config = TYPE_CONFIG[n.type] || TYPE_CONFIG.mention
                         const IconComponent = config.icon
                         return (

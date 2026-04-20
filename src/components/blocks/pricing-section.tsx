@@ -55,7 +55,7 @@ export function PricingSection({
               key={freq}
               text={freq}
               selected={selectedFrequency === freq}
-              setSelected={setSelectedFrequency}
+              setSelected={(text: string) => setSelectedFrequency(text as PaymentFrequency)}
               discount={freq === "yearly"}
             />
           ))}
@@ -68,7 +68,7 @@ export function PricingSection({
             key={tier.name}
             tier={tier}
             paymentFrequency={selectedFrequency}
-            onSelect={onPlanSelect}
+            onSelect={(selectedTier) => onPlanSelect(selectedTier as PricingSectionTier)}
             isCurrentPlan={Boolean(user) && tier.id === "individuals"} // Assuming default plan is individuals/free
           />
         ))}

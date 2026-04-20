@@ -5,14 +5,11 @@ import { supabase } from "../lib/supabase";
 
 export default function ReferralBonusNotification() {
   const { user } = useAuth();
-  const [notification, setNotification] = useState(null);
+  const [notification, setNotification] = useState<{ referred_email?: string } | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
     if (!user?.email) return;
-
-    setIsSubscribed(false);
 
     const channel = supabase
       .channel(`referral-notifications:${user.email}`)
@@ -33,15 +30,12 @@ export default function ReferralBonusNotification() {
       )
       .subscribe((status, error) => {
         if (status === "SUBSCRIBED") {
-          setIsSubscribed(true);
         } else if (status === "TIMED_OUT") {
           console.debug("Realtime subscription timed out:", status);
         } else if (status === "CHANNEL_ERROR") {
           console.debug("Realtime subscription error - table may not exist or RLS blocked:", error?.message);
-          setIsSubscribed(false);
         } else if (status === "CLOSED") {
           console.debug("Realtime subscription closed:", status);
-          setIsSubscribed(false);
         } else {
           console.debug("Referral subscription status:", status, error?.message);
         }
