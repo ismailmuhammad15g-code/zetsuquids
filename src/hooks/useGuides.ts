@@ -4,6 +4,7 @@ import {
     useQueryClient,
     UseQueryResult,
 } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { guidesApi } from "../lib/api";
 
 // Note: Guide type is defined in lib/api and imported here
@@ -46,28 +47,33 @@ async function fetchGuide(slug: string): Promise<Guide> {
  * - Error handling
  */
 export function useGuides(): UseQueryResult<Guide[], Error> {
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
     return useQuery({
         queryKey: QUERY_KEYS.guides,
         queryFn: fetchGuides,
+        enabled: isClient,
 
-        // INSTANT LOAD: Use localStorage data immediately while fetching
-        initialData: (): Guide[] | undefined => {
-            try {
-                const local = localStorage.getItem("guides");
-                if (!local) return undefined;
+        // Use browser-local cache only after hydration to avoid SSR/client mismatch.
+        initialData: isClient
+            ? (): Guide[] | undefined => {
+                try {
+                    const local = window.localStorage.getItem("guides");
+                    if (!local) return undefined;
 
-                const guides: Guide[] = JSON.parse(local);
-                // Filter ONLY approved guides for public list
-                return guides.filter((g) => g.status === "approved");
-            } catch (e) {
-                return undefined;
+                    const guides: Guide[] = JSON.parse(local);
+                    return guides.filter((g) => g.status === "approved");
+                } catch (e) {
+                    return undefined;
+                }
             }
-        },
+            : undefined,
+        initialDataUpdatedAt: isClient ? 0 : undefined,
 
-        // Treat initial data as stale immediately so it refetches in background to sync
-        initialDataUpdatedAt: 0,
-
-        // Override defaults if needed (already set in queryClient)
         staleTime: 5 * 60 * 1000, // 5 minutes
         gcTime: 30 * 60 * 1000, // 30 minutes
     });

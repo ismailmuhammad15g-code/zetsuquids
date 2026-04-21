@@ -265,12 +265,37 @@ export const guidesApi = {
                     .single();
 
                 if (error) {
-                    console.error(
+                    const errorMessage = `${error.message || ""} ${error.details || ""} ${error.hint || ""}`.trim();
+                    console.warn(
                         "Supabase insert error:",
-                        error.message,
-                        error.details,
-                        error.hint,
+                        errorMessage,
                     );
+
+                    const shouldRetryWithoutCover =
+                        error.code === "42703" ||
+                        errorMessage.toLowerCase().includes("cover_image");
+
+                    if (shouldRetryWithoutCover) {
+                        const { cover_image, ...fallbackGuideData } = guideData;
+                        const retryResult = await supabase
+                            .from("guides")
+                            .insert([fallbackGuideData])
+                            .select()
+                            .single();
+
+                        if (!retryResult.error && retryResult.data) {
+                            console.log("Supabase insert succeeded after removing unsupported cover_image column:", retryResult.data);
+                            const guides: Guide[] = JSON.parse(localStorage.getItem("guides") || "[]");
+                            guides.unshift(retryResult.data);
+                            localStorage.setItem("guides", JSON.stringify(guides));
+                            return retryResult.data;
+                        }
+
+                        console.warn(
+                            "Retry without cover_image also failed:",
+                            retryResult.error?.message || retryResult.error,
+                        );
+                    }
                     // Fall through to localStorage
                 } else if (data) {
                     console.log("Successfully saved to Supabase:", data);
@@ -793,14 +818,27 @@ export const adminGuidesApi = {
     async getPendingGuides(): Promise<PendingGuide[]> {
         if (!isSupabaseConfigured()) return [];
 
+        const statusValues = ["pending", "Pending", "PENDING"];
         const { data, error } = await supabase
             .from("guides")
             .select("*")
-            .eq("status", "pending")
+            .in("status", statusValues)
             .order("created_at", { ascending: false });
 
         if (error) {
-            console.error("Error fetching pending guides:", error);
+            if (error.code === "42703" || String(error.message).toLowerCase().includes("status")) {
+                console.warn("Pending guide query failed due status column missing or mismatch, falling back to all guides query.", error.message);
+                const fallback = await supabase
+                    .from("guides")
+                    .select("*")
+                    .order("created_at", { ascending: false });
+                if (!fallback.error && fallback.data) {
+                    return (fallback.data as PendingGuide[]).filter((guide) =>
+                        typeof guide.status === "string" && statusValues.includes(guide.status),
+                    );
+                }
+            }
+            console.warn("Error fetching pending guides:", error);
             return [];
         }
         return data || [];

@@ -1,6 +1,6 @@
 "use client";
-import type { RealtimeChannel } from '@supabase/supabase-js'
-import Lottie from 'lottie-react'
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import Lottie from 'lottie-react';
 import {
     ArrowLeft,
     BookOpen,
@@ -19,10 +19,10 @@ import {
     Trash2,
     User,
     XCircle
-} from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { Ad, adminGuidesApi, adsApi, Guide, supabase } from '../../../lib/api'
-import { supportApi } from '../../../lib/supportApi'
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Ad, adminGuidesApi, adsApi, Guide, supabase } from '../../../lib/api';
+import { supportApi } from '../../../lib/supportApi';
 
 type LottieAnimationData = object
 
@@ -79,12 +79,12 @@ interface NewAd {
 }
 
 // Import staff profile animations
-import profile1Animation from '../../../assets/customarserviceprofiles/profile1.json'
-import profile2Animation from '../../../assets/customarserviceprofiles/profile2.json'
-import profile3Animation from '../../../assets/customarserviceprofiles/profile3.json'
-import profile4Animation from '../../../assets/customarserviceprofiles/profile4.json'
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import profile1Animation from '../../../assets/customarserviceprofiles/profile1.json';
+import profile2Animation from '../../../assets/customarserviceprofiles/profile2.json';
+import profile3Animation from '../../../assets/customarserviceprofiles/profile3.json';
+import profile4Animation from '../../../assets/customarserviceprofiles/profile4.json';
 
 const adminProfileImg = "https://ui-avatars.com/api/?name=Admin&background=111111&color=ffffff&size=128";
 
@@ -112,6 +112,7 @@ export default function StaffConsole() {
     // Support Messages State
     const [conversations, setConversations] = useState<SupportConversation[]>([])
     const [loadingConversations, setLoadingConversations] = useState<boolean>(false)
+    const [supportError, setSupportError] = useState<string | null>(null)
     const [expandedConversation, setExpandedConversation] = useState<string | null>(null)
     const [conversationMessages, setConversationMessages] = useState<SupportMessage[]>([])
     const [loadingMessages, setLoadingMessages] = useState<boolean>(false)
@@ -302,13 +303,19 @@ export default function StaffConsole() {
     // Load support conversations
     const loadConversations = async () => {
         setLoadingConversations(true)
+        setSupportError(null)
         try {
             const result = await supportApi.getAllConversations()
             if (result.success && result.data) {
                 setConversations(result.data)
+            } else {
+                setConversations([])
+                setSupportError(result.error || 'فشل تحميل المحادثات')
             }
         } catch (error: unknown) {
-            console.error('Error loading conversations:', error)
+            const errorMsg = error instanceof Error ? error.message : JSON.stringify(error)
+            setSupportError(errorMsg || 'فشل تحميل المحادثات')
+            console.warn('Error loading conversations:', errorMsg)
         }
         setLoadingConversations(false)
     }
@@ -630,6 +637,11 @@ export default function StaffConsole() {
                                 <RefreshCw size={16} className={loadingConversations ? 'spin' : ''} />
                             </button>
                         </div>
+                        {supportError && (
+                            <div className="support-error-banner bg-red-50 border border-red-200 text-red-700 p-4 rounded mb-4">
+                                <strong>خطأ:</strong> {supportError}
+                            </div>
+                        )}
 
                         {loadingConversations ? (
                             <div className="loading-state">
@@ -659,7 +671,7 @@ export default function StaffConsole() {
                                                 </div>
                                                 <div className="conversation-meta">
                                                     <Clock size={12} />
-                                                    <span>{formatTime(conv.last_message_at || conv.updated_at)}</span>
+                                                    <span>{formatTime(conv.last_message_at || conv.updated_at || conv.created_at)}</span>
                                                 </div>
                                             </div>
                                             <div className="expand-icon">

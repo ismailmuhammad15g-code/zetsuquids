@@ -393,15 +393,16 @@ export default function AllGuidesPage() {
                 </div>
             </div>
 
-            {/* Loading Sguide.title
-      {isLoading &&
-        (viewMode === "grid" ? (
-          <GuidesSkeletonGrid count={6} />
-        ) : (
-          <GuidesSkeletonList count={6} />
-        ))}
+            {/* Loading Skeleton
+            {isLoading &&
+                (viewMode === "grid" ? (
+                    <GuidesSkeletonGrid count={6} />
+                ) : (
+                    <GuidesSkeletonList count={6} />
+                ))}
+            */}
 
-      {/* Empty State */}
+            {/* Empty State */}
             {!isLoading && guides.length === 0 && (
                 <div className="border-2 border-dashed border-gray-300 p-12 text-center">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -441,20 +442,16 @@ export default function AllGuidesPage() {
                             href={`/guide/${guide.slug}`}
                             className="group border-2 border-black p-6 hover:shadow-lg transition-all hover:-translate-y-1 flex flex-col"
                         >
-                            <div className="mb-4 overflow-hidden rounded-3xl bg-gray-100">
-                        {guide.cover_image ? (
-                            <img
-                                src={guide.cover_image}
-                                alt={`Cover image for ${guide.title}`}
-                                className="w-full h-44 object-cover"
-                            />
-                        ) : (
-                            <div className="w-full h-44 bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
-                                No cover image
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex items-start justify-between mb-3">
+                            {guide.cover_image && (
+                                <div className="mb-4 overflow-hidden rounded-3xl bg-gray-100">
+                                    <img
+                                        src={guide.cover_image}
+                                        alt={`Cover image for ${guide.title}`}
+                                        className="w-full h-44 object-cover"
+                                    />
+                                </div>
+                            )}
+                            <div className="flex items-start justify-between mb-3">
                                 <h3 className="text-xl font-bold group-hover:underline flex-1">
                                     {guide.title}
                                 </h3>
@@ -475,8 +472,7 @@ export default function AllGuidesPage() {
                                         />
                                     ) : (
                                         <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                                            {(guide.author_name ||
-                                                guide.user_email)?.[0]?.toUpperCase()}
+                                            {((guide.author_name || guide.user_email) || "").toString().charAt(0).toUpperCase()}
                                         </div>
                                     )}
                                     <span className="text-gray-600 font-medium">
@@ -528,54 +524,50 @@ export default function AllGuidesPage() {
                             className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors group"
                         >
                             <div className="flex items-center gap-3 mb-2">
-                            {guide.cover_image ? (
-                                <img
-                                    src={guide.cover_image}
-                                    alt={`Cover thumbnail for ${guide.title}`}
-                                    className="w-20 h-14 object-cover rounded-lg flex-shrink-0"
-                                />
-                            ) : (
-                                <div className="w-20 h-14 bg-gray-100 rounded-lg flex-shrink-0 flex items-center justify-center text-gray-400 text-xs">
-                                    No cover
-                                </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-3 mb-2">
-                                    {/* Author avatar */}
-                                    {guide.user_email &&
-                                        (authorAvatars[guide.user_email] ? (
-                                            <img
-                                                src={authorAvatars[guide.user_email]}
-                                                alt={guide.author_name}
-                                                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                                            />
-                                        ) : (
-                                            <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                                                {(guide.author_name ||
-                                                    guide.user_email)?.[0]?.toUpperCase()}
-                                            </div>
-                                        ))}
-                                    <h3 className="font-bold group-hover:underline truncate">
-                                        {guide.title}
-                                    </h3>
-                                </div>
-                                <div className="flex items-center gap-4 text-xs text-gray-500 ml-11">
-                                    <span className="flex items-center gap-1">
-                                        <Calendar size={12} />
-                                        {new Date(guide.created_at).toLocaleDateString()}
-                                    </span>
-                                    {getKeywords(guide).length > 0 && (
+                                {guide.cover_image && (
+                                    <img
+                                        src={guide.cover_image}
+                                        alt={`Cover thumbnail for ${guide.title}`}
+                                        className="w-20 h-14 object-cover rounded-lg flex-shrink-0"
+                                    />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        {/* Author avatar */}
+                                        {guide.user_email &&
+                                            (authorAvatars[guide.user_email] ? (
+                                                <img
+                                                    src={authorAvatars[guide.user_email]}
+                                                    alt={guide.author_name}
+                                                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                                />
+                                            ) : (
+                                                <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                                    {((guide.author_name || guide.user_email) || "").toString().charAt(0).toUpperCase()}
+                                                </div>
+                                            ))}
+                                        <h3 className="font-bold group-hover:underline truncate">
+                                            {guide.title}
+                                        </h3>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-xs text-gray-500 ml-11">
                                         <span className="flex items-center gap-1">
-                                            <Tag size={12} />
-                                            {getKeywords(guide).slice(0, 2).join(", ")}
+                                            <Calendar size={12} />
+                                            {new Date(guide.created_at).toLocaleDateString()}
                                         </span>
-                                    )}
+                                        {getKeywords(guide).length > 0 && (
+                                            <span className="flex items-center gap-1">
+                                                <Tag size={12} />
+                                                {getKeywords(guide).slice(0, 2).join(", ")}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
+                                <ArrowUpRight
+                                    size={20}
+                                    className="text-gray-400 group-hover:text-black transition-colors ml-4"
+                                />
                             </div>
-                            <ArrowUpRight
-                                size={20}
-                                className="text-gray-400 group-hover:text-black transition-colors ml-4"
-                            />
                         </Link>
                     ))}
                 </div>

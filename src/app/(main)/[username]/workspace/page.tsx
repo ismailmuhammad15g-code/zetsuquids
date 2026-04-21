@@ -1,5 +1,6 @@
 "use client";
 import { BookOpen, Calendar, Edit2, Loader2, Mail, X } from "lucide-react";
+import { useParams } from "next/navigation";
 import { type ChangeEvent, useEffect, useState } from "react";
 import FollowButton from "../../../../components/FollowButton";
 import Toast from "../../../../components/Toast";
@@ -8,7 +9,6 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { getAllAvatars, getAvatarForUser } from "../../../../lib/avatar";
 import { supabase } from "../../../../lib/supabase";
 import { GuideMetadata } from "../../../../types/index";
-import { useParams } from "next/navigation";
 
 interface UserProfile {
   user_id?: string;
@@ -35,8 +35,16 @@ interface WorkspaceGuide extends GuideMetadata {
 export default function UserWorkspacePage() {
   const { username: rawUsername } = useParams();
   const { user } = useAuth();
-  // Remove @ prefix if it exists
-  const username = (Array.isArray(rawUsername) ? rawUsername[0] : rawUsername)?.replace(/^@/, "") || "";
+  const normalizeUsername = (value: string | undefined | string[]) => {
+    let raw = Array.isArray(value) ? value[0] : value || "";
+    try {
+      raw = decodeURIComponent(raw);
+    } catch {
+      // Keep original if decode fails
+    }
+    return raw.replace(/^(?:@|%40)+/i, "").trim();
+  };
+  const username = normalizeUsername(rawUsername);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [userGuides, setUserGuides] = useState<WorkspaceGuide[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -300,7 +308,9 @@ export default function UserWorkspacePage() {
               <span className="font-medium text-lg">Account not found</span>
             </div>
             <p className="text-center text-gray-600 mt-2">
-              The user "<strong>@{username}</strong>" does not exist or has been removed.
+              The user "<strong>@{username}</strong>" does not created any Guids Yet, or the account was removed... if you are the owner of the account plz double check for :
+              1: did you created any guids yet?
+              2:did you  deleted your account?
             </p>
           </div>
         </div>

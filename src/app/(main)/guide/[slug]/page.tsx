@@ -177,6 +177,7 @@ export default function GuidePage() {
     const [debouncedSearch, setDebouncedSearch] = useState<string>("");
     const [viewsCount, setViewsCount] = useState<number>(0);
     const [hasRecordedView, setHasRecordedView] = useState<boolean>(false);
+    const [isAdmin, setIsAdmin] = useState<boolean>(false);
     const [showAIChat, setShowAIChat] = useState<boolean>(false);
     const [showSummarizer, setShowSummarizer] = useState<boolean>(false);
     const [showTranslator, setShowTranslator] = useState<boolean>(false);
@@ -826,8 +827,12 @@ export default function GuidePage() {
             />
         );
     }
-    // Check if admin is authenticated via sessionStorage
-    const isAdmin = sessionStorage.getItem("adminAuthenticated") === "true";
+    // Check if admin is authenticated via sessionStorage in browser only
+    useEffect(() => {
+        if (typeof window !== "undefined" && window.sessionStorage) {
+            setIsAdmin(window.sessionStorage.getItem("adminAuthenticated") === "true");
+        }
+    }, []);
 
     // Robust check for ownership (case-insensitive)
     const isOwner =
@@ -844,7 +849,10 @@ export default function GuidePage() {
                 guideAuthor: guide?.user_email,
                 isOwner,
                 isAdmin,
-                sessionAdmin: sessionStorage.getItem("adminAuthenticated"),
+                sessionAdmin:
+                    typeof window !== "undefined" && window.sessionStorage
+                        ? window.sessionStorage.getItem("adminAuthenticated")
+                        : null,
             });
         }
     }, [guide, user, isOwner, isAdmin]);

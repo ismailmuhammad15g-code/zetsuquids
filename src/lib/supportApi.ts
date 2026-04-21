@@ -16,6 +16,8 @@ interface SupportConversation {
     user_email: string;
     user_name?: string;
     last_message?: string;
+    last_message_at?: string;
+    created_at?: string;
     updated_at?: string;
     unread_count?: number;
 }
@@ -38,6 +40,16 @@ interface SupportConversationsResult {
     data?: SupportConversation[];
 }
 
+function formatSupportError(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'string') return error;
+    try {
+        return JSON.stringify(error) || 'Unknown error';
+    } catch {
+        return 'Unknown error';
+    }
+}
+
 export const supportApi = {
     // Get unread message count for a user
     async getUnreadCount(): Promise<number> {
@@ -46,7 +58,7 @@ export const supportApi = {
             // This can be enhanced later when support chat is fully implemented
             return 0
         } catch (error) {
-            console.error('Error getting unread count:', error)
+            console.warn('Error getting unread count:', error)
             return 0
         }
     },
@@ -68,7 +80,7 @@ export const supportApi = {
             return { success: true, data }
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error)
-            console.error('Error sending support message:', error)
+            console.warn('Error sending support message:', errorMsg)
             return { success: false, error: errorMsg }
         }
     },
@@ -86,26 +98,31 @@ export const supportApi = {
             return { success: true, data }
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error)
-            console.error('Error fetching support messages:', error)
+            console.warn('Error fetching support messages:', errorMsg)
             return { success: false, error: errorMsg }
         }
     },
 
     // Get all support conversations (staff only)
     async getAllConversations(): Promise<SupportConversationsResult> {
-        try {
+        const orderColumns = ['last_message_at', 'created_at'];
+
+        for (const orderColumn of orderColumns) {
             const { data, error } = await supabase
                 .from('support_conversations')
                 .select('*')
-                .order('updated_at', { ascending: false })
-
-            if (error) throw error
-            return { success: true, data: data as SupportConversation[] }
-        } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : String(error)
-            console.error('Error fetching conversations:', error)
-            return { success: false, error: errorMsg, data: [] }
+                .order(orderColumn, { ascending: false });
+            if (!error) {
+                return { success: true, data: data as SupportConversation[] };
+            }
+            if (error.code !== '42703') {
+                const errorMsg = formatSupportError(error);
+                console.warn('Error fetching conversations:', errorMsg);
+                return { success: false, error: errorMsg, data: [] };
+            }
         }
+
+        return { success: false, error: 'Could not order support conversations because neither last_message_at nor created_at exists.', data: [] };
     },
 
     // Get messages for a specific conversation
@@ -121,7 +138,7 @@ export const supportApi = {
             return { success: true, data }
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error)
-            console.error('Error fetching conversation messages:', error)
+            console.warn('Error fetching conversation messages:', errorMsg)
             return { success: false, error: errorMsg }
         }
     },
@@ -137,7 +154,7 @@ export const supportApi = {
             if (error) throw error
             return true
         } catch (error) {
-            console.error('Error marking as read:', error)
+            console.warn('Error marking as read:', error)
             return false
         }
     },
@@ -169,7 +186,7 @@ export const supportApi = {
             return { success: true, data }
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error)
-            console.error('Error sending staff reply:', error)
+            console.warn('Error sending staff reply:', errorMsg)
             return { success: false, error: errorMsg }
         }
     },
@@ -194,7 +211,7 @@ export const supportApi = {
             if (convError) throw convError
             return true
         } catch (error) {
-            console.error('Error deleting conversation:', error)
+            console.warn('Error deleting conversation:', error)
             return false
         }
     }

@@ -1,5 +1,5 @@
 "use client";
-import type { RealtimeChannel } from '@supabase/supabase-js'
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import {
     Activity,
     ArrowLeft,
@@ -16,12 +16,12 @@ import {
     Settings,
     Shield,
     Users
-} from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { isSupabaseConfigured, supabase } from '../../../lib/api'
-import { supportApi } from '../../../lib/supportApi'
-import { useRouter } from "next/navigation";
+} from 'lucide-react';
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from 'react';
+import { isSupabaseConfigured, supabase } from '../../../lib/api';
+import { supportApi } from '../../../lib/supportApi';
 
 type StatValue = number | '—'
 
@@ -427,7 +427,7 @@ export default function AdminConsole() {
                                             </div>
                                             <div className="conversation-meta">
                                                 <Clock size={12} />
-                                                <span>{formatTime(conv.last_message_at)}</span>
+                                                <span>{formatTime(conv.last_message_at || conv.created_at)}</span>
                                                 <span className={`status-badge ${conv.status}`}>
                                                     {conv.status}
                                                 </span>
