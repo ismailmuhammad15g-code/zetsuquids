@@ -199,6 +199,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
   const [slugValue, setSlugValue] = useState("");
 
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [coverImageError, setCoverImageError] = useState<string | null>(null);
   const [credits, setCredits] = useState(0);
 
   const invalidateGuides = useInvalidateGuides();
@@ -513,6 +514,41 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
   const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    try {
+      const dimPromise = new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("Failed to load image"));
+      });
+      image.src = objectUrl;
+      await dimPromise;
+
+      const width = image.naturalWidth;
+      const height = image.naturalHeight;
+      URL.revokeObjectURL(objectUrl);
+
+      const recommendedWidth = 1200;
+      const recommendedHeight = 675;
+      const aspectRatio = width / height;
+      const recommendedRatio = 16 / 9;
+      const ratioDiff = Math.abs(aspectRatio - recommendedRatio);
+      const needsWarning = width < recommendedWidth || height < recommendedHeight || ratioDiff > 0.12;
+
+      if (needsWarning) {
+        setCoverImageError(
+          `Recommended cover size is at least ${recommendedWidth}x${recommendedHeight}px with a ~16:9 ratio. Uploaded image is ${width}x${height}.`,
+        );
+      } else {
+        setCoverImageError(null);
+      }
+    } catch (error: unknown) {
+      console.error(error);
+      setCoverImageError("Unable to verify image dimensions.");
+      URL.revokeObjectURL(objectUrl);
+    }
 
     try {
       const toastId = toast.loading("Uploading cover image...");
@@ -1613,6 +1649,57 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
               placeholder="Add keywords (e.g., react, tutorial, web-dev)..."
               className="w-full text-gray-500 placeholder:text-gray-300 border-none focus:ring-0 p-0 text-lg"
             />
+            <div className="grid gap-3 md:grid-cols-[1fr_auto] items-start">
+              <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 p-4">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Cover Image</p>
+                    <p className="text-xs text-gray-500">
+                      Recommended size: 1200×675 pixels, 16:9 ratio.
+                    </p>
+                  </div>
+                  {formData.cover_image && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData((prev) => ({ ...prev, cover_image: "" }));
+                        setCoverImageError(null);
+                      }}
+                      className="text-xs text-red-600 hover:text-red-800"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-col gap-3">
+                  <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black text-white text-sm font-medium cursor-pointer hover:bg-gray-900 transition-colors">
+                    <ImageIcon size={16} />
+                    Select cover image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleCoverImageUpload}
+                    />
+                  </label>
+                  {coverImageError && (
+                    <p className="text-xs text-red-600">{coverImageError}</p>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    The cover will appear above the preview and in guide listings.
+                  </p>
+                  {formData.cover_image && (
+                    <div className="rounded-3xl overflow-hidden border border-gray-200 shadow-sm">
+                      <img
+                        src={formData.cover_image}
+                        alt="Cover preview"
+                        className="w-full h-48 object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
           {/* Type Toggle */}
           <div className="px-8 pb-4 flex gap-4 border-b border-gray-100">
@@ -2123,6 +2210,15 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
                     Guide Preview
                   </div>
                 </div>
+                {formData.cover_image ? (
+                  <div className="w-full h-56 overflow-hidden">
+                    <img
+                      src={formData.cover_image}
+                      alt="Cover preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : null}
                 <div className="p-4">
                   <h4 className="font-bold text-lg text-gray-900 truncate">
                     {formData.title || "Untitled guide"}

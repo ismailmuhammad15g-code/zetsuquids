@@ -1129,6 +1129,17 @@ export default function GuidePage() {
                         </div>
                     )}
 
+                    {/* Cover Image */}
+                    {guide.cover_image && (
+                        <div className="mb-8 overflow-hidden rounded-3xl border border-gray-200 shadow-lg">
+                            <img
+                                src={guide.cover_image}
+                                alt={`Cover image for ${guide.title}`}
+                                className="w-full h-[420px] object-cover"
+                            />
+                        </div>
+                    )}
+
                     {/* Table of Contents Button */}
                     {tableOfContents.length > 0 && (
                         <div className="mb-6">

@@ -43,6 +43,7 @@ export interface Guide {
     markdown?: string;
     html_content?: string;
     css_content?: string;
+    cover_image?: string | null;
     keywords?: string[];
     content_type?: string;
     user_email?: string;

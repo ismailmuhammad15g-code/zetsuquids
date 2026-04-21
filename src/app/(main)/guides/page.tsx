@@ -441,7 +441,20 @@ export default function AllGuidesPage() {
                             href={`/guide/${guide.slug}`}
                             className="group border-2 border-black p-6 hover:shadow-lg transition-all hover:-translate-y-1 flex flex-col"
                         >
-                            <div className="flex items-start justify-between mb-3">
+                            <div className="mb-4 overflow-hidden rounded-3xl bg-gray-100">
+                        {guide.cover_image ? (
+                            <img
+                                src={guide.cover_image}
+                                alt={`Cover image for ${guide.title}`}
+                                className="w-full h-44 object-cover"
+                            />
+                        ) : (
+                            <div className="w-full h-44 bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
+                                No cover image
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex items-start justify-between mb-3">
                                 <h3 className="text-xl font-bold group-hover:underline flex-1">
                                     {guide.title}
                                 </h3>
@@ -514,6 +527,18 @@ export default function AllGuidesPage() {
                             href={`/guide/${guide.slug}`}
                             className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors group"
                         >
+                            <div className="flex items-center gap-3 mb-2">
+                            {guide.cover_image ? (
+                                <img
+                                    src={guide.cover_image}
+                                    alt={`Cover thumbnail for ${guide.title}`}
+                                    className="w-20 h-14 object-cover rounded-lg flex-shrink-0"
+                                />
+                            ) : (
+                                <div className="w-20 h-14 bg-gray-100 rounded-lg flex-shrink-0 flex items-center justify-center text-gray-400 text-xs">
+                                    No cover
+                                </div>
+                            )}
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-3 mb-2">
                                     {/* Author avatar */}
