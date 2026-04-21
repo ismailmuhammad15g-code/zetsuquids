@@ -95,3 +95,22 @@ export type Maybe<T> = T | null | undefined;
 
 // State setter types for common patterns
 export type SetState<T> = React.Dispatch<React.SetStateAction<T>>;
+
+// UI Components Library Types
+export interface UiComponent {
+  id?: string | number;
+  title: string;
+  description?: string;
+  tags?: string[];
+  html_code: string;
+  css_code: string;
+  js_code: string;
+  env_vars?: Record<string, string>;
+  author_name?: string;
+  author_id?: string;
+  author_avatar?: string;
+  created_at?: string;
+  likes_count?: number;
+  views_count?: number;
+  theme?: 'light' | 'dark' | 'both';
+}

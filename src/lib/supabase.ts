@@ -169,3 +169,95 @@ export const guidesApi = {
         return true;
     },
 };
+
+// UI Components API
+import { UiComponent } from "../types";
+
+export const uiComponentsApi = {
+    async getAll(): Promise<UiComponent[]> {
+        if (!isSupabaseConfigured()) {
+            return JSON.parse(localStorage.getItem("ui_components") || "[]");
+        }
+        const { data, error } = await supabase
+            .from("ui_components")
+            .select("*")
+            .order("created_at", { ascending: false });
+        if (error) {
+            console.error("Supabase Error fetch ui_components:", error);
+            // Fallback to local storage if table doesn't exist
+            return JSON.parse(localStorage.getItem("ui_components") || "[]");
+        }
+        return data || [];
+    },
+
+    async create(component: UiComponent): Promise<UiComponent> {
+        if (!isSupabaseConfigured()) {
+            const components: UiComponent[] = JSON.parse(localStorage.getItem("ui_components") || "[]");
+            const newComponent: UiComponent = {
+                ...component,
+                id: Date.now().toString(),
+                created_at: new Date().toISOString(),
+                views_count: 0,
+                likes_count: 0,
+            };
+            components.unshift(newComponent);
+            localStorage.setItem("ui_components", JSON.stringify(components));
+            return newComponent;
+        }
+        
+        try {
+            const componentId = component.id || Date.now().toString();
+            const { data, error } = await supabase
+                .from("ui_components")
+                .insert([
+                    {
+                        id: componentId,
+                        title: component.title,
+                        description: component.description || null,
+                        tags: component.tags || [],
+                        env_vars: component.env_vars || {},
+                        html_code: component.html_code,
+                        css_code: component.css_code,
+                        js_code: component.js_code,
+                        author_name: component.author_name || 'Anonymous',
+                        author_id: component.author_id || null, // Ensure undefined is explicitly null
+                        author_avatar: component.author_avatar || null,
+                        theme: component.theme || 'light',
+                    },
+                ])
+                .select()
+                .single();
+            if (error) throw error;
+            return data as UiComponent;
+        } catch (e: any) {
+            console.error("Supabase Error insert ui_components, falling back to local:", e?.message || e?.details || e?.hint || e);
+            const components: UiComponent[] = JSON.parse(localStorage.getItem("ui_components") || "[]");
+            const newComponent: UiComponent = {
+                ...component,
+                id: Date.now().toString(),
+                created_at: new Date().toISOString(),
+                views_count: 0,
+                likes_count: 0,
+            };
+            components.unshift(newComponent);
+            localStorage.setItem("ui_components", JSON.stringify(components));
+            return newComponent;
+        }
+    },
+
+    async delete(id: number | string): Promise<boolean> {
+        if (!isSupabaseConfigured()) {
+            const components: UiComponent[] = JSON.parse(localStorage.getItem("ui_components") || "[]");
+            const filtered = components.filter((c) => c.id !== id);
+            localStorage.setItem("ui_components", JSON.stringify(filtered));
+            return true;
+        }
+        const { error } = await supabase.from("ui_components").delete().eq("id", id);
+        if (error) {
+           const components: UiComponent[] = JSON.parse(localStorage.getItem("ui_components") || "[]");
+           const filtered = components.filter((c) => c.id !== id);
+           localStorage.setItem("ui_components", JSON.stringify(filtered));
+        }
+        return true;
+    },
+};
