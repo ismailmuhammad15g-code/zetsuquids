@@ -9,8 +9,16 @@ export function uploadImageToImgBB(
     onProgress?: (progress: number) => void
 ): Promise<string> {
     return new Promise((resolve, reject) => {
-        // Standard API key - should preferably come from env but keeping it robust
-        const API_KEY = "1d1f0d90c8b5e24ebdfec95f9c4019ab";
+        // Standard API key - prefer env-based key when available
+        const API_KEY =
+            process.env.NEXT_PUBLIC_IMGBB_API_KEY ||
+            "1d1f0d90c8b5e24ebdfec95f9c4019ab";
+
+        if (!API_KEY) {
+            reject(new Error("ImgBB API key is missing"));
+            return;
+        }
+
         const formData = new FormData();
         formData.append("image", file);
 
@@ -30,11 +38,19 @@ export function uploadImageToImgBB(
             if (xhr.status >= 200 && xhr.status < 300) {
                 try {
                     const response = JSON.parse(xhr.responseText);
-                    if (response.success) {
-                        resolve(response.data.url);
-                    } else {
-                        reject(new Error(response.error?.message || "Upload failed"));
+                    if (response.success && response.data) {
+                        const imageUrl =
+                            response.data.url ||
+                            response.data.display_url ||
+                            response.data.image?.url ||
+                            response.data.image?.display_url;
+
+                        if (typeof imageUrl === "string" && imageUrl.trim()) {
+                            resolve(imageUrl);
+                            return;
+                        }
                     }
+                    reject(new Error(response.error?.message || "Upload failed"));
                 } catch (e) {
                     reject(new Error("Failed to parse response"));
                 }

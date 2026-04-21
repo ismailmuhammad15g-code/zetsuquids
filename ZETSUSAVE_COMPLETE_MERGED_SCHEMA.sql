@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS guides (
   markdown TEXT DEFAULT '',
   html_content TEXT DEFAULT '',
   css_content TEXT DEFAULT '',
+  cover_image TEXT,
   keywords TEXT[] DEFAULT '{}',
   content_type TEXT DEFAULT 'markdown',
   user_email TEXT,

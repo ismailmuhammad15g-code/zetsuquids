@@ -3,9 +3,11 @@ import { BookOpen, Calendar, Edit2, Loader2, Mail, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { type ChangeEvent, useEffect, useState } from "react";
 import FollowButton from "../../../../components/FollowButton";
+import GuideEditModal from "../../../../components/GuideEditModal";
 import Toast from "../../../../components/Toast";
 import VerifiedBadge from "../../../../components/VerifiedBadge";
 import { useAuth } from "../../../../contexts/AuthContext";
+import { Guide } from "../../../../lib/api";
 import { getAllAvatars, getAvatarForUser } from "../../../../lib/avatar";
 import { supabase } from "../../../../lib/supabase";
 import { GuideMetadata } from "../../../../types/index";
@@ -51,6 +53,8 @@ export default function UserWorkspacePage() {
   const [error, setError] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  const [showGuideEditModal, setShowGuideEditModal] = useState<boolean>(false);
+  const [selectedGuideToEdit, setSelectedGuideToEdit] = useState<Guide | null>(null);
   const [editBio, setEditBio] = useState<string>("");
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState<boolean>(false);
@@ -585,62 +589,95 @@ export default function UserWorkspacePage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {userGuides.map((guide) => (
-                <a
-                  key={guide.id || guide.slug}
-                  href={`/guide/${guide.slug}`}
-                  className="group border-2 border-black hover:bg-black transition-colors duration-200"
-                >
-                  <div className="p-6">
-                    <h3 className="font-bold text-lg mb-2 group-hover:text-white transition-colors">
-                      {guide.title}
-                    </h3>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {userGuides.map((guide) => (
+                  <a
+                    key={guide.id || guide.slug}
+                    href={`/guide/${guide.slug}`}
+                    className="group border-2 border-black hover:bg-black transition-colors duration-200"
+                  >
+                    <div className="p-6">
+                      <h3 className="font-bold text-lg mb-2 group-hover:text-white transition-colors">
+                        {guide.title}
+                      </h3>
 
-                    {guide.keywords && guide.keywords.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {guide.keywords.slice(0, 3).map((keyword: string, idx: number) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-1 text-xs bg-gray-200 text-gray-700 group-hover:bg-gray-700 group-hover:text-white transition-colors rounded"
-                          >
-                            {keyword}
+                      {guide.keywords && guide.keywords.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {guide.keywords.slice(0, 3).map((keyword: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-1 text-xs bg-gray-200 text-gray-700 group-hover:bg-gray-700 group-hover:text-white transition-colors rounded"
+                            >
+                              {keyword}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <p className="text-gray-600 group-hover:text-gray-300 transition-colors text-sm mb-4 line-clamp-2">
+                        {(
+                          guide.markdown ||
+                          guide.content ||
+                          guide.html_content ||
+                          ""
+                        )
+                          .substring(0, 120)
+                          .replace(/[#*`]/g, "")
+                          .trim()}
+                        ...
+                      </p>
+
+                      <div className="flex items-center justify-between pt-4 border-t-2 border-gray-200 group-hover:border-gray-700 transition-colors">
+                        <span className="text-xs text-gray-500 group-hover:text-gray-400">
+                          {guide.created_at
+                            ? new Date(guide.created_at).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                            : "Unknown date"}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {isOwnWorkspace && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setSelectedGuideToEdit(guide as Guide);
+                                setShowGuideEditModal(true);
+                              }}
+                              className="text-xs px-3 py-1 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition-colors"
+                            >
+                              Edit
+                            </button>
+                          )}
+                          <span className="text-sm font-bold text-gray-400 group-hover:text-white transition-colors">
+                            Read →
                           </span>
-                        ))}
+                        </div>
                       </div>
-                    )}
-
-                    <p className="text-gray-600 group-hover:text-gray-300 transition-colors text-sm mb-4 line-clamp-2">
-                      {(
-                        guide.markdown ||
-                        guide.content ||
-                        guide.html_content ||
-                        ""
-                      )
-                        .substring(0, 120)
-                        .replace(/[#*`]/g, "")
-                        .trim()}
-                      ...
-                    </p>
-
-                    <div className="flex items-center justify-between pt-4 border-t-2 border-gray-200 group-hover:border-gray-700 transition-colors">
-                      <span className="text-xs text-gray-500 group-hover:text-gray-400">
-                        {guide.created_at
-                          ? new Date(guide.created_at).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })
-                          : "Unknown date"}
-                      </span>
-                      <span className="text-sm font-bold text-gray-400 group-hover:text-white transition-colors">
-                        Read →
-                      </span>
                     </div>
-                  </div>
-                </a>
-              ))}
-            </div>
+                  </a>
+                ))}
+              </div>
+              {showGuideEditModal && selectedGuideToEdit && (
+                <GuideEditModal
+                  guide={selectedGuideToEdit}
+                  onClose={() => setShowGuideEditModal(false)}
+                  onSaved={(updatedGuide: Guide) => {
+                    setUserGuides((prev) =>
+                      prev.map((item) =>
+                        item.id === updatedGuide.id ? { ...item, ...updatedGuide } : item,
+                      ),
+                    );
+                    setSelectedGuideToEdit(null);
+                    setShowGuideEditModal(false);
+                  }}
+                />
+              )}
+            </>
           )}
         </div>
 

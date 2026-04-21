@@ -1623,10 +1623,10 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 flex-col overflow-hidden lg:flex-row">
         {/* Editor Side */}
         <div
-          className={`flex-1 flex flex-col h-full bg-white transition-all duration-300 ${viewMode === "preview" ? "hidden" : "block"}`}
+          className={`flex-1 min-h-0 flex flex-col bg-white transition-all duration-300 ${viewMode === "preview" ? "hidden" : "block"}`}
         >
           {" "}
           {/* Metadata Inputs */}
@@ -2194,7 +2194,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
 
         {/* Live Preview Side */}
         <div
-          className={`flex-1 border-l border-gray-200 bg-white overflow-y-auto h-full transition-all duration-300 ${viewMode === "edit" ? "hidden" : "block"} ${viewMode === "preview" ? "max-w-4xl mx-auto border-l-0 shadow-xl my-8 rounded-xl" : ""}`}
+          className={`flex-1 min-h-0 border-t border-gray-200 bg-white overflow-y-auto h-full transition-all duration-300 lg:border-t-0 lg:border-l ${viewMode === "edit" ? "hidden" : "block"} ${viewMode === "preview" ? "max-w-4xl mx-auto border-l-0 shadow-xl my-8 rounded-xl" : ""}`}
         >
           {viewMode === "split" && (
             <div className="bg-gray-50 px-6 py-2 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider sticky top-0">

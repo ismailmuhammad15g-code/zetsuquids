@@ -8,6 +8,7 @@ import {
     ChevronUp,
     Clock,
     Download,
+    Edit2,
     ExternalLink,
     Eye,
     FileText,
@@ -41,6 +42,7 @@ import DownloadGuideModal from "../../../../components/DownloadGuideModal";
 import FollowButton from "../../../../components/FollowButton";
 import { GuideAIChat } from "../../../../components/GuideAIChat";
 import GuideComments from "../../../../components/GuideComments";
+import GuideEditModal from "../../../../components/GuideEditModal";
 import GuideHistoryModal from "../../../../components/GuideHistoryModal";
 import GuideInlineComments from "../../../../components/GuideInlineComment";
 import GuideRating from "../../../../components/GuideRating";
@@ -167,6 +169,8 @@ export default function GuidePage() {
     const [authorAvatar, setAuthorAvatar] = useState<string | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
     const [showHistory, setShowHistory] = useState<boolean>(false);
+    const [showEditModal, setShowEditModal] = useState<boolean>(false);
+    const [historyCount, setHistoryCount] = useState<number>(0);
     const [showDownloadModal, setShowDownloadModal] = useState<boolean>(false);
     const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
     const [isPlayingTTS, setIsPlayingTTS] = useState<boolean>(false);
@@ -501,6 +505,14 @@ export default function GuidePage() {
             }
 
             setGuide(guideData);
+
+            try {
+                const history = await guidesApi.getHistory(guideData.id!);
+                setHistoryCount(history.length);
+            } catch (err) {
+                console.warn("Unable to load guide history count:", err);
+                setHistoryCount(0);
+            }
 
             // Fetch inline comments for text highlighting
             if (guideData.id) {
@@ -841,6 +853,16 @@ export default function GuidePage() {
         (guide.user_email === user.email ||
             guide.user_email.toLowerCase() === user.email.toLowerCase());
 
+    const handleGuideUpdated = async (updatedGuide: Guide) => {
+        setGuide(updatedGuide);
+        try {
+            const history = await guidesApi.getHistory(updatedGuide.id!);
+            setHistoryCount(history.length);
+        } catch (err) {
+            console.warn("Unable to refresh guide history count:", err);
+        }
+    };
+
     // Debug permissions
     useEffect(() => {
         if (guide) {
@@ -1060,6 +1082,12 @@ export default function GuidePage() {
                                 <Eye size={16} />
                                 {viewsCount.toLocaleString()}{" "}
                                 {viewsCount === 1 ? "view" : "views"}
+                            </span>
+                        )}
+                        {historyCount > 0 && (
+                            <span className="flex items-center gap-2 px-3 py-1 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-sm font-medium border border-orange-100 dark:border-orange-800">
+                                <Clock size={16} />
+                                {historyCount} {historyCount === 1 ? "change" : "changes"}
                             </span>
                         )}
                         {guide.content_type === "html" && (
@@ -1497,6 +1525,16 @@ export default function GuidePage() {
                                         <>
                                             <button
                                                 onClick={() => {
+                                                    setShowEditModal(true);
+                                                    setShowMoreMenu(false);
+                                                }}
+                                                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black border-b border-gray-100"
+                                            >
+                                                <Edit2 size={16} />
+                                                Edit Guide
+                                            </button>
+                                            <button
+                                                onClick={() => {
                                                     setShowHistory(true);
                                                     setShowMoreMenu(false);
                                                 }}
@@ -1574,7 +1612,7 @@ export default function GuidePage() {
                     isGuideOwner={!!isOwner}
                     onCommentsUpdated={loadGuide}
                     commentCount={0}
-                    onCommentCountChange={() => {}}
+                    onCommentCountChange={() => { }}
                 />
 
                 {/* Comments Section */}
@@ -1609,6 +1647,15 @@ export default function GuidePage() {
                     confirmText="Yes, Delete"
                     cancelText="Cancel"
                 />
+
+                {/* Edit Modal */}
+                {showEditModal && guide && (
+                    <GuideEditModal
+                        guide={guide}
+                        onClose={() => setShowEditModal(false)}
+                        onSaved={handleGuideUpdated}
+                    />
+                )}
 
                 {/* History Modal */}
                 {showHistory && (

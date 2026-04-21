@@ -34,6 +34,33 @@ export function sanitizeSlug(value: string | null | undefined): string {
         .replace(/^-|-$/g, "");
 }
 
+function getLocalGuides(): Guide[] {
+    if (typeof window === "undefined") return [];
+    try {
+        return JSON.parse(localStorage.getItem("guides") || "[]");
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveLocalGuides(guides: Guide[]): void {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("guides", JSON.stringify(guides));
+}
+
+function mergeGuideWithLocalCover(guide: Guide): Guide {
+    if (!guide || typeof window === "undefined") return guide;
+    const localGuide = getLocalGuides().find((local) =>
+        (local.slug && guide.slug && local.slug === guide.slug) ||
+        (local.id !== undefined && guide.id !== undefined && String(local.id) === String(guide.id))
+    );
+    if (!localGuide) return guide;
+    if (!guide.cover_image && localGuide.cover_image) {
+        return { ...guide, cover_image: localGuide.cover_image };
+    }
+    return guide;
+}
+
 // Types for Guides
 export interface Guide {
     id?: number | string;
@@ -72,12 +99,7 @@ export interface SearchResult extends Guide {
 export const guidesApi = {
     async getAll(): Promise<Guide[]> {
         let supabaseGuides: Guide[] = [];
-        let localGuides: Guide[] = [];
-        try {
-            localGuides = JSON.parse(localStorage.getItem("guides") || "[]");
-        } catch (e) {
-            // Ignore parse error
-        }
+        const localGuides: Guide[] = getLocalGuides();
 
         // Try Supabase FIRST if configured
         if (isSupabaseConfigured()) {
@@ -108,7 +130,7 @@ export const guidesApi = {
         }
 
         // MERGE: Combine Supabase guides with LocalStorage guides
-        // Priority: Supabase (latest) > LocalStorage (unsynced)
+        // Priority: Supabase (latest) > LocalStorage (unsynced), but keep local cover image if DB lacks it
 
         const mergedMap = new Map<string, Guide>();
 
@@ -119,9 +141,13 @@ export const guidesApi = {
             }
         });
 
-        // 2. Overwrite/Add Supabase guides (authoritative source)
+        // 2. Overwrite/Add Supabase guides (authoritative source), but preserve local cover_image when needed
         supabaseGuides.forEach((g) => {
-            if (g.slug) {
+            if (!g.slug) return;
+            const existingLocal = mergedMap.get(g.slug);
+            if (existingLocal?.cover_image && !g.cover_image) {
+                mergedMap.set(g.slug, { ...g, cover_image: existingLocal.cover_image });
+            } else {
                 mergedMap.set(g.slug, g);
             }
         });
@@ -137,7 +163,7 @@ export const guidesApi = {
 
         // Safe Update of LocalStorage
         if (mergedGuides.length > 0) {
-            localStorage.setItem("guides", JSON.stringify(mergedGuides));
+            saveLocalGuides(mergedGuides);
         }
 
         return mergedGuides;
@@ -157,7 +183,7 @@ export const guidesApi = {
                 if (error) {
                     console.log("Supabase getBySlug error:", error.message);
                 } else if (data) {
-                    return data;
+                    return mergeGuideWithLocalCover(data);
                 }
             } catch (err) {
                 console.error("Supabase error:", err);
@@ -165,8 +191,7 @@ export const guidesApi = {
         }
 
         // Fallback to localStorage
-        const localGuides: Guide[] = JSON.parse(localStorage.getItem("guides") || "[]");
-        const localGuide = localGuides.find((g) => g.slug === slug);
+        const localGuide = getLocalGuides().find((g) => g.slug === slug);
         console.log(
             "localStorage result:",
             localGuide ? localGuide.title : "not found",
@@ -189,7 +214,7 @@ export const guidesApi = {
                 if (error) {
                     console.log("Supabase getById error:", error.message);
                 } else if (data) {
-                    return data;
+                    return mergeGuideWithLocalCover(data);
                 }
             } catch (err) {
                 console.error("Supabase error:", err);
@@ -197,8 +222,8 @@ export const guidesApi = {
         }
 
         // Fallback to localStorage
-        const localGuides: Guide[] = JSON.parse(localStorage.getItem("guides") || "[]");
-        return localGuides.find((g) => g.id == id) || null;
+        const localGuide = getLocalGuides().find((g) => String(g.id) === String(id));
+        return localGuide || null;
     },
 
     async create(guide: Guide): Promise<Guide> {
@@ -285,9 +310,9 @@ export const guidesApi = {
 
                         if (!retryResult.error && retryResult.data) {
                             console.log("Supabase insert succeeded after removing unsupported cover_image column:", retryResult.data);
-                            const guides: Guide[] = JSON.parse(localStorage.getItem("guides") || "[]");
+                            const guides: Guide[] = getLocalGuides();
                             guides.unshift(retryResult.data);
-                            localStorage.setItem("guides", JSON.stringify(guides));
+                            saveLocalGuides(guides);
                             return retryResult.data;
                         }
 
@@ -300,9 +325,9 @@ export const guidesApi = {
                 } else if (data) {
                     console.log("Successfully saved to Supabase:", data);
                     // Also save to localStorage for offline access
-                    const guides: Guide[] = JSON.parse(localStorage.getItem("guides") || "[]");
+                    const guides: Guide[] = getLocalGuides();
                     guides.unshift(data);
-                    localStorage.setItem("guides", JSON.stringify(guides));
+                    saveLocalGuides(guides);
                     return data;
                 }
             } catch (err) {
@@ -372,7 +397,54 @@ export const guidesApi = {
             .eq("id", id)
             .select()
             .single();
-        if (error) throw error;
+
+        if (!error && data) {
+            const guides: Guide[] = getLocalGuides();
+            const idx = guides.findIndex((g) => String(g.id) === String(id));
+            if (idx !== -1) {
+                guides[idx] = { ...guides[idx], ...data };
+            } else {
+                guides.unshift(data);
+            }
+            saveLocalGuides(guides);
+            return data;
+        }
+
+        if (error) {
+            const errorMessage = `${error.message || ""} ${error.details || ""} ${error.hint || ""}`.trim();
+            const shouldRetryWithoutCover =
+                error.code === "42703" ||
+                /cover_image/i.test(errorMessage) ||
+                /column \"cover_image\" does not exist/i.test(errorMessage);
+
+            if (shouldRetryWithoutCover && updates.cover_image !== undefined) {
+                const { cover_image, ...fallbackUpdates } = updates as any;
+                const retryResult = await supabase
+                    .from("guides")
+                    .update({ ...fallbackUpdates, updated_at: new Date().toISOString() })
+                    .eq("id", id)
+                    .select()
+                    .single();
+
+                if (!retryResult.error && retryResult.data) {
+                    const mergedData = {
+                        ...retryResult.data,
+                        cover_image: updates.cover_image || null,
+                    };
+                    const guides: Guide[] = getLocalGuides();
+                    const idx = guides.findIndex((g) => String(g.id) === String(id));
+                    if (idx !== -1) {
+                        guides[idx] = { ...guides[idx], ...mergedData };
+                    } else {
+                        guides.unshift(mergedData);
+                    }
+                    saveLocalGuides(guides);
+                    return mergedData;
+                }
+            }
+
+            throw error;
+        }
         return data;
     },
 
