@@ -24,10 +24,10 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import GuideRecommendations from "../../../components/GuideRecommendations";
 // import { useAuth } from "../contexts/AuthContext";
+import Link from "next/link";
 import { useGuides } from "../../../hooks/useGuides";
 import { getAvatarForUser } from "../../../lib/avatar";
 import { supabase } from "../../../lib/supabase";
-import Link from "next/link";
 
 interface OutletContextType {
     openAddModal: () => void;

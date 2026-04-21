@@ -30,6 +30,8 @@ import {
     X,
 } from "lucide-react";
 import { marked } from "marked";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
@@ -58,8 +60,6 @@ import { Guide, guidesApi } from "../../../../lib/api";
 import { getAvatarForUser } from "../../../../lib/avatar";
 import { supabase } from "../../../../lib/supabase";
 import { sanitizeContent } from "../../../../lib/utils";
-import { useRouter, useParams } from "next/navigation";
-import Link from "next/link";
 
 // Type definitions
 interface TableOfContentsItem {
@@ -461,13 +461,13 @@ export default function GuidePage() {
                 container.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded">Failed to load quiz.</div>`;
             }
         });
-        
+
         // --- Highlight.js Syntax Highlighting ---
         const highlightTimer = setTimeout(() => {
             if (typeof window !== "undefined" && (window as any).hljs) {
                 try {
                     document.querySelectorAll("pre code").forEach((block) => {
-                        if (!block.parentElement?.classList.contains("mermaid-render") && 
+                        if (!block.parentElement?.classList.contains("mermaid-render") &&
                             !block.classList.contains("language-mermaid") &&
                             !block.getAttribute("data-highlighted")) {
                             (window as any).hljs.highlightElement(block);
