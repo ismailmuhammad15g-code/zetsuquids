@@ -389,6 +389,12 @@ kbd {
   content: none;
 }
 
+/* Ensure highlight.js colors are not overridden by Tailwind typography */
+.hljs {
+  background: transparent !important; /* let prose-pre handle background */
+}
+
+
 /* ============================================
    AI AGENT STATUS - CYBERPUNK HIGH-TECH DASHBOARD
    ============================================ */

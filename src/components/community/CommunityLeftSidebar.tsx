@@ -1,11 +1,13 @@
+"use client";
 import type { LucideIcon } from "lucide-react";
 import { Bell, Bookmark, Home, Mail, MoreHorizontal, Plus, Search, Sparkles, User, Users } from "lucide-react";
 import type { MouseEvent } from "react";
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { getAvatarForUser } from "../../lib/avatar";
 import { communityApi } from "../../lib/communityApi";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 
 interface CommunityLeftSidebarProps {
   onPostClick: () => void;
@@ -19,7 +21,7 @@ interface NavItem {
 
 export default function CommunityLeftSidebar({ onPostClick }: CommunityLeftSidebarProps) {
   const { user, logout } = useAuth();
-  const location = useLocation();
+  const pathname = usePathname();
   const [showMenu, setShowMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -35,7 +37,7 @@ export default function CommunityLeftSidebar({ onPostClick }: CommunityLeftSideb
     // Poll every 30 seconds for new notifications
     const interval = setInterval(checkUnread, 30000);
     return () => clearInterval(interval);
-  }, [user, location.pathname]); // Re-check when path changes (e.g. visiting notifications marks them read)
+  }, [user, pathname]); // Re-check when path changes (e.g. visiting notifications marks them read)
 
   const navItems: NavItem[] = [
     { name: "Home", icon: Home, href: "/community" },
@@ -61,7 +63,7 @@ export default function CommunityLeftSidebar({ onPostClick }: CommunityLeftSideb
         <div className="flex flex-col items-center xl:items-start w-full h-full py-4 pt-2">
           {/* Logo */}
           <Link
-            to="/"
+            href="/"
             className="flex items-center justify-center w-12 h-12 rounded-full hover:bg-white/10 transition-colors xl:ml-2 mb-2"
           >
             <Sparkles className="text-[#e7e9ea]" size={28} />
@@ -70,7 +72,7 @@ export default function CommunityLeftSidebar({ onPostClick }: CommunityLeftSideb
           {/* Nav Links */}
           <nav className="flex flex-col gap-2 w-full mt-2">
             {navItems.map((item) => {
-              const isActive = location.pathname === item.href;
+              const isActive = pathname === item.href;
               const Icon = item.icon;
               if (item.name === "More") {
                 return (
@@ -80,10 +82,10 @@ export default function CommunityLeftSidebar({ onPostClick }: CommunityLeftSideb
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
                         <div className="absolute top-full lg:top-auto lg:bottom-full mt-2 lg:mb-2 lg:mt-0 bg-black border border-[#2f3336] rounded-2xl shadow-[0_0_15px_rgba(255,255,255,0.2)] w-max min-w-[260px] overflow-hidden z-50 py-3 left-1/2 -translate-x-1/2 xl:left-0 xl:translate-x-0">
-                          <Link to="/settings" className="block px-4 py-3 hover:bg-white/[0.03] text-[#e7e9ea] font-bold text-[15px] transition-colors">
+                          <Link href="/settings" className="block px-4 py-3 hover:bg-white/[0.03] text-[#e7e9ea] font-bold text-[15px] transition-colors">
                             Settings and privacy
                           </Link>
-                          <Link to="/support" className="block px-4 py-3 hover:bg-white/[0.03] text-[#e7e9ea] font-bold text-[15px] transition-colors">
+                          <Link href="/support" className="block px-4 py-3 hover:bg-white/[0.03] text-[#e7e9ea] font-bold text-[15px] transition-colors">
                             Help Center
                           </Link>
                           <button onClick={() => setShowMoreMenu(false)} className="w-full text-left px-4 py-3 hover:bg-white/[0.03] text-[#e7e9ea] font-bold text-[15px] transition-colors">
@@ -118,7 +120,7 @@ export default function CommunityLeftSidebar({ onPostClick }: CommunityLeftSideb
               return (
                 <Link
                   key={item.name}
-                  to={item.href}
+                  href={item.href}
                   className="flex items-center justify-center xl:justify-start w-fit xl:w-auto p-3 xl:px-4 xl:py-3 rounded-full hover:bg-[#181818] transition-colors group mx-auto xl:mx-0"
                 >
                   <div className="relative">
@@ -135,7 +137,7 @@ export default function CommunityLeftSidebar({ onPostClick }: CommunityLeftSideb
                   </div>
                   <span
 
-                    className={`hidden xl:block ml-4 text-[20px] ${(isActive || (location.pathname.startsWith(item.href) && item.href !== "/community")) ? "font-bold" : "font-normal"
+                    className={`hidden xl:block ml-4 text-[20px] ${(isActive || (pathname.startsWith(item.href) && item.href !== "/community")) ? "font-bold" : "font-normal"
                       } text-[#e7e9ea]`}
                   >
                     {item.name}
@@ -159,7 +161,7 @@ export default function CommunityLeftSidebar({ onPostClick }: CommunityLeftSideb
           </button>
 
           <Link
-            to="/community/communities?create=1"
+            href="/community/communities?create=1"
             className="mt-3 w-14 h-14 xl:w-[225px] xl:h-[52px] border border-[#2f3336] hover:bg-[#181818] text-[#e7e9ea] rounded-full flex items-center justify-center font-bold text-[16px] transition-colors"
           >
             <span className="hidden xl:flex items-center gap-2">
@@ -225,12 +227,12 @@ export default function CommunityLeftSidebar({ onPostClick }: CommunityLeftSideb
       {/* Mobile Bottom Tab Bar: < sm */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-black/80 backdrop-blur-md border-t border-[#2f3336] z-50 flex items-center justify-around px-2 pb-safe">
         {navItems.slice(0, 4).map((item) => {
-          const isActive = location.pathname === item.href;
+          const isActive = pathname === item.href;
           const Icon = item.icon;
           return (
             <Link
               key={item.name}
-              to={item.href}
+              href={item.href}
               className="p-3 w-full flex items-center justify-center relative group"
             >
               <Icon

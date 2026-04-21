@@ -144,7 +144,7 @@ export const communityApi = {
                     return [];
                 }
 
-                const followedIds = follows.map((f) => f.following_id);
+                const followedIds = follows.map((f: { following_id: string }) => f.following_id);
                 followedIds.push(userId);
                 query = query.in("user_id", followedIds);
             } else if (category !== "All" && category !== "For you") {
@@ -166,16 +166,16 @@ export const communityApi = {
         }
 
         // Fetch author profiles
-        const userIds = [...new Set(posts.map((p) => p.user_id))];
+        const userIds = [...new Set(posts.map((p: { user_id: string }) => p.user_id))];
         const { data: profiles } = await supabase
             .from("zetsuguide_user_profiles")
             .select("*")
             .in("user_id", userIds);
 
         const profileMap: Record<string, UserProfile> = {};
-        profiles?.forEach((p) => (profileMap[p.user_id] = p));
+        profiles?.forEach((p: UserProfile) => (profileMap[p.user_id] = p));
 
-        return posts.map((post) => ({
+        return posts.map((post: Post) => ({
             ...post,
             author: profileMap[post.user_id] || {
                 display_name: "Unknown User",
@@ -210,16 +210,16 @@ export const communityApi = {
         const { data: posts, error } = await query;
         if (error || !posts || posts.length === 0) return [];
 
-        const userIds = [...new Set(posts.map((p) => p.user_id))];
+        const userIds = [...new Set(posts.map((p: { user_id: string }) => p.user_id))];
         const { data: profiles } = await supabase
             .from("zetsuguide_user_profiles")
             .select("*")
             .in("user_id", userIds);
 
         const profileMap: Record<string, UserProfile> = {};
-        profiles?.forEach((p) => (profileMap[p.user_id] = p));
+        profiles?.forEach((p: UserProfile) => (profileMap[p.user_id] = p));
 
-        return posts.map((post) => ({
+        return posts.map((post: Post) => ({
             ...post,
             author: profileMap[post.user_id] || {
                 display_name: "Unknown User",
@@ -301,16 +301,16 @@ export const communityApi = {
 
         if (error || !comments) return [];
 
-        const userIds = [...new Set(comments.map((c) => c.user_id))];
+        const userIds = [...new Set(comments.map((c: { user_id: string }) => c.user_id))];
         const { data: profiles } = await supabase
             .from("zetsuguide_user_profiles")
             .select("*")
             .in("user_id", userIds);
 
         const profileMap: Record<string, UserProfile> = {};
-        profiles?.forEach((p) => (profileMap[p.user_id] = p));
+        profiles?.forEach((p: UserProfile) => (profileMap[p.user_id] = p));
 
-        return comments.map((c) => ({
+        return comments.map((c: PostComment) => ({
             ...c,
             author: profileMap[c.user_id] || {
                 display_name: "Unknown",
@@ -444,7 +444,7 @@ export const communityApi = {
         }
 
         // Step 2: Get the user profiles for those IDs
-        const followingIds = follows.map((f) => f.following_id);
+        const followingIds = follows.map((f: { following_id: string }) => f.following_id);
         const { data: profiles, error: profilesError } = await supabase
             .from("zetsuguide_user_profiles")
             .select("*")
@@ -456,8 +456,8 @@ export const communityApi = {
         }
 
         // Step 3: Merge the data (add followed_at timestamp to each profile)
-        return (profiles || []).map((profile) => {
-            const followRecord = follows.find((f) => f.following_id === profile.user_id);
+        return (profiles || []).map((profile: UserProfile) => {
+            const followRecord = follows.find((f: { following_id: string }) => f.following_id === profile.user_id);
             return {
                 ...profile,
                 followed_at: followRecord?.created_at,
@@ -484,7 +484,7 @@ export const communityApi = {
             console.log("👥 [getWhoToFollow] Already following:", followedUsers);
 
             if (followedUsers && followedUsers.length > 0) {
-                followedUsers.forEach((f) => excludeIds.push(f.following_id));
+                followedUsers.forEach((f: { following_id: string }) => excludeIds.push(f.following_id));
             }
         }
 
@@ -494,7 +494,7 @@ export const communityApi = {
         let allProfiles: UserProfile[] = [];
         const { data } = await supabase.from("zetsuguide_user_profiles").select("*");
         if (data) {
-            allProfiles = data.filter((p) => !excludeIds.includes(p.user_id));
+            allProfiles = data.filter((p: { user_id: string }) => !excludeIds.includes(p.user_id));
         }
 
         // Try to get users with activity first (those who have posted)
@@ -508,7 +508,7 @@ export const communityApi = {
 
         let prioritizedUsers: UserProfile[] = [];
         if (activeUsers && activeUsers.length > 0) {
-            const activeUserIds = [...new Set(activeUsers.map((p) => p.user_id))];
+            const activeUserIds = [...new Set(activeUsers.map((p: { user_id: string }) => p.user_id))];
 
             // Remove self from active users if present
             if (userId) {
@@ -581,7 +581,7 @@ export const communityApi = {
                 .limit(limit);
 
             if (fallback) {
-                return fallback.map((h) => ({
+                return fallback.map((h: { tag: string; usage_count: number; id: string | number }) => ({
                     tag: h.tag,
                     posts_count: h.usage_count,
                     unique_id: h.id,
@@ -607,7 +607,7 @@ export const communityApi = {
             return [];
         }
 
-        return data?.map((item) => ({
+        return data?.map((item: { id: string | number; content: string; category: string; likes_count: number; created_at: string; }) => ({
             id: item.id,
             title: (item.content || "").split('\n')[0].slice(0, 80),
             category: item.category || 'News',
@@ -649,7 +649,7 @@ export const communityApi = {
 
         if (bErr || !bookmarks?.length) return [];
 
-        const postIds = bookmarks.map((b) => b.post_id);
+        const postIds = bookmarks.map((b: { post_id: string | number }) => b.post_id);
 
         // Step 2: Fetch those posts
         const { data: posts, error: pErr } = await supabase
@@ -668,16 +668,16 @@ export const communityApi = {
         if (pErr || !posts?.length) return [];
 
         // Step 3: Fetch profiles
-        const userIds = [...new Set(posts.map((p) => p.user_id))];
+        const userIds = [...new Set(posts.map((p: { user_id: string }) => p.user_id))];
         const { data: profiles } = await supabase
             .from("zetsuguide_user_profiles")
             .select("*")
             .in("user_id", userIds);
 
         const profileMap: Record<string, UserProfile> = {};
-        profiles?.forEach((p) => (profileMap[p.user_id] = p));
+        profiles?.forEach((p: UserProfile) => (profileMap[p.user_id] = p));
 
-        return posts.map((post) => ({
+        return posts.map((post: Post) => ({
             ...post,
             author: profileMap[post.user_id] || {
                 display_name: "Unknown User",
@@ -687,7 +687,7 @@ export const communityApi = {
             likes_count: (post.post_likes as unknown[])?.length || 0,
             comments_count: ((post.post_comments as Array<{ count: number }> | undefined)?.[0]?.count) || 0,
             has_liked: (post.post_likes as Array<{ user_id: string }> | undefined)?.some((l) => l.user_id === userId) || false,
-        })).sort((a, b) => {
+        })).sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
             // Preserve bookmark order
             return postIds.indexOf(a.id as string | number) - postIds.indexOf(b.id as string | number);
         }) as EnrichedPost[];
@@ -709,18 +709,18 @@ export const communityApi = {
         if (error || !data?.length) return [];
 
         // Step 2: Fetch actor profiles
-        const actorIds = [...new Set(data.map((n) => n.actor_id).filter(Boolean))];
+        const actorIds = [...new Set(data.map((n: { actor_id: string }) => n.actor_id).filter(Boolean))];
         const { data: profiles } = await supabase
             .from("zetsuguide_user_profiles")
             .select("*")
             .in("user_id", actorIds);
 
         const profileMap: Record<string, UserProfile> = {};
-        profiles?.forEach((p) => (profileMap[p.user_id] = p));
+        profiles?.forEach((p: UserProfile) => (profileMap[p.user_id] = p));
 
-        return data.map((n) => ({
+        return data.map((n: Notification) => ({
             ...n,
-            actor: profileMap[n.actor_id] || {
+            actor: (n.actor_id ? profileMap[n.actor_id] : undefined) || {
                 display_name: "Someone",
                 username: "user",
                 avatar_url: null,
@@ -853,7 +853,7 @@ export const communityApi = {
             .eq("user_id", userId)
             .single();
 
-        return data.map((post) => ({
+        return data.map((post: Post) => ({
             ...post,
             author: profile,
             likes_count: 0,
@@ -924,7 +924,7 @@ export const communityApi = {
             .eq("user_id", userId);
 
         if (error) return [];
-        return data.map((m) => m.group_id);
+        return data.map((m: { group_id: string | number }) => m.group_id);
     },
 
     async getSuggestedCommunities(userId: string | null = null, limit: number = 3): Promise<Community[]> {
@@ -1036,16 +1036,16 @@ export const communityApi = {
         if (!data || data.length === 0) return [];
 
         // Fetch author profiles
-        const userIds = [...new Set(data.map((p) => p.user_id))];
+        const userIds = [...new Set(data.map((p: { user_id: string }) => p.user_id))];
         const { data: profiles } = await supabase
             .from("zetsuguide_user_profiles")
             .select("*")
             .in("user_id", userIds);
 
         const profileMap: Record<string, UserProfile> = {};
-        profiles?.forEach((p) => (profileMap[p.user_id] = p));
+        profiles?.forEach((p: UserProfile) => (profileMap[p.user_id] = p));
 
-        return data.map((post) => ({
+        return data.map((post: Post) => ({
             ...post,
             author: profileMap[post.user_id] || {
                 display_name: "Unknown User",
@@ -1072,17 +1072,17 @@ export const communityApi = {
         if (cErr || !convos) return [];
 
         // Fetch profiles for the other participant
-        const otherUserIds = convos.map((c) => c.user1_id === userId ? c.user2_id : c.user1_id);
+        const otherUserIds = convos.map((c: Conversation) => c.user1_id === userId ? c.user2_id : c.user1_id);
         const { data: profiles } = await supabase
             .from('zetsuguide_user_profiles')
             .select('*')
             .in('user_id', otherUserIds);
 
         const profileMap: Record<string, UserProfile> = {};
-        profiles?.forEach((p) => (profileMap[p.user_id] = p));
+        profiles?.forEach((p: UserProfile) => (profileMap[p.user_id] = p));
 
         // Get last message for each conversation
-        const convIds = convos.map((c) => c.id);
+        const convIds = convos.map((c: PostComment) => c.id);
         let msgMap: Record<string | number, Message> = {};
         if (convIds.length > 0) {
             const { data: lastMessages } = await supabase
@@ -1091,12 +1091,12 @@ export const communityApi = {
                 .in('conversation_id', convIds)
                 .order('created_at', { ascending: false });
 
-            lastMessages?.forEach((m) => {
+            lastMessages?.forEach((m: Message) => {
                 if (!msgMap[m.conversation_id]) msgMap[m.conversation_id] = m;
             });
         }
 
-        return convos.map((c) => {
+        return convos.map((c: Conversation) => {
             const otherId = c.user1_id === userId ? c.user2_id : c.user1_id;
             return {
                 ...c,

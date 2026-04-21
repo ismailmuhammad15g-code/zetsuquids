@@ -1,10 +1,11 @@
+"use client";
 // Type definitions for TrendsSidebar
 import { BadgeCheck, MoreHorizontal, Search, Users, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getAvatarForUser } from "../../lib/avatar";
 import { communityApi } from "../../lib/communityApi";
+import { useRouter } from "next/navigation";
 
 const FOLLOW_CHANGE_EVENT = "community:follow-change";
 
@@ -69,7 +70,7 @@ interface TrendsSidebarProps {
   user: UserProfile | null;
 }
 export default function TrendsSidebar({ user }: TrendsSidebarProps) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [trends, setTrends] = useState<Trend[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [suggestions, setSuggestions] = useState<UserSuggestion[]>([]);
@@ -89,7 +90,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
   const navigateToProfile = (entity: EntityWithIdentity | null | undefined): void => {
     const username = getEntityUsername(entity);
     if (!username) return;
-    navigate(`/community/profile/${username}`);
+    router.push(`/community/profile/${username}`);
   };
 
   useEffect(() => {
@@ -518,7 +519,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
 
         {trends.length > 0 && (
           <button
-            onClick={() => navigate("/community/explore")}
+            onClick={() => router.push("/community/explore")}
             className="w-full text-left cursor-pointer p-4 text-[15px] text-[#1d9bf0] hover:bg-white/[0.03] transition-colors"
           >
             Show more
@@ -604,7 +605,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
           {suggestedCommunities.map((c) => (
             <div
               key={c.id}
-              onClick={() => navigate(`/community/group/${c.id}`)}
+              onClick={() => router.push(`/community/group/${c.id}`)}
               className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] transition-colors cursor-pointer"
             >
               <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#2f3336] flex-shrink-0">
@@ -625,7 +626,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
             </div>
           ))}
           <button
-            onClick={() => navigate("/community/communities")}
+            onClick={() => router.push("/community/communities")}
             className="w-full cursor-pointer p-4 text-[15px] text-[#1d9bf0] hover:bg-white/[0.03] transition-colors text-left"
           >
             Show more
@@ -709,7 +710,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
 
         {suggestions.length > 0 && (
           <button
-            onClick={() => navigate("/community/people")}
+            onClick={() => router.push("/community/people")}
             className="w-full cursor-pointer p-4 text-[15px] text-[#1d9bf0] hover:bg-white/[0.03] transition-colors text-left"
           >
             Show more

@@ -1,3 +1,4 @@
+"use client";
 // Type definitions for GuideRecommendations
 
 interface GuideRecommendationsProps {
@@ -18,10 +19,10 @@ import {
   User,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvatarForUser } from "../lib/avatar";
 import { supabase } from "../lib/supabase";
+import Link from "next/link";
 
 export default function GuideRecommendations({
   currentGuideSlug = null,
@@ -164,7 +165,7 @@ export default function GuideRecommendations({
         {recommendations.map((guide: any) => (
           <Link
             key={guide.slug}
-            to={`/guide/${guide.slug}`}
+            href={`/guide/${guide.slug}`}
             className="group relative border-2 border-black p-5 hover:shadow-xl transition-all hover:-translate-y-1 flex flex-col bg-white"
           >
             {/* Recommendation Badge */}

@@ -1,3 +1,4 @@
+"use client";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3,
@@ -13,8 +14,9 @@ import {
   Users,
   X,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useLoading } from "../contexts/LoadingContext";
 import { getAvatarForUser } from "../lib/avatar";
@@ -31,6 +33,7 @@ import SearchModal from "./SearchModal";
 import SubscriptionRenewAd from "./SubscriptionRenewAd";
 import { TopLoader } from "./TopLoader";
 import TourCursor from "./TourCursor";
+
 const CookieConsent = lazy(() => import("./CookieConsent").catch(() => import("./AdBlockFallback")));
 
 interface UserProfileState {
@@ -38,9 +41,9 @@ interface UserProfileState {
   [key: string]: unknown;
 }
 
-export default function Layout() {
-  const location = useLocation();
-  const navigate = useNavigate();
+export default function Layout({ children }: { children?: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
   const { user, logout, isAuthenticated } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -61,7 +64,7 @@ export default function Layout() {
   // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
-  }, [location]);
+  }, [pathname]);
 
   // Show top loader briefly on navigation changes
   useEffect(() => {
@@ -69,7 +72,7 @@ export default function Layout() {
     setNavLoading(true);
     const t = setTimeout(() => setNavLoading(false), 700);
     return () => clearTimeout(t);
-  }, [location.pathname]);
+  }, [pathname]);
 
   // Also show top loader when internal links are clicked (improves perceived responsiveness)
   useEffect(() => {
@@ -159,18 +162,18 @@ export default function Layout() {
     const userEmail = user.email;
 
     async function checkProfile() {
-      // Parallel check: Get Profile AND Verify Auth Session
-      const [profileResult, authResult] = await Promise.all([
-        supabase
-          .from("zetsuguide_user_profiles")
-          .select("*")
-          .eq("user_email", userEmail)
-          .maybeSingle(),
-        supabase.auth.getUser(),
-      ]);
+      // Sequential auth/profile checks to avoid Supabase auth token lock races.
+      // Calling supabase.auth.getUser() in parallel with other requests can
+      // trigger "lock ... was released because another request stole it".
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+
+      const profileResult = await supabase
+        .from("zetsuguide_user_profiles")
+        .select("*")
+        .eq("user_email", userEmail)
+        .maybeSingle();
 
       const { data, error: profileError } = profileResult;
-      const { error: authError } = authResult;
 
       // Priority 0: Network Resilience - unexpected profile fetch error
       if (profileError) {
@@ -256,7 +259,7 @@ export default function Layout() {
       label: "Guides",
       icon: <BookOpen size={18} className="translate-y-[1px]" />,
       href: "/guides",
-      isActive: location.pathname.startsWith("/guide"),
+      isActive: pathname.startsWith("/guide"),
     },
     {
       label: "Community",
@@ -301,7 +304,7 @@ export default function Layout() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               {/* Logo */}
-              <Link to="/" className="flex items-center gap-2">
+              <Link href="/" className="flex items-center gap-2">
                 <div className="w-10 h-10 bg-black flex items-center justify-center transition-colors duration-300 dark:bg-white">
                   <span className="text-white font-black text-xl transition-colors duration-300 dark:text-black">
                     D
@@ -401,7 +404,7 @@ export default function Layout() {
                           </div>
                           <div className="py-2 border-b border-gray-200">
                             <Link
-                              to={`/@${getWorkspaceSlug()}/workspace`}
+                              href={`/@${getWorkspaceSlug()}/workspace`}
                               onClick={() => setShowUserMenu(false)}
                               className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
                             >
@@ -409,7 +412,7 @@ export default function Layout() {
                               <span>My Workspace</span>
                             </Link>
                             <Link
-                              to="/stats"
+                              href="/stats"
                               onClick={() => setShowUserMenu(false)}
                               className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
                             >
@@ -417,7 +420,7 @@ export default function Layout() {
                               <span>My Stats</span>
                             </Link>
                             <Link
-                              to="/zetsuguide-ai"
+                              href="/zetsuguide-ai"
                               onClick={() => setShowUserMenu(false)}
                               className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
                             >
@@ -427,7 +430,7 @@ export default function Layout() {
                               </div>
                             </Link>
                             <Link
-                              to="/pricing"
+                              href="/pricing"
                               onClick={() => setShowUserMenu(false)}
                               className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
                             >
@@ -439,7 +442,7 @@ export default function Layout() {
                             onClick={() => {
                               logout();
                               setShowUserMenu(false);
-                              navigate("/");
+                              router.push("/");
                             }}
                             className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors font-medium"
                           >
@@ -452,7 +455,7 @@ export default function Layout() {
                   </div>
                 ) : (
                   <Link
-                    to="/auth"
+                    href="/auth"
                     className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:border-black transition-colors"
                   >
                     <LogIn size={18} />
@@ -484,46 +487,46 @@ export default function Layout() {
                 <div className="px-4 py-6 space-y-4">
                   <nav className="space-y-2">
                     <Link
-                      to="/"
-                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname === "/"
-                          ? "bg-black text-white shadow-lg shadow-black/20"
-                          : "text-gray-600 hover:bg-gray-100"
+                      href="/"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${pathname === "/"
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "text-gray-600 hover:bg-gray-100"
                         }`}
                     >
                       <Home size={22} />
                       <span>Home</span>
                     </Link>
                     <Link
-                      to="/guides"
-                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname.startsWith("/guide")
-                          ? "bg-black text-white shadow-lg shadow-black/20"
-                          : "text-gray-600 hover:bg-gray-100"
+                      href="/guides"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${pathname.startsWith("/guide")
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "text-gray-600 hover:bg-gray-100"
                         }`}
                     >
                       <BookOpen size={22} />
                       <span>All Guides</span>
                     </Link>
                     <Link
-                      to="/community"
-                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${location.pathname === "/community"
-                          ? "bg-black text-white shadow-lg shadow-black/20"
-                          : "text-gray-600 hover:bg-gray-100"
+                      href="/community"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${pathname === "/community"
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "text-gray-600 hover:bg-gray-100"
                         }`}
                     >
                       <Users size={22} />
                       <span>Community</span>
                     </Link>
                     <Link
-                      to="/zetsuguide-ai"
-                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all border-2 border-transparent ${location.pathname === "/zetsuguide-ai"
-                          ? "bg-black text-white shadow-lg shadow-black/20"
-                          : "bg-gradient-to-r from-purple-50 to-pink-50 text-gray-900 border-purple-100"
+                      href="/zetsuguide-ai"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all border-2 border-transparent ${pathname === "/zetsuguide-ai"
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "bg-gradient-to-r from-purple-50 to-pink-50 text-gray-900 border-purple-100"
                         }`}
                     >
                       <Bot
                         size={22}
                         className={
-                          location.pathname === "/zetsuguide-ai"
+                          pathname === "/zetsuguide-ai"
                             ? "text-white"
                             : "text-purple-600"
                         }
@@ -562,7 +565,7 @@ export default function Layout() {
                         </div>
 
                         <Link
-                          to={`/@${getWorkspaceSlug()}/workspace`}
+                          href={`/@${getWorkspaceSlug()}/workspace`}
                           className="flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-gray-600 hover:bg-gray-100 transition-colors"
                         >
                           <BookOpen size={20} />
@@ -570,7 +573,7 @@ export default function Layout() {
                         </Link>
 
                         <Link
-                          to="/stats"
+                          href="/stats"
                           className="flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-gray-600 hover:bg-gray-100 transition-colors"
                         >
                           <BarChart3 size={20} />
@@ -580,7 +583,7 @@ export default function Layout() {
                         <button
                           onClick={() => {
                             logout();
-                            navigate("/");
+                            router.push("/");
                           }}
                           className="w-full flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-red-600 hover:bg-red-50 transition-colors"
                         >
@@ -591,14 +594,14 @@ export default function Layout() {
                     ) : (
                       <div className="space-y-3">
                         <Link
-                          to="/auth"
+                          href="/auth"
                           className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border-2 border-black font-bold hover:bg-gray-50 transition-colors"
                         >
                           <LogIn size={20} />
                           <span>Log In</span>
                         </Link>
                         <Link
-                          to="/auth?mode=register"
+                          href="/auth?mode=register"
                           className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-black text-white font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-black/20"
                         >
                           <Plus size={20} />
@@ -615,16 +618,11 @@ export default function Layout() {
 
         {/* Main Content */}
         <main className="flex-1">
-          <Outlet
-            context={{
-              openAddModal: () => setShowAddModal(true),
-              checkingReferral,
-            }}
-          />
+          {children}
         </main>
 
         {/* Footer - Hidden on Community Page */}
-        {!location.pathname.startsWith("/community") && (
+        {!pathname.startsWith("/community") && (
           <footer className="border-t-2 border-black mt-16">
             <div className="max-w-7xl mx-auto px-4 py-8">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -636,25 +634,25 @@ export default function Layout() {
                 </div>
                 <div className="flex flex-wrap items-center justify-center sm:justify-end gap-6">
                   <Link
-                    to="/faq"
+                    href="/faq"
                     className="text-sm font-medium hover:underline"
                   >
                     FAQ
                   </Link>
                   <Link
-                    to="/pricing"
+                    href="/pricing"
                     className="text-sm font-medium hover:underline"
                   >
                     Pricing
                   </Link>
                   <Link
-                    to="/support"
+                    href="/support"
                     className="text-sm font-medium hover:underline"
                   >
                     Support
                   </Link>
                   <Link
-                    to="/community"
+                    href="/community"
                     className="text-sm font-medium hover:underline"
                   >
                     Community
@@ -722,7 +720,7 @@ export default function Layout() {
                 onClick={() => {
                   logout();
                   setAccountDeleted(false);
-                  navigate("/");
+                  router.push("/");
                 }}
                 className="w-full py-3 bg-black text-white font-bold rounded-lg hover:bg-gray-800 transition-colors"
               >

@@ -1,3 +1,4 @@
+"use client";
 import Lottie from "lottie-react";
 import cakeAnimation from "../assets/cake_snipper.json";
 import { useLoading } from "../contexts/LoadingContext";

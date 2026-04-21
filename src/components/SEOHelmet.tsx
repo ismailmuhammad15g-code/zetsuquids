@@ -1,5 +1,6 @@
+"use client";
 import { useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { usePathname } from "next/navigation";
 
 interface SEOHelmetProps {
   title?: string
@@ -20,9 +21,9 @@ export default function SEOHelmet({
   keywords = "",
   noindex = false,
 }: SEOHelmetProps) {
-  const location = useLocation();
+  const pathname = usePathname();
   const baseUrl = "https://zetsuquids.vercel.app";
-  const currentUrl = `${baseUrl}${location.pathname}`;
+  const currentUrl = `${baseUrl}${pathname}`;
 
   const defaultTitle = "ZetsuGuide - Create, Share & Discover Developer Guides";
   const defaultDescription = "Create and share comprehensive programming guides with AI assistance. Join our community of developers and explore tutorials, code examples, and best practices.";

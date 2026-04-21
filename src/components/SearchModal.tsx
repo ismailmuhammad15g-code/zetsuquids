@@ -1,3 +1,4 @@
+"use client";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
@@ -18,10 +19,10 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { basicSearch, getAIEnhancement, isAIConfigured } from "../lib/ai";
 import { guidesApi } from "../lib/api";
 import AnimatedLoadingSkeleton from "./ui/animated-loading-skeleton";
+import { useRouter } from "next/navigation";
 
 type SearchFilter = "all" | "guides" | "actions";
 type AiState = "idle" | "thinking" | "ready";
@@ -122,7 +123,7 @@ function checkBlacklist(text: string): string[] {
 }
 
 export default function SearchModal({ onClose }: { onClose: () => void }) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -182,7 +183,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
       window.dispatchEvent(new CustomEvent("open-add-guide"));
       onClose();
     } else {
-      navigate(action.path);
+      router.push(action.path);
       onClose();
     }
   }
@@ -375,7 +376,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
     localStorage.setItem("recentSearches", JSON.stringify(updated));
 
     onClose();
-    navigate(`/guide/${guide.slug}`);
+    router.push(`/guide/${guide.slug}`);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {

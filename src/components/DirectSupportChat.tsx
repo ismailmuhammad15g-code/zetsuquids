@@ -7,13 +7,14 @@ import { supportApi } from '../lib/supportApi'; // Import the unified api
 import BotIcon from './BotIcon';
 
 // Import staff profile animations
-import adminProfileImg from '../assets/customarserviceprofiles/admin_profile.png';
 import profile1Animation from '../assets/customarserviceprofiles/profile1.json';
 import profile2Animation from '../assets/customarserviceprofiles/profile2.json';
 import profile3Animation from '../assets/customarserviceprofiles/profile3.json';
 import profile4Animation from '../assets/customarserviceprofiles/profile4.json';
 import directSupportBgAnimation from '../assets/Directsupportbg.json';
 import staffTypingAnimation from '../assets/stufftyping....json';
+
+const adminProfileImg = "https://ui-avatars.com/api/?name=Admin&background=111111&color=ffffff&size=128";
 
 // Message interface
 interface ChatMessage {
@@ -120,7 +121,7 @@ export default function DirectSupportChat() {
     // Upload image to ImgBB (FREE unlimited storage!)
     const uploadImageToStorage = async (file: File): Promise<string | null> => {
         return new Promise((resolve) => {
-            const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY
+            const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY
 
             if (!IMGBB_API_KEY) {
                 console.error('ImgBB API key not found in .env')
@@ -297,7 +298,7 @@ export default function DirectSupportChat() {
                 .order('created_at', { ascending: true })
 
             if (existingMessages && existingMessages.length > 0) {
-                const formattedMessages: ChatMessage[] = existingMessages.map(msg => ({
+                const formattedMessages: ChatMessage[] = existingMessages.map((msg: { id: string | number; sender_type: string; message: string; created_at: string; sender_name?: string; staff_profile_id?: string; image_url?: string; read_status?: string }) => ({
                     id: msg.id,
                     role: msg.sender_type === 'user' ? 'user' : 'support' as ChatMessage['role'],
                     content: msg.message,
@@ -527,7 +528,7 @@ export default function DirectSupportChat() {
                     table: 'support_messages',
                     filter: `conversation_id=eq.${conversationId}`
                 },
-                (payload) => {
+                (payload: import('@supabase/supabase-js').RealtimePostgresInsertPayload<{ id: string | number; message: string; created_at: string; sender_type: "user" | "staff" | "admin"; sender_name?: string; staff_profile_id?: string; image_url?: string }>) => {
                     const newMsg = payload.new
                     if (newMsg.sender_type === 'admin' || newMsg.sender_type === 'staff') {
                         setMessages(prev => [...prev, {
@@ -557,7 +558,7 @@ export default function DirectSupportChat() {
             .on(
                 'broadcast',
                 { event: 'typing' },
-                (payload) => {
+                (payload: { payload: { isSupport: boolean } }) => {
                     // Only react if it comes from support side
                     if (payload.payload.isSupport) {
                         setIsStaffTyping(true)

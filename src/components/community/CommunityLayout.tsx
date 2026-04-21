@@ -1,13 +1,13 @@
+"use client";
 
 
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import CommunityLeftSidebar from "./CommunityLeftSidebar";
 import PostModal from "./PostModal";
 import TrendsSidebar from "./TrendsSidebar";
 
-export default function CommunityLayout() {
+export default function CommunityLayout({ children }: { children?: React.ReactNode }) {
   const { user } = useAuth();
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 
@@ -33,7 +33,7 @@ export default function CommunityLayout() {
 
         {/* Main Central Feed Section (Injected via Outlet) */}
         <main className="w-full sm:max-w-[600px] border-x border-[#2f3336] min-h-[200vh] pb-[80px] sm:pb-0 shrink-0">
-          <Outlet />
+          {children}
         </main>
 
         {/* Right Sidebar */}

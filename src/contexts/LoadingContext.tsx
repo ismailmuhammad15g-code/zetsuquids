@@ -1,3 +1,4 @@
+"use client";
 import { createContext, FC, ReactNode, useCallback, useContext, useState } from "react";
 
 // Loading Context Value Type

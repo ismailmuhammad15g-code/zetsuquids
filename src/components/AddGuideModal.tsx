@@ -1,3 +1,4 @@
+"use client";
 import {
   Activity,
   AlertTriangle,
@@ -46,9 +47,9 @@ import {
   Zap
 } from "lucide-react";
 import { marked } from "marked";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { useInvalidateGuides } from "../hooks/useGuides";
@@ -143,7 +144,7 @@ marked.setOptions({
 } as any);
 
 export default function AddGuideModal({ onClose }: { onClose: () => void }) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, isAuthenticated } = useAuth();
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("markdown");
@@ -190,6 +191,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
     content: "",
     html_content: "",
     css_content: "",
+    cover_image: "",
   });
 
   // New: draft/autosave + editable slug
@@ -347,6 +349,21 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
               console.error("Failed to load mermaid for preview", err);
             });
         }
+
+        // --- Highlight.js Syntax Highlighting ---
+        if (typeof window !== "undefined" && (window as any).hljs) {
+          try {
+            document.querySelectorAll("pre code").forEach((block) => {
+              if (!block.parentElement?.classList.contains("mermaid-render") &&
+                !block.classList.contains("language-mermaid") &&
+                !block.getAttribute("data-highlighted")) {
+                (window as any).hljs.highlightElement(block);
+              }
+            });
+          } catch (e) {
+            console.error("Highlight.js error", e);
+          }
+        }
       }, 100);
       return () => clearTimeout(timer);
     }
@@ -490,6 +507,21 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
     } catch (error: unknown) {
       console.error(error);
       toast.error("Failed to upload image");
+    }
+  };
+
+  const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const toastId = toast.loading("Uploading cover image...");
+      const url = await uploadImageToImgBB(file);
+      setFormData((prev) => ({ ...prev, cover_image: url }));
+      toast.success("Cover image uploaded!", { id: toastId });
+    } catch (error: unknown) {
+      console.error(error);
+      toast.error("Failed to upload cover image");
     }
   };
 
@@ -902,6 +934,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         title: formData.title || "",
         slug: slugValue || undefined,
         keywords,
+        cover_image: formData.cover_image || null,
         markdown: formData.content || "",
         html_content: formData.html_content || "",
         css_content: formData.css_content || "",
@@ -996,7 +1029,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
                   </div>
                   {credits < 5 && (
                     <button
-                      onClick={() => navigate("/pricing")}
+                      onClick={() => router.push("/pricing")}
                       className="text-xs bg-black text-white px-2 py-1 rounded hover:bg-gray-800 transition-colors"
                     >
                       Upgrade
@@ -2016,18 +2049,48 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
             </div>
           )}
           {/* Editor Area */}
-          <div className="flex-1 overflow-auto bg-gray-50/50">
+          <div className="flex-1 overflow-auto bg-gray-50/50 relative">
             {activeTab === "markdown" ? (
-              <textarea
-                ref={textareaRef}
-                value={formData.content}
-                onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-                  setFormData({ ...formData, content: e.target.value })
-                }
-                placeholder="Start writing your amazing guide..."
-                className="w-full h-full p-8 bg-transparent border-none resize-none focus:ring-0 font-mono text-base text-gray-800 leading-relaxed"
-                spellCheck={false}
-              />
+              <>
+                {formData.content.includes("```markdown") || formData.content.includes("````markdown") ? (
+                  <div className="absolute top-2 right-6 z-10">
+                    <button
+                      onClick={() => {
+                        const match = formData.content.match(/`{3,4}markdown\n([\s\S]*?)\n`{3,4}/);
+                        if (match && match[1]) {
+                          setFormData({ ...formData, content: match[1].trim() });
+                          toast.success("Extracted Markdown from AI wrapper!");
+                        }
+                      }}
+                      className="bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded shadow-sm hover:bg-indigo-700 transition-colors"
+                    >
+                      ✨ Extract Markdown
+                    </button>
+                  </div>
+                ) : null}
+                <textarea
+                  ref={textareaRef}
+                  value={formData.content}
+                  onPaste={(e) => {
+                    const pastedText = e.clipboardData.getData("text");
+                    const isEntirelyWrapped = /^(?:[\s\S]*?)`{3,4}markdown\n([\s\S]*?)\n`{3,4}(?:[\s\S]*)$/.exec(pastedText);
+
+                    // If they're pasting into an empty editor, or pasting a full AI response with ONE huge markdown block
+                    if (isEntirelyWrapped && isEntirelyWrapped[1] && (!formData.content || formData.content.trim() === "")) {
+                      e.preventDefault();
+                      const cleanText = isEntirelyWrapped[1].trim();
+                      setFormData({ ...formData, content: cleanText });
+                      toast.success("Auto-extracted guide from AI wrapper!");
+                    }
+                  }}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                    setFormData({ ...formData, content: e.target.value })
+                  }
+                  placeholder="Start writing your amazing guide..."
+                  className="w-full h-full p-8 bg-transparent border-none resize-none focus:ring-0 font-mono text-base text-gray-800 leading-relaxed"
+                  spellCheck={false}
+                />
+              </>
             ) : (
               <textarea
                 value={formData.html_content}
@@ -2143,7 +2206,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
                       // Build nested list (simple flat list with indentation)
                       const tocHtml = `\n<nav class="guide-toc"><ul class="space-y-1">${tocItems
                         .map((it: any) =>
-                            `\n<li class="text-sm ml-${Math.max(0, (it.level - 1) * 4)}"><a href=\"#${it.id}\" class=\"text-gray-600 hover:text-gray-900\">${it.text}</a></li>`,
+                          `\n<li class="text-sm ml-${Math.max(0, (it.level - 1) * 4)}"><a href=\"#${it.id}\" class=\"text-gray-600 hover:text-gray-900\">${it.text}</a></li>`,
                         )
                         .join("")}\n</ul></nav>\n`;
 

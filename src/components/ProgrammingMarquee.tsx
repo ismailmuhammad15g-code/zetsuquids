@@ -1,24 +1,22 @@
 import SimpleMarquee from "@/components/fancy/blocks/simple-marquee";
-
-import img1 from "@/assets/mainimagesslite/1.png";
-import img10 from "@/assets/mainimagesslite/10.png";
-import img11 from "@/assets/mainimagesslite/11.png";
-import img12 from "@/assets/mainimagesslite/12.png";
-import img13 from "@/assets/mainimagesslite/13.png";
-import img14 from "@/assets/mainimagesslite/14.png";
-import img15 from "@/assets/mainimagesslite/15.png";
-import img2 from "@/assets/mainimagesslite/2.png";
-import img3 from "@/assets/mainimagesslite/3.png";
-import img4 from "@/assets/mainimagesslite/4.png";
-import img5 from "@/assets/mainimagesslite/5.png";
-import img6 from "@/assets/mainimagesslite/6.png";
-import img7 from "@/assets/mainimagesslite/7.png";
-import img8 from "@/assets/mainimagesslite/8.png";
-import img9 from "@/assets/mainimagesslite/9.png";
 import { ReactNode } from "react";
 
 const programmingImages = [
-  img1, img2, img3, img4, img5, img6, img7, img8, img9, img10, img11, img12, img13, img14, img15,
+  "https://picsum.photos/seed/zetsu-1/900/600",
+  "https://picsum.photos/seed/zetsu-2/900/600",
+  "https://picsum.photos/seed/zetsu-3/900/600",
+  "https://picsum.photos/seed/zetsu-4/900/600",
+  "https://picsum.photos/seed/zetsu-5/900/600",
+  "https://picsum.photos/seed/zetsu-6/900/600",
+  "https://picsum.photos/seed/zetsu-7/900/600",
+  "https://picsum.photos/seed/zetsu-8/900/600",
+  "https://picsum.photos/seed/zetsu-9/900/600",
+  "https://picsum.photos/seed/zetsu-10/900/600",
+  "https://picsum.photos/seed/zetsu-11/900/600",
+  "https://picsum.photos/seed/zetsu-12/900/600",
+  "https://picsum.photos/seed/zetsu-13/900/600",
+  "https://picsum.photos/seed/zetsu-14/900/600",
+  "https://picsum.photos/seed/zetsu-15/900/600",
 ];
 
 interface MarqueeItemProps {

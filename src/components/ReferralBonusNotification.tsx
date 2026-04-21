@@ -21,14 +21,14 @@ export default function ReferralBonusNotification() {
           table: "referral_notifications",
           filter: `referrer_email=eq.${user.email}`,
         },
-        (payload) => {
+        (payload: import('@supabase/supabase-js').RealtimePostgresInsertPayload<{referred_email?: string}>) => {
           console.log("New referral bonus:", payload.new);
           setNotification(payload.new);
           setShowModal(true);
           setTimeout(() => setShowModal(false), 5000);
         },
       )
-      .subscribe((status, error) => {
+      .subscribe((status: string, error?: Error) => {
         if (status === "SUBSCRIBED") {
         } else if (status === "TIMED_OUT") {
           console.debug("Realtime subscription timed out:", status);

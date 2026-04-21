@@ -1,5 +1,6 @@
+"use client";
 import { ChevronRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 
 interface BreadcrumbItem {
     label: string;
@@ -34,7 +35,7 @@ export default function Breadcrumbs({ items = [], dividerType = "chevron" }: Bre
                             ) : (
                                 <>
                                     <Link
-                                        to={item.href}
+                                        href={item.href}
                                         className="text-gray-600 hover:text-black transition-colors font-medium"
                                     >
                                         {item.label}

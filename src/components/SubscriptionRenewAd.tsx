@@ -1,14 +1,16 @@
+"use client";
 import { Sparkles, UserPlus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import adminProfile from '../assets/customarserviceprofiles/admin_profile.png';
 import { useAuth } from '../contexts/AuthContext';
+import { useRouter } from "next/navigation";
+
+const adminProfile = "https://ui-avatars.com/api/?name=Admin&background=111111&color=ffffff&size=128";
 
 export default function SubscriptionRenewAd() {
     const [isVisible, setIsVisible] = useState<boolean>(false);
     const [adContent, setAdContent] = useState<any>(null);
     const { user } = useAuth();
-    const navigate = useNavigate();
+    const router = useRouter();
 
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout> | null = null;
@@ -24,7 +26,7 @@ export default function SubscriptionRenewAd() {
                     message: '✨ Write your own Guides & help others!',
                     Icon: Sparkles,
                     iconColor: "text-yellow-400",
-                    onClick: () => navigate('/guides')
+                    onClick: () => router.push('/guides')
                 });
 
                 // Delay for intro animation
@@ -40,7 +42,7 @@ export default function SubscriptionRenewAd() {
                     message: '🚀 Join DevVault & Start Creating!',
                     Icon: UserPlus,
                     iconColor: "text-green-400",
-                    onClick: () => navigate('/auth?mode=register')
+                    onClick: () => router.push('/auth?mode=register')
                 });
 
                 // Delay for intro animation
@@ -51,7 +53,7 @@ export default function SubscriptionRenewAd() {
         return () => {
             if (timer !== null) clearTimeout(timer);
         };
-    }, [user, navigate]);
+    }, [user]);
 
     const handleClose = (e?: React.MouseEvent<HTMLButtonElement>) => {
         if (e) e.stopPropagation();

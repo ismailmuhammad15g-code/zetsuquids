@@ -1,3 +1,4 @@
+"use client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import "highlight.js/styles/github-dark.css";
 import {
@@ -13,7 +14,6 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Link, useNavigate } from "react-router-dom";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "../contexts/AuthContext";
@@ -23,6 +23,8 @@ import { supabase } from "../lib/supabase";
 import { supportApi } from "../lib/supportApi";
 import BotIcon from "./BotIcon";
 import DirectSupportChat from "./DirectSupportChat";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type ChatRole = "user" | "bot" | "assistant" | "system";
 type ChatMessageType = "text" | "error" | "limit_reached";
@@ -223,7 +225,7 @@ export default function Chatbot() {
 
   // Auth & Usage States
   const { user, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [tokensLeft, setTokensLeft] = useState(30);
 
   // Pre-fill email when user is authenticated
@@ -411,7 +413,7 @@ export default function Chatbot() {
               table: "support_messages",
               filter: `conversation_id=eq.${conv.id}`,
             },
-            (payload) => {
+            (payload: import('@supabase/supabase-js').RealtimePostgresInsertPayload<Record<string, unknown>>) => {
               const newMsg = payload.new as {
                 sender_type?: string;
                 sender_name?: string;
@@ -446,7 +448,7 @@ export default function Chatbot() {
               }
             },
           )
-          .subscribe((status) => {
+          .subscribe((status: string) => {
             if (status === 'SUBSCRIBED') {
               console.log('Chatbot support channel subscribed');
             }
@@ -845,7 +847,7 @@ export default function Chatbot() {
                   onClick={() => {
                     if (!isAuthenticated()) {
                       // Trigger login gate visual feedback or navigate
-                      navigate("/auth");
+                      router.push("/auth");
                       setIsOpen(false);
                     } else {
                       // Only show upgrade popup if actually low on tokens, otherwise just show status/navigate
@@ -964,7 +966,7 @@ export default function Chatbot() {
                         </p>
                         <div className="flex flex-col gap-3 w-full max-w-[200px]">
                           <Link
-                            to="/auth"
+                            href="/auth"
                             className="w-full px-6 py-2.5 bg-white text-black font-bold text-sm rounded-full hover:bg-gray-200 transition-colors"
                             onClick={() => setIsOpen(false)}
                           >
@@ -1005,7 +1007,7 @@ export default function Chatbot() {
                           <button
                             onClick={() => {
                               setIsOpen(false);
-                              navigate("/pricing");
+                              router.push("/pricing");
                             }}
                             className="w-full px-6 py-3 bg-white text-black font-bold text-sm rounded-xl hover:scale-105 transition-transform"
                           >
@@ -1130,7 +1132,7 @@ export default function Chatbot() {
                             </div>
                             {msg.guideId && (
                               <Link
-                                to={`/guides/${msg.guideId}`}
+                                href={`/guides/${msg.guideId}`}
                                 className={`mt-2 flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors w-fit ${isArabic ? "flex-row-reverse" : ""}`}
                                 onClick={() => setIsOpen(false)}
                               >
@@ -1234,7 +1236,7 @@ export default function Chatbot() {
                       </p>
                       {!isAuthenticated() && (
                         <Link
-                          to="/auth"
+                          href="/auth"
                           className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300"
                         >
                           Login Required
@@ -1263,7 +1265,7 @@ export default function Chatbot() {
                         </p>
                         <div className="flex flex-col gap-2">
                           <Link
-                            to="/auth"
+                            href="/auth"
                             className="block w-full bg-white text-black font-bold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors text-sm"
                           >
                             Login
@@ -1300,7 +1302,7 @@ export default function Chatbot() {
                         </p>
                         <div className="flex flex-col gap-2">
                           <Link
-                            to="/auth"
+                            href="/auth"
                             className="block w-full bg-white text-black font-bold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors text-sm"
                           >
                             Login

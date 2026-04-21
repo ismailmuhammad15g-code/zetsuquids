@@ -1,9 +1,10 @@
+"use client";
 import { Activity, WifiOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export default function NetworkStatusMonitor() {
-  const [showModal, setShowModal] = useState<boolean>(!navigator.onLine);
+  const [showModal, setShowModal] = useState<boolean>(false);
   const [, setLatency] = useState<number>(0);
   const slowConnectionToastRef = useRef<any>(null);
 
@@ -59,6 +60,11 @@ export default function NetworkStatusMonitor() {
 
       checkLatency();
     };
+
+    // Initialize based on actual online status (safe inside useEffect, client-only)
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setShowModal(true);
+    }
 
     checkConnectionQuality();
     const interval = setInterval(checkConnectionQuality, 30000);

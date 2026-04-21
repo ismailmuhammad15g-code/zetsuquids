@@ -1,7 +1,9 @@
+"use client";
 import { motion } from "framer-motion";
 import React, { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
 import "./ModernNav.css";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 
 interface NavItem {
   href: string;
@@ -15,7 +17,7 @@ interface ModernNavProps {
 }
 
 const ModernNav = ({ items }: ModernNavProps) => {
-  const location = useLocation();
+  const pathname = usePathname();
   const [activeIndex, setActiveIndex] = useState<number>(0);
 
   // Sync active index with current route
@@ -24,13 +26,13 @@ const ModernNav = ({ items }: ModernNavProps) => {
       if (typeof item.isActive !== "undefined") {
         return item.isActive;
       }
-      return item.href === location.pathname;
+      return item.href === pathname;
     });
 
     if (index !== -1) {
       setActiveIndex(index);
     }
-  }, [location.pathname, items]);
+  }, [pathname, items]);
 
   return (
     <div className="modern-nav-container">
@@ -40,7 +42,7 @@ const ModernNav = ({ items }: ModernNavProps) => {
         return (
           <Link
             key={item.href}
-            to={item.href}
+            href={item.href}
             className="modern-nav-item"
             onClick={() => setActiveIndex(index)}
           >

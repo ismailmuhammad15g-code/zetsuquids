@@ -116,7 +116,7 @@ export default function GuideRating({ guideId, authorId, guideTitle }: { guideId
                 return;
             }
 
-            const userIds = reviewsData.map(r => r.user_id).filter(Boolean);
+            const userIds = reviewsData.map((r: { user_id: string }) => r.user_id).filter(Boolean);
             let userProfiles: any[] = [];
 
             if (userIds.length > 0) {
@@ -129,7 +129,7 @@ export default function GuideRating({ guideId, authorId, guideTitle }: { guideId
                 setProfiles(userProfiles);
             }
 
-            const processedReviews = reviewsData.map(review => {
+            const processedReviews = reviewsData.map((review: { id: string; rating: number; comment: string; created_at: string; user_id: string; }) => {
                 const profile = userProfiles.find(p => p.user_id === review.user_id);
                 return {
                     id: review.id,
@@ -145,11 +145,11 @@ export default function GuideRating({ guideId, authorId, guideTitle }: { guideId
             setAllReviews(processedReviews);
             setTotalRatings(processedReviews.length);
 
-            const sum = processedReviews.reduce((acc, r) => acc + Number(r.rating), 0);
+            const sum = processedReviews.reduce((acc: number, r: { rating: number }) => acc + Number(r.rating), 0);
             setAvgRating(sum / processedReviews.length);
 
             if (user) {
-                const userReview = processedReviews.find(r => r.user_id === user.id);
+                const userReview = processedReviews.find((r: { user_id: string; rating: number; comment: string }) => r.user_id === user.id);
                 if (userReview) {
                     setHasRated(true);
                     setRating(userReview.rating);

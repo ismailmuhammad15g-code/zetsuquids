@@ -1,3 +1,4 @@
+"use client";
 import {
   CheckCircle,
   Crown,
@@ -8,11 +9,11 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/api";
 import { extractGuideContent } from "../lib/utils";
+import { useRouter } from "next/navigation";
 
 const SUMMARIZER_FREE_TRIAL_KEY = "guide_summarizer_free_trial_used";
 
@@ -29,7 +30,7 @@ interface GuideSummarizerProps {
 
 export function GuideSummarizer({ guide, isOpen, onClose }: GuideSummarizerProps) {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [summary, setSummary] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [hasUsedFreeTrial, setHasUsedFreeTrial] = useState<boolean>(false);
@@ -85,7 +86,7 @@ export function GuideSummarizer({ guide, isOpen, onClose }: GuideSummarizerProps
           label: "View Plans",
           onClick: () => {
             onClose();
-            navigate("/pricing");
+            router.push("/pricing");
           },
         },
       });
@@ -232,7 +233,7 @@ Format the summary in a clear, easy-to-read structure.`,
                     <button
                       onClick={() => {
                         onClose();
-                        navigate("/pricing");
+                        router.push("/pricing");
                       }}
                       className="px-8 py-4 bg-black text-white border-3 border-black font-bold hover:bg-gray-800 transition-colors mx-auto flex items-center gap-2"
                     >
@@ -295,7 +296,7 @@ Format the summary in a clear, easy-to-read structure.`,
                       <button
                         onClick={() => {
                           onClose();
-                          navigate("/pricing");
+                          router.push("/pricing");
                         }}
                         className="px-6 py-3 bg-black text-white border-3 border-black font-bold hover:bg-gray-800 transition-colors"
                       >

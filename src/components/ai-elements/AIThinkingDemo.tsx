@@ -135,7 +135,7 @@ export const AIThinkingDemo = () => {
             </div>
 
             {/* ?? Debug Info - ??????? ??????? (???????) */}
-            {import.meta.env.DEV && (
+            {process.env.NODE_ENV === 'development' && (
                 <div className="bg-gray-900 text-gray-100 rounded-lg p-4 text-xs font-mono overflow-auto max-h-48">
                     <p className="text-yellow-400 mb-2">Debug Info:</p>
                     <p>

@@ -13,6 +13,7 @@ export interface GuideMetadata {
   id?: string | number;
   title: string;
   slug?: string;
+  cover_image?: string | null;
   description?: string;
   content?: string;
   markdown?: string;

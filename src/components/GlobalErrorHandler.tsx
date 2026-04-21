@@ -1,6 +1,7 @@
+"use client";
 import { AlertTriangle, Bug, EyeOff, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 
 interface ErrorInfo {
   type: string
@@ -12,7 +13,7 @@ export default function GlobalErrorHandler() {
   const [lastError, setLastError] = useState<ErrorInfo | null>(null);
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [errorsDisabled, setErrorsDisabled] = useState<boolean>(false);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   useEffect(() => {
     const disabled = localStorage.getItem("zetsu_errors_disabled") === "true";
@@ -100,7 +101,7 @@ export default function GlobalErrorHandler() {
   };
 
   const handleReportBug = (): void => {
-    navigate("/reportbug");
+    router.push("/reportbug");
     handleClose();
   };
 

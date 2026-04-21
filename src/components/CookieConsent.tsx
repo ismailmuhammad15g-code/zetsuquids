@@ -1,5 +1,6 @@
+"use client";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 
 export default function CookieConsent() {
     const [isVisible, setIsVisible] = useState<boolean>(false);
@@ -42,7 +43,7 @@ export default function CookieConsent() {
                 </h2>
                 <p className="w-11/12 leading-relaxed">
                     This website uses cookies for functionality, analytics, and marketing.
-                    By accepting, you agree to our <Link to="/cookie-policy" className="font-medium underline hover:text-indigo-600 transition">Cookie Policy</Link>.
+                    By accepting, you agree to our <Link href="/cookie-policy" className="font-medium underline hover:text-indigo-600 transition">Cookie Policy</Link>.
                 </p>
                 <div className="flex items-center justify-center mt-6 gap-4 w-full">
                     <button

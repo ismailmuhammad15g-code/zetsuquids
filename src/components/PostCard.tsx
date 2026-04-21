@@ -1,3 +1,4 @@
+"use client";
 import { differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, formatDistanceToNow } from "date-fns";
 import {
   BadgeCheck,
@@ -12,13 +13,13 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { useNavigate } from "react-router-dom";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvatarForUser } from "../lib/avatar";
 import { communityApi } from "../lib/communityApi";
 import { supabase } from "../lib/supabase";
+import { useRouter } from "next/navigation";
 
 interface PostCardProps {
   post: any;
@@ -27,7 +28,7 @@ interface PostCardProps {
 
 export default function PostCard({ post, onDeleted }: PostCardProps) {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [liked, setLiked] = useState<boolean>(post.has_liked ?? false);
   const [likes, setLikes] = useState<number>(post.likes_count ?? 0);
   const repliesCount = post.comments_count ?? 0;
@@ -95,7 +96,7 @@ export default function PostCard({ post, onDeleted }: PostCardProps) {
   const navigateToProfile = (e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
     if (authorProfile?.username) {
-      navigate(`/community/profile/${authorProfile.username}`);
+      router.push(`/community/profile/${authorProfile.username}`);
     } else {
       toast.error("Profile not fully set up");
     }
@@ -154,7 +155,7 @@ export default function PostCard({ post, onDeleted }: PostCardProps) {
   const handleCardClick = () => {
     const selection = window.getSelection();
     if ((selection?.toString().length || 0) > 0) return;
-    navigate(`/community/post/${post.id}`);
+    router.push(`/community/post/${post.id}`);
   };
 
   const stopProp = (e: React.MouseEvent<HTMLElement>): void => e.stopPropagation();
@@ -313,7 +314,7 @@ export default function PostCard({ post, onDeleted }: PostCardProps) {
                             className="text-[#1d9bf0] hover:underline cursor-pointer"
                             onClick={(e: React.MouseEvent<HTMLElement>) => {
                               e.stopPropagation();
-                              navigate(`/community/explore?q=${encodeURIComponent(part)}`);
+                              router.push(`/community/explore?q=${encodeURIComponent(part)}`);
                             }}
                           >
                             {part}
@@ -484,7 +485,7 @@ export default function PostCard({ post, onDeleted }: PostCardProps) {
               className="group flex items-center gap-1 transition-colors hover:text-[#1d9bf0]"
               onClick={(e: React.MouseEvent<HTMLElement>) => {
                 e.stopPropagation();
-                navigate(`/community/post/${post.id}`);
+                router.push(`/community/post/${post.id}`);
               }}
             >
               <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 transition-all duration-200">

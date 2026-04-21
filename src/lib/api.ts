@@ -230,6 +230,7 @@ export const guidesApi = {
         const guideData: Guide = {
             title: guide.title,
             slug,
+            cover_image: guide.cover_image || null,
             content: guide.content || "",
             markdown: guide.markdown || "",
             html_content: guide.html_content || "",

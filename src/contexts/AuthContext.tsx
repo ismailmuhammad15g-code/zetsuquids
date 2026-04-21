@@ -1,3 +1,4 @@
+"use client";
 import { jwtDecode } from "jwt-decode";
 import {
     createContext,
@@ -106,7 +107,7 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
 
         // Set up listener for Supabase auth state changes
         const { data } = supabase.auth.onAuthStateChange(
-            (event, session) => {
+            (event: import('@supabase/supabase-js').AuthChangeEvent, session: import('@supabase/supabase-js').Session | null) => {
                 console.log(
                     "🔄 Supabase auth state changed:",
                     event,

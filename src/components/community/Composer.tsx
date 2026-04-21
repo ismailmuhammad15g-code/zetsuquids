@@ -1,3 +1,4 @@
+"use client";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { BarChart3, Clock, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
