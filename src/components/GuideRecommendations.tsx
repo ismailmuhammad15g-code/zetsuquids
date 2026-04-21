@@ -18,11 +18,11 @@ import {
   TrendingUp,
   User,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvatarForUser } from "../lib/avatar";
 import { supabase } from "../lib/supabase";
-import Link from "next/link";
 
 export default function GuideRecommendations({
   currentGuideSlug = null,
@@ -66,7 +66,8 @@ export default function GuideRecommendations({
         await fetchTrendingGuides();
       }
     } catch (error: unknown) {
-      console.error("Error fetching recommendations:", error);
+      const message = error instanceof Error ? error.message : JSON.stringify(error);
+      console.warn("Error fetching recommendations:", message);
       // Fallback to trending on error
       await fetchTrendingGuides();
     } finally {
@@ -90,7 +91,8 @@ export default function GuideRecommendations({
       setRecommendations(filtered);
       fetchAvatarsForRecommendations(filtered);
     } catch (error: unknown) {
-      console.error("Error fetching trending guides:", error);
+      const message = error instanceof Error ? error.message : JSON.stringify(error);
+      console.warn("Error fetching trending guides:", message);
       setRecommendations([]);
     }
   };

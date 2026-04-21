@@ -165,7 +165,18 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       // Sequential auth/profile checks to avoid Supabase auth token lock races.
       // Calling supabase.auth.getUser() in parallel with other requests can
       // trigger "lock ... was released because another request stole it".
-      const { data: authData, error: authError } = await supabase.auth.getUser();
+      let authData = null;
+      let authError = null;
+
+      try {
+        const authResult = await supabase.auth.getUser();
+        authData = authResult.data;
+        authError = authResult.error;
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : JSON.stringify(err);
+        console.warn("Supabase auth getUser warning:", message);
+        authError = err as any;
+      }
 
       const profileResult = await supabase
         .from("zetsuguide_user_profiles")
@@ -186,13 +197,20 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
       // Priority 1: If Auth User is gone (Deleted by Admin), trigger deletion flow
       if (authError) {
-        console.error("Auth verification failed:", authError);
+        const authErrorMessage =
+          authError instanceof Error
+            ? authError.message
+            : typeof authError === "object" && authError !== null
+              ? (authError as any).message || JSON.stringify(authError)
+              : String(authError);
+
+        console.warn("Auth verification issue:", authErrorMessage);
 
         // Ignore network errors or fetch failures - DO NOT show Account Deleted
         const isNetworkError =
-          authError.message?.includes("Failed to fetch") ||
-          authError.name === "AuthRetryableFetchError" ||
-          authError.message?.includes("Network request failed");
+          authErrorMessage.includes("Failed to fetch") ||
+          authErrorMessage.includes("AuthRetryableFetchError") ||
+          authErrorMessage.includes("Network request failed");
 
         // Only show "Account Deleted" if it's strictly a user not found/deleted scenario
         // Usually supabase returns status 400 or "User not found" for deleted users

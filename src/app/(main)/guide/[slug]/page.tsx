@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import Breadcrumbs from "../../../../components/Breadcrumbs";
 import ConfirmModal from "../../../../components/ConfirmModal";
 import DownloadGuideModal from "../../../../components/DownloadGuideModal";
+import FireworksBackgroundDemo from "../../../../components/FireworksBackgroundDemo";
 import FollowButton from "../../../../components/FollowButton";
 import { GuideAIChat } from "../../../../components/GuideAIChat";
 import GuideComments from "../../../../components/GuideComments";
@@ -189,7 +190,9 @@ export default function GuidePage() {
     const [showTOC, setShowTOC] = useState<boolean>(false);
     const [tableOfContents, setTableOfContents] = useState<TableOfContentsItem[]>([]);
     const [contentWithAnchors, setContentWithAnchors] = useState<string | null>(null);
+    const [showFireworks, setShowFireworks] = useState<boolean>(false);
     const moreMenuRef = useRef<HTMLDivElement>(null);
+    const fireworksRef = useRef<HTMLDivElement>(null);
     const ttsRef = useRef<any>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -208,6 +211,27 @@ export default function GuidePage() {
             }
         };
     }, [searchQuery]);
+
+    useEffect(() => {
+        if (!fireworksRef.current) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                setShowFireworks(entry.isIntersecting);
+            },
+            {
+                root: null,
+                rootMargin: "0px 0px -20% 0px",
+                threshold: 0.1,
+            },
+        );
+
+        observer.observe(fireworksRef.current);
+
+        return () => {
+            observer.disconnect();
+        };
+    }, []);
 
 
     // Initialize Mermaid dynamically
@@ -437,6 +461,71 @@ export default function GuidePage() {
             setTableOfContents([]);
         }
     }, [processedContent]);
+
+    useEffect(() => {
+        const container = contentRef.current;
+        if (!container) return;
+
+        const mediaNodes = Array.from(
+            container.querySelectorAll("iframe, video"),
+        ) as Array<HTMLIFrameElement | HTMLVideoElement>;
+
+        const cleanupFns: Array<() => void> = [];
+
+        mediaNodes.forEach((media) => {
+            if (media.closest(".lazy-media-wrapper")) return;
+
+            const wrapper = document.createElement("span");
+            wrapper.className = "lazy-media-wrapper";
+            wrapper.style.display = "block";
+            wrapper.style.position = "relative";
+            wrapper.style.overflow = "hidden";
+            wrapper.style.borderRadius = "1rem";
+
+            const originalParent = media.parentElement;
+            if (!originalParent) return;
+
+            originalParent.replaceChild(wrapper, media);
+            wrapper.appendChild(media);
+
+            const overlay = document.createElement("div");
+            overlay.className = "lazy-media-overlay";
+            overlay.innerHTML = `<div class="lazy-media-shine"></div>`;
+            wrapper.appendChild(overlay);
+
+            media.classList.add("lazy-media-loading");
+            media.style.transition = "opacity .35s ease, filter .35s ease";
+            if (media instanceof HTMLIFrameElement) {
+                media.loading = "lazy";
+                media.style.width = "100%";
+                media.style.minHeight = "220px";
+            } else if (media instanceof HTMLVideoElement) {
+                media.preload = "metadata";
+                media.muted = true;
+                media.playsInline = true;
+                media.style.width = "100%";
+            }
+
+            const onLoaded = () => {
+                media.classList.remove("lazy-media-loading");
+                media.classList.add("lazy-media-loaded");
+                overlay.style.opacity = "0";
+                setTimeout(() => {
+                    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                }, 300);
+            };
+
+            const eventName = media instanceof HTMLIFrameElement ? "load" : "loadeddata";
+            media.addEventListener(eventName, onLoaded);
+            cleanupFns.push(() => {
+                media.removeEventListener(eventName, onLoaded);
+            });
+        });
+
+        return () => {
+            cleanupFns.forEach((fn) => fn());
+        };
+    }, [contentWithAnchors, processedContent]);
 
     // Hydrate Interactive Quizzes
     useEffect(() => {
@@ -970,7 +1059,7 @@ export default function GuidePage() {
                     />
                 </div>
             </div>
-            <article className="max-w-4xl mx-auto px-4 py-8 relative z-10 bg-white dark:bg-gray-900 text-black dark:text-white">
+            <article className="max-w-6xl mx-auto px-4 py-8 relative z-10 bg-white dark:bg-gray-900 text-black dark:text-white">
                 {/* Top Bar: Back Link & Timer */}
                 <div className="flex items-center justify-between mb-4">
                     <Link
@@ -1058,6 +1147,45 @@ export default function GuidePage() {
               background-color: rgba(250,204,21,0.45);
               transition: background-color 0.25s ease, box-shadow 0.25s ease;
               box-shadow: 0 0 0 6px rgba(250,204,21,0.24);
+            }
+            .lazy-media-wrapper {
+              position: relative;
+              overflow: hidden;
+              border-radius: 1rem;
+              min-height: 220px;
+              background: linear-gradient(180deg, rgba(248,250,252,0.95), rgba(241,245,249,0.97));
+            }
+            .lazy-media-wrapper iframe,
+            .lazy-media-wrapper video {
+              width: 100%;
+              height: 100%;
+              display: block;
+              opacity: 0;
+              filter: blur(10px) saturate(0.8);
+              transition: opacity 0.35s ease, filter 0.35s ease;
+            }
+            .lazy-media-wrapper .lazy-media-loaded {
+              opacity: 1 !important;
+              filter: none !important;
+            }
+            .lazy-media-overlay {
+              position: absolute;
+              inset: 0;
+              pointer-events: none;
+              background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.18) 30%, rgba(255,255,255,0.05) 70%);
+              overflow: hidden;
+            }
+            .lazy-media-shine {
+              position: absolute;
+              inset: 0;
+              background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 45%, rgba(255,255,255,0) 100%);
+              transform: translateX(-100%);
+              animation: media-shimmer 1.6s infinite;
+            }
+            @keyframes media-shimmer {
+              100% {
+                transform: translateX(100%);
+              }
             }
           `}</style>
 
@@ -1176,17 +1304,19 @@ export default function GuidePage() {
                         </div>
                     )}
 
-                    {/* Table of Contents Button */}
+                    {/* Table of Contents Button (mobile only) */}
                     {tableOfContents.length > 0 && (
-                        <div className="mb-6">
+                        <div className="mb-6 lg:hidden">
                             <button
                                 onClick={() => setShowTOC(!showTOC)}
-                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border-2 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-800/40 dark:hover:to-indigo-800/40 transition-all text-sm font-medium rounded-lg"
+                                className="flex items-center justify-between w-full gap-2 px-4 py-3 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 hover:border-black dark:hover:border-white rounded-3xl transition-colors text-sm font-medium"
                                 aria-expanded={showTOC}
                                 aria-label="Toggle table of contents"
                             >
-                                <List size={16} />
-                                Table of Contents
+                                <span className="inline-flex items-center gap-2">
+                                    <List size={16} />
+                                    Table of Contents
+                                </span>
                                 <ChevronDown
                                     size={16}
                                     className={`transition-transform ${showTOC ? "rotate-180" : ""}`}
@@ -1195,7 +1325,7 @@ export default function GuidePage() {
 
                             {/* Table of Contents Dropdown */}
                             {showTOC && (
-                                <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-3xl shadow-sm">
                                     <nav aria-label="Table of contents">
                                         <ul className="space-y-2">
                                             {tableOfContents.map((item, index) => (
@@ -1568,8 +1698,10 @@ export default function GuidePage() {
                 </header>
 
                 {/* Match Search Bar */}
-                <div className="max-w-md mb-8 mx-auto sm:mx-0">
-                    <div className="flex w-full shadow-sm hover:shadow-md transition-shadow rounded-lg overflow-hidden border border-gray-300 hover:border-black group">
+                <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] gap-8">
+                    <div className="space-y-8">
+                        <div className="max-w-md mb-8 mx-auto sm:mx-0">
+                            <div className="flex w-full shadow-sm hover:shadow-md transition-shadow rounded-lg overflow-hidden border border-gray-300 hover:border-black group">
                         <div className="flex-1 bg-white dark:bg-gray-800 flex items-center px-4 group-focus-within:ring-2 group-focus-within:ring-black dark:group-focus-within:ring-white group-focus-within:ring-inset">
                             <Search size={18} className="text-gray-400 mr-2 flex-shrink-0" />
                             <input
@@ -1621,6 +1753,115 @@ export default function GuidePage() {
                 {/* Recommendations Section */}
                 <div className="mt-16 mb-12">
                     <GuideRecommendations currentGuideSlug={slug} limit={3} />
+                </div>
+            </div>
+
+            <aside className="hidden lg:block">
+                <div className="sticky top-[110px] space-y-4">
+                    <div className="rounded-3xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-950 p-5">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    Table of Contents
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Jump to key sections
+                                </p>
+                            </div>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {tableOfContents.length} items
+                            </span>
+                        </div>
+
+                        {tableOfContents.length > 0 ? (
+                            <nav aria-label="Table of contents" className="mt-4">
+                                <ul className="space-y-2">
+                                    {tableOfContents.map((item, index) => (
+                                        <li
+                                            key={index}
+                                            style={{ paddingLeft: `${(item.level - 1) * 12}px` }}
+                                        >
+                                            <button
+                                                onClick={() => {
+                                                    const element = document.getElementById(item.id);
+                                                    if (!element) return;
+                                                    const getTopOffset = () => {
+                                                        try {
+                                                            const els = Array.from(document.querySelectorAll("body *"));
+                                                            const candidates = els.filter((el: any) => {
+                                                                const style = window.getComputedStyle(el);
+                                                                if (!(style.position === "fixed" || style.position === "sticky"))
+                                                                    return false;
+                                                                const rect = el.getBoundingClientRect();
+                                                                return (
+                                                                    rect.height > 0 &&
+                                                                    rect.width > 0 &&
+                                                                    rect.top <= 1 &&
+                                                                    rect.bottom > 0
+                                                                );
+                                                            });
+                                                            return Math.min(
+                                                                candidates.reduce(
+                                                                    (sum, e) => sum + (e.getBoundingClientRect().height || 0),
+                                                                    0,
+                                                                ) + 8,
+                                                                200,
+                                                            );
+                                                        } catch {
+                                                            return 72;
+                                                        }
+                                                    };
+                                                    const OFFSET = getTopOffset();
+                                                    const rect = element.getBoundingClientRect();
+                                                    const targetY = Math.max(0, rect.top + window.scrollY - OFFSET);
+                                                    window.scrollTo({ top: targetY, behavior: "smooth" });
+                                                    element.classList.add("toc-highlight");
+                                                    setTimeout(() => {
+                                                        element.classList.remove("toc-highlight");
+                                                    }, 2800);
+                                                }}
+                                                className="w-full text-left text-sm text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors flex items-center gap-2 py-1"
+                                            >
+                                                <span className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-500 rounded-full flex-shrink-0" />
+                                                {item.text}
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </nav>
+                        ) : (
+                            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                                No headings available yet.
+                            </p>
+                        )}
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+                {/* Bottom Celebration Section */}
+                <div className="mt-12 pt-8 border-t-2 border-black relative">
+                    <div
+                        ref={fireworksRef}
+                        className="relative overflow-hidden rounded-3xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950 p-6"
+                    >
+                        <div className="relative z-10 text-center py-14">
+                            <p className="text-sm uppercase tracking-[0.28em] text-gray-500 dark:text-gray-400 mb-3">
+                                Celebration
+                            </p>
+                            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                                You've reached the end of the guide
+                            </h2>
+                            <p className="mt-3 text-sm text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                                Scroll up to return to the main content, or enjoy the finish-line animation.
+                            </p>
+                        </div>
+                        {showFireworks && (
+                            <div className="pointer-events-none absolute inset-0">
+                                <FireworksBackgroundDemo population={18} />
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Bottom Navigation */}

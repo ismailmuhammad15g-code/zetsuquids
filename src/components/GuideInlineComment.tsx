@@ -303,7 +303,8 @@ export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsU
       setComments(data || []);
       onCommentCountChange?.(data?.length || 0);
     } catch (err) {
-      console.error('Error fetching inline comments:', err);
+      const message = err instanceof Error ? err.message : JSON.stringify(err);
+      console.warn('Error fetching inline comments:', message);
     }
   }, [guideId, onCommentCountChange]);
 

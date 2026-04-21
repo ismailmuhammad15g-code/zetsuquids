@@ -104,7 +104,8 @@ export default function GuideRating({ guideId, authorId, guideTitle }: { guideId
                 .order('created_at', { ascending: false });
 
             if (error) {
-                console.error('Review fetch error:', error);
+                const message = error instanceof Error ? error.message : JSON.stringify(error);
+                console.warn('Review fetch error:', message);
                 setAllReviews([]);
                 return;
             }
