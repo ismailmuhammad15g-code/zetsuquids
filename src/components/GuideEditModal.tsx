@@ -122,7 +122,9 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
 
             const updatedGuide = await guidesApi.update(guide.id!, updates);
             toast.success("Guide updated successfully");
-            onSaved?.(updatedGuide);
+            if (updatedGuide) {
+                onSaved?.(updatedGuide);
+            }
             onClose();
         } catch (error: unknown) {
             const errorMessage =
