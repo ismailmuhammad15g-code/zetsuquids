@@ -1,10 +1,12 @@
 "use client";
 
-import { ArrowLeft, Check, Copy, Eye, Heart, Moon, Sun } from "lucide-react";
+import { ArrowLeft, Check, Copy, ExternalLink, Eye, Heart, Layers, Moon, Sun } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "../../../../contexts/AuthContext";
+import { getAvatarForUser } from "../../../../lib/avatar";
 import { uiComponentsApi } from "../../../../lib/supabase";
 import { UiComponent } from "../../../../types";
 
@@ -13,6 +15,8 @@ const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 export default function ComponentPreviewPage() {
    const { id } = useParams();
    const router = useRouter();
+   const { user } = useAuth();
+   const viewTracked = useRef(false);
 
    const [component, setComponent] = useState<UiComponent | null>(null);
    const [isLoading, setIsLoading] = useState(true);
@@ -20,6 +24,10 @@ export default function ComponentPreviewPage() {
    const [copied, setCopied] = useState(false);
    const [bgColor, setBgColor] = useState('#212121');
    const [isDarkMode, setIsDarkMode] = useState(true);
+   const [liked, setLiked] = useState(false);
+   const [likesCount, setLikesCount] = useState(0);
+   const [viewsCount, setViewsCount] = useState(0);
+   const [isLiking, setIsLiking] = useState(false);
 
    useEffect(() => {
       async function loadComponent() {
@@ -28,6 +36,8 @@ export default function ComponentPreviewPage() {
             const found = all.find(c => c.id === id);
             if (found) {
                setComponent(found);
+               setLikesCount(found.likes_count || 0);
+               setViewsCount(found.views_count || 0);
                if (found.theme === 'light') {
                   setBgColor('#ffffff');
                   setIsDarkMode(false);
@@ -41,6 +51,82 @@ export default function ComponentPreviewPage() {
       }
       if (id) loadComponent();
    }, [id]);
+
+   // Increment view once when page loads
+   useEffect(() => {
+      if (component?.id && !viewTracked.current) {
+         viewTracked.current = true;
+         uiComponentsApi.incrementView(String(component.id));
+         setViewsCount(prev => prev + 1);
+      }
+   }, [component?.id]);
+
+   // Check if user liked
+   useEffect(() => {
+      if (user?.id && component?.id) {
+         uiComponentsApi.hasUserLiked(String(component.id), user.id).then(setLiked);
+      }
+   }, [user?.id, component?.id]);
+
+   const handleLike = async () => {
+      if (!user?.id || !component?.id) return;
+      if (isLiking) return;
+      setIsLiking(true);
+      try {
+         const result = await uiComponentsApi.toggleLike(String(component.id), user.id);
+         setLiked(result.liked);
+         setLikesCount(result.newCount);
+      } catch (err) {
+         console.error("Like failed:", err);
+      } finally {
+         setIsLiking(false);
+      }
+   };
+
+   // Open preview in about:blank for full-screen viewing
+   const openPreviewInNewTab = () => {
+      if (!component) return;
+
+      const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${component.title} — Preview</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: ${isDarkMode ? '#212121' : '#ffffff'};
+      color: ${isDarkMode ? 'white' : 'black'};
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    ${component.css_code}
+  </style>
+</head>
+<body>
+  ${component.html_code}
+  <script>
+    window.ENV = ${JSON.stringify(component.env_vars || {})};
+    try {
+      ${component.js_code}
+    } catch(e) { console.error(e); }
+  </script>
+</body>
+</html>`;
+
+      const newWindow = window.open('about:blank', '_blank');
+      if (newWindow) {
+         newWindow.document.open();
+         newWindow.document.write(fullHtml);
+         newWindow.document.close();
+      }
+   };
 
    if (isLoading) {
       return (
@@ -85,6 +171,8 @@ export default function ComponentPreviewPage() {
   `;
 
    const codeString = String((component as any)[`${activeTab}_code`] || '');
+   const authorAvatar = component.author_avatar || getAvatarForUser(component.author_name || null);
+   const isTemplate = component.component_type === 'template';
 
    return (
       <div className="min-h-screen bg-[#09090b] text-gray-100 pb-20 font-sans selection:bg-[#007acc] selection:text-white">
@@ -98,26 +186,32 @@ export default function ComponentPreviewPage() {
                </Link>
 
                <div className="flex items-center gap-4 text-sm text-gray-400 font-medium">
+                  {/* Type Badge */}
+                  {component.component_type && (
+                    <span className={"flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md " + (isTemplate ? "bg-purple-500/20 text-purple-400 border border-purple-500/30" : "bg-blue-500/20 text-blue-400 border border-blue-500/30")}>
+                      <Layers size={12} /> {isTemplate ? 'Template' : 'Component'}
+                    </span>
+                  )}
+
                   <div className="flex items-center gap-2 mr-2">
                      <span className="hidden sm:inline">Element by</span>
-                     {component.author_avatar ? (
-                        <img src={component.author_avatar} alt="Author" className="w-6 h-6 rounded-full object-cover border border-[#2d2d2d]" />
-                     ) : (
-                        <div className="w-6 h-6 rounded-full bg-[#1e1e1e] border border-[#2d2d2d] flex items-center justify-center text-white text-[10px] font-bold">
-                           {component.author_name ? component.author_name.charAt(0).toUpperCase() : 'A'}
-                        </div>
-                     )}
+                     <img
+                       src={authorAvatar}
+                       alt="Author"
+                       className="w-6 h-6 rounded-full object-cover border border-[#2d2d2d]"
+                       onError={(e) => { e.currentTarget.src = getAvatarForUser(null); }}
+                     />
                      <span className="text-white font-semibold">{component.author_name || 'Anonymous Maker'}</span>
                   </div>
 
                   <div className="flex items-center gap-1.5" title="Views">
                      <Eye size={16} className="text-gray-500" />
-                     <span>{component.views_count || 0}</span>
+                     <span>{viewsCount}</span>
                   </div>
 
                   <div className="flex items-center gap-1.5" title="Likes">
-                     <Heart size={14} className="text-gray-500" />
-                     <span>{component.likes_count || 0}</span>
+                     <Heart size={14} className={liked ? "text-red-500 fill-red-500" : "text-gray-500"} />
+                     <span>{likesCount}</span>
                   </div>
                </div>
             </div>
@@ -129,7 +223,17 @@ export default function ComponentPreviewPage() {
                <div className="w-full lg:w-[45%] flex flex-col relative border-b lg:border-b-0 lg:border-r border-[#27272a]">
 
                   {/* Preview Action Bar */}
-                  <div className="h-14 flex items-center justify-end px-6 space-x-3 absolute top-0 w-full z-10">
+                  <div className="h-14 flex items-center justify-between px-6 absolute top-0 w-full z-10">
+                     {/* Open in new tab button */}
+                     <button
+                       onClick={openPreviewInNewTab}
+                       className="flex items-center gap-1.5 px-3 py-1.5 bg-[#212121]/80 backdrop-blur-md rounded-full border border-[#3f3f46] text-xs font-medium text-gray-300 shadow-sm hover:text-white hover:bg-[#333] transition-all"
+                       title="Open full preview in new tab"
+                     >
+                       <ExternalLink size={13} />
+                       <span className="hidden sm:inline">Preview</span>
+                     </button>
+
                      <div className="flex items-center bg-[#212121]/80 backdrop-blur-md rounded-full px-3 py-1.5 border border-[#3f3f46] text-xs font-medium text-gray-300 shadow-sm gap-3">
                         <span className="tracking-wide">{bgColor.toUpperCase()}</span>
                         <button
@@ -187,9 +291,12 @@ export default function ComponentPreviewPage() {
 
                      <div className="flex items-center gap-3">
                         <button
-                           className="hidden sm:flex items-center gap-2 px-4 py-1.5 bg-[#4f46e5]/10 text-[#818cf8] hover:bg-[#4f46e5]/20 border border-[#4f46e5]/20 rounded-full font-semibold text-xs transition"
+                           onClick={handleLike}
+                           disabled={!user}
+                           className={"hidden sm:flex items-center gap-2 px-4 py-1.5 border rounded-full font-semibold text-xs transition " + (liked ? "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30" : "bg-[#4f46e5]/10 text-[#818cf8] hover:bg-[#4f46e5]/20 border-[#4f46e5]/20")}
+                           title={user ? (liked ? "Unlike" : "Like") : "Login to like"}
                         >
-                           <Heart size={14} /> Like
+                           <Heart size={14} className={liked ? "fill-red-400" : ""} /> {liked ? "Liked" : "Like"} ({likesCount})
                         </button>
                         <button
                            onClick={() => {

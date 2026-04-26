@@ -1,13 +1,14 @@
 "use client";
 
-import { ArrowLeft, Maximize2, Minimize2, Play, Save, Settings, Upload, X } from "lucide-react";
+import { ArrowLeft, Layers, Maximize2, Minimize2, Play, Save, Settings, Upload, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../../../../contexts/AuthContext";
-import { uiComponentsApi } from "../../../../lib/supabase";
+import { getAvatarForUser } from "../../../../lib/avatar";
+import { supabase, uiComponentsApi } from "../../../../lib/supabase";
 
 // Dynamically import Monaco Editor to avoid SSR issues
 const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
@@ -19,6 +20,7 @@ export default function CreateComponentPage() {
   const [title, setTitle] = useState("My Awesome Component");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
+  const [componentType, setComponentType] = useState<'component' | 'template'>('component');
 
   const [htmlCode, setHtmlCode] = useState('<button class="my-btn">\n  Hover me\n</button>');
   const [cssCode, setCssCode] = useState(`.my-btn {
@@ -52,11 +54,34 @@ btn.addEventListener('click', () => {
   const [isSaving, setIsSaving] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
 
+  // User profile for avatar
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
+
   // Debounced states
   const [debouncedHtml, setDebouncedHtml] = useState(htmlCode);
   const [debouncedCss, setDebouncedCss] = useState(cssCode);
   const [debouncedJs, setDebouncedJs] = useState(jsCode);
   const [parsedEnv, setParsedEnv] = useState<Record<string, string>>({});
+
+  // Fetch user profile avatar on mount
+  useEffect(() => {
+    async function fetchProfile() {
+      if (!user?.email) return;
+      try {
+        const { data } = await supabase
+          .from("zetsuguide_user_profiles")
+          .select("avatar_url")
+          .eq("user_email", user.email)
+          .maybeSingle();
+        if (data?.avatar_url) {
+          setUserAvatarUrl(data.avatar_url);
+        }
+      } catch (e) {
+        console.error("Failed to fetch profile avatar:", e);
+      }
+    }
+    fetchProfile();
+  }, [user?.email]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -104,6 +129,12 @@ btn.addEventListener('click', () => {
     setIsSaving(true);
     try {
       const tagsArray = tags.split(',').map(t => t.trim()).filter(Boolean);
+
+      // Resolve the best avatar URL for saving
+      const resolvedAvatar = (user?.user_metadata as any)?.avatar_url
+        || userAvatarUrl
+        || getAvatarForUser(user?.email || null);
+
       await uiComponentsApi.create({
         id: Date.now().toString(),
         title,
@@ -114,9 +145,10 @@ btn.addEventListener('click', () => {
         css_code: cssCode,
         js_code: jsCode,
         author_name: (user?.user_metadata as any)?.full_name || (user?.email ? user.email.split('@')[0] : 'Anonymous Maker'),
-        author_avatar: (user?.user_metadata as any)?.avatar_url || undefined,
+        author_avatar: resolvedAvatar,
         author_id: user?.id,
         theme: 'light',
+        component_type: componentType,
       });
       toast.success("Component published successfully!");
       router.push('/components');
@@ -317,6 +349,29 @@ btn.addEventListener('click', () => {
                   className="w-full bg-[#2d2d2d] border border-[#444] rounded p-2.5 text-white focus:outline-none focus:border-[#007acc] focus:ring-1 focus:ring-[#007acc] h-24 resize-none"
                   placeholder="What does this component do?"
                 />
+              </div>
+
+              {/* Component Type Selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setComponentType('component')}
+                    className={"flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all text-sm font-semibold " + (componentType === 'component' ? "border-[#007acc] bg-[#007acc]/10 text-[#007acc]" : "border-[#444] text-gray-400 hover:border-[#555] hover:text-gray-300")}
+                  >
+                    <Layers size={16} />
+                    Component
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setComponentType('template')}
+                    className={"flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all text-sm font-semibold " + (componentType === 'template' ? "border-purple-500 bg-purple-500/10 text-purple-400" : "border-[#444] text-gray-400 hover:border-[#555] hover:text-gray-300")}
+                  >
+                    <Layers size={16} />
+                    Template
+                  </button>
+                </div>
               </div>
 
               <div>

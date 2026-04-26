@@ -113,4 +113,5 @@ export interface UiComponent {
   likes_count?: number;
   views_count?: number;
   theme?: 'light' | 'dark' | 'both';
+  component_type?: 'component' | 'template';
 }

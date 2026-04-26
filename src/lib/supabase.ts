@@ -223,6 +223,7 @@ export const uiComponentsApi = {
                         author_id: component.author_id || null, // Ensure undefined is explicitly null
                         author_avatar: component.author_avatar || null,
                         theme: component.theme || 'light',
+                        component_type: component.component_type || 'component',
                     },
                 ])
                 .select()
@@ -259,5 +260,91 @@ export const uiComponentsApi = {
            localStorage.setItem("ui_components", JSON.stringify(filtered));
         }
         return true;
+    },
+
+    async incrementView(id: string): Promise<void> {
+        if (!isSupabaseConfigured()) {
+            const components: UiComponent[] = JSON.parse(localStorage.getItem("ui_components") || "[]");
+            const idx = components.findIndex((c) => String(c.id) === String(id));
+            if (idx !== -1) {
+                components[idx].views_count = (components[idx].views_count || 0) + 1;
+                localStorage.setItem("ui_components", JSON.stringify(components));
+            }
+            return;
+        }
+        try {
+            await supabase.rpc("increment_ui_component_views", { p_component_id: id });
+        } catch (e: any) {
+            console.error("Failed to increment view:", e?.message || e);
+            // Fallback: direct update
+            await supabase
+                .from("ui_components")
+                .update({ views_count: supabase.rpc ? undefined : 0 })
+                .eq("id", id);
+        }
+    },
+
+    async toggleLike(id: string, userId: string): Promise<{ liked: boolean; newCount: number }> {
+        if (!isSupabaseConfigured()) {
+            const components: UiComponent[] = JSON.parse(localStorage.getItem("ui_components") || "[]");
+            const likes: Record<string, string[]> = JSON.parse(localStorage.getItem("ui_component_likes") || "{}");
+            const userLikes = likes[id] || [];
+            const idx = components.findIndex((c) => String(c.id) === String(id));
+
+            if (userLikes.includes(userId)) {
+                // Unlike
+                likes[id] = userLikes.filter((u) => u !== userId);
+                if (idx !== -1) components[idx].likes_count = Math.max((components[idx].likes_count || 0) - 1, 0);
+                localStorage.setItem("ui_component_likes", JSON.stringify(likes));
+                localStorage.setItem("ui_components", JSON.stringify(components));
+                return { liked: false, newCount: components[idx]?.likes_count || 0 };
+            } else {
+                // Like
+                likes[id] = [...userLikes, userId];
+                if (idx !== -1) components[idx].likes_count = (components[idx].likes_count || 0) + 1;
+                localStorage.setItem("ui_component_likes", JSON.stringify(likes));
+                localStorage.setItem("ui_components", JSON.stringify(components));
+                return { liked: true, newCount: components[idx]?.likes_count || 0 };
+            }
+        }
+
+        try {
+            const { data, error } = await supabase.rpc("toggle_ui_component_like", {
+                p_component_id: id,
+                p_user_id: userId,
+            });
+            if (error) throw error;
+            const row = data?.[0] || data;
+            return { liked: !!row?.liked, newCount: row?.new_likes_count || 0 };
+        } catch (e: any) {
+            console.error("Failed to toggle like:", e?.message || e);
+            return { liked: false, newCount: 0 };
+        }
+    },
+
+    async hasUserLiked(id: string, userId: string): Promise<boolean> {
+        if (!isSupabaseConfigured()) {
+            const likes: Record<string, string[]> = JSON.parse(localStorage.getItem("ui_component_likes") || "{}");
+            return (likes[id] || []).includes(userId);
+        }
+        try {
+            const { data, error } = await supabase
+                .from("ui_component_likes")
+                .select("id")
+                .eq("component_id", id)
+                .eq("user_id", userId)
+                .maybeSingle();
+            if (error) {
+                // If the table doesn't exist yet, we just treat it as not liked and don't spam errors
+                if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
+                    return false;
+                }
+                throw error;
+            }
+            return !!data;
+        } catch (e: any) {
+            console.error("Failed to check like status:", e?.message || e);
+            return false;
+        }
     },
 };

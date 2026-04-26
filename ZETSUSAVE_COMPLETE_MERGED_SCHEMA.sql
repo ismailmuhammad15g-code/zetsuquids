@@ -2684,3 +2684,91 @@ CREATE POLICY "Enable delete for authors" ON ui_components
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_ui_components_created_at ON ui_components (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ui_components_author_id ON ui_components (author_id);
+
+-- Add component_type column (template or component)
+ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS component_type TEXT DEFAULT 'component';
+
+-- Allow anyone to update views_count and likes_count (public counters)
+DROP POLICY IF EXISTS "Enable update counters for all" ON ui_components;
+CREATE POLICY "Enable update counters for all" ON ui_components
+  FOR UPDATE
+  USING (true)
+  WITH CHECK (true);
+
+-- ===== UI Component Likes (track per-user likes) =====
+CREATE TABLE IF NOT EXISTS ui_component_likes (
+  id BIGSERIAL PRIMARY KEY,
+  component_id TEXT NOT NULL REFERENCES ui_components(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(component_id, user_id)
+);
+
+-- Enable RLS
+ALTER TABLE ui_component_likes ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+DROP POLICY IF EXISTS "Users can view all likes" ON ui_component_likes;
+CREATE POLICY "Users can view all likes" ON ui_component_likes
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can insert their own likes" ON ui_component_likes;
+CREATE POLICY "Users can insert their own likes" ON ui_component_likes
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete their own likes" ON ui_component_likes;
+CREATE POLICY "Users can delete their own likes" ON ui_component_likes
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_ui_component_likes_component ON ui_component_likes (component_id);
+CREATE INDEX IF NOT EXISTS idx_ui_component_likes_user ON ui_component_likes (user_id);
+
+-- Function: Increment view count
+CREATE OR REPLACE FUNCTION increment_ui_component_views(p_component_id TEXT)
+RETURNS void AS $$
+BEGIN
+  UPDATE ui_components
+  SET views_count = COALESCE(views_count, 0) + 1
+  WHERE id = p_component_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION increment_ui_component_views TO authenticated, anon;
+
+-- Function: Toggle like (insert or delete + update count)
+CREATE OR REPLACE FUNCTION toggle_ui_component_like(p_component_id TEXT, p_user_id UUID)
+RETURNS TABLE(liked BOOLEAN, new_likes_count INTEGER) AS $$
+DECLARE
+  v_exists BOOLEAN;
+BEGIN
+  SELECT EXISTS(
+    SELECT 1 FROM ui_component_likes
+    WHERE component_id = p_component_id AND user_id = p_user_id
+  ) INTO v_exists;
+
+  IF v_exists THEN
+    -- Unlike
+    DELETE FROM ui_component_likes
+    WHERE component_id = p_component_id AND user_id = p_user_id;
+
+    UPDATE ui_components
+    SET likes_count = GREATEST(COALESCE(likes_count, 0) - 1, 0)
+    WHERE id = p_component_id;
+
+    RETURN QUERY SELECT false, (SELECT COALESCE(uc.likes_count, 0) FROM ui_components uc WHERE uc.id = p_component_id);
+  ELSE
+    -- Like
+    INSERT INTO ui_component_likes (component_id, user_id)
+    VALUES (p_component_id, p_user_id);
+
+    UPDATE ui_components
+    SET likes_count = COALESCE(likes_count, 0) + 1
+    WHERE id = p_component_id;
+
+    RETURN QUERY SELECT true, (SELECT COALESCE(uc.likes_count, 0) FROM ui_components uc WHERE uc.id = p_component_id);
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION toggle_ui_component_like TO authenticated;

@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { UiComponent } from "../types";
-import { Heart, Eye, Code } from "lucide-react";
+import { Heart, Eye, Code, Layers } from "lucide-react";
+import { getAvatarForUser } from "../lib/avatar";
+import { useAuth } from "../contexts/AuthContext";
+import { uiComponentsApi } from "../lib/supabase";
 
 interface Props {
   component: UiComponent;
@@ -11,8 +14,36 @@ interface Props {
 
 export default function UiComponentCard({ component }: Props) {
   const router = useRouter();
+  const { user } = useAuth();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [activeTab, setActiveTab] = useState<'preview' | 'html' | 'css' | 'js'>('preview');
+  const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(component.likes_count || 0);
+  const [isLiking, setIsLiking] = useState(false);
+
+  // Check if user already liked this component
+  useEffect(() => {
+    if (user?.id && component.id) {
+      uiComponentsApi.hasUserLiked(String(component.id), user.id).then(setLiked);
+    }
+  }, [user?.id, component.id]);
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user?.id) return; // Must be logged in
+    if (isLiking) return;
+
+    setIsLiking(true);
+    try {
+      const result = await uiComponentsApi.toggleLike(String(component.id), user.id);
+      setLiked(result.liked);
+      setLikesCount(result.newCount);
+    } catch (err) {
+      console.error("Like failed:", err);
+    } finally {
+      setIsLiking(false);
+    }
+  };
 
   // Build the source doc that safely wraps the code
   const srcDoc = `
@@ -52,6 +83,11 @@ export default function UiComponentCard({ component }: Props) {
     </html>
   `;
 
+  const isTemplate = component.component_type === 'template';
+
+  // Resolve author avatar: prefer saved author_avatar, fallback to getAvatarForUser
+  const authorAvatarUrl = component.author_avatar || getAvatarForUser(component.author_name || null);
+
   return (
     <div 
       onClick={() => router.push(`/components/${component.id}`)}
@@ -85,6 +121,15 @@ export default function UiComponentCard({ component }: Props) {
              </div>
          )}
 
+        {/* Type Badge */}
+        {isTemplate && (
+          <div className="absolute top-3 left-3 z-10">
+            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-purple-500/90 text-white text-[10px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-sm">
+              <Layers size={10} /> Template
+            </span>
+          </div>
+        )}
+
         {/* Hover overlay actions */}
         <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
           <button 
@@ -107,22 +152,36 @@ export default function UiComponentCard({ component }: Props) {
             {component.title}
             </h3>
             <div className="flex flex-shrink-0 items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                 <Heart size={14} className="hover:text-red-500 cursor-pointer transition-colors" /> {component.likes_count || 0}
+                 <button
+                   onClick={handleLike}
+                   className={"flex items-center gap-1 transition-colors " + (liked ? "text-red-500" : "hover:text-red-500")}
+                   title={user ? (liked ? "Unlike" : "Like") : "Login to like"}
+                 >
+                   <Heart size={14} className={liked ? "fill-red-500" : ""} /> {likesCount}
+                 </button>
                  <span className="ml-1 mr-1">&middot;</span>
                  <Eye size={14} /> {component.views_count || 0}
             </div>
         </div>
-        <div className="flex items-center space-x-2">
-            {component.author_avatar ? (
-                <img src={component.author_avatar} alt={component.author_name || 'Author'} className="w-5 h-5 rounded-full object-cover" />
-            ) : (
-                <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-bold">
-                    {component.author_name ? component.author_name.charAt(0).toUpperCase() : 'A'}
-                </div>
-            )}
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-                {component.author_name || 'Anonymous'}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+              <img
+                src={authorAvatarUrl}
+                alt={component.author_name || 'Author'}
+                className="w-5 h-5 rounded-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = getAvatarForUser(null);
+                }}
+              />
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {component.author_name || 'Anonymous'}
+              </span>
+          </div>
+          {component.component_type && (
+            <span className={"text-[10px] font-semibold px-1.5 py-0.5 rounded " + (isTemplate ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400")}>
+              {isTemplate ? 'Template' : 'Component'}
             </span>
+          )}
         </div>
       </div>
 

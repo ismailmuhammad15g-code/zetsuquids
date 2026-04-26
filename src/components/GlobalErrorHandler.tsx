@@ -68,6 +68,9 @@ export default function GlobalErrorHandler() {
         "Debug info:",
         "AbortError",
         "signal is aborted",
+        "Failed to check like status",
+        "Failed to toggle like",
+        "Failed to increment view",
       ];
 
       const shouldIgnore = ignoredPatterns.some((pattern) => message.includes(pattern));
