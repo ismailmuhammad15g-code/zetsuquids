@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Save, ArrowLeft, Maximize2, Minimize2, Play, Settings, Upload, X } from "lucide-react";
-import Link from "next/link";
-import { toast } from "sonner";
-import { uiComponentsApi } from "../../../../lib/supabase";
-import { useAuth } from "../../../../contexts/AuthContext";
+import { ArrowLeft, Maximize2, Minimize2, Play, Save, Settings, Upload, X } from "lucide-react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { useAuth } from "../../../../contexts/AuthContext";
+import { uiComponentsApi } from "../../../../lib/supabase";
 
 // Dynamically import Monaco Editor to avoid SSR issues
 const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
@@ -15,11 +15,11 @@ const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 export default function CreateComponentPage() {
   const router = useRouter();
   const { user } = useAuth();
-  
+
   const [title, setTitle] = useState("My Awesome Component");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
-  
+
   const [htmlCode, setHtmlCode] = useState('<button class="my-btn">\n  Hover me\n</button>');
   const [cssCode, setCssCode] = useState(`.my-btn {
   padding: 12px 24px;
@@ -51,7 +51,7 @@ btn.addEventListener('click', () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
-  
+
   // Debounced states
   const [debouncedHtml, setDebouncedHtml] = useState(htmlCode);
   const [debouncedCss, setDebouncedCss] = useState(cssCode);
@@ -63,7 +63,7 @@ btn.addEventListener('click', () => {
       setDebouncedHtml(htmlCode);
       setDebouncedCss(cssCode);
       setDebouncedJs(jsCode);
-      
+
       // Parse ENV
       const envObj: Record<string, string> = {};
       envCode.split('\\n').forEach(line => {
@@ -76,7 +76,7 @@ btn.addEventListener('click', () => {
         }
       });
       setParsedEnv(envObj);
-      
+
     }, 800);
     return () => clearTimeout(handler);
   }, [htmlCode, cssCode, jsCode, envCode]);
@@ -100,7 +100,7 @@ btn.addEventListener('click', () => {
       toast.error("Please enter a title for your component");
       return;
     }
-    
+
     setIsSaving(true);
     try {
       const tagsArray = tags.split(',').map(t => t.trim()).filter(Boolean);
@@ -164,194 +164,194 @@ btn.addEventListener('click', () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-[#1e1e1e] text-gray-100 font-sans">
-      
+
       {/* Top Navbar for Editor */}
       <div className="h-14 border-b border-[#333] flex items-center justify-between px-6 bg-[#252526] shrink-0">
-         <div className="flex items-center gap-4">
-             <Link href="/components" className="p-1.5 hover:bg-[#333] rounded transition-colors text-gray-400 hover:text-white">
-                <ArrowLeft size={18} />
-             </Link>
-             <span className="text-sm font-semibold text-gray-300">{title}</span>
-         </div>
-         
-         <button 
-           onClick={() => setShowPublishModal(true)}
-           disabled={isSaving}
-           className="flex items-center gap-2 bg-[#007acc] hover:bg-[#005c99] text-white px-4 py-1.5 rounded transition-all text-sm font-medium disabled:opacity-50"
-         >
-           <Save size={14} /> Publish
-         </button>
+        <div className="flex items-center gap-4">
+          <Link href="/components" className="p-1.5 hover:bg-[#333] rounded transition-colors text-gray-400 hover:text-white">
+            <ArrowLeft size={18} />
+          </Link>
+          <span className="text-sm font-semibold text-gray-300">{title}</span>
+        </div>
+
+        <button
+          onClick={() => setShowPublishModal(true)}
+          disabled={isSaving}
+          className="flex items-center gap-2 bg-[#007acc] hover:bg-[#005c99] text-white px-4 py-1.5 rounded transition-all text-sm font-medium disabled:opacity-50"
+        >
+          <Save size={14} /> Publish
+        </button>
       </div>
 
       {/* Editor Main Area */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-         
-         {/* Left Side: Code Editor */}
-         <div className={"w-full lg:w-1/2 flex flex-col border-r border-[#333] bg-[#1e1e1e] " + (isFullscreen ? "hidden" : "flex")}>
-            {/* Tabs */}
-            <div className="flex bg-[#2d2d2d] shrink-0">
-               {['html', 'css', 'js', 'env'].map(tab => (
-                 <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab as any)}
-                    className={"flex items-center gap-2 px-4 py-2 text-xs font-medium uppercase tracking-wider transition-colors border-t-2 " + (activeTab === tab ? "border-[#007acc] text-white bg-[#1e1e1e]" : "border-transparent text-gray-400 hover:text-gray-200 bg-[#2d2d2d]")}
-                 >
-                    {tab === 'env' && <Settings size={12} />}
-                    {tab}
-                 </button>
-               ))}
-            </div>
-            
-            {/* Editor Container */}
-            <div className="flex-1 relative bg-[#1e1e1e]">
-                {activeTab === 'env' && (
-                    <div className="absolute top-2 right-4 z-10 flex gap-2">
-                        <label className="flex items-center gap-2 cursor-pointer bg-[#333] hover:bg-[#444] text-xs px-3 py-1.5 rounded border border-[#555] transition text-gray-300">
-                           <Upload size={12} /> Upload .env
-                           <input type="file" className="hidden" accept=".env, .txt" onChange={handleEnvUpload} />
-                        </label>
-                    </div>
-                )}
-                <div className="absolute inset-0 pt-2">
-                    <Editor
-                       height="100%"
-                       theme="vs-dark"
-                       language={getLanguage(activeTab)}
-                       value={
-                          activeTab === 'html' ? htmlCode 
-                          : activeTab === 'css' ? cssCode 
-                          : activeTab === 'js' ? jsCode 
-                          : envCode
-                       }
-                       onChange={(val) => {
-                          if (val === undefined) return;
-                          if (activeTab === 'html') setHtmlCode(val);
-                          else if (activeTab === 'css') setCssCode(val);
-                          else if (activeTab === 'js') setJsCode(val);
-                          else setEnvCode(val);
-                       }}
-                       options={{
-                          minimap: { enabled: false }, // Keeping minimap disabled for cleanliness, user has VS code clone anyway
-                          fontSize: 14,
-                          wordWrap: 'on',
-                          scrollBeyondLastLine: false,
-                          smoothScrolling: true,
-                          cursorBlinking: 'smooth',
-                          cursorSmoothCaretAnimation: 'on',
-                          formatOnPaste: true,
-                       }}
-                    />
-                </div>
-            </div>
-         </div>
 
-         {/* Right Side: Live Preview */}
-         <div className={"w-full flex flex-col bg-white relative " + (isFullscreen ? "lg:w-full" : "lg:w-1/2")}>
-             <div className="absolute top-4 right-4 z-10 flex gap-2">
-                 <div className="bg-[#1e1e1e] border border-[#333] flex items-center p-1 rounded-md shadow-lg backdrop-blur-sm">
-                     <button
-                       onClick={() => {
-                          setDebouncedHtml(htmlCode);
-                          setDebouncedCss(cssCode);
-                          setDebouncedJs(jsCode);
-                       }}
-                       className="p-1.5 text-gray-400 hover:text-white rounded transition-all"
-                       title="Force Rerender"
-                     >
-                       <Play size={16} />
-                     </button>
-                     <div className="w-px h-4 bg-[#444] mx-1"></div>
-                     <button
-                       onClick={() => setIsFullscreen(!isFullscreen)}
-                       className="p-1.5 text-gray-400 hover:text-white rounded transition-all hidden lg:block"
-                       title="Toggle Fullscreen"
-                     >
-                       {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                     </button>
-                 </div>
-             </div>
-             
-             {/* The Sandboxed IFrame */}
-             <iframe
-                srcDoc={iframeSrcDoc}
-                title="Live Preview"
-                sandbox="allow-scripts allow-modals allow-same-origin"
-                className="w-full flex-1 border-none bg-transparent"
-                style={{
-                  backgroundImage: 'radial-gradient(circle, #00000008 1px, transparent 1px)',
-                  backgroundSize: '20px 20px',
+        {/* Left Side: Code Editor */}
+        <div className={"w-full lg:w-1/2 flex flex-col border-r border-[#333] bg-[#1e1e1e] " + (isFullscreen ? "hidden" : "flex")}>
+          {/* Tabs */}
+          <div className="flex bg-[#2d2d2d] shrink-0">
+            {['html', 'css', 'js', 'env'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab as any)}
+                className={"flex items-center gap-2 px-4 py-2 text-xs font-medium uppercase tracking-wider transition-colors border-t-2 " + (activeTab === tab ? "border-[#007acc] text-white bg-[#1e1e1e]" : "border-transparent text-gray-400 hover:text-gray-200 bg-[#2d2d2d]")}
+              >
+                {tab === 'env' && <Settings size={12} />}
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {/* Editor Container */}
+          <div className="flex-1 relative bg-[#1e1e1e]">
+            {activeTab === 'env' && (
+              <div className="absolute top-2 right-4 z-10 flex gap-2">
+                <label className="flex items-center gap-2 cursor-pointer bg-[#333] hover:bg-[#444] text-xs px-3 py-1.5 rounded border border-[#555] transition text-gray-300">
+                  <Upload size={12} /> Upload .env
+                  <input type="file" className="hidden" accept=".env, .txt" onChange={handleEnvUpload} />
+                </label>
+              </div>
+            )}
+            <div className="absolute inset-0 pt-2">
+              <Editor
+                height="100%"
+                theme="vs-dark"
+                language={getLanguage(activeTab)}
+                value={
+                  activeTab === 'html' ? htmlCode
+                    : activeTab === 'css' ? cssCode
+                      : activeTab === 'js' ? jsCode
+                        : envCode
+                }
+                onChange={(val) => {
+                  if (val === undefined) return;
+                  if (activeTab === 'html') setHtmlCode(val);
+                  else if (activeTab === 'css') setCssCode(val);
+                  else if (activeTab === 'js') setJsCode(val);
+                  else setEnvCode(val);
                 }}
-             />
-         </div>
+                options={{
+                  minimap: { enabled: false }, // Keeping minimap disabled for cleanliness, user has VS code clone anyway
+                  fontSize: 14,
+                  wordWrap: 'on',
+                  scrollBeyondLastLine: false,
+                  smoothScrolling: true,
+                  cursorBlinking: 'smooth',
+                  cursorSmoothCaretAnimation: 'on',
+                  formatOnPaste: true,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Live Preview */}
+        <div className={"w-full flex flex-col bg-white relative " + (isFullscreen ? "lg:w-full" : "lg:w-1/2")}>
+          <div className="absolute top-4 right-4 z-10 flex gap-2">
+            <div className="bg-[#1e1e1e] border border-[#333] flex items-center p-1 rounded-md shadow-lg backdrop-blur-sm">
+              <button
+                onClick={() => {
+                  setDebouncedHtml(htmlCode);
+                  setDebouncedCss(cssCode);
+                  setDebouncedJs(jsCode);
+                }}
+                className="p-1.5 text-gray-400 hover:text-white rounded transition-all"
+                title="Force Rerender"
+              >
+                <Play size={16} />
+              </button>
+              <div className="w-px h-4 bg-[#444] mx-1"></div>
+              <button
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                className="p-1.5 text-gray-400 hover:text-white rounded transition-all hidden lg:block"
+                title="Toggle Fullscreen"
+              >
+                {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* The Sandboxed IFrame */}
+          <iframe
+            srcDoc={iframeSrcDoc}
+            title="Live Preview"
+            sandbox="allow-scripts allow-modals allow-same-origin"
+            className="w-full flex-1 border-none bg-transparent"
+            style={{
+              backgroundImage: 'radial-gradient(circle, #00000008 1px, transparent 1px)',
+              backgroundSize: '20px 20px',
+            }}
+          />
+        </div>
 
       </div>
 
       {/* Publish Modal */}
       {showPublishModal && (
-         <div className="fixed inset-0 z-[999] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-[#1e1e1e] border border-[#333] w-full max-w-lg rounded-xl shadow-2xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                   <h2 className="text-xl font-bold text-white">Publish Component</h2>
-                   <button onClick={() => setShowPublishModal(false)} className="text-gray-400 hover:text-white">
-                      <X size={20} />
-                   </button>
-                </div>
-                
-                <div className="space-y-4">
-                   <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Title</label>
-                      <input 
-                         type="text" 
-                         value={title}
-                         onChange={e => setTitle(e.target.value)}
-                         className="w-full bg-[#2d2d2d] border border-[#444] rounded p-2.5 text-white focus:outline-none focus:border-[#007acc] focus:ring-1 focus:ring-[#007acc]"
-                         placeholder="e.g., Neon Liquid Button"
-                      />
-                   </div>
-                   
-                   <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Description <span className="text-xs text-gray-500">(Optional)</span></label>
-                      <textarea 
-                         value={description}
-                         onChange={e => setDescription(e.target.value)}
-                         className="w-full bg-[#2d2d2d] border border-[#444] rounded p-2.5 text-white focus:outline-none focus:border-[#007acc] focus:ring-1 focus:ring-[#007acc] h-24 resize-none"
-                         placeholder="What does this component do?"
-                      />
-                   </div>
-                   
-                   <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Tags (comma-separated)</label>
-                      <input 
-                         type="text" 
-                         value={tags}
-                         onChange={e => setTags(e.target.value)}
-                         className="w-full bg-[#2d2d2d] border border-[#444] rounded p-2.5 text-white focus:outline-none focus:border-[#007acc] focus:ring-1 focus:ring-[#007acc]"
-                         placeholder="button, neon, hover, 3d"
-                      />
-                   </div>
-                   
-                   <p className="text-xs text-yellow-500/80 mt-2 italic">
-                       * Environment variables added in the ENV tab are saved securely and will not be displayed in the public code viewer.
-                   </p>
-                </div>
-                
-                <div className="mt-8 flex justify-end gap-3.5">
-                   <button 
-                      onClick={() => setShowPublishModal(false)}
-                      className="px-4 py-2 rounded text-gray-300 hover:bg-[#333] transition"
-                   >
-                     Cancel
-                   </button>
-                   <button 
-                      onClick={handleSave}
-                      disabled={isSaving}
-                      className="flex items-center justify-center gap-2 w-32 bg-[#007acc] hover:bg-[#005c99] text-white px-4 py-2 rounded transition font-medium disabled:opacity-50"
-                   >
-                     {isSaving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> : 'Publish Now'}
-                   </button>
-                </div>
+        <div className="fixed inset-0 z-[999] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[#1e1e1e] border border-[#333] w-full max-w-lg rounded-xl shadow-2xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white">Publish Component</h2>
+              <button onClick={() => setShowPublishModal(false)} className="text-gray-400 hover:text-white">
+                <X size={20} />
+              </button>
             </div>
-         </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Title</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  className="w-full bg-[#2d2d2d] border border-[#444] rounded p-2.5 text-white focus:outline-none focus:border-[#007acc] focus:ring-1 focus:ring-[#007acc]"
+                  placeholder="e.g., Neon Liquid Button"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Description <span className="text-xs text-gray-500">(Optional)</span></label>
+                <textarea
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  className="w-full bg-[#2d2d2d] border border-[#444] rounded p-2.5 text-white focus:outline-none focus:border-[#007acc] focus:ring-1 focus:ring-[#007acc] h-24 resize-none"
+                  placeholder="What does this component do?"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Tags (comma-separated)</label>
+                <input
+                  type="text"
+                  value={tags}
+                  onChange={e => setTags(e.target.value)}
+                  className="w-full bg-[#2d2d2d] border border-[#444] rounded p-2.5 text-white focus:outline-none focus:border-[#007acc] focus:ring-1 focus:ring-[#007acc]"
+                  placeholder="button, neon, hover, 3d"
+                />
+              </div>
+
+              <p className="text-xs text-yellow-500/80 mt-2 italic">
+                * Environment variables added in the ENV tab are saved securely and will not be displayed in the public code viewer.
+              </p>
+            </div>
+
+            <div className="mt-8 flex justify-end gap-3.5">
+              <button
+                onClick={() => setShowPublishModal(false)}
+                className="px-4 py-2 rounded text-gray-300 hover:bg-[#333] transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="flex items-center justify-center gap-2 w-32 bg-[#007acc] hover:bg-[#005c99] text-white px-4 py-2 rounded transition font-medium disabled:opacity-50"
+              >
+                {isSaving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> : 'Publish Now'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
