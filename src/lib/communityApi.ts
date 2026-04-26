@@ -597,7 +597,7 @@ export const communityApi = {
 
         const { data, error } = await supabase
             .from("posts")
-            .select("id, title, category, created_at, likes_count:post_likes, content")
+            .select("id, title, category, created_at, content, post_likes(user_id)")
             .eq("category", "News")
             .order("created_at", { ascending: false })
             .limit(limit);
@@ -607,11 +607,11 @@ export const communityApi = {
             return [];
         }
 
-        return data?.map((item: { id: string | number; content: string; category: string; likes_count: number; created_at: string; }) => ({
+        return data?.map((item: { id: string | number; content: string; category: string; post_likes: unknown[]; created_at: string; }) => ({
             id: item.id,
             title: (item.content || "").split('\n')[0].slice(0, 80),
             category: item.category || 'News',
-            posts_count: ((item.likes_count || 0) * 10).toLocaleString() + 'K',
+            posts_count: (((item.post_likes as unknown[])?.length || 0) * 10).toLocaleString() + 'K',
             source_image: "https://ui-avatars.com/api/?name=" + (item.category || "News"),
             created_at: item.created_at
         })) || [];

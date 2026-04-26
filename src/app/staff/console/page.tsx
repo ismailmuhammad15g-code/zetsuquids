@@ -671,7 +671,7 @@ export default function StaffConsole() {
                                                 </div>
                                                 <div className="conversation-meta">
                                                     <Clock size={12} />
-                                                    <span>{formatTime(conv.last_message_at || conv.updated_at || conv.created_at)}</span>
+                                                    <span>{formatTime(conv.last_message_at || conv.updated_at)}</span>
                                                 </div>
                                             </div>
                                             <div className="expand-icon">
