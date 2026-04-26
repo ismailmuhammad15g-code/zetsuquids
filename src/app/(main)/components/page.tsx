@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PlusCircle, Search, Layers, TrendingUp, Clock } from "lucide-react";
 import UiComponentCard from "../../../components/UiComponentCard";
