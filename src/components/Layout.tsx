@@ -1,0 +1,800 @@
+"use client";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  BarChart3,
+  BookOpen,
+  Bot,
+  Home,
+  LogIn,
+  LogOut,
+  Menu,
+  Plus,
+  Search,
+  Sparkles,
+  Users,
+  X,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { useLoading } from "../contexts/LoadingContext";
+import { getAvatarForUser } from "../lib/avatar";
+import { supabase } from "../lib/supabase";
+import AccountSetupModal from "./AccountSetupModal";
+import AddGuideModal from "./AddGuideModal";
+import ApprovedBugModal from "./ApprovedBugModal";
+import GlobalLoader from "./GlobalLoader";
+import ModernNav from "./ModernNav";
+import ClickSpark from "./react-bits/ClickSpark";
+import ReferralBonusNotification from "./ReferralBonusNotification";
+import ReferralSuccessModal from "./ReferralSuccessModal";
+import SearchModal from "./SearchModal";
+import SubscriptionRenewAd from "./SubscriptionRenewAd";
+import { TopLoader } from "./TopLoader";
+import TourCursor from "./TourCursor";
+
+const CookieConsent = lazy(() => import("./CookieConsent").catch(() => import("./AdBlockFallback")));
+
+interface UserProfileState {
+  avatar_url?: string | null;
+  [key: string]: unknown;
+}
+
+export default function Layout({ children }: { children?: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout, isAuthenticated } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showAccountSetup, setShowAccountSetup] = useState(false);
+  const [accountDeleted, setAccountDeleted] = useState(false);
+  const [showReferralSuccess, setShowReferralSuccess] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfileState | null>(null);
+  const [checkingReferral, setCheckingReferral] = useState(true);
+  const [showBugReward, setShowBugReward] = useState(false);
+  const [rewardReportId, setRewardReportId] = useState<string | number | null>(null);
+
+  // Top loader for navigation / global actions
+  const { isLoading } = useLoading();
+  const [navLoading, setNavLoading] = useState(false);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Show top loader briefly on navigation changes
+  useEffect(() => {
+    // start nav loading immediately when path changes
+    setNavLoading(true);
+    const t = setTimeout(() => setNavLoading(false), 700);
+    return () => clearTimeout(t);
+  }, [pathname]);
+
+  // Also show top loader when internal links are clicked (improves perceived responsiveness)
+  useEffect(() => {
+    const onClick = (e: MouseEvent): void => {
+      let el = e.target as HTMLElement | null;
+      while (el && el !== document.body) {
+        if (el.tagName === "A") {
+          const href = el.getAttribute("href");
+          if (href && href.startsWith("/")) {
+            setNavLoading(true);
+            setTimeout(() => setNavLoading(false), 900);
+          }
+          break;
+        }
+        el = el.parentElement;
+      }
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
+
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setShowSearchModal(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // First: Check for pending referral strictly before anything else
+  useEffect(() => {
+    if (!user?.id) {
+      setCheckingReferral(false);
+      return;
+    }
+    const userId = user.id;
+
+    async function tryClaimReferral() {
+      // Check if we even have a pending referral to claim
+      console.log("Checking for pending referral...", user?.user_metadata);
+      if (!user?.user_metadata?.referral_pending) {
+        console.log("No pending referral found in metadata.");
+        setCheckingReferral(false);
+        return;
+      }
+
+      console.log("Found pending referral, claiming...");
+      try {
+        const response = await fetch("/api/payments?type=claim_referral", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId }),
+        });
+        const result = await response.json();
+        console.log("Claim Result:", result);
+
+        if (result.success && result.bonusApplied) {
+          console.log("Bonus applied! Showing success modal...");
+          setShowReferralSuccess(true);
+          // DON'T set checkingReferral to false yet - let modal close handle it
+        } else {
+          console.log("Bonus not applied, marking as checked anyway");
+          setCheckingReferral(false);
+        }
+      } catch (err: unknown) {
+        const errName = err instanceof Error ? err.name : "";
+        const errMessage = err instanceof Error ? err.message : String(err);
+        // If fetch aborted or network error, just log warning
+        if (errName === "AbortError" || errMessage.toLowerCase().includes("network")) {
+          console.warn("Retry claim referral paused (network/abort):", err);
+        } else {
+          console.error("Retry claim referral failed:", err);
+        }
+        setCheckingReferral(false);
+      }
+    }
+    tryClaimReferral();
+  }, [user]);
+
+  // Second: Check for user profile setup ONLY after referral check is done
+  useEffect(() => {
+    if (!user?.email || checkingReferral) return;
+    const userEmail = user.email;
+
+    async function checkProfile() {
+      // Sequential auth/profile checks to avoid Supabase auth token lock races.
+      // Calling supabase.auth.getUser() in parallel with other requests can
+      // trigger "lock ... was released because another request stole it".
+      let authError = null;
+
+      try {
+        const authResult = await supabase.auth.getUser();
+        authError = authResult.error;
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : JSON.stringify(err);
+        console.warn("Supabase auth getUser warning:", message);
+        authError = err as any;
+      }
+
+      const profileResult = await supabase
+        .from("zetsuguide_user_profiles")
+        .select("*")
+        .eq("user_email", userEmail)
+        .maybeSingle();
+
+      const { data, error: profileError } = profileResult;
+
+      // Priority 0: Network Resilience - unexpected profile fetch error
+      if (profileError) {
+        console.warn("Profile fetch failed (likely network):", profileError);
+        // If it's a network error, do NOT assume user is new. Just abort this check.
+        // The user might experience limited functionality (no profile),
+        // but it's better than forcing "Account Setup".
+        return;
+      }
+
+      // Priority 1: If Auth User is gone (Deleted by Admin), trigger deletion flow
+      if (authError) {
+        const authErrorMessage =
+          authError instanceof Error
+            ? authError.message
+            : typeof authError === "object" && authError !== null
+              ? (authError as any).message || JSON.stringify(authError)
+              : String(authError);
+
+        console.warn("Auth verification issue:", authErrorMessage);
+
+        // Ignore network errors or fetch failures - DO NOT show Account Deleted
+        const isNetworkError =
+          authErrorMessage.includes("Failed to fetch") ||
+          authErrorMessage.includes("AuthRetryableFetchError") ||
+          authErrorMessage.includes("Network request failed");
+
+        // Only show "Account Deleted" if it's strictly a user not found/deleted scenario
+        // Usually supabase returns status 400 or "User not found" for deleted users
+        if (
+          !isNetworkError &&
+          (authError.status === 400 ||
+            authError.message?.includes("User not found"))
+        ) {
+          setAccountDeleted(true);
+          setUserProfile(null);
+        }
+        return;
+      }
+
+      // Priority 2: Auth is good, set profile if exists
+      setUserProfile(data);
+
+      // Priority 3: If Auth good but no profile => Setup needed
+      if (!data) {
+        setShowAccountSetup(true);
+      }
+    }
+    checkProfile();
+  }, [user, checkingReferral]);
+
+  // Third: Check for approved bug reports with pending notifications
+  useEffect(() => {
+    if (!user?.id) return;
+    const userId = user.id;
+
+    async function checkBugRewards() {
+      const { data: reports } = await supabase
+        .from("bug_reports")
+        .select("id, issue_type")
+        .eq("user_id", userId)
+        .eq("status", "approved")
+        .eq("notification_shown", false)
+        .limit(1);
+
+      if (reports && reports.length > 0) {
+        const reportId = reports[0].id;
+
+        // LocalStorage guard - if we've shown this report before, skip
+        const seenKey = `bug_reward_seen_${reportId}`;
+        if (localStorage.getItem(seenKey) === "true") {
+          console.log("[BugReward] Already seen locally, skipping modal");
+          return;
+        }
+
+        setRewardReportId(reportId);
+        setShowBugReward(true);
+      }
+    }
+    checkBugRewards();
+  }, [user]);
+
+  const navItems = [
+    {
+      label: "Home",
+      icon: <Home size={18} className="translate-y-[1px]" />,
+      href: "/",
+    },
+    {
+      label: "Guides",
+      icon: <BookOpen size={18} className="translate-y-[1px]" />,
+      href: "/guides",
+      isActive: pathname.startsWith("/guide"),
+    },
+    {
+      label: "Community",
+      icon: <Users size={18} className="translate-y-[1px]" />,
+      href: "/community",
+    },
+    {
+      label: "ZetsuGuide AI",
+      icon: <Bot size={18} className="translate-y-[1px]" />,
+      href: "/zetsuguide-ai",
+    },
+  ];
+
+  const getUserDisplayName = (): string => {
+    const fullName = user?.user_metadata?.full_name;
+    if (typeof fullName === "string" && fullName.trim().length > 0) {
+      return fullName;
+    }
+    if (user?.email) {
+      return user.email.split("@")[0];
+    }
+    return "User";
+  };
+
+  const getWorkspaceSlug = (): string => {
+    return getUserDisplayName().toLowerCase();
+  };
+
+  return (
+    <ClickSpark
+      sparkColor="#000"
+      sparkSize={10}
+      sparkRadius={15}
+      sparkCount={8}
+      duration={400}
+    >
+      <div className="min-h-screen bg-white transition-colors duration-300 dark:bg-black dark:text-white">
+        {/* Top progress loader (light blue) - visible on navigation/actions) */}
+        <TopLoader isLoading={isLoading || navLoading} color="#33C3F0" />
+        {/* Header */}
+        <header className="sticky top-0 z-[100] bg-white border-b-2 border-black transition-colors duration-300 dark:bg-black dark:border-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              {/* Logo */}
+              <Link href="/" className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-black flex items-center justify-center transition-colors duration-300 dark:bg-white">
+                  <span className="text-white font-black text-xl transition-colors duration-300 dark:text-black">
+                    D
+                  </span>
+                </div>
+                <span className="text-2xl font-black tracking-tight hidden sm:block transition-colors duration-300 dark:text-white">
+                  DevVault
+                </span>
+              </Link>
+
+              {/* Desktop Nav */}
+              <div className="hidden md:block">
+                <ModernNav items={navItems} />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2">
+                {/* Search Button */}
+                <button
+                  onClick={() => setShowSearchModal(true)}
+                  className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-white/20 dark:hover:border-white hover:border-black transition-colors text-sm dark:bg-black/50"
+                  aria-label="Search"
+                >
+                  <Search
+                    size={16}
+                    className="text-gray-500 dark:text-gray-400"
+                  />
+                  <span className="hidden sm:inline text-gray-500 dark:text-gray-400">
+                    Search...
+                  </span>
+                  <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-gray-100 dark:bg-white/10 border dark:border-white/10 rounded dark:text-gray-300">
+                    ⌘K
+                  </kbd>
+                </button>
+
+                {/* Add Guide Button - Only for authenticated users */}
+                {isAuthenticated() && (
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white dark:bg-white dark:text-black font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                  >
+                    <Plus size={18} />
+                    <span className="hidden sm:inline">Add Guide</span>
+                  </button>
+                )}
+
+                {/* Auth Section */}
+                {isAuthenticated() ? (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowUserMenu(!showUserMenu)}
+                      className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-white/20 hover:border-black dark:hover:border-white transition-colors rounded-lg group"
+                    >
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center overflow-hidden border border-black dark:border-white group-hover:scale-105 transition-transform">
+                        <img
+                          src={getAvatarForUser(
+                            user?.email,
+                            userProfile?.avatar_url,
+                          )}
+                          alt="User"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <span className="hidden sm:inline text-sm font-medium">
+                        {getUserDisplayName()}
+                      </span>
+                    </button>
+
+                    {showUserMenu && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-[998]"
+                          onClick={() => setShowUserMenu(false)}
+                        />
+                        <div className="absolute right-0 mt-2 w-72 bg-white border-2 border-black rounded-xl shadow-2xl z-[999] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                          <div className="px-4 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-black shadow-md">
+                                <img
+                                  src={getAvatarForUser(
+                                    user?.email,
+                                    userProfile?.avatar_url,
+                                  )}
+                                  alt="User"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-gray-900 truncate">
+                                  {getUserDisplayName()}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate">
+                                  {user?.email}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="py-2 border-b border-gray-200">
+                            <Link
+                              href={`/@${getWorkspaceSlug()}/workspace`}
+                              onClick={() => setShowUserMenu(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              <BookOpen size={18} />
+                              <span>My Workspace</span>
+                            </Link>
+                            <Link
+                              href="/stats"
+                              onClick={() => setShowUserMenu(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              <BarChart3 size={18} />
+                              <span>My Stats</span>
+                            </Link>
+                            <Link
+                              href="/zetsuguide-ai"
+                              onClick={() => setShowUserMenu(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              <Bot size={18} />
+                              <div className="flex-1 flex items-center justify-between">
+                                <span>ZetsuGuide AI</span>
+                              </div>
+                            </Link>
+                            <Link
+                              href="/pricing"
+                              onClick={() => setShowUserMenu(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              <Sparkles size={18} className="text-yellow-500" />
+                              <span>Upgrade to Pro</span>
+                            </Link>
+                          </div>
+                          <button
+                            onClick={() => {
+                              logout();
+                              setShowUserMenu(false);
+                              router.push("/");
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors font-medium"
+                          >
+                            <LogOut size={18} />
+                            <span>Logout</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <Link
+                    href="/auth"
+                    className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:border-black transition-colors"
+                  >
+                    <LogIn size={18} />
+                    <span className="hidden sm:inline text-sm">Login</span>
+                  </Link>
+                )}
+
+                {/* Mobile Menu Button */}
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="md:hidden p-2 hover:bg-gray-100"
+                >
+                  {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Menu with Framer Motion */}
+          <AnimatePresence>
+            {mobileMenuOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="md:hidden border-b-2 border-black bg-white/95 backdrop-blur-md overflow-hidden relative z-[90]"
+              >
+                <div className="px-4 py-6 space-y-4">
+                  <nav className="space-y-2">
+                    <Link
+                      href="/"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${pathname === "/"
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                    >
+                      <Home size={22} />
+                      <span>Home</span>
+                    </Link>
+                    <Link
+                      href="/guides"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${pathname.startsWith("/guide")
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                    >
+                      <BookOpen size={22} />
+                      <span>All Guides</span>
+                    </Link>
+                    <Link
+                      href="/community"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${pathname === "/community"
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                    >
+                      <Users size={22} />
+                      <span>Community</span>
+                    </Link>
+                    <Link
+                      href="/zetsuguide-ai"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all border-2 border-transparent ${pathname === "/zetsuguide-ai"
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "bg-gradient-to-r from-purple-50 to-pink-50 text-gray-900 border-purple-100"
+                        }`}
+                    >
+                      <Bot
+                        size={22}
+                        className={
+                          pathname === "/zetsuguide-ai"
+                            ? "text-white"
+                            : "text-purple-600"
+                        }
+                      />
+                      <span className="flex-1">ZetsuGuide AI</span>
+                      <span className="flex-1">ZetsuGuide AI</span>
+                    </Link>
+                  </nav>
+
+                  {/* Mobile Divider */}
+                  <div className="h-px bg-gray-200 my-2" />
+
+                  {/* Mobile Profile / Auth */}
+                  <div>
+                    {isAuthenticated() ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 mb-2">
+                          <div className="w-10 h-10 rounded-full overflow-hidden border border-black dark:border-white">
+                            <img
+                              src={getAvatarForUser(
+                                user?.email,
+                                userProfile?.avatar_url,
+                              )}
+                              alt="Profile"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-gray-900 truncate">
+                              {getUserDisplayName()}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {user?.email}
+                            </p>
+                          </div>
+                        </div>
+
+                        <Link
+                          href={`/@${getWorkspaceSlug()}/workspace`}
+                          className="flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                        >
+                          <BookOpen size={20} />
+                          <span>My Workspace</span>
+                        </Link>
+
+                        <Link
+                          href="/stats"
+                          className="flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                        >
+                          <BarChart3 size={20} />
+                          <span>My Stats</span>
+                        </Link>
+
+                        <button
+                          onClick={() => {
+                            logout();
+                            router.push("/");
+                          }}
+                          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <LogOut size={20} />
+                          <span>Logout</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <Link
+                          href="/auth"
+                          className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border-2 border-black font-bold hover:bg-gray-50 transition-colors"
+                        >
+                          <LogIn size={20} />
+                          <span>Log In</span>
+                        </Link>
+                        <Link
+                          href="/auth?mode=register"
+                          className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-black text-white font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-black/20"
+                        >
+                          <Plus size={20} />
+                          <span>Create Account</span>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1">
+          {children}
+        </main>
+
+        {/* Footer - Hidden on Community Page */}
+        {!pathname.startsWith("/community") && (
+          <footer className="border-t-2 border-black mt-16">
+            <div className="max-w-7xl mx-auto px-4 py-8">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-black flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">Z</span>
+                  </div>
+                  <span className="font-bold">ZetsuGuide</span>
+                </div>
+                <div className="flex flex-wrap items-center justify-center sm:justify-end gap-6">
+                  <Link
+                    href="/faq"
+                    className="text-sm font-medium hover:underline"
+                  >
+                    FAQ
+                  </Link>
+                  <Link
+                    href="/pricing"
+                    className="text-sm font-medium hover:underline"
+                  >
+                    Pricing
+                  </Link>
+                  <Link
+                    href="/support"
+                    className="text-sm font-medium hover:underline"
+                  >
+                    Support
+                  </Link>
+                  <Link
+                    href="/community"
+                    className="text-sm font-medium hover:underline"
+                  >
+                    Community
+                  </Link>
+                  <p className="text-sm text-gray-500">
+                    Your personal knowledge base. Built with ❤️
+                  </p>
+                </div>
+              </div>
+            </div>
+          </footer>
+        )}
+
+        {/* Modals */}
+        {showAddModal && (
+          <AddGuideModal onClose={() => setShowAddModal(false)} />
+        )}
+        {showSearchModal && (
+          <SearchModal onClose={() => setShowSearchModal(false)} />
+        )}
+        {showAccountSetup && user && !checkingReferral && (
+          <AccountSetupModal
+            user={user}
+            onClose={() => setShowAccountSetup(false)}
+            onComplete={() => {
+              // Refresh profile data
+              const checkProfile = async () => {
+                if (!user?.email) return;
+                const { data } = await supabase
+                  .from("zetsuguide_user_profiles")
+                  .select("*")
+                  .eq("user_email", user.email)
+                  .maybeSingle();
+                setUserProfile(data);
+              };
+              checkProfile();
+            }}
+          />
+        )}
+        {showReferralSuccess && (
+          <ReferralSuccessModal
+            onClose={async () => {
+              setShowReferralSuccess(false);
+              // Refresh session to reflect updated metadata
+              await supabase.auth.refreshSession();
+              setCheckingReferral(false);
+            }}
+            bonusCredits={5}
+          />
+        )}
+        {accountDeleted && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white border-2 border-black rounded-xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 mx-auto border-2 border-red-500">
+                <LogOut className="w-6 h-6 text-red-600" />
+              </div>
+              <h2 className="text-xl font-black text-center mb-2">
+                Account Deleted
+              </h2>
+              <p className="text-gray-600 text-center mb-6">
+                This account has been permanently deleted as requested. You will
+                now be logged out.
+              </p>
+              <button
+                onClick={() => {
+                  logout();
+                  setAccountDeleted(false);
+                  router.push("/");
+                }}
+                className="w-full py-3 bg-black text-white font-bold rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Return to Home
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showBugReward && (
+          <ApprovedBugModal
+            onClose={async () => {
+              setShowBugReward(false);
+
+              // IMMEDIATELY mark as seen in localStorage (failsafe)
+              if (rewardReportId) {
+                const seenKey = `bug_reward_seen_${rewardReportId}`;
+                localStorage.setItem(seenKey, "true");
+                console.log(
+                  "[BugReward] Marked as seen in localStorage:",
+                  seenKey,
+                );
+
+                // Also try to update DB via API (but localStorage is the primary guard now)
+                try {
+                  await fetch("/api/interactions?type=mark_read", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ report_id: rewardReportId }),
+                  });
+                } catch (err) {
+                  console.error(
+                    "Failed to mark notification as read in DB:",
+                    err,
+                  );
+                }
+              }
+            }}
+          />
+        )}
+
+        {/* Global Loader Helper */}
+        <GlobalLoader />
+
+        {/* Real-time Referral Bonus Notification */}
+        <ReferralBonusNotification />
+
+        {/* New User Advertisement */}
+        <SubscriptionRenewAd />
+
+        {/* Cookie Consent */}
+        <Suspense fallback={null}>
+          <CookieConsent />
+        </Suspense>
+
+        {/* Tour Cursor */}
+        <TourCursor />
+      </div>
+    </ClickSpark>
+  );
+}

@@ -700,8 +700,14 @@ export default async function handler(req, res) {
     const userMessage = messages?.find((m) => m.role === "user")?.content || "";
 
     // Get API credentials for source selection
-    const apiKey = process.env.VITE_AI_API_KEY || process.env.ROUTEWAY_API_KEY;
+    const apiKey =
+      process.env.NEXT_PUBLIC_AI_API_KEY ||
+      process.env.AI_API_KEY ||
+      process.env.VITE_AI_API_KEY ||
+      process.env.ROUTEWAY_API_KEY;
     const apiUrl =
+      process.env.NEXT_PUBLIC_AI_API_URL ||
+      process.env.AI_API_URL ||
       process.env.VITE_AI_API_URL ||
       "https://api.routeway.ai/v1/chat/completions";
 
@@ -1365,318 +1371,318 @@ Here is the explanation...
     // ═══════════════════════════════════════════════════════
 
     let response;
-      try {
-        // Determine request parameters based on whether we want streaming
-        let fetchUrl = endpoint;
+    try {
+      // Determine request parameters based on whether we want streaming
+      let fetchUrl = endpoint;
 
-        // Always add API key to URL for Gemini
-        // But first check if endpoint already has query params
-        const hasQueryParams = endpoint.includes("?");
-        if (!endpoint.includes("key=")) {
-          fetchUrl = hasQueryParams
-            ? `${endpoint}&key=${apiKey}`
-            : `${endpoint}?key=${apiKey}`;
-        }
+      // Always add API key to URL for Gemini
+      // But first check if endpoint already has query params
+      const hasQueryParams = endpoint.includes("?");
+      if (!endpoint.includes("key=")) {
+        fetchUrl = hasQueryParams
+          ? `${endpoint}&key=${apiKey}`
+          : `${endpoint}?key=${apiKey}`;
+      }
 
-        // For streaming, add the alt=sse parameter
-        if (wantsStream && endpoint.includes("generateContent")) {
-          const hasParams = fetchUrl.includes("?");
-          fetchUrl = hasParams
-            ? `${fetchUrl}&alt=sse`
-            : `${fetchUrl}?alt=sse`;
-          console.log("🚀 Sending request to Gemini STREAMING API:", {
-            model: validatedModel,
-            messageCount: messagesWithSearch.length,
-            streaming: true,
-          });
-        } else {
-          console.log("🚀 Sending request to AI API (non-streaming):", {
-            model: validatedModel,
-            messageCount: messagesWithSearch.length,
-            streaming: false,
-          });
-        }
-
-        const fetchOptions = {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(geminiPayload),
-        };
-
-        response = await fetch(fetchUrl, fetchOptions);
-
-        console.log("📥 Received response:", {
-          status: response.status,
-          statusText: response.statusText,
-          contentType: response.headers.get("content-type"),
-          hasBody: !!response.body,
+      // For streaming, add the alt=sse parameter
+      if (wantsStream && endpoint.includes("generateContent")) {
+        const hasParams = fetchUrl.includes("?");
+        fetchUrl = hasParams
+          ? `${fetchUrl}&alt=sse`
+          : `${fetchUrl}?alt=sse`;
+        console.log("🚀 Sending request to Gemini STREAMING API:", {
+          model: validatedModel,
+          messageCount: messagesWithSearch.length,
+          streaming: true,
         });
-      } catch (fetchError) {
-        console.error("❌ API failed:", fetchError);
-        return res.status(504).json({
-          error: "AI service unavailable",
-          details: "The AI service is temporarily unavailable. Please try again.",
+      } else {
+        console.log("🚀 Sending request to AI API (non-streaming):", {
+          model: validatedModel,
+          messageCount: messagesWithSearch.length,
+          streaming: false,
         });
       }
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("❌ AI API error:", response.status, errorText);
-        return res.status(response.status).json({
-          error: `AI Service Error (${response.status})`,
-          details: "Please try again in a moment.",
-        });
-      }
+      const fetchOptions = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(geminiPayload),
+      };
 
-      // Branch based on whether streaming is actually happening
-      console.log("Response Processing:", {
-        wantsStream,
-        supportsStreaming,
-        resWriteType: typeof res.write,
-        resEndType: typeof res.end,
+      response = await fetch(fetchUrl, fetchOptions);
+
+      console.log("📥 Received response:", {
+        status: response.status,
+        statusText: response.statusText,
+        contentType: response.headers.get("content-type"),
+        hasBody: !!response.body,
       });
+    } catch (fetchError) {
+      console.error("❌ API failed:", fetchError);
+      return res.status(504).json({
+        error: "AI service unavailable",
+        details: "The AI service is temporarily unavailable. Please try again.",
+      });
+    }
 
-      if (wantsStream && supportsStreaming) {
-        // Create a compatible reader for both Web Streams and Node Streams
-        let reader;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ AI API error:", response.status, errorText);
+      return res.status(response.status).json({
+        error: `AI Service Error (${response.status})`,
+        details: "Please try again in a moment.",
+      });
+    }
 
-        if (response.body && typeof response.body.getReader === "function") {
-          reader = response.body.getReader();
-        } else if (
-          response.body &&
-          typeof response.body[Symbol.asyncIterator] === "function"
-        ) {
-          // Node.js PassThrough/Readable stream
-          const iterator = response.body[Symbol.asyncIterator]();
-          reader = {
-            read: async () => {
-              const { done, value } = await iterator.next();
-              return { done, value };
-            },
-          };
-        }
+    // Branch based on whether streaming is actually happening
+    console.log("Response Processing:", {
+      wantsStream,
+      supportsStreaming,
+      resWriteType: typeof res.write,
+      resEndType: typeof res.end,
+    });
 
-        // Verify we have a valid reader
-        if (!reader) {
-          console.error("❌ AI provider did not return a readable stream!");
-          console.error("Response body type:", typeof response.body);
+    if (wantsStream && supportsStreaming) {
+      // Create a compatible reader for both Web Streams and Node Streams
+      let reader;
 
-          // Fallback: try to read as text
-          const text = await response.text();
-          console.log(
-            "Response as text (first 200 chars):",
-            text.substring(0, 200),
-          );
+      if (response.body && typeof response.body.getReader === "function") {
+        reader = response.body.getReader();
+      } else if (
+        response.body &&
+        typeof response.body[Symbol.asyncIterator] === "function"
+      ) {
+        // Node.js PassThrough/Readable stream
+        const iterator = response.body[Symbol.asyncIterator]();
+        reader = {
+          read: async () => {
+            const { done, value } = await iterator.next();
+            return { done, value };
+          },
+        };
+      }
 
-          return res.status(502).json({
-            error: "AI service returned invalid streaming response",
-            details:
-              "The AI provider is not responding with a proper stream format.",
-          });
-        }
+      // Verify we have a valid reader
+      if (!reader) {
+        console.error("❌ AI provider did not return a readable stream!");
+        console.error("Response body type:", typeof response.body);
 
-        // Set up Server-Sent Events (SSE) for real streaming
-        res.setHeader("Content-Type", "text/event-stream");
-        res.setHeader("Cache-Control", "no-cache");
-        res.setHeader("Connection", "keep-alive");
-
-        console.log("✅ Starting REAL STREAMING to client...");
-
-        // Send initial metadata
-        res.write(
-          `data: ${JSON.stringify({ type: "start", sources: fetchedSources.map((s) => ({ url: s.url, method: s.method })) })}\n\n`,
+        // Fallback: try to read as text
+        const text = await response.text();
+        console.log(
+          "Response as text (first 200 chars):",
+          text.substring(0, 200),
         );
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let totalTokensSent = 0; // Track if we're actually receiving content
-        let chunkCount = 0;
-        let debugFirstChunks = []; // Store first few chunks for debugging
 
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
+        return res.status(502).json({
+          error: "AI service returned invalid streaming response",
+          details:
+            "The AI provider is not responding with a proper stream format.",
+        });
+      }
 
-            if (done) {
-              console.log(
-                "✅ Stream completed - Total tokens sent:",
-                totalTokensSent,
-                "from",
-                chunkCount,
-                "chunks",
+      // Set up Server-Sent Events (SSE) for real streaming
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      console.log("✅ Starting REAL STREAMING to client...");
+
+      // Send initial metadata
+      res.write(
+        `data: ${JSON.stringify({ type: "start", sources: fetchedSources.map((s) => ({ url: s.url, method: s.method })) })}\n\n`,
+      );
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let totalTokensSent = 0; // Track if we're actually receiving content
+      let chunkCount = 0;
+      let debugFirstChunks = []; // Store first few chunks for debugging
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+
+          if (done) {
+            console.log(
+              "✅ Stream completed - Total tokens sent:",
+              totalTokensSent,
+              "from",
+              chunkCount,
+              "chunks",
+            );
+            if (totalTokensSent === 0) {
+              console.error(
+                "⚠️⚠️ ERROR: Stream completed but NO tokens were extracted!",
               );
-              if (totalTokensSent === 0) {
-                console.error(
-                  "⚠️⚠️ ERROR: Stream completed but NO tokens were extracted!",
-                );
-                console.error("First 3 chunks received:", debugFirstChunks);
-                console.error("Last buffer content:", buffer);
-              }
-              res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
-              res.end();
-              break;
+              console.error("First 3 chunks received:", debugFirstChunks);
+              console.error("Last buffer content:", buffer);
+            }
+            res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+            res.end();
+            break;
+          }
+
+          chunkCount++;
+          buffer += decoder.decode(value, { stream: true });
+
+          // Save first 3 raw chunks for debugging
+          if (debugFirstChunks.length < 3) {
+            const rawChunk = decoder.decode(value, { stream: true });
+            debugFirstChunks.push({
+              chunkNum: chunkCount,
+              raw: rawChunk.substring(0, 500),
+              bufferLength: buffer.length,
+            });
+            console.log(`📦 Chunk ${chunkCount}:`, rawChunk.substring(0, 300));
+          }
+
+          // Use a smarter JSON parsing approach that handles multi-line objects
+          // Extract complete JSON objects regardless of how they're split across lines/chunks
+          let jsonStartIdx = 0;
+          let braceCount = 0;
+          let inString = false;
+          let escapeNext = false;
+
+          for (let i = 0; i < buffer.length; i++) {
+            const char = buffer[i];
+
+            // Handle string escaping
+            if (escapeNext) {
+              escapeNext = false;
+              continue;
             }
 
-            chunkCount++;
-            buffer += decoder.decode(value, { stream: true });
-
-            // Save first 3 raw chunks for debugging
-            if (debugFirstChunks.length < 3) {
-              const rawChunk = decoder.decode(value, { stream: true });
-              debugFirstChunks.push({
-                chunkNum: chunkCount,
-                raw: rawChunk.substring(0, 500),
-                bufferLength: buffer.length,
-              });
-              console.log(`📦 Chunk ${chunkCount}:`, rawChunk.substring(0, 300));
+            if (char === "\\") {
+              escapeNext = true;
+              continue;
             }
 
-            // Use a smarter JSON parsing approach that handles multi-line objects
-            // Extract complete JSON objects regardless of how they're split across lines/chunks
-            let jsonStartIdx = 0;
-            let braceCount = 0;
-            let inString = false;
-            let escapeNext = false;
+            // Track if we're inside a string (JSON strings can contain { or })
+            if (char === '"') {
+              inString = !inString;
+              continue;
+            }
 
-            for (let i = 0; i < buffer.length; i++) {
-              const char = buffer[i];
+            // Only count braces outside of strings
+            if (!inString) {
+              if (char === "{") braceCount++;
+              if (char === "}") braceCount--;
 
-              // Handle string escaping
-              if (escapeNext) {
-                escapeNext = false;
-                continue;
-              }
+              // When we've closed all braces, we have a complete JSON object
+              if (braceCount === 0 && i > jsonStartIdx) {
+                const jsonStr = buffer.substring(jsonStartIdx, i + 1);
+                jsonStartIdx = i + 1;
 
-              if (char === "\\") {
-                escapeNext = true;
-                continue;
-              }
+                // Skip empty objects and SSE markers
+                const trimmed = jsonStr.trim();
+                if (trimmed === "" || trimmed === "," || trimmed === "[" || trimmed === "]") continue;
 
-              // Track if we're inside a string (JSON strings can contain { or })
-              if (char === '"') {
-                inString = !inString;
-                continue;
-              }
+                // Handle SSE format with "data: " prefix
+                let jsonStrToParse = trimmed;
+                if (trimmed.startsWith("data:")) {
+                  jsonStrToParse = trimmed.startsWith("data: ")
+                    ? trimmed.slice(6)
+                    : trimmed.slice(5);
+                }
 
-              // Only count braces outside of strings
-              if (!inString) {
-                if (char === "{") braceCount++;
-                if (char === "}") braceCount--;
+                try {
+                  const jsonObj = JSON.parse(jsonStrToParse);
 
-                // When we've closed all braces, we have a complete JSON object
-                if (braceCount === 0 && i > jsonStartIdx) {
-                  const jsonStr = buffer.substring(jsonStartIdx, i + 1);
-                  jsonStartIdx = i + 1;
+                  // Extract text from Gemini format
+                  let content = null;
 
-                  // Skip empty objects and SSE markers
-                  const trimmed = jsonStr.trim();
-                  if (trimmed === "" || trimmed === "," || trimmed === "[" || trimmed === "]") continue;
-
-                  // Handle SSE format with "data: " prefix
-                  let jsonStrToParse = trimmed;
-                  if (trimmed.startsWith("data:")) {
-                    jsonStrToParse = trimmed.startsWith("data: ")
-                      ? trimmed.slice(6)
-                      : trimmed.slice(5);
+                  // Gemini format: candidates[0].content.parts[0].text
+                  if (jsonObj.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    content = jsonObj.candidates[0].content.parts[0].text;
+                  }
+                  // Fallback formats
+                  else if (jsonObj.choices?.[0]?.delta?.content) {
+                    content = jsonObj.choices[0].delta.content;
+                  } else if (jsonObj.choices?.[0]?.message?.content) {
+                    content = jsonObj.choices[0].message.content;
+                  } else if (jsonObj.content) {
+                    content = jsonObj.content;
+                  } else if (jsonObj.text) {
+                    content = jsonObj.text;
                   }
 
-                  try {
-                    const jsonObj = JSON.parse(jsonStrToParse);
+                  if (content) {
+                    totalTokensSent++;
+                    res.write(
+                      `data: ${JSON.stringify({ type: "token", content })}\n\n`,
+                    );
 
-                    // Extract text from Gemini format
-                    let content = null;
-
-                    // Gemini format: candidates[0].content.parts[0].text
-                    if (jsonObj.candidates?.[0]?.content?.parts?.[0]?.text) {
-                      content = jsonObj.candidates[0].content.parts[0].text;
+                    if (totalTokensSent === 1) {
+                      console.log("✅ First token extracted successfully from Gemini!");
+                      console.log("   Content:", content.substring(0, 50));
                     }
-                    // Fallback formats
-                    else if (jsonObj.choices?.[0]?.delta?.content) {
-                      content = jsonObj.choices[0].delta.content;
-                    } else if (jsonObj.choices?.[0]?.message?.content) {
-                      content = jsonObj.choices[0].message.content;
-                    } else if (jsonObj.content) {
-                      content = jsonObj.content;
-                    } else if (jsonObj.text) {
-                      content = jsonObj.text;
-                    }
-
-                    if (content) {
-                      totalTokensSent++;
-                      res.write(
-                        `data: ${JSON.stringify({ type: "token", content })}\n\n`,
-                      );
-
-                      if (totalTokensSent === 1) {
-                        console.log("✅ First token extracted successfully from Gemini!");
-                        console.log("   Content:", content.substring(0, 50));
-                      }
-                    } else if (chunkCount <= 3) {
-                      console.log("📦 Chunk without extractable content:", jsonStrToParse.substring(0, 200));
-                    }
-                  } catch (e) {
-                    if (chunkCount <= 3) {
-                      console.warn("⚠️ Failed to parse JSON object:", jsonStrToParse.substring(0, 100));
-                    }
+                  } else if (chunkCount <= 3) {
+                    console.log("📦 Chunk without extractable content:", jsonStrToParse.substring(0, 200));
+                  }
+                } catch (e) {
+                  if (chunkCount <= 3) {
+                    console.warn("⚠️ Failed to parse JSON object:", jsonStrToParse.substring(0, 100));
                   }
                 }
               }
             }
-
-            // Keep unparsed portion of buffer for next iteration
-            buffer = buffer.substring(jsonStartIdx);
           }
-        } catch (streamError) {
-          console.error("❌ Streaming error:", streamError);
-          console.error("Total tokens sent before error:", totalTokensSent);
-          console.error("Total chunks received before error:", chunkCount);
-          res.write(
-            `data: ${JSON.stringify({ type: "error", message: streamError.message })}\n\n`,
-          );
-          res.end();
+
+          // Keep unparsed portion of buffer for next iteration
+          buffer = buffer.substring(jsonStartIdx);
         }
-      } else {
-        // Fallback: When streaming is not supported by the environment (e.g. strict Vercel/Netlify functions)
-        console.log(
-          "⚠️ Streaming not supported by environment, falling back to full JSON response...",
+      } catch (streamError) {
+        console.error("❌ Streaming error:", streamError);
+        console.error("Total tokens sent before error:", totalTokensSent);
+        console.error("Total chunks received before error:", chunkCount);
+        res.write(
+          `data: ${JSON.stringify({ type: "error", message: streamError.message })}\n\n`,
         );
-
-        try {
-          // Read the full response from upstream
-          const json = await response.json();
-
-          // Extract content based on standard OpenAI format
-          let content = "";
-          let sources = fetchedSources || [];
-
-          if (json.choices?.[0]?.message?.content) {
-            content = json.choices[0].message.content;
-          } else if (json.content) {
-            content = json.content;
-          }
-
-          // Return a standard JSON response that the frontend can handle
-          return res.status(200).json({
-            content,
-            sources,
-            publishable: false,
-            suggested_followups: [],
-          });
-        } catch (fallbackError) {
-          console.error("❌ Fallback error:", fallbackError);
-          return res.status(500).json({
-            error: "Failed to process AI response",
-            details: fallbackError.message,
-          });
-        }
+        res.end();
       }
-    } catch (error) {
-      console.error("❌ General handler error:", error);
-      if (!res.headersSent) {
-        res
-          .status(500)
-          .json({ error: "Internal Server Error", details: error.message });
+    } else {
+      // Fallback: When streaming is not supported by the environment (e.g. strict Vercel/Netlify functions)
+      console.log(
+        "⚠️ Streaming not supported by environment, falling back to full JSON response...",
+      );
+
+      try {
+        // Read the full response from upstream
+        const json = await response.json();
+
+        // Extract content based on standard OpenAI format
+        let content = "";
+        let sources = fetchedSources || [];
+
+        if (json.choices?.[0]?.message?.content) {
+          content = json.choices[0].message.content;
+        } else if (json.content) {
+          content = json.content;
+        }
+
+        // Return a standard JSON response that the frontend can handle
+        return res.status(200).json({
+          content,
+          sources,
+          publishable: false,
+          suggested_followups: [],
+        });
+      } catch (fallbackError) {
+        console.error("❌ Fallback error:", fallbackError);
+        return res.status(500).json({
+          error: "Failed to process AI response",
+          details: fallbackError.message,
+        });
       }
     }
+  } catch (error) {
+    console.error("❌ General handler error:", error);
+    if (!res.headersSent) {
+      res
+        .status(500)
+        .json({ error: "Internal Server Error", details: error.message });
+    }
   }
+}

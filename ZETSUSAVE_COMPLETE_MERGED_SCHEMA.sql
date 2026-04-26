@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS guides (
   markdown TEXT DEFAULT '',
   html_content TEXT DEFAULT '',
   css_content TEXT DEFAULT '',
+  cover_image TEXT,
   keywords TEXT[] DEFAULT '{}',
   content_type TEXT DEFAULT 'markdown',
   user_email TEXT,
@@ -2625,3 +2626,61 @@ CREATE POLICY "Users can unfollow" ON community_follows
 
 -- LEGACY: Prevent direct updates (old policy - removed in favor of upsert support)
 -- DROP POLICY IF EXISTS "Prevent direct updates on follows" ON community_follows;
+
+-- ==================================================================================
+-- PART 4: UI COMPONENTS LIBRARY
+-- ==================================================================================
+
+-- ===== SECTION: create_ui_components_table.sql - UI Components =====
+CREATE TABLE IF NOT EXISTS ui_components (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  tags TEXT[],
+  html_code TEXT DEFAULT '',
+  css_code TEXT DEFAULT '',
+  js_code TEXT DEFAULT '',
+  env_vars JSONB,
+  author_name TEXT DEFAULT 'Anonymous Maker',
+  author_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  author_avatar TEXT,
+  theme TEXT DEFAULT 'light',
+  views_count INTEGER DEFAULT 0,
+  likes_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Defensive alter to add new columns in case the table already existed from the previous version
+ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS tags TEXT[];
+ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS env_vars JSONB;
+
+ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS author_avatar TEXT;
+
+-- Enable RLS
+ALTER TABLE ui_components ENABLE ROW LEVEL SECURITY;
+
+-- Create Policies
+DROP POLICY IF EXISTS "Enable read access for all users" ON ui_components;
+CREATE POLICY "Enable read access for all users" ON ui_components
+  FOR SELECT
+  USING (true);
+
+DROP POLICY IF EXISTS "Enable insert access for all users" ON ui_components;
+CREATE POLICY "Enable insert access for all users" ON ui_components
+  FOR INSERT
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Enable update for authors" ON ui_components;
+CREATE POLICY "Enable update for authors" ON ui_components
+  FOR UPDATE
+  USING (auth.uid() = author_id);
+
+DROP POLICY IF EXISTS "Enable delete for authors" ON ui_components;
+CREATE POLICY "Enable delete for authors" ON ui_components
+  FOR DELETE
+  USING (auth.uid() = author_id);
+
+-- Create indexes
+CREATE INDEX IF NOT EXISTS idx_ui_components_created_at ON ui_components (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ui_components_author_id ON ui_components (author_id);
