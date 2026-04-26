@@ -232,8 +232,8 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
                             type="button"
                             onClick={() => setContentType("markdown")}
                             className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${contentType === "markdown"
-                                    ? "bg-black text-white"
-                                    : "border border-gray-300 text-gray-700 hover:border-black"
+                                ? "bg-black text-white"
+                                : "border border-gray-300 text-gray-700 hover:border-black"
                                 }`}
                         >
                             Markdown
@@ -242,8 +242,8 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
                             type="button"
                             onClick={() => setContentType("html")}
                             className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${contentType === "html"
-                                    ? "bg-black text-white"
-                                    : "border border-gray-300 text-gray-700 hover:border-black"
+                                ? "bg-black text-white"
+                                : "border border-gray-300 text-gray-700 hover:border-black"
                                 }`}
                         >
                             Custom HTML
