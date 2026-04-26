@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Heart, Eye, Share2, Copy, Moon, Sun, Check } from "lucide-react";
+import { ArrowLeft, Heart, Eye, Copy, Moon, Sun, Check } from "lucide-react";
 import { uiComponentsApi } from "../../../../lib/supabase";
 import { UiComponent } from "../../../../types";
 import dynamic from "next/dynamic";
