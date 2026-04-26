@@ -427,7 +427,7 @@ export default function AdminConsole() {
                                             </div>
                                             <div className="conversation-meta">
                                                 <Clock size={12} />
-                                                <span>{formatTime(conv.last_message_at || conv.created_at)}</span>
+                                                <span>{formatTime(conv.last_message_at)}</span>
                                                 <span className={`status-badge ${conv.status}`}>
                                                     {conv.status}
                                                 </span>
