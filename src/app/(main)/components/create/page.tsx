@@ -114,7 +114,7 @@ btn.addEventListener('click', () => {
         css_code: cssCode,
         js_code: jsCode,
         author_name: (user?.user_metadata as any)?.full_name || (user?.email ? user.email.split('@')[0] : 'Anonymous Maker'),
-        author_avatar: (user?.user_metadata as any)?.avatar_url || user?.avatar_url || undefined,
+        author_avatar: (user?.user_metadata as any)?.avatar_url || undefined,
         author_id: user?.id,
         theme: 'light',
       });
