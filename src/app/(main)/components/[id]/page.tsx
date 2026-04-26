@@ -84,12 +84,6 @@ export default function ComponentPreviewPage() {
     </html>
   `;
 
-   const copyLink = () => {
-      navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-   };
-
    const codeString = String((component as any)[`${activeTab}_code`] || '');
 
    return (
