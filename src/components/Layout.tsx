@@ -165,12 +165,10 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       // Sequential auth/profile checks to avoid Supabase auth token lock races.
       // Calling supabase.auth.getUser() in parallel with other requests can
       // trigger "lock ... was released because another request stole it".
-      let authData = null;
       let authError = null;
 
       try {
         const authResult = await supabase.auth.getUser();
-        authData = authResult.data;
         authError = authResult.error;
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : JSON.stringify(err);
