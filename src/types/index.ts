@@ -114,4 +114,6 @@ export interface UiComponent {
   views_count?: number;
   theme?: 'light' | 'dark' | 'both';
   component_type?: 'component' | 'template';
+  react_files?: { name: string, content: string }[];
+  lottie_url?: string;
 }

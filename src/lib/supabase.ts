@@ -9,7 +9,24 @@ const supabaseAnonKey =
     process.env.VITE_SUPABASE_ANON_KEY ||
     "";
 
-export const supabase: any = createBrowserClient(supabaseUrl, supabaseAnonKey);
+// Use a function to get the supabase client to ensure it's initialized correctly in the browser
+let supabaseInstance: any = null;
+
+export const getSupabase = () => {
+    if (typeof window === "undefined") return null; // Avoid SSR initialization issues
+    
+    if (!supabaseInstance && isSupabaseConfigured()) {
+        try {
+            supabaseInstance = createBrowserClient(supabaseUrl, supabaseAnonKey);
+        } catch (e) {
+            console.error("Failed to initialize Supabase client:", e);
+        }
+    }
+    return supabaseInstance;
+};
+
+// For backward compatibility
+export const supabase: any = typeof window !== "undefined" ? createBrowserClient(supabaseUrl, supabaseAnonKey) : null;
 
 export function isSupabaseConfigured(): boolean {
     return !!(supabaseUrl && supabaseAnonKey && supabaseUrl.includes("supabase.co"));
@@ -206,8 +223,21 @@ export const uiComponentsApi = {
         }
         
         try {
+            if (!isSupabaseConfigured()) throw new Error("Supabase is not configured");
+            
+            const client = getSupabase() || supabase;
+            if (!client) throw new Error("Supabase client is not available");
+
             const componentId = component.id || Date.now().toString();
-            const { data, error } = await supabase
+            
+            // Sanitize author_id: ensure it's a valid UUID string or null
+            // An empty string or "undefined" string will cause a database error
+            let sanitizedAuthorId = component.author_id;
+            if (!sanitizedAuthorId || sanitizedAuthorId === "undefined" || sanitizedAuthorId.trim() === "") {
+                sanitizedAuthorId = null as any;
+            }
+
+            const { data, error } = await client
                 .from("ui_components")
                 .insert([
                     {
@@ -220,18 +250,32 @@ export const uiComponentsApi = {
                         css_code: component.css_code,
                         js_code: component.js_code,
                         author_name: component.author_name || 'Anonymous',
-                        author_id: component.author_id || null, // Ensure undefined is explicitly null
+                        author_id: sanitizedAuthorId,
                         author_avatar: component.author_avatar || null,
                         theme: component.theme || 'light',
                         component_type: component.component_type || 'component',
+                        react_files: component.react_files || [],
+                        lottie_url: component.lottie_url || null,
                     },
                 ])
                 .select()
                 .single();
-            if (error) throw error;
+            
+            if (error) {
+                console.error("Supabase PostgREST Error:", error);
+                throw error;
+            }
+            
             return data as UiComponent;
         } catch (e: any) {
-            console.error("Supabase Error insert ui_components, falling back to local:", e?.message || e?.details || e?.hint || e);
+            const errorMsg = e?.message || e?.details || e?.hint || String(e);
+            console.error("Supabase Error insert ui_components, falling back to local:", errorMsg);
+            
+            // Log full error for debugging in console if it's a fetch error
+            if (errorMsg.includes("Failed to fetch")) {
+                console.warn("This usually indicates a network block, CORS issue, or invalid Supabase URL.");
+            }
+
             const components: UiComponent[] = JSON.parse(localStorage.getItem("ui_components") || "[]");
             const newComponent: UiComponent = {
                 ...component,

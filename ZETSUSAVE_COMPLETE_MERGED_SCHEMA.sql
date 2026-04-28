@@ -2645,6 +2645,9 @@ CREATE TABLE IF NOT EXISTS ui_components (
   author_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   author_avatar TEXT,
   theme TEXT DEFAULT 'light',
+  component_type TEXT DEFAULT 'component',
+  react_files JSONB DEFAULT '[]',
+  lottie_url TEXT,
   views_count INTEGER DEFAULT 0,
   likes_count INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -2654,8 +2657,10 @@ CREATE TABLE IF NOT EXISTS ui_components (
 ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS tags TEXT[];
 ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS env_vars JSONB;
-
 ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS author_avatar TEXT;
+ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS component_type TEXT DEFAULT 'component';
+ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS react_files JSONB DEFAULT '[]';
+ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS lottie_url TEXT;
 
 -- Enable RLS
 ALTER TABLE ui_components ENABLE ROW LEVEL SECURITY;

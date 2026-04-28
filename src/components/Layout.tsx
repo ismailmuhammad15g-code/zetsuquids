@@ -12,6 +12,7 @@ import {
   Search,
   Sparkles,
   Users,
+  Layers,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -283,6 +284,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       href: "/community",
     },
     {
+      label: "Components",
+      icon: <Layers size={18} className="translate-y-[1px]" />,
+      href: "/components",
+      isActive: pathname.startsWith("/components"),
+    },
+    {
       label: "ZetsuGuide AI",
       icon: <Bot size={18} className="translate-y-[1px]" />,
       href: "/zetsuguide-ai",
@@ -531,6 +538,16 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                     >
                       <Users size={22} />
                       <span>Community</span>
+                    </Link>
+                    <Link
+                      href="/components"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${pathname.startsWith("/components")
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                    >
+                      <Layers size={22} />
+                      <span>Components</span>
                     </Link>
                     <Link
                       href="/zetsuguide-ai"
