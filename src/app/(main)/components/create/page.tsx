@@ -320,7 +320,11 @@ export default function App() {
       if (trimmed && !trimmed.startsWith('#')) {
         const [key, ...values] = trimmed.split('=');
         if (key && values.length > 0) {
-          envObj[key.trim()] = values.join('=').trim(); // handle ='foo=bar'
+          let val = values.join('=').trim();
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+          }
+          envObj[key.trim()] = val;
         }
       }
     });
@@ -475,6 +479,8 @@ export default function App() {
         </div>
         <script>
           window.ENV = ${JSON.stringify(parsedEnv)};
+          window.process = window.process || {};
+          window.process.env = window.ENV;
           try { ${debouncedJs} } catch (e) { console.error(e); }
 
           window.addEventListener('message', (e) => {
@@ -548,7 +554,9 @@ export default function App() {
     const importmapJson = JSON.stringify({ imports: importmapEntries });
 
     // Use the raw code for Babel transform
-    const rawCode = appCode;
+    let rawCode = appCode;
+    // Replace import.meta.env with window.process.env to prevent Babel crashes
+    rawCode = rawCode.replace(/import\.meta\.env/g, 'window.process.env');
 
     // Create env object for preview
     const envObject = parsedEnv;

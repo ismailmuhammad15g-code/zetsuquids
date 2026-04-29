@@ -112,7 +112,8 @@ function buildReactSrcDoc(reactFiles: { name: string; content: string }[], isDar
       try {
         const Babel = await loadBabel();
 
-        const rawCode = ${JSON.stringify(appCode)};
+        let rawCode = ${JSON.stringify(appCode)};
+        rawCode = rawCode.replace(/import\\.meta\\.env/g, 'window.process.env');
 
         // Transpile JSX/TSX -> JS via Babel (presets: env, react, typescript)
         const transformed = Babel.transform(rawCode, {
@@ -194,6 +195,8 @@ function buildClassicSrcDoc(
   ${html || ''}
   <script>
     window.ENV = ${JSON.stringify(envVars || {})};
+    window.process = window.process || {};
+    window.process.env = window.ENV;
     try { ${js || ''} } catch(e) { console.error(e); }
   </script>
 </body>
@@ -312,7 +315,12 @@ export default function ComponentPreviewPage() {
     let envForPreview: Record<string, string> = {};
     if (isOwner && component.env_vars) {
       // Decrypt the stored env vars for owner preview
-      envForPreview = decryptEnvVars(component.env_vars as string);
+      const rawEnv = component.env_vars as unknown;
+      if (typeof rawEnv === 'string') {
+        envForPreview = decryptEnvVars(rawEnv);
+      } else if (typeof rawEnv === 'object' && rawEnv !== null) {
+        envForPreview = rawEnv as Record<string, string>;
+      }
     }
     
     if (isReact && component.react_files && component.react_files.length > 0) {
