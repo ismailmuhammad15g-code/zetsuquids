@@ -105,7 +105,8 @@ export interface UiComponent {
   html_code: string;
   css_code: string;
   js_code: string;
-  env_vars?: Record<string, string>;
+  env_vars?: Record<string, string>;  // Encrypted string from Supabase
+  env_keys?: string[];  // Only keys for display in public view
   author_name?: string;
   author_id?: string;
   author_avatar?: string;

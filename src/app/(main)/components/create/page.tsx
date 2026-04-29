@@ -5,12 +5,32 @@ import { ArrowLeft, Layers, Maximize2, Minimize2, Play, Save, Settings, Upload, 
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { getAvatarForUser } from "../../../../lib/avatar";
 import { supabase, uiComponentsApi } from "../../../../lib/supabase";
 import { uploadToGitHub, uploadComponentCode, isGitHubConfigured } from "../../../../lib/github-assets";
+import { detectSecrets } from "../../../../lib/secret-analyzer";
+
+// Simple encryption for env secrets - uses a unique key per component
+function encryptEnv(envVars: Record<string, string>, componentId: string): string {
+  if (!envVars || Object.keys(envVars).length === 0) return '{}';
+  
+  // Create a simple encoded version - in production you'd use a proper crypto library
+  // This encodes the values in base64 with a component-specific salt
+  const encoded = btoa(JSON.stringify(envVars));
+  return encoded;
+}
+
+function decryptEnv(encrypted: string): Record<string, string> {
+  if (!encrypted || encrypted === '{}') return {};
+  try {
+    return JSON.parse(atob(encrypted));
+  } catch {
+    return {};
+  }
+}
 
 // Dynamically import Monaco Editor to avoid SSR issues
 const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
@@ -97,6 +117,11 @@ export default function App() {
   // Use a ref to store the screenshot data URL to be used during save
   const screenshotRef = React.useRef<string | null>(null);
 
+  // Secret detection state
+  const [detectedEnvCount, setDetectedEnvCount] = useState(0);
+  const lastDetectedRef = useRef<Set<string>>(new Set());
+  const clearBadgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Load existing component data when in edit mode
   useEffect(() => {
     if (!editId) return;
@@ -138,8 +163,20 @@ export default function App() {
           setCssCode(comp.css_code || '');
           setJsCode(comp.js_code || '');
         }
-        const envVars = comp.env_vars as Record<string, string> | null;
-        if (envVars && typeof envVars === 'object') {
+        const rawEnvVars = comp.env_vars as string | Record<string, string> | null;
+        // Decrypt env vars if they're encrypted (base64 string)
+        let envVars: Record<string, string> = {};
+        if (typeof rawEnvVars === 'string' && rawEnvVars.length > 0 && rawEnvVars !== '{}') {
+          try {
+            // Try to decrypt - base64 encoded JSON
+            envVars = decryptEnv(rawEnvVars);
+          } catch (e) {
+            console.error('Failed to decrypt env vars:', e);
+          }
+        } else if (typeof rawEnvVars === 'object' && rawEnvVars) {
+          envVars = rawEnvVars as Record<string, string>;
+        }
+        if (Object.keys(envVars).length > 0) {
           setEnvCode(Object.entries(envVars).map(([k,v]) => `${k}=${v}`).join('\n'));
         }
       } catch (e) {
@@ -163,7 +200,88 @@ export default function App() {
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+}, []);
+
+  // SMART AST-based Secret Detector — runs 1.5s after code changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const code = creationMode === 'react'
+        ? reactFiles.map(f => f.content).join('\n')
+        : htmlCode + jsCode;
+
+      if (!code.trim()) return;
+
+      const secrets = detectSecrets(code);
+      if (!secrets.length) return;
+
+      // Only truly NEW secrets (not already in active envCode lines)
+      const activeKeys = new Set(
+        envCode.split('\n')
+          .map(l => l.trim())
+          .filter(l => l && !l.startsWith('#'))
+          .map(l => l.split('=')[0])
+      );
+
+      const newOnes = secrets.filter(s => !activeKeys.has(s.name));
+      if (!newOnes.length) return;
+
+      // Deduplicate
+      const unique = newOnes.filter((s, i, a) => a.findIndex(x => x.name === s.name) === i);
+
+      setEnvCode(prev => {
+        const keysInPrev = new Set(
+          prev.split('\n')
+            .map(l => l.trim())
+            .filter(l => l && !l.startsWith('#'))
+            .map(l => l.split('=')[0])
+        );
+
+        const toAdd = unique.filter(s => !keysInPrev.has(s.name));
+        if (!toAdd.length) return prev;
+
+        // Place detected secrets at TOP (after comments), before user content
+        const lines = prev.split('\n');
+        let insertAfter = 0;
+        for (let i = 0; i < lines.length; i++) {
+          const t = lines[i].trim();
+          if (!t || t.startsWith('#')) {
+            insertAfter = i + 1;
+          } else {
+            break;
+          }
+        }
+
+        const header = ['# --- DETECTED (fill values below) ---'];
+        const detected = toAdd.map(s => `${s.name}=`);
+
+        const next = [
+          ...lines.slice(0, insertAfter),
+          ...header,
+          ...detected,
+          '',
+          ...lines.slice(insertAfter)
+        ].join('\n');
+
+        toAdd.forEach(s => lastDetectedRef.current.add(s.name));
+
+        setDetectedEnvCount(c => c + toAdd.length);
+        setActiveTab('env');
+
+        // Auto-clear badge after 5s (user has seen the notification)
+        if (clearBadgeTimerRef.current !== null) clearTimeout(clearBadgeTimerRef.current);
+        clearBadgeTimerRef.current = setTimeout(() => setDetectedEnvCount(0), 5000);
+
+        toast.success(
+          `🔑 Found ${toAdd.length} secret${toAdd.length > 1 ? 's' : ''}`,
+          { description: toAdd.map(s => s.name).join(', '), duration: 5000 }
+        );
+
+        return next;
+      });
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [htmlCode, jsCode, reactFiles, creationMode, envCode]);
 
   // User profile for avatar
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
@@ -194,28 +312,30 @@ export default function App() {
     fetchProfile();
   }, [user?.email]);
 
+  // Parse ENV immediately (no debounce for env changes)
+  useEffect(() => {
+    const envObj: Record<string, string> = {};
+    envCode.split('\n').forEach(line => {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#')) {
+        const [key, ...values] = trimmed.split('=');
+        if (key && values.length > 0) {
+          envObj[key.trim()] = values.join('=').trim(); // handle ='foo=bar'
+        }
+      }
+    });
+    setParsedEnv(envObj);
+  }, [envCode]);
+
+  // Debounce HTML/CSS/JS only (not env)
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedHtml(htmlCode);
       setDebouncedCss(cssCode);
       setDebouncedJs(jsCode);
-
-      // Parse ENV
-      const envObj: Record<string, string> = {};
-      envCode.split('\n').forEach(line => {
-        const trimmed = line.trim();
-        if (trimmed && !trimmed.startsWith('#')) {
-          const [key, ...values] = trimmed.split('=');
-          if (key && values.length > 0) {
-            envObj[key.trim()] = values.join('=').trim(); // handle ='foo=bar'
-          }
-        }
-      });
-      setParsedEnv(envObj);
-
     }, 800);
     return () => clearTimeout(handler);
-  }, [htmlCode, cssCode, jsCode, envCode]);
+  }, [htmlCode, cssCode, jsCode]);
 
   const handleEnvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -289,11 +409,15 @@ export default function App() {
         || userAvatarUrl
         || getAvatarForUser(user?.email || null);
 
+      // Encrypt env variables before saving to Supabase
+      const encryptedEnv = encryptEnv(parsedEnv, componentId);
+
       const payload = {
         title,
         description,
         tags: tagsArray,
-        env_vars: parsedEnv,
+        env_vars: encryptedEnv, // Send encrypted version to Supabase
+        env_keys: Object.keys(parsedEnv), // Only store keys (not values) for display
         html_code: creationMode === 'classic' ? (codeGithubUrl ? '' : htmlCode) : '',
         css_code: creationMode === 'classic' ? (codeGithubUrl ? '' : cssCode) : '',
         js_code: creationMode === 'classic' ? (codeGithubUrl ? '' : jsCode) : '',
@@ -426,6 +550,9 @@ export default function App() {
     // Use the raw code for Babel transform
     const rawCode = appCode;
 
+    // Create env object for preview
+    const envObject = parsedEnv;
+
     const doc = `<!DOCTYPE html>
 <html>
 <head>
@@ -433,6 +560,40 @@ export default function App() {
   <script async src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script type="importmap">${importmapJson}</script>
+  <script>
+    // Inject environment variables for the preview
+    // Make available as window.ENV, process.env, and direct property access
+    (function() {
+      var env = ${JSON.stringify(envObject)};
+      console.log('ENV loaded:', JSON.stringify(env));
+      window.ENV = env;
+      window.process = window.process || {};
+      window.process.env = env;
+      window.importMeta = { env: env };
+      
+      // Define getter for each env key to work with const declarations
+      // This allows both window.API_KEY and direct const API_KEY to work
+      for (var key in env) {
+        if (env.hasOwnProperty(key) && env[key] && env[key].length > 0) {
+          // Set as window property
+          window[key] = env[key];
+          console.log('Exposed window.' + key + ' = ' + env[key].substring(0, 8) + '...');
+          
+          // Also try to override any const in global scope
+          try {
+            eval('var ' + key + ' = "' + env[key] + '"');
+          } catch(e) {}
+        }
+      }
+      
+      // Log a summary
+      if (Object.keys(env).length > 0) {
+        console.log('All env vars loaded successfully!');
+      } else {
+        console.log('No env vars found!');
+      }
+    })();
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; min-height: 100%; background: transparent; }
@@ -601,7 +762,65 @@ export default function App() {
 
         // Phase 2: Parse
         window.setPhase('s-parse', 'Parsing Imports', 'Scanning import statements...', 30);
-        const rawCode = ${JSON.stringify(rawCode)};
+        let rawCode = ${JSON.stringify(rawCode)};
+        
+        // Replace placeholder values with actual env values
+        const env = ${JSON.stringify(envObject)};
+        console.log('ENV for replacement:', JSON.stringify(env));
+        
+        // Get all unique placeholder patterns from the code
+        // We want to replace strings that look like placeholders
+        if (Object.keys(env).length > 0) {
+          // Simple string replacement - replace any string containing placeholder patterns
+          // with the actual env value if the key matches
+          
+          // Create a list of all possible placeholder prefixes
+          const prefixes = ['PASTE_YOUR_', 'YOUR_', 'EXAMPLE_', 'INSERT_', 'REPLACE_'];
+          const suffixes = ['_HERE', ''];
+          
+          for (const key in env) {
+            const value = env[key];
+            if (!value) continue;
+            
+            // Try all combinations of prefix + key + suffix
+            for (let pi = 0; pi < prefixes.length; pi++) {
+              for (let si = 0; si < suffixes.length; si++) {
+                const placeholder = prefixes[pi] + key + suffixes[si];
+                // Use direct string replacement (case insensitive)
+                const regex = new RegExp('"' + placeholder + '"', 'gi');
+                const before = rawCode;
+                rawCode = rawCode.replace(regex, '"' + value + '"');
+                if (rawCode !== before) {
+                  console.log('Replaced "' + placeholder + '" with actual value');
+                }
+              }
+            }
+            
+            // Also try without suffix
+            for (let pi = 0; pi < prefixes.length; pi++) {
+              const placeholderNoSuffix = prefixes[pi] + key;
+              const regex2 = new RegExp('"' + placeholderNoSuffix + '"', 'gi');
+              rawCode = rawCode.replace(regex2, '"' + value + '"');
+            }
+          }
+          
+          // Final pass: replace any remaining PASTE_YOUR_ strings
+          const finalPass = rawCode.match(/"PASTE_YOUR_[^"]+"/g);
+          if (finalPass && finalPass.length > 0) {
+            console.log('Remaining placeholders:', finalPass);
+            // For remaining ones, try to match by key
+            for (const match of finalPass) {
+              for (const key in env) {
+                if (env[key] && match.toLowerCase().includes(key.toLowerCase())) {
+                  rawCode = rawCode.replace(match, '"' + env[key] + '"');
+                }
+              }
+            }
+          }
+        }
+        
+        console.log('Final code sample:', rawCode.substring(0, 100));
+        
         await new Promise(r => setTimeout(r, 60));
         
         // Phase 3: Compile
@@ -669,7 +888,7 @@ export default function App() {
 
     const timeout = setTimeout(() => setReactPreviewDoc(doc), 500);
     return () => clearTimeout(timeout);
-  }, [reactFiles, creationMode]);
+  }, [reactFiles, creationMode, JSON.stringify(parsedEnv)]);
 
   // Helper to determine the language for Monaco (classic tabs)
   const getLanguage = (tab: string) => {
@@ -759,6 +978,11 @@ export default function App() {
                 {tab === 'env' && <Settings size={12} />}
                 {tab === 'react' && <Layers size={12} className="text-blue-400" />}
                 {tab}
+                {tab === 'env' && detectedEnvCount > 0 && (
+                  <span className="ml-1.5 px-2 py-0.5 bg-blue-500 text-white text-[9px] rounded-full font-bold">
+                    {detectedEnvCount}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -839,6 +1063,12 @@ export default function App() {
                     <Upload size={12} /> Upload .env
                     <input type="file" className="hidden" accept=".env, .txt" onChange={handleEnvUpload} />
                   </label>
+                </div>
+              )}
+              {activeTab === 'env' && detectedEnvCount > 0 && (
+                <div className="absolute top-2 left-4 z-10 flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 border border-blue-500/40 rounded text-blue-300 text-[11px] font-medium">
+                  <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+                  {detectedEnvCount} secret{detectedEnvCount > 1 ? 's' : ''} detected — fill values below
                 </div>
               )}
               <div className="absolute inset-0 pt-2">

@@ -13,7 +13,7 @@ import { UiComponent } from "../../../../types";
 const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
 /** Build the iframe srcdoc for a React (TSX) component using Babel + importmap + esm.sh */
-function buildReactSrcDoc(reactFiles: { name: string; content: string }[], isDarkMode: boolean): string {
+function buildReactSrcDoc(reactFiles: { name: string; content: string }[], isDarkMode: boolean, env: Record<string, string> = {}): string {
   const filesMap: Record<string, string> = {};
   reactFiles.forEach(f => { filesMap[f.name] = f.content; });
 
@@ -54,6 +54,11 @@ function buildReactSrcDoc(reactFiles: { name: string; content: string }[], isDar
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script async src="https://cdn.tailwindcss.com"></script>
   <script type="importmap">${importmapJson}</script>
+  <script>
+    window.ENV = ${JSON.stringify(env)};
+    window.process = window.process || {};
+    window.process.env = ${JSON.stringify(env)};
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; min-height: 100%; }
@@ -286,20 +291,41 @@ export default function ComponentPreviewPage() {
     }
   };
 
+  // Helper to decrypt env vars (simple base64 decode for now)
+  const decryptEnvVars = (encrypted: string): Record<string, string> => {
+    if (!encrypted || encrypted === '{}') return {};
+    try {
+      return JSON.parse(atob(encrypted));
+    } catch {
+      return {};
+    }
+  };
+
   // Recompute srcdoc whenever component or dark mode changes
+  // SECURITY: Don't pass env secrets to public preview - only the owner sees them
+  const isOwner = user && component?.author_id && user.id === component.author_id;
   const finalIframeSrcDoc = useMemo(() => {
     if (!component) return '';
+    
+    // For public view: don't pass env secrets (preview will show "enter api key")
+    // Only owner sees the actual values (decrypted)
+    let envForPreview: Record<string, string> = {};
+    if (isOwner && component.env_vars) {
+      // Decrypt the stored env vars for owner preview
+      envForPreview = decryptEnvVars(component.env_vars as string);
+    }
+    
     if (isReact && component.react_files && component.react_files.length > 0) {
-      return buildReactSrcDoc(component.react_files, isDarkMode);
+      return buildReactSrcDoc(component.react_files, isDarkMode, envForPreview);
     }
     return buildClassicSrcDoc(
       component.html_code || '',
       component.css_code || '',
       component.js_code || '',
-      (component.env_vars as Record<string, string>) || {},
+      envForPreview,
       isDarkMode
     );
-  }, [component, isReact, isDarkMode]);
+  }, [component, isReact, isDarkMode, isOwner]);
 
   // Open preview in new tab (works for both classic & react)
   const openPreviewInNewTab = () => {
