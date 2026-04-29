@@ -14,7 +14,7 @@ import { uploadToGitHub, uploadComponentCode, isGitHubConfigured } from "../../.
 import { detectSecrets } from "../../../../lib/secret-analyzer";
 
 // Simple encryption for env secrets - uses a unique key per component
-function encryptEnv(envVars: Record<string, string>, componentId: string): string {
+function encryptEnv(envVars: Record<string, string>, _componentId?: string): string {
   if (!envVars || Object.keys(envVars).length === 0) return '{}';
   
   // Create a simple encoded version - in production you'd use a proper crypto library
@@ -420,7 +420,7 @@ export default function App() {
         title,
         description,
         tags: tagsArray,
-        env_vars: encryptedEnv, // Send encrypted version to Supabase
+        env_vars: encryptedEnv as unknown as Record<string, string>, // Send encrypted version to Supabase
         env_keys: Object.keys(parsedEnv), // Only store keys (not values) for display
         html_code: creationMode === 'classic' ? (codeGithubUrl ? '' : htmlCode) : '',
         css_code: creationMode === 'classic' ? (codeGithubUrl ? '' : cssCode) : '',
@@ -795,9 +795,11 @@ export default function App() {
               for (let si = 0; si < suffixes.length; si++) {
                 const placeholder = prefixes[pi] + key + suffixes[si];
                 // Use direct string replacement (case insensitive)
-                const regex = new RegExp('"' + placeholder + '"', 'gi');
+                const regex = new RegExp('([=!]==?\\\\s*)?("' + placeholder + '")', 'gi');
                 const before = rawCode;
-                rawCode = rawCode.replace(regex, '"' + value + '"');
+                rawCode = rawCode.replace(regex, function(m, p1) {
+                  return p1 ? m : '"' + value + '"';
+                });
                 if (rawCode !== before) {
                   console.log('Replaced "' + placeholder + '" with actual value');
                 }
@@ -807,22 +809,25 @@ export default function App() {
             // Also try without suffix
             for (let pi = 0; pi < prefixes.length; pi++) {
               const placeholderNoSuffix = prefixes[pi] + key;
-              const regex2 = new RegExp('"' + placeholderNoSuffix + '"', 'gi');
-              rawCode = rawCode.replace(regex2, '"' + value + '"');
+              const regex2 = new RegExp('([=!]==?\\\\s*)?("' + placeholderNoSuffix + '")', 'gi');
+              rawCode = rawCode.replace(regex2, function(m, p1) {
+                return p1 ? m : '"' + value + '"';
+              });
             }
           }
           
           // Final pass: replace any remaining PASTE_YOUR_ strings
-          const finalPass = rawCode.match(/"PASTE_YOUR_[^"]+"/g);
-          if (finalPass && finalPass.length > 0) {
-            console.log('Remaining placeholders:', finalPass);
-            // For remaining ones, try to match by key
-            for (const match of finalPass) {
-              for (const key in env) {
-                if (env[key] && match.toLowerCase().includes(key.toLowerCase())) {
-                  rawCode = rawCode.replace(match, '"' + env[key] + '"');
+          for (const key in env) {
+            if (env[key]) {
+              const regex3 = new RegExp('([=!]==?\\\\s*)?("PASTE_YOUR_[^"]+")', 'gi');
+              rawCode = rawCode.replace(regex3, function(m, p1, p2) {
+                if (p1) return m;
+                if (p2.toLowerCase().includes(key.toLowerCase())) {
+                  console.log('Replaced remaining placeholder ' + p2 + ' with actual value');
+                  return '"' + env[key] + '"';
                 }
-              }
+                return m;
+              });
             }
           }
         }
