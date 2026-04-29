@@ -103,25 +103,42 @@ export default function App() {
     async function loadForEdit() {
       try {
         const all = await uiComponentsApi.getAll();
-        const found = all.find(c => String(c.id) === String(editId));
+        let found = all.find(c => String(c.id) === String(editId));
         if (!found) { toast.error('Component not found'); return; }
-        setTitle(found.title || '');
-        setDescription(found.description || '');
-        setTags((found.tags || []).join(', '));
-        setComponentType((found.component_type as 'component' | 'template') || 'component');
-        const hasReact = found.react_files && found.react_files.length > 0;
+
+        // If code is on GitHub, fetch it first
+        if (found.lottie_url && found.lottie_url.includes('githubusercontent')) {
+          try {
+            const res = await fetch(found.lottie_url);
+            if (res.ok) {
+              const githubCode = await res.json();
+              found = { ...found, ...githubCode };
+            }
+          } catch (err) {
+            console.error("Failed to fetch code from GitHub for edit:", err);
+          }
+        }
+
+        const comp = found!;
+
+        setTitle(comp.title || '');
+        setDescription(comp.description || '');
+        setTags((comp.tags || []).join(', '));
+        setComponentType((comp.component_type as 'component' | 'template') || 'component');
+        
+        const hasReact = comp.react_files && comp.react_files.length > 0;
         if (hasReact) {
           setCreationMode('react');
           setActiveTab('react');
-          setReactFiles(found.react_files!);
+          setReactFiles(comp.react_files!);
         } else {
           setCreationMode('classic');
           setActiveTab('html');
-          setHtmlCode(found.html_code || '');
-          setCssCode(found.css_code || '');
-          setJsCode(found.js_code || '');
+          setHtmlCode(comp.html_code || '');
+          setCssCode(comp.css_code || '');
+          setJsCode(comp.js_code || '');
         }
-        const envVars = found.env_vars as Record<string, string> | null;
+        const envVars = comp.env_vars as Record<string, string> | null;
         if (envVars && typeof envVars === 'object') {
           setEnvCode(Object.entries(envVars).map(([k,v]) => `${k}=${v}`).join('\n'));
         }
@@ -231,38 +248,37 @@ export default function App() {
     // Wait for the screenshot to be captured
     await new Promise(r => setTimeout(r, 1200));
 
-    // Upload screenshot to GitHub (free storage), fallback to raw data URL
+    // Upload screenshot to GitHub (free storage)
     let previewUrl: string | undefined = undefined;
     const rawDataUrl = screenshotRef.current;
     if (rawDataUrl) {
       try {
-        if (isGitHubConfigured()) {
-          const uploaded = await uploadToGitHub(rawDataUrl, 'previews');
-          previewUrl = uploaded.url;
-        } else {
-          previewUrl = rawDataUrl;
-        }
-      } catch (uploadErr) {
-        console.warn('GitHub upload failed, skipping preview:', uploadErr);
+        if (!isGitHubConfigured()) throw new Error("GitHub is not configured. Check your .env.local");
+        const uploaded = await uploadToGitHub(rawDataUrl, 'previews');
+        previewUrl = uploaded.url;
+      } catch (uploadErr: any) {
+        toast.error(`GitHub Image Upload Failed: ${uploadErr.message}`);
+        setIsSaving(false);
+        return; // STOP IF GITHUB FAILS
       }
     }
 
     // Upload code bundle to GitHub
-    // In edit mode, use the existing id. In create mode, generate a new one.
     const componentId = isEditMode && editId ? String(editId) : crypto.randomUUID();
     let codeGithubUrl: string | undefined = undefined;
     try {
-      if (isGitHubConfigured()) {
-        codeGithubUrl = await uploadComponentCode(componentId, {
-          mode: creationMode,
-          react_files: creationMode === 'react' ? reactFiles : undefined,
-          html_code: creationMode === 'classic' ? htmlCode : undefined,
-          css_code: creationMode === 'classic' ? cssCode : undefined,
-          js_code: creationMode === 'classic' ? jsCode : undefined,
-        });
-      }
-    } catch (codeErr) {
-      console.warn('GitHub code upload failed, will save inline:', codeErr);
+      if (!isGitHubConfigured()) throw new Error("GitHub is not configured");
+      codeGithubUrl = await uploadComponentCode(componentId, {
+        mode: creationMode,
+        react_files: creationMode === 'react' ? reactFiles : undefined,
+        html_code: creationMode === 'classic' ? htmlCode : undefined,
+        css_code: creationMode === 'classic' ? cssCode : undefined,
+        js_code: creationMode === 'classic' ? jsCode : undefined,
+      });
+    } catch (codeErr: any) {
+      toast.error(`GitHub Code Upload Failed: ${codeErr.message}`);
+      setIsSaving(false);
+      return; // STOP IF GITHUB FAILS
     }
 
     try {

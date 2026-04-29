@@ -218,8 +218,28 @@ export default function ComponentPreviewPage() {
     async function loadComponent() {
       try {
         const all = await uiComponentsApi.getAll();
-        const found = all.find(c => c.id === id);
+        let found = all.find(c => String(c.id) === String(id));
+        
         if (found) {
+          // If code is stored on GitHub (indicated by lottie_url)
+          if (found.lottie_url && found.lottie_url.includes('githubusercontent')) {
+            try {
+              const res = await fetch(found.lottie_url);
+              if (res.ok) {
+                const githubCode = await res.json();
+                found = {
+                  ...found,
+                  html_code: githubCode.html_code || found.html_code,
+                  css_code: githubCode.css_code || found.css_code,
+                  js_code: githubCode.js_code || found.js_code,
+                  react_files: githubCode.react_files || found.react_files,
+                };
+              }
+            } catch (err) {
+              console.error("Failed to fetch code from GitHub:", err);
+            }
+          }
+
           setComponent(found);
           setLikesCount(found.likes_count || 0);
           setViewsCount(found.views_count || 0);
