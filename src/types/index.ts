@@ -116,4 +116,5 @@ export interface UiComponent {
   component_type?: 'component' | 'template';
   react_files?: { name: string, content: string }[];
   lottie_url?: string;
+  preview_url?: string;
 }

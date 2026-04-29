@@ -1,22 +1,28 @@
 "use client";
 
-import { ArrowLeft, Layers, Maximize2, Minimize2, Play, Save, Settings, Upload, X, Terminal, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowLeft, Layers, Maximize2, Minimize2, Play, Save, Settings, Upload, X, Terminal, ChevronUp, ChevronDown, Pencil } from "lucide-react";
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { getAvatarForUser } from "../../../../lib/avatar";
 import { supabase, uiComponentsApi } from "../../../../lib/supabase";
+import { uploadToGitHub, uploadComponentCode, isGitHubConfigured } from "../../../../lib/github-assets";
 
 // Dynamically import Monaco Editor to avoid SSR issues
 const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
 export default function CreateComponentPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
+
+  // Edit mode: populated when navigated via ?edit=<id>
+  const editId = searchParams.get('edit');
+  const isEditMode = !!editId;
 
   const [title, setTitle] = useState("My Awesome Component");
   const [description, setDescription] = useState("");
@@ -57,7 +63,7 @@ export default function App() {
   return (
     <div className="flex flex-col items-center gap-6 p-10">
       <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
-        Hello from React! ✨
+        Hello from React!
       </h1>
       <button
         onClick={() => setCount(c => c + 1)}
@@ -85,19 +91,62 @@ export default function App() {
   const [consoleLogs, setConsoleLogs] = useState<{type: string, message: string, time: string}[]>([]);
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   
+  const [isSaving, setIsSaving] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+
+  // Use a ref to store the screenshot data URL to be used during save
+  const screenshotRef = React.useRef<string | null>(null);
+
+  // Load existing component data when in edit mode
+  useEffect(() => {
+    if (!editId) return;
+    async function loadForEdit() {
+      try {
+        const all = await uiComponentsApi.getAll();
+        const found = all.find(c => String(c.id) === String(editId));
+        if (!found) { toast.error('Component not found'); return; }
+        setTitle(found.title || '');
+        setDescription(found.description || '');
+        setTags((found.tags || []).join(', '));
+        setComponentType((found.component_type as 'component' | 'template') || 'component');
+        const hasReact = found.react_files && found.react_files.length > 0;
+        if (hasReact) {
+          setCreationMode('react');
+          setActiveTab('react');
+          setReactFiles(found.react_files!);
+        } else {
+          setCreationMode('classic');
+          setActiveTab('html');
+          setHtmlCode(found.html_code || '');
+          setCssCode(found.css_code || '');
+          setJsCode(found.js_code || '');
+        }
+        const envVars = found.env_vars as Record<string, string> | null;
+        if (envVars && typeof envVars === 'object') {
+          setEnvCode(Object.entries(envVars).map(([k,v]) => `${k}=${v}`).join('\n'));
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error('Failed to load component for editing');
+      }
+    }
+    loadForEdit();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
+  
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'CONSOLE_LOG') {
         setConsoleLogs(prev => [...prev, { type: event.data.logType, message: event.data.message, time: new Date().toLocaleTimeString() }]);
       } else if (event.data?.type === 'CONSOLE_CLEAR') {
         setConsoleLogs([]);
+      } else if (event.data?.type === 'SCREENSHOT_DATA') {
+        screenshotRef.current = event.data.dataUrl;
       }
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, []);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showPublishModal, setShowPublishModal] = useState(false);
 
   // User profile for avatar
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
@@ -172,6 +221,50 @@ export default function App() {
     }
 
     setIsSaving(true);
+    
+    // Trigger screenshot capture in the active iframe
+    const iframe = document.querySelector('iframe');
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage({ type: 'CAPTURE_SCREENSHOT' }, '*');
+    }
+
+    // Wait for the screenshot to be captured
+    await new Promise(r => setTimeout(r, 1200));
+
+    // Upload screenshot to GitHub (free storage), fallback to raw data URL
+    let previewUrl: string | undefined = undefined;
+    const rawDataUrl = screenshotRef.current;
+    if (rawDataUrl) {
+      try {
+        if (isGitHubConfigured()) {
+          const uploaded = await uploadToGitHub(rawDataUrl, 'previews');
+          previewUrl = uploaded.url;
+        } else {
+          previewUrl = rawDataUrl;
+        }
+      } catch (uploadErr) {
+        console.warn('GitHub upload failed, skipping preview:', uploadErr);
+      }
+    }
+
+    // Upload code bundle to GitHub
+    // In edit mode, use the existing id. In create mode, generate a new one.
+    const componentId = isEditMode && editId ? String(editId) : crypto.randomUUID();
+    let codeGithubUrl: string | undefined = undefined;
+    try {
+      if (isGitHubConfigured()) {
+        codeGithubUrl = await uploadComponentCode(componentId, {
+          mode: creationMode,
+          react_files: creationMode === 'react' ? reactFiles : undefined,
+          html_code: creationMode === 'classic' ? htmlCode : undefined,
+          css_code: creationMode === 'classic' ? cssCode : undefined,
+          js_code: creationMode === 'classic' ? jsCode : undefined,
+        });
+      }
+    } catch (codeErr) {
+      console.warn('GitHub code upload failed, will save inline:', codeErr);
+    }
+
     try {
       const tagsArray = tags.split(',').map(t => t.trim()).filter(Boolean);
 
@@ -180,25 +273,38 @@ export default function App() {
         || userAvatarUrl
         || getAvatarForUser(user?.email || null);
 
-      await uiComponentsApi.create({
-        id: crypto.randomUUID(),
+      const payload = {
         title,
         description,
         tags: tagsArray,
         env_vars: parsedEnv,
-        html_code: creationMode === 'classic' ? htmlCode : '',
-        css_code: creationMode === 'classic' ? cssCode : '',
-        js_code: creationMode === 'classic' ? jsCode : '',
-        react_files: creationMode === 'react' ? reactFiles : [],
-
-        author_name: (user?.user_metadata as any)?.full_name || (user?.email ? user.email.split('@')[0] : 'Anonymous Maker'),
-        author_avatar: resolvedAvatar,
-        author_id: user?.id || undefined,
-        theme: 'light',
+        html_code: creationMode === 'classic' ? (codeGithubUrl ? '' : htmlCode) : '',
+        css_code: creationMode === 'classic' ? (codeGithubUrl ? '' : cssCode) : '',
+        js_code: creationMode === 'classic' ? (codeGithubUrl ? '' : jsCode) : '',
+        react_files: creationMode === 'react' ? (codeGithubUrl ? [] : reactFiles) : [],
+        preview_url: previewUrl,
+        lottie_url: codeGithubUrl,
+        theme: 'light' as const,
         component_type: componentType,
-      });
-      toast.success("Component published successfully!");
-      router.push('/components');
+      };
+
+      if (isEditMode && editId) {
+        // UPDATE existing component
+        await uiComponentsApi.update(String(editId), payload);
+        toast.success('Component updated successfully!');
+        router.push(`/components/${editId}`);
+      } else {
+        // CREATE new component
+        await uiComponentsApi.create({
+          id: componentId,
+          author_name: (user?.user_metadata as any)?.full_name || (user?.email ? user.email.split('@')[0] : 'Anonymous Maker'),
+          author_avatar: resolvedAvatar,
+          author_id: user?.id || undefined,
+          ...payload,
+        });
+        toast.success('Component published successfully!');
+        router.push('/components');
+      }
     } catch (e) {
       console.error(e);
       toast.error("Failed to save component");
@@ -217,21 +323,27 @@ export default function App() {
       <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
         <style>
           body, html { margin: 0; padding: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-color: transparent; font-family: system-ui, -apple-system, sans-serif; }
           ${debouncedCss}
         </style>
       </head>
       <body>
-        ${debouncedHtml}
+        <div id="capture-area" style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;">
+          ${debouncedHtml}
+        </div>
         <script>
-          // Inject ENV variables safely just into the local window context
           window.ENV = ${JSON.stringify(parsedEnv)};
-          try {
-            ${debouncedJs}
-          } catch (e) {
-            console.error(e);
-          }
+          try { ${debouncedJs} } catch (e) { console.error(e); }
+
+          window.addEventListener('message', (e) => {
+            if (e.data.type === 'CAPTURE_SCREENSHOT') {
+              html2canvas(document.body, { backgroundColor: null, logging: false }).then(canvas => {
+                window.parent.postMessage({ type: 'SCREENSHOT_DATA', dataUrl: canvas.toDataURL('image/webp', 0.5) }, '*');
+              });
+            }
+          });
         </script>
       </body>
     </html>
@@ -303,17 +415,105 @@ export default function App() {
 <head>
   <meta charset="utf-8">
   <script async src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script type="importmap">${importmapJson}</script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; min-height: 100%; }
-    body { font-family: system-ui,-apple-system,sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; padding:24px; background:transparent; }
+    html, body { margin: 0; padding: 0; min-height: 100%; background: transparent; }
+    body { font-family: system-ui,-apple-system,sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
     #root { width:100%; display:flex; align-items:center; justify-content:center; }
     ::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-thumb { background:rgba(128,128,128,0.3); border-radius:3px; }
     .preview-error { background:#fee2e2; border:1px solid #fca5a5; border-radius:8px; padding:16px; color:#dc2626; font-family:monospace; font-size:13px; white-space:pre-wrap; }
+
+    /* -- Build Phase Overlay -- */
+    #build-overlay {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(10,10,15,0.92);
+      backdrop-filter: blur(12px);
+      z-index: 9999;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+      gap: 20px;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    #build-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+    .build-logo {
+      width: 52px; height: 52px;
+      border: 3px solid rgba(99,102,241,0.3);
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .build-step-label {
+      font-size: 13px; font-weight: 700;
+      color: #a5b4fc;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      min-width: 220px; text-align: center;
+    }
+    .build-step-sub {
+      font-size: 11px; color: rgba(148,163,184,0.7);
+      letter-spacing: 0.05em;
+      text-align: center;
+    }
+
+    .build-steps {
+      display: flex; flex-direction: column; gap: 6px; width: 220px;
+    }
+    .step {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 11px; color: rgba(148,163,184,0.4);
+      transition: color 0.3s ease;
+    }
+    .step.active { color: #e2e8f0; }
+    .step.done { color: #4ade80; }
+    .step-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: currentColor; flex-shrink: 0;
+      transition: background 0.3s ease;
+    }
+    .step.active .step-dot { animation: pulse-dot 1s ease-in-out infinite; }
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity:1; }
+      50% { transform: scale(1.6); opacity:0.6; }
+    }
+
+    .build-bar-track {
+      width: 220px; height: 3px;
+      background: rgba(99,102,241,0.15);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .build-bar-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #6366f1, #8b5cf6, #6366f1);
+      background-size: 200% 100%;
+      border-radius: 999px;
+      transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+      animation: shimmer 1.5s linear infinite;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
   </style>
 </head>
 <body>
+  <!-- Real Build Phase Overlay -->
+  <div id="build-overlay">
+    <div class="build-logo"></div>
+    <div class="build-step-label" id="phase-label">Initializing...</div>
+    <div class="build-steps">
+      <div class="step" id="s-babel"><div class="step-dot"></div> Loading Babel Compiler</div>
+      <div class="step" id="s-parse"><div class="step-dot"></div> Parsing Imports</div>
+      <div class="step" id="s-compile"><div class="step-dot"></div> Compiling TSX to JS</div>
+      <div class="step" id="s-resolve"><div class="step-dot"></div> Resolving Modules</div>
+      <div class="step" id="s-render"><div class="step-dot"></div> Rendering Component</div>
+    </div>
+    <div class="build-bar-track"><div class="build-bar-fill" id="build-bar"></div></div>
+    <div class="build-step-sub" id="phase-sub">Setting up environment...</div>
+  </div>
+
   <div id="root"></div>
   <script>
     (function(){
@@ -334,7 +534,32 @@ export default function App() {
         if (msg === "Script error.") return;
         window.parent.postMessage({type:'CONSOLE_LOG',logType:'error',message:msg+' (line '+line+')'},'*'); 
       };
+      window.addEventListener('message', (e) => {
+        if (e.data.type === 'CAPTURE_SCREENSHOT') {
+          html2canvas(document.body, { backgroundColor: null, logging: false }).then(canvas => {
+            window.parent.postMessage({ type: 'SCREENSHOT_DATA', dataUrl: canvas.toDataURL('image/webp', 0.5) }, '*');
+          });
+        }
+      });
     })();
+
+    // -- Build Phase Helpers --
+    function setPhase(id, label, sub, progress) {
+      var steps = ['s-babel','s-parse','s-compile','s-resolve','s-render'];
+      var idx = steps.indexOf(id);
+      steps.forEach(function(s, i) {
+        var el = document.getElementById(s);
+        if (!el) return;
+        el.className = 'step' + (i < idx ? ' done' : i === idx ? ' active' : '');
+      });
+      document.getElementById('phase-label').textContent = label;
+      document.getElementById('phase-sub').textContent = sub;
+      document.getElementById('build-bar').style.width = progress + '%';
+    }
+    function hideBuildOverlay() {
+      var ov = document.getElementById('build-overlay');
+      if (ov) ov.classList.add('hidden');
+    }
   </script>
   <script type="module">
     import React from 'react';
@@ -354,9 +579,18 @@ export default function App() {
     async function run() {
       const root = document.getElementById('root');
       try {
+        // Phase 1: Load Babel
+        window.setPhase('s-babel', 'Loading Compiler', 'Fetching @babel/standalone...', 10);
         const Babel = await loadBabel();
+
+        // Phase 2: Parse
+        window.setPhase('s-parse', 'Parsing Imports', 'Scanning import statements...', 30);
         const rawCode = ${JSON.stringify(rawCode)};
+        await new Promise(r => setTimeout(r, 60));
         
+        // Phase 3: Compile
+        window.setPhase('s-compile', 'Compiling TSX to JS', 'Running Babel transform...', 55);
+        await new Promise(r => setTimeout(r, 30));
         const transformed = Babel.transform(rawCode, {
           presets: [
             ['env', { modules: 'commonjs' }],
@@ -366,6 +600,8 @@ export default function App() {
           filename: 'App.tsx',
         }).code;
 
+        // Phase 4: Resolve modules
+        window.setPhase('s-resolve', 'Resolving Modules', 'Mapping ESM imports...', 75);
         const esmMap = ${JSON.stringify(importmapEntries)};
         const fixedCode = transformed.replace(
           /require\\(["']([^"']+)["']\\)/g,
@@ -374,7 +610,10 @@ export default function App() {
             return 'await import("' + url + '")';
           }
         );
+        await new Promise(r => setTimeout(r, 40));
 
+        // Phase 5: Execute + Render
+        window.setPhase('s-render', 'Rendering Component', 'Mounting React tree...', 90);
         const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
         const mod = { exports: {} };
         const fn = new AsyncFunction('React', 'require', 'module', 'exports', fixedCode + '\\nreturn module.exports;');
@@ -393,10 +632,17 @@ export default function App() {
 
         if (typeof App === 'function' || (typeof App === 'object' && App !== null)) {
           createRoot(root).render(React.createElement(App));
+          // Done - animate bar to 100% then hide overlay
+          document.getElementById('build-bar').style.width = '100%';
+          document.getElementById('phase-label').textContent = 'Ready!';
+          document.getElementById('phase-sub').textContent = 'Component rendered successfully';
+          setTimeout(() => window.hideBuildOverlay(), 600);
         } else {
-          root.innerHTML = '<div class="preview-error">⚠️ No default export found or App is not a component.</div>';
+          window.hideBuildOverlay();
+          root.innerHTML = '<div class="preview-error">Warning: No default export found or App is not a component.</div>';
         }
       } catch (err) {
+        window.hideBuildOverlay();
         root.innerHTML = '<div class="preview-error"><b>Runtime Error:</b><br/>'+err.message+'</div>';
       }
     }
@@ -419,6 +665,24 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-[#1e1e1e] text-gray-100 font-sans">
+
+      {/* Edit Mode Banner */}
+      {isEditMode && (
+        <div className="shrink-0 flex items-center justify-between px-6 py-2.5 bg-amber-500/10 border-b border-amber-500/30">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <Pencil size={14} className="text-amber-400" />
+            <span className="text-amber-300 font-bold text-sm tracking-wide">EDIT MODE</span>
+            <span className="text-amber-400/60 text-xs">You are editing an existing component - saving will update it</span>
+          </div>
+          <button
+            onClick={() => router.push(`/components/${editId}`)}
+            className="text-xs text-amber-400/60 hover:text-amber-300 transition px-3 py-1 rounded border border-amber-500/20 hover:border-amber-500/40"
+          >
+            Cancel Edit
+          </button>
+        </div>
+      )}
 
       {/* Top Navbar for Editor */}
       <div className="h-14 border-b border-[#333] flex items-center justify-between px-6 bg-[#252526] shrink-0">
@@ -522,7 +786,7 @@ export default function App() {
                         title="Double-click to rename"
                         className={"flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold transition-all " + (activeReactFile === idx ? "text-blue-400 bg-[#1e1e1e]" : "text-gray-500 hover:text-gray-300")}
                       >
-                        <span className="opacity-40 text-[9px]">{file.name.endsWith('.tsx') || file.name.endsWith('.ts') ? '⬡' : '⬡'}</span>
+                        <span className="opacity-40 text-[9px]">{file.name.endsWith('.tsx') || file.name.endsWith('.ts') ? 'TS' : 'JS'}</span>
                         {file.name}
                       </button>
                     )}

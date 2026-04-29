@@ -99,7 +99,23 @@ export default function UiComponentCard({ component }: Props) {
         backgroundImage: 'radial-gradient(circle, #00000010 1px, transparent 1px)',
         backgroundSize: '20px 20px',
       }}>
-         {activeTab === 'preview' ? (
+          {component.preview_url ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-white dark:bg-black overflow-hidden p-4">
+              <img 
+                src={component.preview_url} 
+                alt={component.title} 
+                className="max-w-full max-h-full object-contain shadow-sm rounded transition-transform group-hover:scale-105 duration-500" 
+              />
+            </div>
+          ) : (component.react_files && component.react_files.length > 0) ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 p-6 text-center">
+              <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-500">
+                <Layers className="text-blue-500" size={32} />
+              </div>
+              <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">React Component</p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2">{component.description || 'No preview available'}</p>
+            </div>
+          ) : activeTab === 'preview' ? (
              <div className="absolute top-0 left-0 w-[200%] h-[200%] transform origin-top-left scale-50 z-0">
                  <iframe
                     ref={iframeRef}
@@ -111,7 +127,7 @@ export default function UiComponentCard({ component }: Props) {
                     tabIndex={-1}
                  ></iframe>
              </div>
-         ) : (
+          ) : (
              <div className="absolute inset-0 p-4 z-0">
                  <div className="w-full h-full overflow-auto p-4 bg-gray-900 text-gray-100 text-sm font-mono rounded-lg">
                     <pre>
@@ -119,7 +135,7 @@ export default function UiComponentCard({ component }: Props) {
                     </pre>
                  </div>
              </div>
-         )}
+          )}
 
         {/* Type Badge */}
         {isTemplate && (

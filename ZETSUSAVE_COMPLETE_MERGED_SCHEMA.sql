@@ -2648,6 +2648,7 @@ CREATE TABLE IF NOT EXISTS ui_components (
   component_type TEXT DEFAULT 'component',
   react_files JSONB DEFAULT '[]',
   lottie_url TEXT,
+  preview_url TEXT,
   views_count INTEGER DEFAULT 0,
   likes_count INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -2661,6 +2662,7 @@ ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS author_avatar TEXT;
 ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS component_type TEXT DEFAULT 'component';
 ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS react_files JSONB DEFAULT '[]';
 ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS lottie_url TEXT;
+ALTER TABLE ui_components ADD COLUMN IF NOT EXISTS preview_url TEXT;
 
 -- Enable RLS
 ALTER TABLE ui_components ENABLE ROW LEVEL SECURITY;

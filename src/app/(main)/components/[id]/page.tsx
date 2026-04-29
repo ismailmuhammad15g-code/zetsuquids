@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Check, Copy, ExternalLink, Eye, Heart, Layers, Moon, Sun, Code2 } from "lucide-react";
+import { ArrowLeft, Check, Copy, ExternalLink, Eye, Heart, Layers, Moon, Pencil, Sun, Code2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -73,9 +73,19 @@ function buildReactSrcDoc(reactFiles: { name: string; content: string }[], isDar
       white-space: pre-wrap; max-width: 100%; overflow: auto;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
   <div id="root"></div>
+  <script>
+    window.addEventListener('message', (e) => {
+      if (e.data.type === 'CAPTURE_SCREENSHOT') {
+        html2canvas(document.body, { backgroundColor: null, logging: false }).then(canvas => {
+          window.parent.postMessage({ type: 'SCREENSHOT_DATA', dataUrl: canvas.toDataURL('image/webp', 0.5) }, '*');
+        });
+      }
+    });
+  </script>
   <script type="module">
     // Wait for Babel to load via importmap workaround - use direct transform
     import React from 'react';
@@ -305,6 +315,8 @@ export default function ComponentPreviewPage() {
     : String((component as unknown as Record<string, unknown>)[`${activeTab}_code`] || '');
   const authorAvatar = component.author_avatar || getAvatarForUser(component.author_name || null);
   const isTemplate = component.component_type === 'template';
+  // Show edit button only to the component's author
+  const isAuthor = !!(user && component.author_id && user.id === component.author_id);
 
   return (
     <div className="min-h-screen bg-[#09090b] text-gray-100 pb-20 font-sans selection:bg-[#007acc] selection:text-white">
@@ -328,6 +340,16 @@ export default function ComponentPreviewPage() {
             </div>
             <div className="flex items-center gap-1.5" title="Views"><Eye size={16} className="text-gray-500" /><span>{viewsCount}</span></div>
             <div className="flex items-center gap-1.5" title="Likes"><Heart size={14} className={liked ? "text-red-500 fill-red-500" : "text-gray-500"} /><span>{likesCount}</span></div>
+            {/* Edit button — only visible to the author */}
+            {isAuthor && (
+              <button
+                onClick={() => router.push(`/components/create?edit=${component.id}`)}
+                className="flex items-center gap-2 px-4 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-400 hover:text-amber-300 rounded-full text-xs font-bold transition-all"
+                title="Edit this component"
+              >
+                <Pencil size={13} /> Edit
+              </button>
+            )}
           </div>
         </div>
 
