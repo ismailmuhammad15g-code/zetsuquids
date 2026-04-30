@@ -14,7 +14,7 @@ interface Props {
 
 export default function UiComponentCard({ component }: Props) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profileAvatar } = useAuth();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [activeTab, setActiveTab] = useState<'preview' | 'html' | 'css' | 'js'>('preview');
   const [liked, setLiked] = useState(false);
@@ -84,9 +84,22 @@ export default function UiComponentCard({ component }: Props) {
   `;
 
   const isTemplate = component.component_type === 'template';
+  
+  // Resilient Author Identification: matches by ID or Name (useful for local/localStorage modes)
+  const currentUserName = (user?.user_metadata as any)?.full_name || user?.email?.split('@')[0];
+  const isAuthor = !!(
+    (user && component.author_id && user.id === component.author_id) || 
+    (user && currentUserName && component.author_name === currentUserName)
+  );
 
-  // Resolve author avatar: prefer saved author_avatar, fallback to getAvatarForUser
-  const authorAvatarUrl = component.author_avatar || getAvatarForUser(component.author_name || null);
+  // Use profileAvatar from context (fetched from zetsuguide_user_profiles table)
+  const authorAvatarUrl = (isAuthor && profileAvatar) 
+    || component.author_avatar 
+    || getAvatarForUser(component.author_name || null);
+
+  const authorName = (isAuthor && currentUserName)
+    || component.author_name 
+    || 'Anonymous';
 
   return (
     <div 
@@ -183,14 +196,14 @@ export default function UiComponentCard({ component }: Props) {
           <div className="flex items-center space-x-2">
               <img
                 src={authorAvatarUrl}
-                alt={component.author_name || 'Author'}
+                alt={authorName}
                 className="w-5 h-5 rounded-full object-cover"
                 onError={(e) => {
                   e.currentTarget.src = getAvatarForUser(null);
                 }}
               />
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {component.author_name || 'Anonymous'}
+                  {authorName}
               </span>
           </div>
           {component.component_type && (

@@ -26,9 +26,11 @@ interface AuthContextValue {
     user: SupabaseUser | null;
     token: string | null;
     loading: boolean;
+    profileAvatar: string | null;  // Avatar from zetsuguide_user_profiles table
     login: (newToken: string, userData: SupabaseUser) => void;
     logout: () => Promise<void>;
     updateUser: (userData: SupabaseUser) => void;
+    updateProfileAvatar: (url: string | null) => void;
     isAuthenticated: () => boolean;
 }
 
@@ -42,9 +44,11 @@ const defaultAuthValue: AuthContextValue = {
     user: null,
     token: null,
     loading: true,
+    profileAvatar: null,
     login: () => { },
     logout: async () => { },
     updateUser: () => { },
+    updateProfileAvatar: () => { },
     isAuthenticated: () => false,
 };
 
@@ -54,6 +58,20 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [token, setToken] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
+    const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
+
+    // Fetch avatar from profiles table whenever user changes
+    useEffect(() => {
+        if (!user?.email) { setProfileAvatar(null); return; }
+        supabase
+            .from('zetsuguide_user_profiles')
+            .select('avatar_url')
+            .eq('user_email', user.email)
+            .maybeSingle()
+            .then(({ data }: { data: any }) => {
+                if (data?.avatar_url) setProfileAvatar(data.avatar_url);
+            });
+    }, [user?.email]);
 
     // Load user from localStorage on mount AND monitor Supabase auth state changes
     useEffect(() => {
@@ -212,6 +230,10 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
         localStorage.removeItem("auth_user");
     };
 
+    const updateProfileAvatar = (url: string | null): void => {
+        setProfileAvatar(url);
+    };
+
     const updateUser = (userData: SupabaseUser): void => {
         setUser(userData);
         localStorage.setItem("auth_user", JSON.stringify(userData));
@@ -225,9 +247,11 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
         user,
         token,
         loading,
+        profileAvatar,
         login,
         logout,
         updateUser,
+        updateProfileAvatar,
         isAuthenticated,
     };
 

@@ -51,6 +51,24 @@ export async function uploadToGitHub(
 
   const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/${path}`;
 
+  // Check if file exists to get its SHA (required for updating files)
+  let existingSha: string | undefined = undefined;
+  try {
+    const getRes = await fetch(apiUrl, {
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      }
+    });
+    if (getRes.ok) {
+      const existingData = await getRes.json();
+      existingSha = existingData.sha;
+    }
+  } catch (e) {
+    // File likely doesn't exist yet, which is fine
+  }
+
   const response = await fetch(apiUrl, {
     method: 'PUT',
     headers: {
@@ -63,6 +81,7 @@ export async function uploadToGitHub(
       message: `Upload asset: ${name}`,
       content: base64Content,
       branch: GITHUB_BRANCH,
+      ...(existingSha ? { sha: existingSha } : {})
     }),
   });
 
@@ -137,6 +156,24 @@ export async function uploadTextToGitHub(
 
   const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/${path}`;
 
+  // Check if file exists to get its SHA (required for updating files)
+  let existingSha: string | undefined = undefined;
+  try {
+    const getRes = await fetch(apiUrl, {
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      }
+    });
+    if (getRes.ok) {
+      const existingData = await getRes.json();
+      existingSha = existingData.sha;
+    }
+  } catch (e) {
+    // File likely doesn't exist yet, which is fine
+  }
+
   const response = await fetch(apiUrl, {
     method: 'PUT',
     headers: {
@@ -149,6 +186,7 @@ export async function uploadTextToGitHub(
       message,
       content: base64Content,
       branch: GITHUB_BRANCH,
+      ...(existingSha ? { sha: existingSha } : {})
     }),
   });
 

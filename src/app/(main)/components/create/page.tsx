@@ -13,16 +13,6 @@ import { supabase, uiComponentsApi } from "../../../../lib/supabase";
 import { uploadToGitHub, uploadComponentCode, isGitHubConfigured } from "../../../../lib/github-assets";
 import { detectSecrets } from "../../../../lib/secret-analyzer";
 
-// Simple encryption for env secrets - uses a unique key per component
-function encryptEnv(envVars: Record<string, string>, _componentId?: string): string {
-  if (!envVars || Object.keys(envVars).length === 0) return '{}';
-  
-  // Create a simple encoded version - in production you'd use a proper crypto library
-  // This encodes the values in base64 with a component-specific salt
-  const encoded = btoa(JSON.stringify(envVars));
-  return encoded;
-}
-
 function decryptEnv(encrypted: string): Record<string, string> {
   if (!encrypted || encrypted === '{}') return {};
   try {
@@ -35,10 +25,10 @@ function decryptEnv(encrypted: string): Record<string, string> {
 // Dynamically import Monaco Editor to avoid SSR issues
 const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
-export default function CreateComponentPage() {
+function CreateComponentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, profileAvatar } = useAuth();
 
   // Edit mode: populated when navigated via ?edit=<id>
   const editId = searchParams.get('edit');
@@ -409,19 +399,20 @@ export default function App() {
       const tagsArray = tags.split(',').map(t => t.trim()).filter(Boolean);
 
       // Resolve the best avatar URL for saving
-      const resolvedAvatar = (user?.user_metadata as any)?.avatar_url
+      const resolvedAvatar = profileAvatar
+        || (user?.user_metadata as any)?.avatar_url
         || userAvatarUrl
         || getAvatarForUser(user?.email || null);
 
       // Encrypt env variables before saving to Supabase
-      const encryptedEnv = encryptEnv(parsedEnv, componentId);
+      
 
       const payload = {
         title,
         description,
         tags: tagsArray,
-        env_vars: encryptedEnv as unknown as Record<string, string>, // Send encrypted version to Supabase
-        env_keys: Object.keys(parsedEnv), // Only store keys (not values) for display
+        env_vars: JSON.stringify(parsedEnv) as any, // Save as string to be absolutely safe with Supabase column types
+        
         html_code: creationMode === 'classic' ? (codeGithubUrl ? '' : htmlCode) : '',
         css_code: creationMode === 'classic' ? (codeGithubUrl ? '' : cssCode) : '',
         js_code: creationMode === 'classic' ? (codeGithubUrl ? '' : jsCode) : '',
@@ -434,7 +425,11 @@ export default function App() {
 
       if (isEditMode && editId) {
         // UPDATE existing component
-        await uiComponentsApi.update(String(editId), payload);
+        await uiComponentsApi.update(String(editId), {
+          ...payload,
+          author_name: (user?.user_metadata as any)?.full_name || (user?.email ? user.email.split('@')[0] : 'Anonymous Maker'),
+          author_avatar: resolvedAvatar,
+        });
         toast.success('Component updated successfully!');
         router.push(`/components/${editId}`);
       } else {
@@ -1371,5 +1366,13 @@ export default function App() {
       )}
 
     </div>
+  );
+}
+
+export default function CreateComponentPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">Loading...</div>}>
+      <CreateComponentContent />
+    </React.Suspense>
   );
 }

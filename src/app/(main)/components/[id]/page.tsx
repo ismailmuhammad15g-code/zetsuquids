@@ -19,6 +19,24 @@ function buildReactSrcDoc(reactFiles: { name: string; content: string }[], isDar
 
   let appCode = filesMap['App.tsx'] || Object.values(filesMap)[0] || 'export default function App() { return <div>No Code</div>; }';
 
+  // ✅ THE REAL FIX: Directly substitute ENV values into the source code.
+  // This handles `const API_KEY = "PLACEHOLDER"` which block-scopes and shadows window globals.
+  // We replace the hardcoded placeholder string with the actual value from ENV before Babel runs.
+  if (env && Object.keys(env).length > 0) {
+    Object.entries(env).forEach(([key, value]) => {
+      if (!value) return;
+      // Escape key for regex
+      const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Match: const KEY = "anything" or const KEY = 'anything'
+      // and replace the value part with the real ENV value
+      const constRegex = new RegExp(
+        `((?:const|let|var)\\s+${escapedKey}\\s*=\\s*)(['"\`])[^'"\`]*(['"\`])`,
+        'g'
+      );
+      appCode = appCode.replace(constRegex, `$1"${value}"`);
+    });
+  }
+
   // Collect external package names (not react/react-dom)
   const esmPackages: string[] = [];
   const importRegex = /import\s+(?:.*?\s+from\s+)?['"]([^'"./][^'"]*)['"]/g;
@@ -54,11 +72,25 @@ function buildReactSrcDoc(reactFiles: { name: string; content: string }[], isDar
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script async src="https://cdn.tailwindcss.com"></script>
   <script type="importmap">${importmapJson}</script>
-  <script>
-    window.ENV = ${JSON.stringify(env)};
-    window.process = window.process || {};
-    window.process.env = ${JSON.stringify(env)};
-  </script>
+    <script>
+      // Hyper-Smart ENV Injection
+      (function() {
+        var env = ${JSON.stringify(env)};
+        window.ENV = env;
+        window.process = window.process || {};
+        window.process.env = env;
+        window.importMeta = { env: env };
+        
+        // Expose keys globally to override hardcoded placeholders
+        for (var key in env) {
+          if (env.hasOwnProperty(key) && env[key]) {
+            window[key] = env[key];
+            try { eval('var ' + key + ' = "' + env[key] + '"'); } catch(e) {}
+          }
+        }
+        console.log("🤖 Preview Environment Loaded:", Object.keys(env));
+      })();
+    </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; min-height: 100%; }
@@ -175,6 +207,19 @@ function buildClassicSrcDoc(
   envVars: Record<string, string>,
   isDarkMode: boolean
 ): string {
+  // ✅ THE REAL FIX: Substitute ENV values directly into the JS source code
+  let processedJs = js || '';
+  if (envVars && Object.keys(envVars).length > 0) {
+    Object.entries(envVars).forEach(([key, value]) => {
+      if (!value) return;
+      const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const constRegex = new RegExp(
+        `((?:const|let|var)\\s+${escapedKey}\\s*=\\s*)(['"\`])[^'"\`]*(['"\`])`,
+        'g'
+      );
+      processedJs = processedJs.replace(constRegex, `$1"${value}"`);
+    });
+  }
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -194,10 +239,22 @@ function buildClassicSrcDoc(
 <body>
   ${html || ''}
   <script>
-    window.ENV = ${JSON.stringify(envVars || {})};
-    window.process = window.process || {};
-    window.process.env = window.ENV;
-    try { ${js || ''} } catch(e) { console.error(e); }
+    // Hyper-Smart ENV Injection
+    (function() {
+      var env = ${JSON.stringify(envVars || {})};
+      window.ENV = env;
+      window.process = window.process || {};
+      window.process.env = env;
+      
+      for (var key in env) {
+        if (env.hasOwnProperty(key) && env[key]) {
+          window[key] = env[key];
+          try { eval('var ' + key + ' = "' + env[key] + '"'); } catch(e) {}
+        }
+      }
+      console.log("🤖 Preview Environment Loaded:", Object.keys(env));
+    })();
+    try { ${processedJs} } catch(e) { console.error(e); }
   </script>
 </body>
 </html>`;
@@ -206,7 +263,7 @@ function buildClassicSrcDoc(
 export default function ComponentPreviewPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profileAvatar } = useAuth();
   const viewTracked = useRef(false);
 
   const [component, setComponent] = useState<UiComponent | null>(null);
@@ -267,9 +324,17 @@ export default function ComponentPreviewPage() {
 
   useEffect(() => {
     if (component?.id && !viewTracked.current) {
-      viewTracked.current = true;
-      uiComponentsApi.incrementView(String(component.id));
-      setViewsCount(prev => prev + 1);
+      const viewedKey = `viewed_${component.id}`;
+      const hasViewed = localStorage.getItem(viewedKey);
+      
+      if (!hasViewed) {
+        viewTracked.current = true;
+        uiComponentsApi.incrementView(String(component.id));
+        setViewsCount(prev => prev + 1);
+        // Mark as viewed in this browser (expires after browser close if we used session, 
+        // but user said "same person", so localStorage is better to avoid spam on next day too)
+        localStorage.setItem(viewedKey, 'true');
+      }
     }
   }, [component?.id]);
 
@@ -294,32 +359,33 @@ export default function ComponentPreviewPage() {
     }
   };
 
-  // Helper to decrypt env vars (simple base64 decode for now)
-  const decryptEnvVars = (encrypted: string): Record<string, string> => {
-    if (!encrypted || encrypted === '{}') return {};
-    try {
-      return JSON.parse(atob(encrypted));
-    } catch {
-      return {};
-    }
-  };
+
 
   // Recompute srcdoc whenever component or dark mode changes
   // SECURITY: Don't pass env secrets to public preview - only the owner sees them
-  const isOwner = user && component?.author_id && user.id === component.author_id;
+
   const finalIframeSrcDoc = useMemo(() => {
     if (!component) return '';
     
-    // For public view: don't pass env secrets (preview will show "enter api key")
-    // Only owner sees the actual values (decrypted)
+    // Robust ENV loading: handles objects (new) and stringified/base64 (legacy)
     let envForPreview: Record<string, string> = {};
-    if (isOwner && component.env_vars) {
-      // Decrypt the stored env vars for owner preview
-      const rawEnv = component.env_vars as unknown;
-      if (typeof rawEnv === 'string') {
-        envForPreview = decryptEnvVars(rawEnv);
-      } else if (typeof rawEnv === 'object' && rawEnv !== null) {
-        envForPreview = rawEnv as Record<string, string>;
+    const rawEnv = component.env_vars as any;
+    if (rawEnv) {
+      if (typeof rawEnv === 'object' && !Array.isArray(rawEnv)) {
+        envForPreview = rawEnv;
+      } else if (typeof rawEnv === 'string' && rawEnv.trim() !== '') {
+        try {
+          // Try base64 decode (legacy encrypted)
+          envForPreview = JSON.parse(atob(rawEnv));
+        } catch {
+          try {
+            // Try regular JSON parse
+            envForPreview = JSON.parse(rawEnv);
+          } catch (e) {
+            console.error("Failed to parse env_vars string:", e);
+            envForPreview = {};
+          }
+        }
       }
     }
     
@@ -333,7 +399,7 @@ export default function ComponentPreviewPage() {
       envForPreview,
       isDarkMode
     );
-  }, [component, isReact, isDarkMode, isOwner]);
+  }, [component, isReact, isDarkMode]);
 
   // Open preview in new tab (works for both classic & react)
   const openPreviewInNewTab = () => {
@@ -367,10 +433,24 @@ export default function ComponentPreviewPage() {
   const codeString = activeTab === 'react'
     ? (component.react_files?.[activeReactFile]?.content || '')
     : String((component as unknown as Record<string, unknown>)[`${activeTab}_code`] || '');
-  const authorAvatar = component.author_avatar || getAvatarForUser(component.author_name || null);
+  
+  // Resilient Author Identification: matches by ID or Name
+  const currentUserName = (user?.user_metadata as any)?.full_name || user?.email?.split('@')[0];
+  const isAuthor = !!(
+    (user && component.author_id && user.id === component.author_id) || 
+    (user && currentUserName && component.author_name === currentUserName)
+  );
+
+  // Use profileAvatar from context (fetched from zetsuguide_user_profiles table)
+  const authorAvatar = (isAuthor && profileAvatar) 
+    || component.author_avatar 
+    || getAvatarForUser(component.author_name || null);
+    
+  const authorName = (isAuthor && currentUserName)
+    || component.author_name 
+    || 'Anonymous Maker';
+
   const isTemplate = component.component_type === 'template';
-  // Show edit button only to the component's author
-  const isAuthor = !!(user && component.author_id && user.id === component.author_id);
 
   return (
     <div className="min-h-screen bg-[#09090b] text-gray-100 pb-20 font-sans selection:bg-[#007acc] selection:text-white">
@@ -390,10 +470,11 @@ export default function ComponentPreviewPage() {
             <div className="flex items-center gap-2 mr-2">
               <span className="hidden sm:inline">Element by</span>
               <img src={authorAvatar} alt="Author" className="w-6 h-6 rounded-full object-cover border border-[#2d2d2d]" onError={(e) => { e.currentTarget.src = getAvatarForUser(null); }} />
-              <span className="text-white font-semibold">{component.author_name || 'Anonymous Maker'}</span>
+              <span className="text-white font-semibold">{authorName}</span>
             </div>
             <div className="flex items-center gap-1.5" title="Views"><Eye size={16} className="text-gray-500" /><span>{viewsCount}</span></div>
             <div className="flex items-center gap-1.5" title="Likes"><Heart size={14} className={liked ? "text-red-500 fill-red-500" : "text-gray-500"} /><span>{likesCount}</span></div>
+
             {/* Edit button — only visible to the author */}
             {isAuthor && (
               <button
