@@ -116,35 +116,6 @@ export default async function handler(req, res) {
         isFollowing: true,
         followersCount: countData || 0,
       });
-        }
-      }
-
-      const { data: countData } = await supabase.rpc(
-        "get_followers_count_by_email",
-        { target_email: targetUserEmail },
-      );
-
-      return res.status(200).json({
-        success: true,
-        message: "Successfully followed user",
-        isFollowing: true,
-        followersCount: countData || 0,
-      });
-        }
-      }
-
-      // Get updated follower count
-      const { data: countData } = await supabase.rpc(
-        "get_followers_count_by_email",
-        { target_email: targetUserEmail },
-      );
-
-      return res.status(200).json({
-        success: true,
-        message: "Successfully followed user",
-        isFollowing: true,
-        followersCount: countData || 0,
-      });
     } else if (action === "unfollow") {
       // Delete follow relationship
       const { error: unfollowError } = await supabase
