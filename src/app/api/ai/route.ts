@@ -1,4 +1,4 @@
-import aiHandler from "../../../../api/ai.js";
+import aiHandler from "../../../lib/legacy_api/ai.js";
 
 export async function OPTIONS() {
     return new Response(null, {
