@@ -1084,16 +1084,20 @@ export default function GuidePage() {
                     ]}
                 />
 
-                {/* Guide Cover Image */}
+                {/* Premium Guide Cover Image */}
                 {guide.cover_image && (
-                    <div className="mb-10 relative group">
-                        <div className="absolute inset-0 bg-black translate-x-2 translate-y-2 group-hover:translate-x-3 group-hover:translate-y-3 transition-transform duration-300" />
-                        <div className="relative aspect-[21/9] overflow-hidden border-2 border-black bg-gray-100">
+                    <div className="mb-12 relative group">
+                        {/* Decorative background glow */}
+                        <div className="absolute -inset-1 bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-pink-600/20 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                        
+                        <div className="relative aspect-[21/9] overflow-hidden rounded-[2rem] border border-gray-200 dark:border-gray-800 shadow-2xl bg-gray-100 dark:bg-gray-800">
                             <img
                                 src={guide.cover_image}
                                 alt={guide.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000 ease-out"
                             />
+                            {/* Glass overlay on hover */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                         </div>
                     </div>
                 )}
@@ -1304,17 +1308,6 @@ export default function GuidePage() {
                                     {kw}
                                 </span>
                             ))}
-                        </div>
-                    )}
-
-                    {/* Cover Image */}
-                    {guide.cover_image && (
-                        <div className="mb-8 overflow-hidden rounded-3xl border border-gray-200 shadow-lg">
-                            <img
-                                src={guide.cover_image}
-                                alt={`Cover image for ${guide.title}`}
-                                className="w-full h-[420px] object-cover"
-                            />
                         </div>
                     )}
 

@@ -301,6 +301,11 @@ export const guidesApi = {
                         errorMessage.toLowerCase().includes("cover_image");
 
                     if (shouldRetryWithoutCover) {
+                        console.error(
+                            "CRITICAL DATABASE ERROR: The 'cover_image' column is missing in your Supabase 'guides' table.",
+                            "\nPLEASE RUN THIS SQL IN YOUR SUPABASE SQL EDITOR:",
+                            "\nALTER TABLE guides ADD COLUMN IF NOT EXISTS cover_image TEXT;"
+                        );
                         const { cover_image, ...fallbackGuideData } = guideData;
                         const retryResult = await supabase
                             .from("guides")
@@ -418,6 +423,11 @@ export const guidesApi = {
                 /column \"cover_image\" does not exist/i.test(errorMessage);
 
             if (shouldRetryWithoutCover && updates.cover_image !== undefined) {
+                console.error(
+                    "CRITICAL DATABASE ERROR: The 'cover_image' column is missing in your Supabase 'guides' table.",
+                    "\nPLEASE RUN THIS SQL IN YOUR SUPABASE SQL EDITOR:",
+                    "\nALTER TABLE guides ADD COLUMN IF NOT EXISTS cover_image TEXT;"
+                );
                 const { cover_image, ...fallbackUpdates } = updates as any;
                 const retryResult = await supabase
                     .from("guides")

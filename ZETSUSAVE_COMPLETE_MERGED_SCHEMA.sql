@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS guides (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+ALTER TABLE guides ADD COLUMN IF NOT EXISTS cover_image TEXT;
 
 -- Create indexes for better search performance
 CREATE INDEX IF NOT EXISTS idx_guides_slug ON guides (slug);
