@@ -168,13 +168,29 @@ export default function GuideRecommendations({
           <Link
             key={guide.slug}
             href={`/guide/${guide.slug}`}
-            className="group relative border-2 border-black p-5 hover:shadow-xl transition-all hover:-translate-y-1 flex flex-col bg-white"
+            className="group relative border-2 border-black hover:shadow-xl transition-all hover:-translate-y-1 flex flex-col bg-white overflow-hidden"
           >
-            {/* Recommendation Badge */}
-            <div className="absolute -top-3 -right-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white px-3 py-1 text-xs font-bold flex items-center gap-1 shadow-lg">
-              {getReasonIcon(guide.recommendation_reason)}
-              {guide.recommendation_reason || "Recommended"}
+            {/* Guide Cover Image */}
+            <div className="aspect-video w-full bg-gray-100 overflow-hidden border-b-2 border-black">
+              {guide.cover_image ? (
+                <img
+                  src={guide.cover_image}
+                  alt={guide.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
+                  <Sparkles className="w-8 h-8 text-purple-200" />
+                </div>
+              )}
             </div>
+
+            <div className="p-5 flex flex-col flex-1">
+              {/* Recommendation Badge */}
+              <div className="absolute top-3 right-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white px-3 py-1 text-[10px] font-bold flex items-center gap-1 shadow-lg z-10">
+                {getReasonIcon(guide.recommendation_reason)}
+                {guide.recommendation_reason || "Recommended"}
+              </div>
 
             {/* Author Info */}
             {guide.user_email && (
@@ -244,6 +260,7 @@ export default function GuideRecommendations({
             <div className="mt-auto pt-3 flex items-center gap-2 text-sm font-bold text-purple-600 group-hover:gap-3 transition-all">
               Read Guide
               <ArrowRight className="w-4 h-4" />
+            </div>
             </div>
           </Link>
         ))}

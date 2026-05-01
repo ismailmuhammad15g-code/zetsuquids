@@ -1084,8 +1084,22 @@ export default function GuidePage() {
                     ]}
                 />
 
+                {/* Guide Cover Image */}
+                {guide.cover_image && (
+                    <div className="mb-10 relative group">
+                        <div className="absolute inset-0 bg-black translate-x-2 translate-y-2 group-hover:translate-x-3 group-hover:translate-y-3 transition-transform duration-300" />
+                        <div className="relative aspect-[21/9] overflow-hidden border-2 border-black bg-gray-100">
+                            <img
+                                src={guide.cover_image}
+                                alt={guide.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                            />
+                        </div>
+                    </div>
+                )}
+
                 {/* Header */}
-                <header className="mb-8 pb-8 border-b-2 border-black">
+                <header className="mb-12 pb-8 border-b-2 border-black">
                     {/* Sign Up Banner for Guest Users */}
                     {!user && (
                         <div className="mb-8 p-6 bg-black text-white border-2 border-gray-800 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] relative overflow-hidden group">
