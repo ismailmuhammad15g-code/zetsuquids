@@ -9,17 +9,21 @@ import GlobalErrorHandler from "./GlobalErrorHandler";
 import NetworkStatusMonitor from "./NetworkStatusMonitor";
 import { Toaster } from "sonner";
 
+import { ModalProvider } from "../contexts/ModalContext";
+
 export default function Providers({ children }: { children: React.ReactNode }) {
     return (
         <QueryProvider>
             <LoadingProvider>
                 <AuthProvider>
                     <ThemeProvider>
-                        <GlobalLoader />
-                        <GlobalErrorHandler />
-                        <NetworkStatusMonitor />
-                        <Toaster position="top-center" richColors closeButton />
-                        {children}
+                        <ModalProvider>
+                            <GlobalLoader />
+                            <GlobalErrorHandler />
+                            <NetworkStatusMonitor />
+                            <Toaster position="top-center" richColors closeButton />
+                            {children}
+                        </ModalProvider>
                     </ThemeProvider>
                 </AuthProvider>
             </LoadingProvider>

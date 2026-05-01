@@ -129,8 +129,41 @@ export default function GuideRecommendations({
 
   if (loading) {
     return (
-      <div className="py-12 flex justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+      <div className="mb-12 animate-pulse">
+        {/* Header Skeleton */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-gray-200 dark:bg-gray-800 rounded-xl" />
+          <div className="space-y-2">
+            <div className="h-6 w-48 bg-gray-200 dark:bg-gray-800 rounded" />
+            <div className="h-4 w-64 bg-gray-200 dark:bg-gray-800 rounded" />
+          </div>
+        </div>
+
+        {/* Grid Skeleton */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(limit)].map((_, i) => (
+            <div
+              key={i}
+              className="border-2 border-gray-100 dark:border-gray-800 rounded-sm overflow-hidden"
+            >
+              <div className="aspect-video bg-gray-100 dark:bg-gray-800" />
+              <div className="p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-gray-100 dark:bg-gray-800 rounded-full" />
+                  <div className="h-3 w-20 bg-gray-100 dark:bg-gray-800 rounded" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 w-full bg-gray-100 dark:bg-gray-800 rounded" />
+                  <div className="h-4 w-3/4 bg-gray-100 dark:bg-gray-800 rounded" />
+                </div>
+                <div className="flex gap-2">
+                  <div className="h-5 w-12 bg-gray-100 dark:bg-gray-800 rounded-full" />
+                  <div className="h-5 w-16 bg-gray-100 dark:bg-gray-800 rounded-full" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -144,8 +177,12 @@ export default function GuideRecommendations({
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
-            <Sparkles className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/10 overflow-hidden border border-purple-100 dark:border-purple-900/30">
+            <img
+              src="/images/recommendedIcon.jpg"
+              alt="Recommended"
+              className="w-full h-full object-cover"
+            />
           </div>
           <div>
             <div className="flex items-center gap-2">

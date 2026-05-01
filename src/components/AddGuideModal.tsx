@@ -56,6 +56,7 @@ import { useInvalidateGuides } from "../hooks/useGuides";
 import { guidesApi } from "../lib/api";
 import { getAvatarForUser } from "../lib/avatar";
 import { uploadImageToImgBB } from "../lib/imgbb";
+import { resizeImage } from "../lib/resizepro";
 import { sanitizeContent } from "../lib/utils";
 import {
   AlertModalForm,
@@ -200,6 +201,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
 
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [coverImageError, setCoverImageError] = useState<string | null>(null);
+  const [autoResize, setAutoResize] = useState(true);
   const [credits, setCredits] = useState(0);
 
   const invalidateGuides = useInvalidateGuides();
@@ -515,7 +517,28 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const objectUrl = URL.createObjectURL(file);
+    let finalFile: File | Blob = file;
+
+    // Apply resizing if enabled
+    if (autoResize) {
+      try {
+        const toastId = toast.loading("Resizing image to 1200x675...");
+        const resizedBlob = await resizeImage(file, {
+          width: 1200,
+          height: 675,
+          fitMode: "fill",
+          format: "image/jpeg",
+          quality: 92
+        });
+        finalFile = new File([resizedBlob], file.name, { type: "image/jpeg" });
+        toast.success("Image resized successfully!", { id: toastId });
+      } catch (error) {
+        console.error("Resize failed:", error);
+        toast.error("Auto-resize failed, using original image.");
+      }
+    }
+
+    const objectUrl = URL.createObjectURL(finalFile instanceof File ? finalFile : new Blob([finalFile]));
     const image = new Image();
 
     try {
@@ -535,7 +558,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       const aspectRatio = width / height;
       const recommendedRatio = 16 / 9;
       const ratioDiff = Math.abs(aspectRatio - recommendedRatio);
-      const needsWarning = width < recommendedWidth || height < recommendedHeight || ratioDiff > 0.12;
+      const needsWarning = !autoResize && (width < recommendedWidth || height < recommendedHeight || ratioDiff > 0.12);
 
       if (needsWarning) {
         setCoverImageError(
@@ -552,7 +575,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
 
     try {
       const toastId = toast.loading("Uploading cover image...");
-      const url = await uploadImageToImgBB(file);
+      const url = await uploadImageToImgBB(finalFile as File);
       setFormData((prev) => ({ ...prev, cover_image: url }));
       toast.success("Cover image uploaded!", { id: toastId });
     } catch (error: unknown) {
@@ -1657,19 +1680,34 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
                     <p className="text-xs text-gray-500">
                       Recommended size: 1200×675 pixels, 16:9 ratio.
                     </p>
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <div
+                          onClick={(e) => { e.preventDefault(); setAutoResize(!autoResize); }}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none ${autoResize ? "bg-black" : "bg-gray-200"}`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${autoResize ? "translate-x-[18px]" : "translate-x-0.5"}`}
+                          />
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 group-hover:text-black transition-colors">
+                          Auto Resize (16:9)
+                        </span>
+                      </label>
+                      {formData.cover_image && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData((prev) => ({ ...prev, cover_image: "" }));
+                            setCoverImageError(null);
+                          }}
+                          className="text-[10px] font-bold uppercase tracking-wider text-red-600 hover:text-red-800"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  {formData.cover_image && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFormData((prev) => ({ ...prev, cover_image: "" }));
-                        setCoverImageError(null);
-                      }}
-                      className="text-xs text-red-600 hover:text-red-800"
-                    >
-                      Remove
-                    </button>
-                  )}
                 </div>
                 <div className="flex flex-col gap-3">
                   <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black text-white text-sm font-medium cursor-pointer hover:bg-gray-900 transition-colors">

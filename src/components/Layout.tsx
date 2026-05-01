@@ -34,6 +34,7 @@ import SearchModal from "./SearchModal";
 import SubscriptionRenewAd from "./SubscriptionRenewAd";
 import { TopLoader } from "./TopLoader";
 import TourCursor from "./TourCursor";
+import { useModal } from "../contexts/ModalContext";
 
 const CookieConsent = lazy(() => import("./CookieConsent").catch(() => import("./AdBlockFallback")));
 
@@ -47,8 +48,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const router = useRouter();
   const { user, logout, isAuthenticated } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showSearchModal, setShowSearchModal] = useState(false);
+  const { isAddGuideModalOpen, closeAddModal, openAddModal, isSearchModalOpen, closeSearchModal, openSearchModal } = useModal();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showAccountSetup, setShowAccountSetup] = useState(false);
   const [accountDeleted, setAccountDeleted] = useState(false);
@@ -100,7 +100,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     const handleKeyDown = (e: KeyboardEvent): void => {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
         e.preventDefault();
-        setShowSearchModal(true);
+        openSearchModal();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -290,7 +290,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       isActive: pathname.startsWith("/components"),
     },
     {
-      label: "ZetsuGuide AI",
+      label: "Zetsu AI",
       icon: <Bot size={18} className="translate-y-[1px]" />,
       href: "/zetsuguide-ai",
     },
@@ -333,7 +333,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                     D
                   </span>
                 </div>
-                <span className="text-2xl font-black tracking-tight hidden sm:block transition-colors duration-300 dark:text-white">
+                <span className="text-2xl font-black tracking-tight hidden lg:block transition-colors duration-300 dark:text-white">
                   DevVault
                 </span>
               </Link>
@@ -347,7 +347,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               <div className="flex items-center gap-2">
                 {/* Search Button */}
                 <button
-                  onClick={() => setShowSearchModal(true)}
+                  onClick={openSearchModal}
                   className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-white/20 dark:hover:border-white hover:border-black transition-colors text-sm dark:bg-black/50"
                   aria-label="Search"
                 >
@@ -355,23 +355,23 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                     size={16}
                     className="text-gray-500 dark:text-gray-400"
                   />
-                  <span className="hidden sm:inline text-gray-500 dark:text-gray-400">
+                  <span className="hidden 2xl:inline text-gray-500 dark:text-gray-400">
                     Search...
                   </span>
-                  <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-gray-100 dark:bg-white/10 border dark:border-white/10 rounded dark:text-gray-300">
+                  <kbd className="hidden 2xl:inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-gray-100 dark:bg-white/10 border dark:border-white/10 rounded dark:text-gray-300">
                     ⌘K
                   </kbd>
                 </button>
 
                 {/* Add Guide Button - Only for authenticated users */}
                 {isAuthenticated() && (
-                  <button
-                    onClick={() => setShowAddModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-black text-white dark:bg-white dark:text-black font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
-                  >
-                    <Plus size={18} />
-                    <span className="hidden sm:inline">Add Guide</span>
-                  </button>
+                    <button
+                      onClick={openAddModal}
+                      className="flex items-center gap-2 px-2.5 sm:px-3 2xl:px-4 py-2 bg-black text-white dark:bg-white dark:text-black font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                    >
+                      <Plus size={18} />
+                      <span className="hidden 2xl:inline">Add Guide</span>
+                    </button>
                 )}
 
                 {/* Auth Section */}
@@ -391,7 +391,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <span className="hidden sm:inline text-sm font-medium">
+                      <span className="hidden 2xl:inline text-sm font-medium">
                         {getUserDisplayName()}
                       </span>
                     </button>
@@ -700,11 +700,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         )}
 
         {/* Modals */}
-        {showAddModal && (
-          <AddGuideModal onClose={() => setShowAddModal(false)} />
+        {isAddGuideModalOpen && (
+          <AddGuideModal onClose={closeAddModal} />
         )}
-        {showSearchModal && (
-          <SearchModal onClose={() => setShowSearchModal(false)} />
+        {isSearchModalOpen && (
+          <SearchModal onClose={closeSearchModal} />
         )}
         {showAccountSetup && user && !checkingReferral && (
           <AccountSetupModal

@@ -28,17 +28,16 @@ import Link from "next/link";
 import { useGuides } from "../../../hooks/useGuides";
 import { getAvatarForUser } from "../../../lib/avatar";
 import { supabase } from "../../../lib/supabase";
+import { GuidesSkeletonGrid, GuidesSkeletonList } from "../../../components/GuideSkeleton";
 
-interface OutletContextType {
-    openAddModal: () => void;
-}
+import { useModal } from "../../../contexts/ModalContext";
 
 export default function AllGuidesPage() {
-    const { openAddModal } = {} as OutletContextType;
+    const { openAddModal } = useModal();
     // Removed unused user from useAuth
 
     // Use React Query hook for caching and data fetching
-    const { data: guides = [], isLoading } = useGuides();
+    const { data: guides = [], isLoading, isSuccess } = useGuides();
 
     const [searchQuery, setSearchQuery] = useState("");
     const [viewMode, setViewMode] = useState("grid"); // grid or list
@@ -393,17 +392,16 @@ export default function AllGuidesPage() {
                 </div>
             </div>
 
-            {/* Loading Skeleton
+            {/* Loading Skeleton */}
             {isLoading &&
                 (viewMode === "grid" ? (
                     <GuidesSkeletonGrid count={6} />
                 ) : (
                     <GuidesSkeletonList count={6} />
                 ))}
-            */}
 
-            {/* Empty State */}
-            {!isLoading && guides.length === 0 && (
+            {/* Empty State - Only show when NOT loading AND fetch was SUCCESSFUL and zero results */}
+            {!isLoading && isSuccess && guides.length === 0 && (
                 <div className="border-2 border-dashed border-gray-300 p-12 text-center">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Filter size={32} className="text-gray-400" />

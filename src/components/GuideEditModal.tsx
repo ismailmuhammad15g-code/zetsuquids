@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Guide, guidesApi } from "../lib/api";
 import { uploadImageToImgBB } from "../lib/imgbb";
+import { resizeImage } from "../lib/resizepro";
 
 interface GuideEditModalProps {
     guide: Guide;
@@ -22,6 +23,7 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
     );
     const [saving, setSaving] = useState(false);
     const [coverImageError, setCoverImageError] = useState<string | null>(null);
+    const [autoResize, setAutoResize] = useState(true);
 
     useEffect(() => {
         setTitle(guide.title || "");
@@ -39,7 +41,28 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const objectUrl = URL.createObjectURL(file);
+        let finalFile: File | Blob = file;
+
+        // Apply resizing if enabled
+        if (autoResize) {
+            try {
+                const toastId = toast.loading("Resizing image to 1200x675...");
+                const resizedBlob = await resizeImage(file, {
+                    width: 1200,
+                    height: 675,
+                    fitMode: "fill",
+                    format: "image/jpeg",
+                    quality: 92
+                });
+                finalFile = new File([resizedBlob], file.name, { type: "image/jpeg" });
+                toast.success("Image resized successfully!", { id: toastId });
+            } catch (error) {
+                console.error("Resize failed:", error);
+                toast.error("Auto-resize failed, using original image.");
+            }
+        }
+
+        const objectUrl = URL.createObjectURL(finalFile instanceof File ? finalFile : new Blob([finalFile]));
         const image = new Image();
 
         try {
@@ -58,10 +81,11 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
             const aspectRatio = width / height;
             const recommendedRatio = 16 / 9;
             const ratioDiff = Math.abs(aspectRatio - recommendedRatio);
-            const needsWarning =
+            const needsWarning = !autoResize && (
                 width < recommendedWidth ||
                 height < recommendedHeight ||
-                ratioDiff > 0.12;
+                ratioDiff > 0.12
+            );
 
             if (needsWarning) {
                 setCoverImageError(
@@ -78,7 +102,7 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
 
         try {
             const toastId = toast.loading("Uploading cover image...");
-            const url = await uploadImageToImgBB(file);
+            const url = await uploadImageToImgBB(finalFile as File);
             setCoverImage(url);
             toast.success("Cover uploaded successfully", { id: toastId });
         } catch (error) {
@@ -194,9 +218,24 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
                         <div className="flex items-center justify-between gap-4 mb-3">
                             <div>
                                 <p className="text-sm font-semibold text-gray-900">Cover Image</p>
-                                <p className="text-xs text-gray-500">
-                                    Recommended 1200×675px, 16:9 ratio.
-                                </p>
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-1">
+                                    <p className="text-xs text-gray-500">
+                                        Recommended 1200×675px, 16:9 ratio.
+                                    </p>
+                                    <label className="flex items-center gap-2 cursor-pointer group">
+                                        <div
+                                            onClick={(e) => { e.preventDefault(); setAutoResize(!autoResize); }}
+                                            className={`relative inline-flex h-4.5 w-8 items-center rounded-full transition-colors duration-200 focus:outline-none ${autoResize ? "bg-black" : "bg-gray-200"}`}
+                                        >
+                                            <span
+                                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${autoResize ? "translate-x-[16px]" : "translate-x-0.5"}`}
+                                            />
+                                        </div>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 group-hover:text-black transition-colors">
+                                            Auto Resize (Recommended)
+                                        </span>
+                                    </label>
+                                </div>
                             </div>
                             <label className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-black text-white text-sm font-medium cursor-pointer hover:bg-gray-900 transition-colors">
                                 <ImageIcon size={16} />
