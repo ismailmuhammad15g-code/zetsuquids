@@ -40,7 +40,7 @@ import { toast } from "sonner";
 import Breadcrumbs from "../../../../components/Breadcrumbs";
 import ConfirmModal from "../../../../components/ConfirmModal";
 import DownloadGuideModal from "../../../../components/DownloadGuideModal";
-import FireworksBackgroundDemo from "../../../../components/FireworksBackgroundDemo";
+import { Balloons } from "../../../../components/ui/balloons";
 import FollowButton from "../../../../components/FollowButton";
 import { GuideAIChat } from "../../../../components/GuideAIChat";
 import GuideComments from "../../../../components/GuideComments";
@@ -192,12 +192,14 @@ export default function GuidePage() {
     const [tableOfContents, setTableOfContents] = useState<TableOfContentsItem[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [contentWithAnchors, setContentWithAnchors] = useState<string | null>(null);
-    const [showFireworks, setShowFireworks] = useState<boolean>(false);
+
     const moreMenuRef = useRef<HTMLDivElement>(null);
     const fireworksRef = useRef<HTMLDivElement>(null);
+    const balloonsRef = useRef<any>(null);
     const ttsRef = useRef<any>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [showCelebrationText, setShowCelebrationText] = useState<boolean>(true);
 
     // Debounce search query for performance
     useEffect(() => {
@@ -215,25 +217,37 @@ export default function GuidePage() {
     }, [searchQuery]);
 
     useEffect(() => {
-        if (!fireworksRef.current) return;
+        if (!fireworksRef.current || loading || !guide) return;
 
+        let hasFired = false;
         const observer = new IntersectionObserver(
             ([entry]) => {
-                setShowFireworks(entry.isIntersecting);
+                // Also check if the page has actually been scrolled (prevent immediate firing on short pages)
+                if (entry.isIntersecting && !hasFired && window.scrollY > 100) {
+                    hasFired = true;
+                    console.log("[Celebration] Triggering balloons!");
+                    
+                    if (balloonsRef.current && typeof balloonsRef.current.launchAnimation === 'function') {
+                        balloonsRef.current.launchAnimation();
+                    } else {
+                        console.error("[Celebration] balloonsRef.current.launchAnimation is not available", balloonsRef.current);
+                    }
+                    
+                    // Fade out the text after 4 seconds
+                    setTimeout(() => {
+                        setShowCelebrationText(false);
+                    }, 4000);
+                    
+                    observer.disconnect();
+                }
             },
-            {
-                root: null,
-                rootMargin: "0px 0px -20% 0px",
-                threshold: 0.1,
-            },
+            { threshold: 0.1, rootMargin: "0px" }
         );
 
         observer.observe(fireworksRef.current);
 
-        return () => {
-            observer.disconnect();
-        };
-    }, []);
+        return () => observer.disconnect();
+    }, [loading, guide]);
 
 
     // Initialize Mermaid dynamically
@@ -1780,28 +1794,33 @@ export default function GuidePage() {
         </div>
 
                 {/* Bottom Celebration Section */}
-                <div className="mt-12 pt-8 border-t-2 border-black relative">
+                <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800 relative">
                     <div
                         ref={fireworksRef}
-                        className="relative overflow-hidden rounded-3xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950 p-6"
+                        className="relative overflow-hidden rounded-3xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 p-8 transition-all duration-1000"
+                        style={{ opacity: showCelebrationText ? 1 : 0, pointerEvents: showCelebrationText ? "auto" : "none" }}
                     >
-                        <div className="relative z-10 text-center py-14">
-                            <p className="text-sm uppercase tracking-[0.28em] text-gray-500 dark:text-gray-400 mb-3">
+                        <div className="relative z-10 text-center py-10 flex flex-col items-center">
+                            <p className="text-xs uppercase tracking-[0.2em] font-bold text-blue-500 dark:text-blue-400 mb-4">
                                 Celebration
                             </p>
-                            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                                You've reached the end of the guide
+                            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mb-6">
+                                You've reached the end of the guide! 🎉
                             </h2>
-                            <p className="mt-3 text-sm text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-                                Scroll up to return to the main content, or enjoy the finish-line animation.
-                            </p>
+                            <button 
+                                onClick={() => {
+                                    if (balloonsRef.current && typeof balloonsRef.current.launchAnimation === 'function') {
+                                        balloonsRef.current.launchAnimation();
+                                    }
+                                }}
+                                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all active:scale-95"
+                            >
+                                <Sparkles size={18} />
+                                Celebrate Again!
+                            </button>
                         </div>
-                        {showFireworks && (
-                            <div className="pointer-events-none absolute inset-0">
-                                <FireworksBackgroundDemo population={18} />
-                            </div>
-                        )}
                     </div>
+                    <Balloons ref={balloonsRef} />
                 </div>
 
                 {/* Bottom Navigation */}
