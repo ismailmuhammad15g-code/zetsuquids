@@ -603,6 +603,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to get personalized recommendations
+DROP FUNCTION IF EXISTS get_personalized_recommendations(text, integer);
 CREATE OR REPLACE FUNCTION get_personalized_recommendations(
   p_user_email TEXT,
   p_limit INTEGER DEFAULT 6
@@ -696,6 +697,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to get trending guides
+DROP FUNCTION IF EXISTS get_trending_guides(integer);
 CREATE OR REPLACE FUNCTION get_trending_guides(
   p_limit INTEGER DEFAULT 6
 )
