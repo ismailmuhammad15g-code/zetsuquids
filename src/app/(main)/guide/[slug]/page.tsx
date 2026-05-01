@@ -33,7 +33,7 @@ import {
 
 import { marked } from "marked";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
@@ -158,6 +158,8 @@ export default function GuidePage() {
     const params = useParams();
     const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const isPreviewMode = searchParams.get('preview') === 'true';
     const { user } = useAuth(); // Get current user
 
     // Track interactions for recommendations
@@ -1475,9 +1477,10 @@ export default function GuidePage() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex flex-wrap gap-2">
-                        {/* Save/Download Button - Available to all users */}
-                        <button
+                    {!isPreviewMode && (
+                        <div className="flex flex-wrap gap-2">
+                            {/* Save/Download Button - Available to all users */}
+                            <button
                             onClick={() => setShowDownloadModal(true)}
                             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black hover:from-purple-600 hover:to-pink-600 transition-all text-sm font-medium shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                         >
@@ -1710,7 +1713,8 @@ export default function GuidePage() {
                             )}
                         </div>
                     </div>
-                </header>
+                )}
+            </header>
 
                 {/* Match Search Bar */}
                 <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] gap-8">

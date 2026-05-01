@@ -694,7 +694,7 @@ export default async function handler(req, res) {
       body || {};
 
     // Validate and set default model
-    const validatedModel = model || "google/gemini-2.0-flash-exp:free";
+    const validatedModel = model || "gemini-1.5-flash";
 
     // Get the last user message for intelligent fetch
     const userMessage = messages?.find((m) => m.role === "user")?.content || "";
@@ -1658,6 +1658,8 @@ Here is the explanation...
 
         if (json.choices?.[0]?.message?.content) {
           content = json.choices[0].message.content;
+        } else if (json.candidates?.[0]?.content?.parts?.[0]?.text) {
+          content = json.candidates[0].content.parts[0].text;
         } else if (json.content) {
           content = json.content;
         }

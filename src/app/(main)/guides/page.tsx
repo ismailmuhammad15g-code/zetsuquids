@@ -440,26 +440,35 @@ export default function AllGuidesPage() {
                         <Link
                             key={guide.id}
                             href={`/guide/${guide.slug}`}
-                            className="group border-2 border-black p-6 hover:shadow-lg transition-all hover:-translate-y-1 flex flex-col"
+                            className="group relative border-2 border-black hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col bg-white overflow-hidden rounded-sm"
                         >
-                            {guide.cover_image && (
-                                <div className="mb-4 overflow-hidden rounded-3xl bg-gray-100">
+                            {/* Cover image */}
+                            <div className="aspect-video w-full bg-gray-100 overflow-hidden border-b-2 border-black">
+                                {guide.cover_image ? (
                                     <img
                                         src={guide.cover_image}
                                         alt={`Cover image for ${guide.title}`}
-                                        className="w-full h-44 object-cover"
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+                                        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center opacity-50">
+                                            <span className="text-xs font-bold text-gray-400">No Image</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <div className="p-5 flex flex-col flex-1">
+                                <div className="flex items-start justify-between mb-3">
+                                    <h3 className="text-xl font-bold group-hover:underline flex-1 line-clamp-2">
+                                        {guide.title}
+                                    </h3>
+                                    <ArrowUpRight
+                                        size={20}
+                                        className="text-gray-400 group-hover:text-black transition-colors ml-2 flex-shrink-0"
                                     />
                                 </div>
-                            )}
-                            <div className="flex items-start justify-between mb-3">
-                                <h3 className="text-xl font-bold group-hover:underline flex-1">
-                                    {guide.title}
-                                </h3>
-                                <ArrowUpRight
-                                    size={20}
-                                    className="text-gray-400 group-hover:text-black transition-colors"
-                                />
-                            </div>
 
                             {/* Author info */}
                             {guide.user_email && (
@@ -503,12 +512,13 @@ export default function AllGuidesPage() {
                                             </span>
                                         ))}
                                     {getKeywords(guide).length > 3 && (
-                                        <span className="px-2 py-1 bg-gray-100 text-xs">
+                                        <span className="px-2 py-1 bg-gray-100 text-xs text-gray-500 rounded-sm">
                                             +{getKeywords(guide).length - 3}
                                         </span>
                                     )}
                                 </div>
                             )}
+                            </div>
                         </Link>
                     ))}
                 </div>

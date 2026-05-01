@@ -56,6 +56,13 @@ export default function GuideComments({ guideId, onCommentPosted }: GuideComment
   }, [guideId]);
 
   const fetchComments = async (): Promise<void> => {
+    // Prevent fetching comments for preview guides (which have a temporary string ID)
+    if (guideId && guideId.toString().startsWith('preview-')) {
+      setComments([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const { data, error } = await supabase

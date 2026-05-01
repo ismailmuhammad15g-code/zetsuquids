@@ -13,7 +13,10 @@ import {
   Sparkles,
   SquarePen,
   Trash2,
-  Zap
+  Zap,
+  Loader2,
+  ExternalLink,
+  Image as ImageIcon
 } from "lucide-react";
 import mermaid from "mermaid";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,8 +25,9 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
-import { useAuth } from "../../contexts/AuthContext";
-import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../../contexts/AuthContext";
+import { supabase } from "../../../lib/supabase";
+import { guidesApi } from "../../../lib/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -990,13 +994,271 @@ function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true }
   );
 }
 
+// ─── Guide Creator Action Component ───
+function parseGuideAction(text: string) {
+  if (!text) return null;
+  const match = text.match(/```json\s*(\{[\s\S]*?"action":\s*"create_guide"[\s\S]*?\})\s*```/);
+  if (match) {
+    try {
+      return JSON.parse(match[1]);
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+}
+
+function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string | null | undefined }) {
+  const [status, setStatus] = useState<'init' | 'generating_image' | 'review' | 'publishing' | 'published' | 'rejected' | 'error'>('init');
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [guideSlug, setGuideSlug] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (status === 'init') {
+      generateImage();
+    }
+  }, [status]);
+
+  async function generateImage() {
+    setStatus('generating_image');
+    try {
+      const prompt = data.image_prompt || data.title || "Abstract technology background";
+      const encodedPrompt = encodeURIComponent(prompt);
+      const seed = Math.floor(Math.random() * 1000000);
+      const imgUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1280&height=720&nologo=true&seed=${seed}`;
+      
+      // Since fetch/proxies might get blocked by Cloudflare, we use the browser's native Image loader
+      // which safely bypasses bot protections, and extract the Base64 via Canvas!
+      const img = new Image();
+      img.crossOrigin = "anonymous"; // Allowed because Pollinations sends Access-Control-Allow-Origin: *
+      
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0);
+          
+          // This is a Base64 string, which guidesApi will automatically upload to GitHub
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+          setImageUrl(dataUrl);
+          setStatus('review');
+        } catch (e) {
+          console.warn("Canvas fallback triggered due to CORS taint:", e);
+          setImageUrl(imgUrl);
+          setStatus('review');
+        }
+      };
+      
+      img.onerror = () => {
+        console.warn("Image load error, falling back to direct URL");
+        setImageUrl(imgUrl);
+        setStatus('review');
+      };
+      
+      img.src = imgUrl;
+    } catch (err) {
+      console.error("Image generation error:", err);
+      setStatus('review');
+    }
+  }
+
+  function handlePreview() {
+    const previewSlug = `preview-${Date.now()}`;
+    const draftGuide = {
+      title: data.title || "Untitled Guide",
+      slug: previewSlug,
+      content: data.markdown || "",
+      markdown: data.markdown || "",
+      cover_image: imageUrl,
+      keywords: data.keywords || [],
+      user_email: userEmail || "preview@zetsuguide.com",
+      status: "draft",
+      created_at: new Date().toISOString()
+    };
+    
+    // Inject into localStorage so the GuidePage component can render it
+    try {
+      const existingStr = localStorage.getItem("guides");
+      const existing = existingStr ? JSON.parse(existingStr) : [];
+      existing.unshift(draftGuide);
+      localStorage.setItem("guides", JSON.stringify(existing));
+    } catch (e) {
+      console.error("Failed to save preview draft to localStorage", e);
+    }
+    
+    // Open preview in new tab
+    window.open(`/guide/${previewSlug}?preview=true`, '_blank');
+  }
+
+  async function handleApprove() {
+    setStatus('publishing');
+    try {
+      const newGuide = await guidesApi.create({
+        title: data.title || "Untitled Guide",
+        content: data.markdown || "",
+        markdown: data.markdown || "",
+        cover_image: imageUrl,
+        keywords: data.keywords || [],
+        user_email: userEmail || "ai@zetsuguide.com",
+        status: "approved"
+      });
+      setGuideSlug(newGuide.slug || null);
+      setStatus('published');
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to publish");
+      setStatus('error');
+    }
+  }
+
+  if (status === 'init' || status === 'generating_image') {
+    return (
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 my-4 flex items-center gap-4 text-blue-800">
+        <div className="bg-blue-100 p-3 rounded-full flex-shrink-0 animate-pulse">
+          {status === 'generating_image' ? <ImageIcon size={20} className="text-blue-600" /> : <Bot size={20} className="text-blue-600" />}
+        </div>
+        <div className="flex-1">
+          <div className="font-bold text-sm mb-1">
+            {status === 'generating_image' ? "Generating Cover Image..." : "Preparing Guide..."}
+          </div>
+          <div className="text-xs opacity-80">
+            {status === 'generating_image' ? `Prompt: "${data.image_prompt}"` : "Structuring content..."}
+          </div>
+        </div>
+        <Loader2 className="animate-spin text-blue-500" size={18} />
+      </div>
+    );
+  }
+
+  if (status === 'published') {
+    return (
+      <div className="bg-green-50 border border-green-200 rounded-xl p-5 my-4">
+        <div className="flex items-center gap-3 text-green-800 mb-3">
+          <div className="bg-green-100 p-2 rounded-full">
+            <Check size={18} className="text-green-600" />
+          </div>
+          <div className="font-bold text-sm">Guide Successfully Published!</div>
+        </div>
+        {imageUrl && (
+          <div className="h-32 w-full rounded-lg bg-cover bg-center mb-3 border border-black/10" style={{ backgroundImage: `url(${imageUrl})` }} />
+        )}
+        <div className="font-semibold text-gray-900 mb-1">{data.title}</div>
+        <div className="text-xs text-gray-500 mb-4 line-clamp-2">{data.markdown?.replace(/[#*]/g, "").substring(0, 150)}...</div>
+        
+        <Link 
+          href={`/guide/${guideSlug}`} 
+          target="_blank"
+          className="inline-flex items-center gap-2 bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800 transition-colors"
+        >
+          View Guide <ExternalLink size={14} />
+        </Link>
+      </div>
+    );
+  }
+
+  if (status === 'rejected') {
+    return (
+      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 my-4 flex items-center gap-3 text-gray-500">
+        <Trash2 size={16} />
+        <span className="text-sm font-medium">Guide generation discarded.</span>
+      </div>
+    );
+  }
+
+  // Review state
+  return (
+    <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden my-4">
+      {/* Header */}
+      <div className="bg-gray-50 border-b border-gray-100 px-5 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-gray-700">
+          <Sparkles size={16} className="text-yellow-500" />
+          <span className="font-bold text-sm">Review Generated Guide</span>
+        </div>
+        <span className="text-[10px] font-bold tracking-wider text-gray-400 uppercase bg-white border border-gray-200 px-2 py-0.5 rounded-full">Preview</span>
+      </div>
+      
+      {/* Content */}
+      <div className="p-5">
+        {imageUrl ? (
+          <div className="w-full aspect-video rounded-lg bg-gray-100 bg-cover bg-center mb-4 border border-black/5 shadow-inner" style={{ backgroundImage: `url(${imageUrl})` }} />
+        ) : (
+          <div className="w-full aspect-video rounded-lg bg-gray-50 border border-dashed border-gray-300 flex items-center justify-center text-gray-400 mb-4">
+            <ImageIcon size={24} />
+            <span className="text-xs ml-2">No cover image</span>
+          </div>
+        )}
+        
+        <h3 className="font-extrabold text-lg text-gray-900 mb-2 leading-tight">{data.title}</h3>
+        
+        {data.keywords && data.keywords.length > 0 && (
+          <div className="flex gap-2 flex-wrap mb-4">
+            {data.keywords.map((kw: string, i: number) => (
+              <span key={i} className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
+                #{kw}
+              </span>
+            ))}
+          </div>
+        )}
+        
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 relative">
+          <div className="absolute top-0 left-0 w-1 h-full bg-blue-400 rounded-l-lg"></div>
+          <div className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Content Snippet</div>
+          <div className="text-sm text-gray-700 line-clamp-4 leading-relaxed">
+            {data.markdown?.replace(/<[^>]*>?/gm, '') || "No content provided."}
+          </div>
+        </div>
+
+        {errorMessage && (
+          <div className="mt-4 p-3 bg-red-50 text-red-600 text-xs rounded-lg border border-red-100 flex items-center gap-2">
+            <span className="font-bold">Error:</span> {errorMessage}
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="bg-gray-50 border-t border-gray-100 px-5 py-4 flex items-center justify-between gap-3">
+        <button 
+          onClick={handlePreview}
+          disabled={status === 'publishing'}
+          className="px-4 py-2 text-sm font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-200 bg-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
+        >
+          <ExternalLink size={14} /> Live Preview
+        </button>
+        
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setStatus('rejected')}
+            disabled={status === 'publishing'}
+            className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+          >
+            Discard
+          </button>
+          <button 
+            onClick={handleApprove}
+            disabled={status === 'publishing'}
+            className="px-6 py-2 text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-lg transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
+          >
+            {status === 'publishing' ? (
+               <><Loader2 size={14} className="animate-spin" /> Publishing...</>
+            ) : (
+               <><Check size={14} /> Approve & Publish</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface MessageContentProps {
   text: string;
   isError?: boolean;
   isThinking?: boolean;
 }
 
-function MessageContent({ text, isError, isThinking }: MessageContentProps) {
+function MessageContent({ text, isError, isThinking, userEmail }: MessageContentProps & { userEmail?: string | null }) {
   // If the AI is expected to think but hasn't sent text yet, show a placeholder
   if (isThinking && !text) {
     return (
@@ -1008,10 +1270,27 @@ function MessageContent({ text, isError, isThinking }: MessageContentProps) {
 
   if (!text) return null;
 
-  const { thought, response, isStreaming = false } = parseThoughtAndResponse(text);
+  // Extract Guide Action JSON if present
+  const guideAction = parseGuideAction(text);
+  let displayText = text;
+  let isGuideActionStreaming = false;
 
-  const hasThinkingStart = text.toLowerCase().includes("<thinking>");
-  const hasThinkingEnd = text.toLowerCase().includes("</thinking>");
+  if (guideAction) {
+    // Remove the JSON block from text so it doesn't render as markdown
+    displayText = text.replace(/```json\s*(\{[\s\S]*?"action":\s*"create_guide"[\s\S]*?\})\s*```/, "").trim();
+  } else {
+    // Detect if AI is currently streaming the guide action json block
+    const partialMatch = text.match(/```json\s*(\{[\s\S]*?"action":\s*"create_guide"[\s\S]*)/);
+    if (partialMatch) {
+      isGuideActionStreaming = true;
+      displayText = text.substring(0, partialMatch.index).trim();
+    }
+  }
+
+  const { thought, response, isStreaming = false } = parseThoughtAndResponse(displayText);
+
+  const hasThinkingStart = displayText.toLowerCase().includes("<thinking>");
+  const hasThinkingEnd = displayText.toLowerCase().includes("</thinking>");
   const hasThinkingTag = hasThinkingStart || hasThinkingEnd;
 
   const showThought = hasThinkingTag || thought !== "" || isStreaming || isThinking;
@@ -1030,6 +1309,18 @@ function MessageContent({ text, isError, isThinking }: MessageContentProps) {
       {response && (
         <FilteredMarkdown content={response} />
       )}
+      
+      {guideAction && !isThinking && (
+        <GuideCreatorAction data={guideAction} userEmail={userEmail} />
+      )}
+      
+      {isGuideActionStreaming && isThinking && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 my-4 flex items-center gap-3 text-blue-800">
+          <Loader2 className="animate-spin text-blue-600" size={16} />
+          <span className="font-medium text-sm">Receiving Guide Data...</span>
+        </div>
+      )}
+
       {isError && <ReactMarkdown>{text}</ReactMarkdown>}
     </div>
   );
@@ -1160,11 +1451,11 @@ export default function ZetsuGuideAIPage() {
   useEffect(() => { scrollToBottom(); }, [messages, isThinking]);
 
   useEffect(() => {
-    if (isAuthenticated()) {
+    if (isAuthenticated() && user?.email) {
       loadCredits();
       loadConversations();
     }
-  }, []);
+  }, [user?.email]);
 
   async function loadCredits() {
     if (!user?.email) return;
@@ -1255,8 +1546,17 @@ ${guidesContext}
 
 📝 RESPONSE INSTRUCTIONS:
 - AFTER </thinking>, give a concise, professional answer
+- If the user asks you to **create a guide**, you MUST output a JSON block like this at the end of your response:
+\`\`\`json
+{
+  "action": "create_guide",
+  "title": "A catchy title for the guide",
+  "markdown": "The FULL markdown content of the guide...",
+  "image_prompt": "A highly detailed, cinematic prompt for an AI image generator to create the cover image",
+  "keywords": ["tag1", "tag2"]
+}
+\`\`\`
 - If the answer is in our guides, cite it: **📖 Guide:** [Title](/guide/slug)
-- Keep response under 500 words
 - Use Markdown for formatting
 - Be friendly and professional
 
@@ -1279,14 +1579,26 @@ ${guidesContext}
 
 📝 RESPONSE INSTRUCTIONS:
 - AFTER </thinking>, give a clear, professional answer
-- Keep response under 500 words
+- If the user asks you to **create a guide**, you MUST output a JSON block like this at the end of your response:
+\`\`\`json
+{
+  "action": "create_guide",
+  "title": "A catchy title for the guide",
+  "markdown": "The FULL markdown content of the guide...",
+  "image_prompt": "A highly detailed, cinematic prompt for an AI image generator to create the cover image",
+  "keywords": ["tag1", "tag2"]
+}
+\`\`\`
 - Use Markdown for formatting
 - Be friendly, helpful, and professional
 
 ⚠️ CRITICAL: You MUST use <thinking>...</thinking> tags. Your response will be REJECTED if you don't wrap your thinking process in these exact tags. Start with <thinking> and end with </thinking>.`
         };
 
-      const messagesPayload = [contextSystemMessage, ...newMessages.slice(-8)];
+      const messagesPayload = [
+        contextSystemMessage,
+        ...newMessages.slice(-8).filter(m => m.content.trim() !== "")
+      ];
 
       // If it's the first message, ask for brief response
       const isFirstMessage = messages.length === 0;
@@ -1767,7 +2079,7 @@ ${guidesContext}
                         <div className="zg-ai-avatar"><Bot size={16} /></div>
                         <div className="zg-ai-body">
                           <div className="zg-ai-name">ZetsuGuide AI</div>
-                          <MessageContent text={msg.content} isThinking={idx === messages.length - 1 && isThinking} />
+                          <MessageContent text={msg.content} isThinking={idx === messages.length - 1 && isThinking} userEmail={user?.email} />
                           {false && null}
                           {msg.role === 'assistant' && (
                             <div className="zg-ai-actions">
