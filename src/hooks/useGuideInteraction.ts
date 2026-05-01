@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { recordGuideRead } from "../lib/recommendationEngine";
 import { supabase } from "../lib/supabase";
 
 interface InteractionRecord {
@@ -21,6 +22,7 @@ interface GuideInteractionReturn {
     recordRate: () => Promise<void>;
     recordShare: () => Promise<void>;
     recordInteraction: (interactionType: string, score?: number) => Promise<void>;
+    recordGuideRead: typeof import('../lib/recommendationEngine').recordGuideRead;
 }
 
 interface AuthorFollowInteractionReturn {
@@ -136,6 +138,7 @@ export function useGuideInteraction(
         recordRate,
         recordShare,
         recordInteraction,
+        recordGuideRead,
     };
 }
 

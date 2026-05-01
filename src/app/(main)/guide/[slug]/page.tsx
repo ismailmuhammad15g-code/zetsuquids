@@ -30,7 +30,7 @@ import {
     VolumeX,
     X,
 } from "lucide-react";
-import { motion } from "framer-motion";
+
 import { marked } from "marked";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -161,7 +161,7 @@ export default function GuidePage() {
     const { user } = useAuth(); // Get current user
 
     // Track interactions for recommendations
-    const { recordComment } = useGuideInteraction(slug);
+    const { recordComment, recordGuideRead } = useGuideInteraction(slug);
 
     const [guide, setGuide] = useState<Guide | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
@@ -248,6 +248,18 @@ export default function GuidePage() {
 
         return () => observer.disconnect();
     }, [loading, guide]);
+
+    // Record guide read in localStorage for recommendation engine
+    useEffect(() => {
+        if (guide && !loading) {
+            recordGuideRead({
+                slug: guide.slug,
+                title: guide.title,
+                keywords: guide.keywords,
+                user_email: guide.user_email,
+            });
+        }
+    }, [guide?.slug, loading]);
 
 
     // Initialize Mermaid dynamically
@@ -561,7 +573,21 @@ export default function GuidePage() {
 
             const overlay = document.createElement("div");
             overlay.className = "lazy-media-overlay";
-            overlay.innerHTML = `<div class="lazy-media-shine"></div>`;
+            overlay.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                        <line x1="7" y1="2" x2="7" y2="22"></line>
+                        <line x1="17" y1="2" x2="17" y2="22"></line>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <line x1="2" y1="7" x2="7" y2="7"></line>
+                        <line x1="2" y1="17" x2="7" y2="17"></line>
+                        <line x1="17" y1="17" x2="22" y2="17"></line>
+                        <line x1="17" y1="7" x2="22" y2="7"></line>
+                    </svg>
+                    <span style="font-size: 14px; font-weight: 500; font-family: sans-serif;">Loading Video...</span>
+                </div>
+            `;
             wrapper.appendChild(overlay);
 
             media.classList.add("lazy-media-loading");
@@ -1248,8 +1274,7 @@ export default function GuidePage() {
               position: relative;
               overflow: hidden;
               border-radius: 1rem;
-              min-height: 220px;
-              background: linear-gradient(180deg, rgba(248,250,252,0.95), rgba(241,245,249,0.97));
+              min-height: 250px;
             }
             .lazy-media-wrapper iframe,
             .lazy-media-wrapper video {
@@ -1257,31 +1282,31 @@ export default function GuidePage() {
               height: 100%;
               display: block;
               opacity: 0;
-              filter: blur(10px) saturate(0.8);
-              transition: opacity 0.35s ease, filter 0.35s ease;
+              transition: opacity 0.35s ease;
             }
             .lazy-media-wrapper .lazy-media-loaded {
               opacity: 1 !important;
-              filter: none !important;
             }
             .lazy-media-overlay {
               position: absolute;
               inset: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border: 2px dashed rgba(156, 163, 175, 0.4);
+              border-radius: 1rem;
+              background: transparent;
+              color: rgba(156, 163, 175, 0.8);
+              transition: opacity 0.3s ease;
               pointer-events: none;
-              background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.18) 30%, rgba(255,255,255,0.05) 70%);
-              overflow: hidden;
             }
-            .lazy-media-shine {
-              position: absolute;
-              inset: 0;
-              background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 45%, rgba(255,255,255,0) 100%);
-              transform: translateX(-100%);
-              animation: media-shimmer 1.6s infinite;
+            .dark .lazy-media-overlay {
+              border-color: rgba(75, 85, 99, 0.4);
+              color: rgba(107, 114, 128, 0.8);
             }
-            @keyframes media-shimmer {
-              100% {
-                transform: translateX(100%);
-              }
+            @keyframes pulse-slow {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.5; }
             }
           `}</style>
 
@@ -1742,7 +1767,12 @@ export default function GuidePage() {
 
                 {/* Recommendations Section */}
                 <div className="mt-16 mb-12">
-                    <GuideRecommendations currentGuideSlug={slug} limit={3} />
+                    <GuideRecommendations
+                        currentGuideSlug={slug}
+                        currentGuideKeywords={guide.keywords}
+                        currentGuideAuthor={guide.user_email}
+                        limit={3}
+                    />
                 </div>
             </div>
 

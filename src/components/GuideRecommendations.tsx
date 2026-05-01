@@ -1,14 +1,8 @@
 "use client";
-// Type definitions for GuideRecommendations
-
-interface GuideRecommendationsProps {
-  currentGuideSlug?: string | null;
-  limit?: number;
-}
-
 
 import {
   ArrowRight,
+  BookOpen,
   Calendar,
   Eye,
   Lightbulb,
@@ -22,111 +16,115 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvatarForUser } from "../lib/avatar";
+import { getRecommendations, getReadingHistory, type ScoredGuide } from "../lib/recommendationEngine";
 import { supabase } from "../lib/supabase";
+import { guidesApi } from "../lib/api";
+
+interface GuideRecommendationsProps {
+  currentGuideSlug?: string | null;
+  currentGuideKeywords?: string[] | null;
+  currentGuideAuthor?: string | null;
+  limit?: number;
+}
 
 export default function GuideRecommendations({
   currentGuideSlug = null,
+  currentGuideKeywords = null,
+  currentGuideAuthor = null,
   limit = 6,
 }: GuideRecommendationsProps) {
   const { user } = useAuth();
-  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [recommendations, setRecommendations] = useState<ScoredGuide[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [authorAvatars, setAuthorAvatars] = useState<Record<string, string>>({});
+  const [isPersonalized, setIsPersonalized] = useState(false);
 
   useEffect(() => {
     fetchRecommendations();
-  }, [user]);
+  }, [user, currentGuideSlug]);
 
   const fetchRecommendations = async () => {
     try {
       setLoading(true);
 
-      if (user?.email) {
-        // Get personalized recommendations for logged-in users
-        const { data, error } = await supabase.rpc(
-          "get_personalized_recommendations",
-          {
-            p_user_email: user.email.toLowerCase(),
-            p_limit: limit,
-          },
-        );
+      // Fetch all approved guides from Supabase / localStorage
+      const allGuides = await guidesApi.getAll();
 
-        if (error) throw error;
-
-        // If we have recommendations, use them
-        if (data && data.length > 0) {
-          setRecommendations(data);
-          fetchAvatarsForRecommendations(data);
-        } else {
-          // Fallback to trending if no personalized recommendations
-          await fetchTrendingGuides();
-        }
-      } else {
-        // Get trending guides for non-logged in users
-        await fetchTrendingGuides();
+      if (!allGuides || allGuides.length === 0) {
+        setRecommendations([]);
+        return;
       }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : JSON.stringify(error);
-      console.warn("Error fetching recommendations:", message);
-      // Fallback to trending on error
-      await fetchTrendingGuides();
+
+      // Run the multi-layer recommendation engine
+      const currentGuide = currentGuideSlug
+        ? { slug: currentGuideSlug, keywords: currentGuideKeywords, user_email: currentGuideAuthor }
+        : null;
+
+      const scored = getRecommendations(currentGuide, allGuides, limit);
+      setRecommendations(scored);
+
+      // Check if history exists → show "Personalized" badge
+      const history = getReadingHistory();
+      setIsPersonalized(history.length > 1);
+
+      // Fetch avatars for unique authors
+      const uniqueEmails = [...new Set(scored.map((g) => g.user_email).filter(Boolean) as string[])];
+      fetchAvatars(uniqueEmails);
+    } catch (error) {
+      console.warn("[GuideRecommendations] Error:", error);
+      setRecommendations([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchTrendingGuides = async () => {
-    try {
-      const { data, error } = await supabase.rpc("get_trending_guides", {
-        p_limit: limit,
-      });
-
-      if (error) throw error;
-
-      // Filter out current guide if on guide page
-      const filtered = currentGuideSlug
-        ? data.filter((g: any) => g.slug !== currentGuideSlug)
-        : data;
-
-      setRecommendations(filtered);
-      fetchAvatarsForRecommendations(filtered);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : JSON.stringify(error);
-      console.warn("Error fetching trending guides:", message);
-      setRecommendations([]);
-    }
-  };
-
-  const fetchAvatarsForRecommendations = async (guides: any[]): Promise<void> => {
-    const uniqueEmails: string[] = [
-      ...new Set(guides.map((g: any) => g.user_email).filter(Boolean)),
-    ];
+  const fetchAvatars = async (emails: string[]) => {
     const newAvatars: Record<string, string> = {};
-
-    for (const email of uniqueEmails) {
+    for (const email of emails) {
       try {
-        const { data: profileData } = await supabase
+        const { data } = await supabase
           .from("zetsuguide_user_profiles")
           .select("avatar_url")
           .eq("user_email", email)
           .maybeSingle();
-
-        newAvatars[email] = getAvatarForUser(email, profileData?.avatar_url as string | undefined);
-      } catch (err) {
+        newAvatars[email] = getAvatarForUser(email, data?.avatar_url ?? undefined);
+      } catch {
         newAvatars[email] = getAvatarForUser(email, undefined);
       }
     }
-
     setAuthorAvatars(newAvatars);
   };
 
-  // Helper to get reason icon
-  const getReasonIcon = (reason: string | undefined) => {
-    if (reason?.includes("follow")) return <User className="w-3 h-3" />;
-    if (reason?.includes("Similar")) return <Lightbulb className="w-3 h-3" />;
-    if (reason?.includes("Popular") || reason?.includes("Trending"))
+  const getReasonIcon = (reason: string) => {
+    if (reason.includes("interests") || reason.includes("Matches"))
+      return <Lightbulb className="w-3 h-3" />;
+    if (reason.includes("author") || reason.includes("Author"))
+      return <User className="w-3 h-3" />;
+    if (reason.includes("Similar"))
+      return <BookOpen className="w-3 h-3" />;
+    if (reason.includes("Popular"))
       return <TrendingUp className="w-3 h-3" />;
+    if (reason.includes("New Release"))
+      return <Calendar className="w-3 h-3" />;
+    if (reason.includes("Top Pick"))
+      return <Sparkles className="w-3 h-3" />;
     return <Sparkles className="w-3 h-3" />;
+  };
+
+  const getReasonColor = (reason: string) => {
+    if (reason.includes("interests") || reason.includes("Matches"))
+      return "from-violet-500 to-purple-600";
+    if (reason.includes("author") || reason.includes("Author"))
+      return "from-blue-500 to-indigo-600";
+    if (reason.includes("Similar"))
+      return "from-emerald-500 to-teal-600";
+    if (reason.includes("Popular"))
+      return "from-orange-500 to-red-500";
+    if (reason.includes("New Release"))
+      return "from-cyan-500 to-blue-600";
+    if (reason.includes("Top Pick"))
+      return "from-amber-400 to-orange-500";
+    return "from-purple-500 to-pink-600";
   };
 
   if (loading) {
@@ -146,32 +144,41 @@ export default function GuideRecommendations({
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-black">
-              {user ? "Recommended For You" : "Trending Guides"}
-            </h2>
-            <p className="text-sm text-gray-600">
-              {user
-                ? "Based on your interests and activity"
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-black">
+                {user ? "Recommended For You" : "Trending Guides"}
+              </h2>
+              {isPersonalized && user && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800">
+                  ✦ Personalized
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {user && isPersonalized
+                ? "Based on your reading history & interests"
+                : user
+                ? "Popular guides you might enjoy"
                 : "Popular guides in the community"}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Recommendations Grid */}
+      {/* Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {recommendations.map((guide: any) => (
+        {recommendations.map((guide) => (
           <Link
             key={guide.slug}
             href={`/guide/${guide.slug}`}
-            className="group relative border-2 border-black hover:shadow-xl transition-all hover:-translate-y-1 flex flex-col bg-white overflow-hidden"
+            className="group relative border-2 border-black dark:border-gray-700 hover:shadow-xl hover:shadow-black/10 dark:hover:shadow-black/40 transition-all duration-300 hover:-translate-y-1 flex flex-col bg-white dark:bg-gray-900 overflow-hidden rounded-sm"
           >
-            {/* Guide Cover Image */}
-            <div className="aspect-video w-full bg-gray-100 overflow-hidden border-b-2 border-black">
+            {/* Cover image */}
+            <div className="aspect-video w-full bg-gray-100 dark:bg-gray-800 overflow-hidden border-b-2 border-black dark:border-gray-700">
               {guide.cover_image ? (
                 <img
                   src={guide.cover_image}
@@ -179,88 +186,89 @@ export default function GuideRecommendations({
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
-                  <Sparkles className="w-8 h-8 text-purple-200" />
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
+                  <Sparkles className="w-8 h-8 text-purple-200 dark:text-purple-700" />
                 </div>
               )}
             </div>
 
             <div className="p-5 flex flex-col flex-1">
-              {/* Recommendation Badge */}
-              <div className="absolute top-3 right-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white px-3 py-1 text-[10px] font-bold flex items-center gap-1 shadow-lg z-10">
+              {/* Reason badge */}
+              <div
+                className={`absolute top-3 right-3 bg-gradient-to-r ${getReasonColor(guide.recommendation_reason)} text-white px-2.5 py-1 text-[10px] font-bold flex items-center gap-1 shadow-lg z-10 rounded-full`}
+              >
                 {getReasonIcon(guide.recommendation_reason)}
-                {guide.recommendation_reason || "Recommended"}
+                {guide.recommendation_reason}
               </div>
 
-            {/* Author Info */}
-            {guide.user_email && (
-              <div className="flex items-center gap-2 mb-3">
-                {authorAvatars[guide.user_email] ? (
-                  <img
-                    src={authorAvatars[guide.user_email]}
-                    alt={guide.author_name}
-                    className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
-                  />
-                ) : (
-                  <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
-                    {(guide.author_name ||
-                      guide.user_email)?.[0]?.toUpperCase()}
-                  </div>
-                )}
-                <span className="text-sm font-medium text-gray-700 truncate">
-                  {guide.author_name || guide.user_email?.split("@")[0]}
-                </span>
-              </div>
-            )}
-
-            {/* Title */}
-            <h3 className="text-lg font-bold mb-3 group-hover:text-purple-600 transition-colors line-clamp-2">
-              {guide.title}
-            </h3>
-
-            {/* Meta Info */}
-            <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                {new Date(guide.created_at).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </span>
-              {guide.views_count > 0 && (
-                <span className="flex items-center gap-1">
-                  <Eye className="w-3 h-3" />
-                  {guide.views_count}
-                </span>
+              {/* Author */}
+              {guide.user_email && (
+                <div className="flex items-center gap-2 mb-3">
+                  {authorAvatars[guide.user_email] ? (
+                    <img
+                      src={authorAvatars[guide.user_email]}
+                      alt={guide.author_name || guide.user_email}
+                      className="w-7 h-7 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700 flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-7 h-7 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                      {(guide.author_name || guide.user_email)[0]?.toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">
+                    {guide.author_name || guide.user_email.split("@")[0]}
+                  </span>
+                </div>
               )}
-            </div>
 
-            {/* Tags */}
-            {guide.keywords && guide.keywords.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {guide.keywords.slice(0, 3).map((kw: string, i: number) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 text-xs font-medium border border-purple-200"
-                  >
-                    <Tag className="w-3 h-3" />
-                    {kw}
-                  </span>
-                ))}
-                {guide.keywords.length > 3 && (
-                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium">
-                    +{guide.keywords.length - 3}
+              {/* Title */}
+              <h3 className="text-base font-bold mb-3 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-2 leading-snug">
+                {guide.title}
+              </h3>
+
+              {/* Meta */}
+              <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mb-3">
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  {new Date(guide.created_at).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </span>
+                {guide.views_count > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Eye className="w-3 h-3" />
+                    {guide.views_count.toLocaleString()}
                   </span>
                 )}
               </div>
-            )}
 
-            {/* Read More */}
-            <div className="mt-auto pt-3 flex items-center gap-2 text-sm font-bold text-purple-600 group-hover:gap-3 transition-all">
-              Read Guide
-              <ArrowRight className="w-4 h-4" />
-            </div>
+              {/* Keywords */}
+              {guide.keywords && guide.keywords.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {guide.keywords.slice(0, 3).map((kw, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-[11px] font-medium border border-purple-200 dark:border-purple-800 rounded-full"
+                    >
+                      <Tag className="w-2.5 h-2.5" />
+                      {kw}
+                    </span>
+                  ))}
+                  {guide.keywords.length > 3 && (
+                    <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[11px] rounded-full">
+                      +{guide.keywords.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Read more */}
+              <div className="mt-auto pt-3 flex items-center gap-1.5 text-sm font-bold text-purple-600 dark:text-purple-400 group-hover:gap-2.5 transition-all">
+                Read Guide
+                <ArrowRight className="w-4 h-4" />
+              </div>
             </div>
           </Link>
         ))}

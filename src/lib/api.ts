@@ -111,11 +111,13 @@ export const guidesApi = {
                     .order("created_at", { ascending: false });
 
                 if (error) {
-                    // Ignore AbortError silently
-                    if (
-                        error.name !== "AbortError" &&
-                        !error.message?.includes("aborted")
-                    ) {
+                    // Ignore AbortError and 'Lock broken' errors silently
+                    const isAbortError = 
+                        error.name === "AbortError" || 
+                        error.message?.includes("aborted") ||
+                        error.message?.includes("Lock broken");
+
+                    if (!isAbortError) {
                         console.error("Supabase getAll error:", error.message);
                     }
                 } else if (data) {
@@ -123,7 +125,12 @@ export const guidesApi = {
                 }
             } catch (err) {
                 const errMsg = err instanceof Error ? err.message : String(err);
-                if (!errMsg.includes("AbortError") && !errMsg.includes("aborted")) {
+                const isAbortError = 
+                    errMsg.includes("AbortError") || 
+                    errMsg.includes("aborted") ||
+                    errMsg.includes("Lock broken");
+
+                if (!isAbortError) {
                     console.error("Supabase connection error:", err);
                 }
             }

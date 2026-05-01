@@ -50,7 +50,7 @@ const BalloonSVG = ({ color }: { color: string }) => (
 )
 
 const Balloons = React.forwardRef<any, BalloonsProps>(
-  ({ type = "default", text, fontSize = 120, color = "#000000", className, onLaunch }, ref) => {
+  ({ type: _type = "default", text: _text, fontSize: _fontSize = 120, color: _color = "#000000", className, onLaunch }, ref) => {
     const [balloons, setBalloons] = React.useState<BalloonInstance[]>([])
     const [mounted, setMounted] = React.useState(false)
 
