@@ -11,7 +11,7 @@
 const GITHUB_TOKEN = process.env.NEXT_PUBLIC_GITHUB_ASSETS_TOKEN || '';
 const GITHUB_REPO = process.env.NEXT_PUBLIC_GITHUB_ASSETS_REPO || 'ismailmuhammad15g-code/zetsuGuidsassets';
 const GITHUB_BRANCH = process.env.NEXT_PUBLIC_GITHUB_ASSETS_BRANCH || 'main';
-const RAW_BASE = process.env.NEXT_PUBLIC_GITHUB_ASSETS_RAW || `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}`;
+export const RAW_BASE = process.env.NEXT_PUBLIC_GITHUB_ASSETS_RAW || `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}`;
 
 export interface GitHubUploadResult {
   url: string;       // public raw URL to use in <img src>
@@ -223,4 +223,39 @@ export async function uploadComponentCode(
   const jsonContent = JSON.stringify(payload, null, 2);
   const result = await uploadTextToGitHub(jsonContent, path, `Save component code: ${componentId}`);
   return result.url;
+}
+/**
+ * Lists all version files for a specific guide from GitHub.
+ */
+export async function listHistoryFromGitHub(slug: string): Promise<any[]> {
+  if (!GITHUB_TOKEN || !GITHUB_REPO) return [];
+
+  const path = `guides/history/${slug}`;
+  const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/${path}`;
+
+  try {
+    const res = await fetch(apiUrl, {
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      }
+    });
+
+    if (!res.ok) return [];
+    
+    const files = await res.json();
+    if (!Array.isArray(files)) return [];
+
+    return files.map(file => ({
+      name: file.name,
+      path: file.path,
+      sha: file.sha,
+      download_url: file.download_url,
+      // File name is timestamp: e.g. "1714550000000.json"
+      timestamp: parseInt(file.name.replace('.json', '')) || Date.now()
+    }));
+  } catch (e) {
+    return [];
+  }
 }

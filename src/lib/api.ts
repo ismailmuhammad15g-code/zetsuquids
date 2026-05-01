@@ -2,6 +2,7 @@ import {
     isSupabaseConfigured as isSupabaseConfiguredLib,
     supabase,
 } from "./supabase";
+import { uploadToGitHub, uploadTextToGitHub, isGitHubConfigured, RAW_BASE, listHistoryFromGitHub } from "./github-assets";
 
 // Re-export or use the singleton
 export { supabase } from "./supabase";
@@ -83,12 +84,15 @@ export interface Guide {
 }
 
 export interface GuideVersion {
+    id?: string | number;
     guide_id: number | string;
     title: string;
     content?: string;
     html_content?: string;
     markdown?: string;
     created_at?: string;
+    storage_type?: 'supabase' | 'github';
+    download_url?: string;
 }
 
 export interface SearchResult extends Guide {
@@ -190,7 +194,24 @@ export const guidesApi = {
                 if (error) {
                     console.log("Supabase getBySlug error:", error.message);
                 } else if (data) {
-                    return mergeGuideWithLocalCover(data);
+                    let guide = mergeGuideWithLocalCover(data);
+                    
+                    // FETCH FROM GITHUB: Try to get full content from GitHub if metadata exists
+                    if (guide && guide.slug && isGitHubConfigured()) {
+                        try {
+                            const contentUrl = `${RAW_BASE}/guides/content/${guide.slug}.json`;
+                            const res = await fetch(contentUrl);
+                            if (res.ok) {
+                                const extra = await res.json();
+                                guide = { ...guide, ...extra };
+                                console.log("✅ Fetched full guide content from GitHub");
+                            }
+                        } catch (e) {
+                            console.warn("Failed to fetch guide content from GitHub, using DB fallback");
+                        }
+                    }
+                    
+                    return guide;
                 }
             } catch (err) {
                 console.error("Supabase error:", err);
@@ -277,6 +298,41 @@ export const guidesApi = {
             created_at: new Date().toISOString(),
             status: guide.status || "pending", // Default to pending
         };
+
+        // GITHUB STORAGE: Upload heavy data to GitHub to save Supabase space
+        if (isGitHubConfigured()) {
+            try {
+                // 1. Handle Cover Image
+                if (guideData.cover_image?.startsWith('data:')) {
+                    console.log("📤 Uploading cover image to GitHub...");
+                    const { url } = await uploadToGitHub(guideData.cover_image, 'guides/covers');
+                    guideData.cover_image = url;
+                }
+
+                // 2. Handle Content (Upload JSON bundle)
+                console.log("📤 Uploading guide content to GitHub...");
+                const contentPayload = {
+                    content: guideData.content,
+                    markdown: guideData.markdown,
+                    html_content: guideData.html_content,
+                    css_content: guideData.css_content
+                };
+                await uploadTextToGitHub(
+                    JSON.stringify(contentPayload, null, 2), 
+                    `guides/content/${slug}.json`,
+                    `Create guide content: ${slug}`
+                );
+
+                // 3. Clear heavy fields from Supabase payload to save space/bandwidth
+                guideData.content = "";
+                guideData.markdown = "";
+                guideData.html_content = "";
+                guideData.css_content = "";
+            } catch (err) {
+                console.error("GitHub upload failed, falling back to Supabase storage:", err);
+                // Continue with Supabase as fallback
+            }
+        }
 
         console.log("Creating guide with author info:", {
             title: guideData.title,
@@ -393,7 +449,28 @@ export const guidesApi = {
             .single();
 
         if (currentGuide) {
-            // 2. Save to history
+            // 2. Save to history (GITHUB & Supabase)
+            if (isGitHubConfigured()) {
+                const { data: meta } = await supabase.from("guides").select("slug").eq("id", id).single();
+                if (meta?.slug) {
+                    console.log("📤 Archiving current version to GitHub history...");
+                    const timestamp = Date.now();
+                    const historyPayload = {
+                        title: currentGuide.title,
+                        content: currentGuide.content || currentGuide.markdown,
+                        html_content: currentGuide.html_content,
+                        markdown: currentGuide.markdown,
+                        archived_at: new Date(timestamp).toISOString()
+                    };
+                    await uploadTextToGitHub(
+                        JSON.stringify(historyPayload, null, 2),
+                        `guides/history/${meta.slug}/${timestamp}.json`,
+                        `Archive version: ${meta.slug} (${timestamp})`
+                    );
+                }
+            }
+
+            // Also keep Supabase record for now (optional, but good for fallback)
             await supabase.from("guide_versions").insert({
                 guide_id: id,
                 title: currentGuide.title,
@@ -401,6 +478,52 @@ export const guidesApi = {
                 content: currentGuide.content || currentGuide.markdown,
                 html_content: currentGuide.html_content,
             });
+        }
+
+        // GITHUB STORAGE: Update heavy data on GitHub
+        if (isGitHubConfigured()) {
+            try {
+                // Get the slug for path building (from DB or updates)
+                const { data: meta } = await supabase.from("guides").select("slug").eq("id", id).single();
+                const activeSlug = updates.slug || meta?.slug;
+
+                if (activeSlug) {
+                    // 1. Handle Cover Image update
+                    if (updates.cover_image?.startsWith('data:')) {
+                        console.log("📤 Updating cover image on GitHub...");
+                        const { url } = await uploadToGitHub(updates.cover_image, 'guides/covers');
+                        updates.cover_image = url;
+                    }
+
+                    // 2. Handle Content update
+                    if (updates.content !== undefined || updates.markdown !== undefined || updates.html_content !== undefined) {
+                        console.log("📤 Updating guide content on GitHub...");
+                        // We need the full current state to avoid wiping fields not in this specific update
+                        const { data: full } = await supabase.from("guides").select("*").eq("id", id).single();
+                        
+                        const contentPayload = {
+                            content: updates.content !== undefined ? updates.content : full?.content,
+                            markdown: updates.markdown !== undefined ? updates.markdown : full?.markdown,
+                            html_content: updates.html_content !== undefined ? updates.html_content : full?.html_content,
+                            css_content: updates.css_content !== undefined ? updates.css_content : full?.css_content
+                        };
+
+                        await uploadTextToGitHub(
+                            JSON.stringify(contentPayload, null, 2),
+                            `guides/content/${activeSlug}.json`,
+                            `Update guide content: ${activeSlug}`
+                        );
+
+                        // Clear heavy fields from Supabase update payload
+                        if (updates.content !== undefined) updates.content = "";
+                        if (updates.markdown !== undefined) updates.markdown = "";
+                        if (updates.html_content !== undefined) updates.html_content = "";
+                        if (updates.css_content !== undefined) updates.css_content = "";
+                    }
+                }
+            } catch (err) {
+                console.error("GitHub update failed, falling back to Supabase:", err);
+            }
         }
 
         const { data, error } = await supabase
@@ -466,6 +589,8 @@ export const guidesApi = {
     },
 
     async getHistory(id: number | string): Promise<GuideVersion[]> {
+        let allVersions: GuideVersion[] = [];
+
         if (!isSupabaseConfigured()) {
             const versions: GuideVersion[] = JSON.parse(
                 localStorage.getItem(`guide_versions_${id}`) || "[]",
@@ -477,17 +602,88 @@ export const guidesApi = {
             });
         }
 
-        const { data, error } = await supabase
+        // 1. Fetch from GitHub (New System)
+        if (isGitHubConfigured()) {
+            try {
+                const { data: meta } = await supabase.from("guides").select("slug").eq("id", id).single();
+                if (meta?.slug) {
+                    const ghHistory = await listHistoryFromGitHub(meta.slug);
+                    const mapped: GuideVersion[] = ghHistory.map(h => ({
+                        id: h.sha,
+                        created_at: new Date(h.timestamp).toISOString(),
+                        title: "Archived Version (GitHub)",
+                        guide_id: String(id),
+                        storage_type: 'github',
+                        download_url: h.download_url
+                    }));
+                    allVersions = [...mapped];
+                }
+            } catch (e) {
+                console.warn("GitHub history fetch failed:", e);
+            }
+        }
+
+        // 2. Fetch from Supabase (Legacy System)
+        const { data: sbHistory, error } = await supabase
             .from("guide_versions")
             .select("*")
             .eq("guide_id", id)
             .order("created_at", { ascending: false });
 
-        if (error) {
-            console.error("Error fetching history:", error);
-            return [];
+        if (!error && sbHistory) {
+            const mapped: GuideVersion[] = sbHistory.map(v => ({
+                ...v,
+                storage_type: 'supabase'
+            }));
+            allVersions = [...allVersions, ...mapped];
         }
-        return data || [];
+
+        // Sort by date descending
+        return allVersions.sort((a, b) => {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
+            return dateB - dateA;
+        });
+    },
+
+    async restoreVersion(guideId: string | number, version: GuideVersion): Promise<boolean> {
+        try {
+            console.log("🔄 Restoring version:", version.id, "from", version.storage_type);
+            let contentToRestore: Partial<Guide> = {};
+
+            if (version.storage_type === 'github' && version.download_url) {
+                const res = await fetch(version.download_url);
+                if (!res.ok) throw new Error("Failed to fetch version from GitHub");
+                const data = await res.json();
+                contentToRestore = {
+                    title: data.title,
+                    content: data.content,
+                    markdown: data.markdown,
+                    html_content: data.html_content,
+                    css_content: data.css_content
+                };
+            } else if (version.storage_type === 'supabase') {
+                // If it's a Supabase version, content is usually already in the object
+                // But we should fetch the latest metadata if possible or just use what we have
+                contentToRestore = {
+                    title: version.title,
+                    content: version.content,
+                    markdown: version.markdown,
+                    html_content: version.html_content
+                };
+            }
+
+            if (Object.keys(contentToRestore).length === 0) {
+                throw new Error("No content to restore");
+            }
+
+            // Use the update method to apply changes (this will also archive the CURRENT state)
+            const result = await this.update(guideId, contentToRestore);
+            return !!result;
+        } catch (e) {
+            console.error("Restoration failed:", e);
+            return false;
+        }
     },
 
     async delete(id: number | string): Promise<boolean> {

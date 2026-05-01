@@ -1,21 +1,19 @@
-import { Calendar, Clock, X } from "lucide-react";
+import { Calendar, Clock, RotateCcw, X, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { guidesApi } from "../lib/api";
+import { guidesApi, type GuideVersion } from "../lib/api";
+import { toast } from "sonner";
 
 interface GuideHistoryModalProps {
   guideId: string;
   onClose: () => void;
 }
 
-interface GuideVersion {
-  id: string | number;
-  created_at: string;
-  title: string;
-}
+
 
 export default function GuideHistoryModal({ guideId, onClose }: GuideHistoryModalProps) {
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<GuideVersion[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [restoringId, setRestoringId] = useState<string | number | null>(null);
 
   useEffect(() => {
     loadHistory();
@@ -23,12 +21,35 @@ export default function GuideHistoryModal({ guideId, onClose }: GuideHistoryModa
 
   async function loadHistory(): Promise<void> {
     try {
+      setLoading(true);
       const data = await guidesApi.getHistory(guideId);
       setHistory(data);
     } catch (error: unknown) {
       console.error("Failed to load history:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleRestore(version: GuideVersion) {
+    if (!version.id) return;
+    
+    try {
+      setRestoringId(version.id);
+      const success = await guidesApi.restoreVersion(guideId, version);
+      
+      if (success) {
+        toast.success("Guide version restored successfully!");
+        // Refresh the page to show the restored content
+        window.location.reload();
+      } else {
+        toast.error("Failed to restore this version.");
+      }
+    } catch (err) {
+      console.error("Restore error:", err);
+      toast.error("An error occurred during restoration.");
+    } finally {
+      setRestoringId(null);
     }
   }
 
@@ -73,18 +94,33 @@ export default function GuideHistoryModal({ guideId, onClose }: GuideHistoryModa
                   <div className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                     {version.title}
                   </div>
-                  <div className="text-sm text-gray-500 flex items-center gap-4 mt-2">
-                    <span className="flex items-center gap-1">
-                      <Calendar size={14} />
-                      {new Date(version.created_at).toLocaleDateString()}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock size={14} />
-                      {new Date(version.created_at).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
+                  <div className="flex items-end justify-between mt-2">
+                    <div className="text-sm text-gray-500 flex items-center gap-4">
+                      <span className="flex items-center gap-1">
+                        <Calendar size={14} />
+                        {new Date(version.created_at || "").toLocaleDateString()}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock size={14} />
+                        {new Date(version.created_at || "").toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => handleRestore(version)}
+                      disabled={restoringId !== null}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-black text-white text-xs font-bold rounded hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {restoringId === version.id ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <RotateCcw size={12} />
+                      )}
+                      Restore
+                    </button>
                   </div>
                 </div>
               ))}
