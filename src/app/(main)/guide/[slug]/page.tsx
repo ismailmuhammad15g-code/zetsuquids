@@ -30,6 +30,7 @@ import {
     VolumeX,
     X,
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { marked } from "marked";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -189,6 +190,7 @@ export default function GuidePage() {
     const [aiToolsExpanded, setAiToolsExpanded] = useState<boolean>(false);
     const [showTOC, setShowTOC] = useState<boolean>(false);
     const [tableOfContents, setTableOfContents] = useState<TableOfContentsItem[]>([]);
+    const [activeId, setActiveId] = useState<string | null>(null);
     const [contentWithAnchors, setContentWithAnchors] = useState<string | null>(null);
     const [showFireworks, setShowFireworks] = useState<boolean>(false);
     const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -440,11 +442,15 @@ export default function GuidePage() {
             const tocItems: TableOfContentsItem[] = [];
 
             headings.forEach((heading, index) => {
-                const id = `heading-${index}`;
-                heading.id = id; // Add ID for anchor links
-                // Note: we avoid forcing a fixed scrollMargin here to prevent
-                // double-counting offsets. Scroll compensation is handled when
-                // the TOC link is clicked by measuring fixed/sticky elements.
+                const text = heading.textContent || "";
+                const id = text
+                    ? text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-")
+                    : `heading-${index}`;
+                
+                heading.id = id; 
+                // Ensure clicking standard anchor links doesn't hide the heading behind the sticky header
+                (heading as HTMLElement).style.scrollMarginTop = '100px';
+
                 tocItems.push({
                     id,
                     text: heading.textContent,
@@ -452,15 +458,66 @@ export default function GuidePage() {
                 });
             });
 
+            console.log(`[TOC] Generated ${tocItems.length} IDs for headings.`);
             setTableOfContents(tocItems);
-            // Save modified HTML that includes the heading IDs so the rendered
-            // content actually contains the anchors we link to.
             setContentWithAnchors(doc.body.innerHTML);
         } catch (e) {
-            console.error("TOC extraction error:", e);
-            setTableOfContents([]);
+            console.error("[TOC] Extraction error:", e);
         }
     }, [processedContent]);
+
+    // Scroll Spy: Track active section using getBoundingClientRect
+    useEffect(() => {
+        if (tableOfContents.length === 0) return;
+
+        const handleScroll = () => {
+            const headerElement = document.querySelector('header');
+            const headerHeight = headerElement ? headerElement.offsetHeight : 80;
+            
+            // Define an "active reading zone" (e.g., the top 35% of the screen or at least just below the header)
+            // This ensures that as soon as a heading is comfortably visible in the upper part of the screen, it becomes active.
+            const activeZone = Math.max(headerHeight + 150, window.innerHeight * 0.35);
+            
+            let currentActive = tableOfContents[0]?.id || ""; // Fallback to first
+            
+            for (const item of tableOfContents) {
+                const element = document.getElementById(item.id);
+                if (element) {
+                    const rect = element.getBoundingClientRect();
+                    
+                    // If the heading has reached the active zone
+                    if (rect.top <= activeZone) {
+                        currentActive = item.id;
+                    } else {
+                        // Headings are ordered. If this one isn't in the zone yet, the next ones won't be either.
+                        break;
+                    }
+                }
+            }
+
+            if (currentActive && currentActive !== activeId) {
+                setActiveId(currentActive);
+            }
+        };
+
+        // Initial check and event listener
+        handleScroll();
+        window.addEventListener("scroll", handleScroll, { passive: true });
+
+        // MutationObserver to detect when dangerouslySetInnerHTML has finished rendering
+        const observer = new MutationObserver(() => {
+            handleScroll();
+        });
+
+        if (contentRef.current) {
+            observer.observe(contentRef.current, { childList: true, subtree: true });
+        }
+
+        return () => {
+            window.removeEventListener("scroll", handleScroll);
+            observer.disconnect();
+        };
+    }, [tableOfContents, contentWithAnchors]);
 
     useEffect(() => {
         const container = contentRef.current;
@@ -1162,9 +1219,16 @@ export default function GuidePage() {
             }
             /* Temporary highlight applied when navigating from TOC */
             .toc-highlight {
-              background-color: rgba(250,204,21,0.45);
-              transition: background-color 0.25s ease, box-shadow 0.25s ease;
-              box-shadow: 0 0 0 6px rgba(250,204,21,0.24);
+              background-color: rgba(37, 99, 235, 0.15);
+              transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+              box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.1), inset 0 0 0 1px rgba(37, 99, 235, 0.2);
+              border-radius: 0.5rem;
+              position: relative;
+              z-index: 10;
+            }
+            .dark .toc-highlight {
+              background-color: rgba(96, 165, 250, 0.2);
+              box-shadow: 0 0 0 8px rgba(96, 165, 250, 0.15), inset 0 0 0 1px rgba(96, 165, 250, 0.3);
             }
             .lazy-media-wrapper {
               position: relative;
@@ -1335,130 +1399,35 @@ export default function GuidePage() {
                                 <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-3xl shadow-sm">
                                     <nav aria-label="Table of contents">
                                         <ul className="space-y-2">
-                                            {tableOfContents.map((item, index) => (
-                                                <li
-                                                    key={index}
-                                                    style={{ paddingLeft: `${(item.level - 1) * 12}px` }}
-                                                >
-                                                    <a
-                                                        href={`#${item.id}`}
-                                                        onClick={(e: any) => {
-                                                            e.preventDefault();
-                                                            const element = document.getElementById(item.id);
-                                                            if (element) {
-                                                                try {
-                                                                    // Dynamically compute top offset from any fixed/sticky
-                                                                    // elements that sit at the top of the viewport so the
-                                                                    // target heading isn't hidden under them.
-                                                                    const getTopOffset = () => {
-                                                                        try {
-                                                                            // Find visible fixed/sticky elements that overlap the
-                                                                            // top of the viewport and sum their heights. This
-                                                                            // avoids picking unrelated fixed elements further
-                                                                            // down the page.
-                                                                            const els = Array.from(
-                                                                                document.querySelectorAll("body *"),
-                                                                            );
-                                                                            const candidates = els.filter((el: any) => {
-                                                                                const style =
-                                                                                    window.getComputedStyle(el);
-                                                                                if (
-                                                                                    !(
-                                                                                        style.position === "fixed" ||
-                                                                                        style.position === "sticky"
-                                                                                    )
-                                                                                )
-                                                                                    return false;
-                                                                                const rect = el.getBoundingClientRect();
-                                                                                // element must intersect the top region
-                                                                                return (
-                                                                                    rect.height > 0 &&
-                                                                                    rect.width > 0 &&
-                                                                                    rect.top <= 1 &&
-                                                                                    rect.bottom > 0
-                                                                                );
-                                                                            });
-                                                                            const total = candidates.reduce(
-                                                                                (sum, e) =>
-                                                                                    sum +
-                                                                                    (e.getBoundingClientRect().height ||
-                                                                                        0),
-                                                                                0,
-                                                                            );
-                                                                            // Cap to avoid extreme values (e.g., modals)
-                                                                            const capped = Math.min(
-                                                                                Math.ceil(total) + 8,
-                                                                                200,
-                                                                            );
-                                                                            return capped;
-                                                                        } catch (e) {
-                                                                            return 72; // safer fallback
-                                                                        }
-                                                                    };
-
-                                                                    const OFFSET = getTopOffset();
-                                                                    const rect = element.getBoundingClientRect();
-                                                                    const targetY = Math.max(
-                                                                        0,
-                                                                        rect.top + window.scrollY - OFFSET,
-                                                                    );
-                                                                    window.scrollTo({
-                                                                        top: targetY,
-                                                                        behavior: "smooth",
-                                                                    });
-
-                                                                    // After the smooth scroll finishes (or shortly after),
-                                                                    // re-check offsets in case sticky/fixed elements appeared
-                                                                    // or the layout shifted, and fine-tune the scroll once.
-                                                                    setTimeout(() => {
-                                                                        try {
-                                                                            const newOffset = getTopOffset();
-                                                                            const newRect =
-                                                                                element.getBoundingClientRect();
-                                                                            const newTargetY = Math.max(
-                                                                                0,
-                                                                                newRect.top +
-                                                                                window.scrollY -
-                                                                                newOffset,
-                                                                            );
-                                                                            const diff = Math.abs(
-                                                                                window.scrollY - newTargetY,
-                                                                            );
-                                                                            if (diff > 6) {
-                                                                                window.scrollTo({
-                                                                                    top: newTargetY,
-                                                                                    behavior: "smooth",
-                                                                                });
-                                                                            }
-                                                                        } catch (e) {
-                                                                            // ignore
-                                                                        }
-                                                                    }, 350);
-
-                                                                    // Add temporary highlight for 3 seconds (start now)
-                                                                    element.classList.add("toc-highlight");
-                                                                    setTimeout(() => {
-                                                                        element.classList.remove("toc-highlight");
-                                                                    }, 3000);
-                                                                } catch (err) {
-                                                                    console.error(
-                                                                        "TOC highlight/scroll failed:",
-                                                                        err,
-                                                                    );
-                                                                    element.scrollIntoView({
-                                                                        behavior: "smooth",
-                                                                    });
-                                                                }
-                                                            }
-                                                            setShowTOC(false);
-                                                        }}
-                                                        className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-sm flex items-center gap-2 py-1"
+                                            {tableOfContents.map((item, index) => {
+                                                const isActive = activeId === item.id;
+                                                return (
+                                                    <li
+                                                        key={index}
+                                                        style={{ paddingLeft: `${(item.level - 1) * 12}px` }}
                                                     >
-                                                        <span className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-500 rounded-full flex-shrink-0" />
-                                                        {item.text}
-                                                    </a>
-                                                </li>
-                                            ))}
+                                                        <a
+                                                            href={`#${item.id}`}
+                                                            onClick={(e: any) => {
+                                                                e.preventDefault();
+                                                                const element = document.getElementById(item.id);
+                                                                if (element) {
+                                                                    element.scrollIntoView({ behavior: "smooth" });
+                                                                    setShowTOC(false);
+                                                                }
+                                                            }}
+                                                            className={`text-sm flex items-center gap-2 py-2 px-3 rounded-xl transition-all ${
+                                                                isActive 
+                                                                    ? "text-blue-600 font-bold bg-blue-50 dark:bg-blue-900/40 dark:text-blue-400" 
+                                                                    : "text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
+                                                            }`}
+                                                        >
+                                                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? "bg-blue-600 animate-pulse" : "bg-gray-400 dark:bg-gray-500"}`} />
+                                                            {item.text}
+                                                        </a>
+                                                    </li>
+                                                );
+                                            })}
                                         </ul>
                                     </nav>
                                 </div>
@@ -1763,77 +1732,41 @@ export default function GuidePage() {
                 </div>
             </div>
 
-            <aside className="hidden lg:block">
-                <div className="sticky top-[110px] space-y-4">
-                    <div className="rounded-3xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-950 p-5">
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                                    Table of Contents
-                                </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    Jump to key sections
-                                </p>
-                            </div>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                                {tableOfContents.length} items
-                            </span>
-                        </div>
+            <aside className="hidden lg:block w-[260px] flex-shrink-0">
+                <div className="sticky top-[100px] space-y-4">
+                    <div className="bg-white dark:bg-gray-950/50 border border-gray-100 dark:border-gray-800/50 rounded-2xl p-4 shadow-sm">
+                        <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 px-2">
+                            On this page
+                        </h3>
 
                         {tableOfContents.length > 0 ? (
                             <nav aria-label="Table of contents" className="mt-4">
                                 <ul className="space-y-2">
-                                    {tableOfContents.map((item, index) => (
-                                        <li
-                                            key={index}
-                                            style={{ paddingLeft: `${(item.level - 1) * 12}px` }}
-                                        >
-                                            <button
-                                                onClick={() => {
-                                                    const element = document.getElementById(item.id);
-                                                    if (!element) return;
-                                                    const getTopOffset = () => {
-                                                        try {
-                                                            const els = Array.from(document.querySelectorAll("body *"));
-                                                            const candidates = els.filter((el: any) => {
-                                                                const style = window.getComputedStyle(el);
-                                                                if (!(style.position === "fixed" || style.position === "sticky"))
-                                                                    return false;
-                                                                const rect = el.getBoundingClientRect();
-                                                                return (
-                                                                    rect.height > 0 &&
-                                                                    rect.width > 0 &&
-                                                                    rect.top <= 1 &&
-                                                                    rect.bottom > 0
-                                                                );
-                                                            });
-                                                            return Math.min(
-                                                                candidates.reduce(
-                                                                    (sum, e) => sum + (e.getBoundingClientRect().height || 0),
-                                                                    0,
-                                                                ) + 8,
-                                                                200,
-                                                            );
-                                                        } catch {
-                                                            return 72;
-                                                        }
-                                                    };
-                                                    const OFFSET = getTopOffset();
-                                                    const rect = element.getBoundingClientRect();
-                                                    const targetY = Math.max(0, rect.top + window.scrollY - OFFSET);
-                                                    window.scrollTo({ top: targetY, behavior: "smooth" });
-                                                    element.classList.add("toc-highlight");
-                                                    setTimeout(() => {
-                                                        element.classList.remove("toc-highlight");
-                                                    }, 2800);
-                                                }}
-                                                className="w-full text-left text-sm text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors flex items-center gap-2 py-1"
+                                    {tableOfContents.map((item, index) => {
+                                        const isActive = activeId === item.id;
+                                        return (
+                                            <li
+                                                key={index}
+                                                style={{ paddingLeft: `${(item.level - 1) * 12}px` }}
                                             >
-                                                <span className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-500 rounded-full flex-shrink-0" />
-                                                {item.text}
-                                            </button>
-                                        </li>
-                                    ))}
+                                                <button
+                                                    onClick={() => {
+                                                        const element = document.getElementById(item.id);
+                                                        if (element) {
+                                                            element.scrollIntoView({ behavior: "smooth" });
+                                                        }
+                                                    }}
+                                                    className={`w-full text-left text-[13px] transition-all duration-200 block py-1.5 pr-2 pl-4 border-l-2 ${
+                                                        isActive 
+                                                            ? "border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400 font-semibold" 
+                                                            : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:border-gray-300 dark:hover:border-gray-700"
+                                                    }`}
+                                                >
+                                                    <span className="truncate block">{item.text}</span>
+                                                </button>
+                                            </li>
+                                        );
+                                    })}
                                 </ul>
                             </nav>
                         ) : (
