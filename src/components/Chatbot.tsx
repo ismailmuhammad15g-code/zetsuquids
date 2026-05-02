@@ -187,15 +187,8 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  // Initialize popup state from localStorage to prevent annoyance
-  const [showPopup, setShowPopup] = useState(() => {
-    if (typeof window !== "undefined") {
-      const dismissed = localStorage.getItem("zetsu_chatbot_popup_dismissed");
-      // Only show if not dismissed and not on a small screen (optional logic, but good practice)
-      return !dismissed;
-    }
-    return false;
-  });
+  // Keep initial render deterministic for SSR; hydrate popup preference after mount.
+  const [showPopup, setShowPopup] = useState(false);
   const [activeTab, setActiveTab] = useState("chat"); // 'chat', 'support-form', or 'direct-support'
   const [unreadSupportCount, setUnreadSupportCount] = useState(0);
   const [showSupportForm, setShowSupportForm] = useState(false);
@@ -227,6 +220,11 @@ export default function Chatbot() {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const [tokensLeft, setTokensLeft] = useState(30);
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem("zetsu_chatbot_popup_dismissed");
+    setShowPopup(!dismissed);
+  }, []);
 
   // Pre-fill email when user is authenticated
   useEffect(() => {
