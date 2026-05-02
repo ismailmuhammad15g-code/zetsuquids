@@ -59,7 +59,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const [rewardReportId, setRewardReportId] = useState<string | number | null>(null);
 
   // Top loader for navigation / global actions
-  const { isLoading } = useLoading();
+  const { isLoading, startLoading, stopLoading } = useLoading();
   const [navLoading, setNavLoading] = useState(false);
 
   // Close mobile menu on route change
@@ -67,13 +67,35 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  // Show top loader briefly on navigation changes
+  // Show loaders on navigation changes
   useEffect(() => {
-    // start nav loading immediately when path changes
+    // Determine page name for the loader
+    const getPageName = (path: string) => {
+      if (path === "/") return "Home";
+      if (path.includes("/workspace")) return "Workspace";
+      if (path.includes("/guide")) return "Guide";
+      if (path.includes("/community")) return "Community";
+      if (path.includes("/components")) return "Components";
+      if (path.includes("/zetsuguide-ai")) return "Zetsu AI";
+      return "";
+    };
+
+    const pageName = getPageName(pathname);
+    const msg = pageName ? `Entering ${pageName}...` : "Loading next page...";
+
     setNavLoading(true);
-    const t = setTimeout(() => setNavLoading(false), 700);
-    return () => clearTimeout(t);
-  }, [pathname]);
+    startLoading(msg);
+
+    const t = setTimeout(() => {
+      setNavLoading(false);
+      stopLoading();
+    }, 800); // Keep it visible for at least 800ms for that premium feel
+
+    return () => {
+      clearTimeout(t);
+      stopLoading();
+    };
+  }, [pathname, startLoading, stopLoading]);
 
   // Also show top loader when internal links are clicked (improves perceived responsiveness)
   useEffect(() => {
@@ -334,7 +356,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                   </span>
                 </div>
                 <span className="text-2xl font-black tracking-tight hidden lg:block transition-colors duration-300 dark:text-white">
-                  DevVault
+                  ZetsuGuide
                 </span>
               </Link>
 
@@ -365,13 +387,13 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
                 {/* Add Guide Button - Only for authenticated users */}
                 {isAuthenticated() && (
-                    <button
-                      onClick={openAddModal}
-                      className="flex items-center gap-2 px-2.5 sm:px-3 2xl:px-4 py-2 bg-black text-white dark:bg-white dark:text-black font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
-                    >
-                      <Plus size={18} />
-                      <span className="hidden 2xl:inline">Add Guide</span>
-                    </button>
+                  <button
+                    onClick={openAddModal}
+                    className="flex items-center gap-2 px-2.5 sm:px-3 2xl:px-4 py-2 bg-black text-white dark:bg-white dark:text-black font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                  >
+                    <Plus size={18} />
+                    <span className="hidden 2xl:inline">Add Guide</span>
+                  </button>
                 )}
 
                 {/* Auth Section */}

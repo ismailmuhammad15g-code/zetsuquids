@@ -1,4 +1,4 @@
-# DevVault - Developer Knowledge Base
+# ZetsuGuide - Developer Knowledge Base
 
 A modern, minimalist full-stack application for developers to save and organize their important information, code snippets, AI prompts, and development guides.
 

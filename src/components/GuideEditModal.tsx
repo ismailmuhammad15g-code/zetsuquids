@@ -1,5 +1,5 @@
 "use client";
-import { Edit2, Image as ImageIcon, Loader2, X } from "lucide-react";
+import { AlertTriangle, Edit2, Image as ImageIcon, Link as LinkIcon, Loader2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Guide, guidesApi } from "../lib/api";
@@ -24,6 +24,9 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
     const [saving, setSaving] = useState(false);
     const [coverImageError, setCoverImageError] = useState<string | null>(null);
     const [autoResize, setAutoResize] = useState(true);
+    const [coverUrlInput, setCoverUrlInput] = useState("");
+    const [coverUrlError, setCoverUrlError] = useState("");
+    const [isFetchingUrl, setIsFetchingUrl] = useState(false);
 
     useEffect(() => {
         setTitle(guide.title || "");
@@ -108,6 +111,47 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
         } catch (error) {
             console.error(error);
             toast.error("Failed to upload cover image");
+        }
+    };
+
+    // Fetch external image via server proxy → base64 → saved as coverImage state
+    const handleUrlPaste = async (e?: React.FormEvent) => {
+        e?.preventDefault();
+        setCoverUrlError("");
+        const raw = coverUrlInput.trim();
+        if (!raw) return;
+
+        // Warn if it's a Bing page URL (not a direct image link)
+        if (raw.includes("bing.com/images/create") || raw.includes("bing.com/images/search")) {
+            setCoverUrlError(
+                "This looks like a Bing page link. Please right-click the image → 'Copy image address', then paste that direct URL here."
+            );
+            return;
+        }
+
+        setIsFetchingUrl(true);
+        const toastId = toast.loading("Downloading image...");
+        try {
+            const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(raw)}`);
+            if (!proxyRes.ok) throw new Error(`Failed (${proxyRes.status})`);
+
+            const blob = await proxyRes.blob();
+            const base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+
+            setCoverImage(base64);
+            setCoverUrlInput("");
+            toast.success("Image loaded! Click Save Changes to apply.", { id: toastId });
+        } catch (err) {
+            console.error(err);
+            toast.dismiss(toastId);
+            setCoverUrlError("Could not load that URL. Try downloading the image and using the file upload instead.");
+        } finally {
+            setIsFetchingUrl(false);
         }
     };
 
@@ -248,8 +292,40 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
                                 />
                             </label>
                         </div>
+
+                        {/* ── Paste URL field ── */}
+                        <form onSubmit={handleUrlPaste} className="flex gap-2 mt-3">
+                            <div className="relative flex-1">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <LinkIcon size={14} className="text-gray-400" />
+                                </div>
+                                <input
+                                    type="text"
+                                    value={coverUrlInput}
+                                    onChange={(e) => { setCoverUrlInput(e.target.value); setCoverUrlError(""); }}
+                                    placeholder="Or paste a direct image URL (e.g. https://th.bing.com/th/id/OIG3…)"
+                                    className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-2xl text-xs focus:outline-none focus:border-black transition-all text-gray-700"
+                                    disabled={isFetchingUrl}
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={!coverUrlInput.trim() || isFetchingUrl}
+                                className="px-4 py-2 bg-black text-white rounded-2xl text-xs font-bold hover:bg-gray-800 transition-colors disabled:opacity-40 flex items-center gap-1.5 whitespace-nowrap"
+                            >
+                                {isFetchingUrl ? <Loader2 size={13} className="animate-spin" /> : <LinkIcon size={13} />}
+                                Use URL
+                            </button>
+                        </form>
+                        {coverUrlError && (
+                            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-xs p-2.5 rounded-xl mt-2">
+                                <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
+                                {coverUrlError}
+                            </div>
+                        )}
+
                         {coverImageError && (
-                            <p className="text-xs text-red-600">{coverImageError}</p>
+                            <p className="text-xs text-red-600 mt-1">{coverImageError}</p>
                         )}
                         {coverImage ? (
                             <div className="mt-4 overflow-hidden rounded-3xl border border-gray-200 shadow-sm">

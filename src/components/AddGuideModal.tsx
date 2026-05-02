@@ -202,6 +202,9 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [coverImageError, setCoverImageError] = useState<string | null>(null);
   const [autoResize, setAutoResize] = useState(true);
+  const [coverUrlInput, setCoverUrlInput] = useState("");
+  const [coverUrlError, setCoverUrlError] = useState("");
+  const [isFetchingCoverUrl, setIsFetchingCoverUrl] = useState(false);
   const [credits, setCredits] = useState(0);
 
   const invalidateGuides = useInvalidateGuides();
@@ -581,6 +584,48 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
     } catch (error: unknown) {
       console.error(error);
       toast.error("Failed to upload cover image");
+    }
+  };
+
+  // Fetch external image via server proxy → base64 → stored in formData.cover_image
+  const handleCoverUrlPaste = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setCoverUrlError("");
+    const raw = coverUrlInput.trim();
+    if (!raw) return;
+
+    // Detect Bing page URLs (not direct image links)
+    if (raw.includes("bing.com/images/create") || raw.includes("bing.com/images/search")) {
+      setCoverUrlError(
+        "This is a Bing page link, not a direct image URL. Right-click the image → 'Copy image address', then paste here."
+      );
+      return;
+    }
+
+    setIsFetchingCoverUrl(true);
+    const toastId = toast.loading("Downloading image from URL...");
+    try {
+      const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(raw)}`);
+      if (!proxyRes.ok) throw new Error(`Server returned ${proxyRes.status}`);
+
+      const blob = await proxyRes.blob();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      setFormData((prev) => ({ ...prev, cover_image: base64 }));
+      setCoverUrlInput("");
+      setCoverImageError(null);
+      toast.success("Cover image loaded successfully!", { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.dismiss(toastId);
+      setCoverUrlError("Could not load that URL. Try downloading the image and uploading it as a file instead.");
+    } finally {
+      setIsFetchingCoverUrl(false);
     }
   };
 
@@ -1723,6 +1768,38 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
                   {coverImageError && (
                     <p className="text-xs text-red-600">{coverImageError}</p>
                   )}
+
+                  {/* ── Paste URL field ── */}
+                  <form onSubmit={handleCoverUrlPaste} className="flex gap-2">
+                    <div className="relative flex-1">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <LinkIcon size={13} className="text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        value={coverUrlInput}
+                        onChange={(e) => { setCoverUrlInput(e.target.value); setCoverUrlError(""); }}
+                        placeholder="Or paste a direct image URL (e.g. https://th.bing.com/th/id/OIG3…)"
+                        className="w-full pl-8 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-black transition-all text-gray-700"
+                        disabled={isFetchingCoverUrl}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={!coverUrlInput.trim() || isFetchingCoverUrl}
+                      className="px-3 py-2 bg-gray-800 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors disabled:opacity-40 flex items-center gap-1.5 whitespace-nowrap"
+                    >
+                      {isFetchingCoverUrl ? <Loader2 size={13} className="animate-spin" /> : <LinkIcon size={13} />}
+                      Use URL
+                    </button>
+                  </form>
+                  {coverUrlError && (
+                    <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-xs p-2.5 rounded-xl">
+                      <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
+                      {coverUrlError}
+                    </div>
+                  )}
+
                   <p className="text-xs text-gray-500">
                     The cover will appear above the preview and in guide listings.
                   </p>

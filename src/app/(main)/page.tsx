@@ -144,7 +144,7 @@ export default function HomePage() {
             </h1>
             <p className="text-lg text-neutral-300 max-w-2xl mx-auto mb-8">
               <ComicText fontSize={2} className="mr-2">
-                DevVault
+                ZetsuGuide
               </ComicText>
               is your personal space to store guides, tutorials, and
               documentation. Search instantly with AI-powered intelligence.

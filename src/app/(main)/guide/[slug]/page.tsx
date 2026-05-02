@@ -16,7 +16,6 @@ import {
     List,
     Loader2,
     Lock,
-    Mail,
     Moon,
     MoreVertical,
     Search,
@@ -56,7 +55,6 @@ import QuizComponent from "../../../../components/quiz/QuizComponent";
 import SEOHelmet from "../../../../components/SEOHelmet";
 import TextToSpeech from "../../../../components/TextToSpeech";
 import { ScrollProgress } from "../../../../components/ui/scroll-progress";
-import ShinyText from "../../../../components/ui/shiny-text";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useTheme } from "../../../../contexts/ThemeContext";
 import { useGuideInteraction } from "../../../../hooks/useGuideInteraction";
@@ -64,6 +62,7 @@ import { Guide, guidesApi } from "../../../../lib/api";
 import { getAvatarForUser } from "../../../../lib/avatar";
 import { supabase } from "../../../../lib/supabase";
 import { sanitizeContent } from "../../../../lib/utils";
+import { GuideCoverBot } from "../../../../components/GuideCoverBot";
 
 // Type definitions
 interface TableOfContentsItem {
@@ -194,6 +193,7 @@ export default function GuidePage() {
     const [tableOfContents, setTableOfContents] = useState<TableOfContentsItem[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [contentWithAnchors, setContentWithAnchors] = useState<string | null>(null);
+    const [showCoverBot, setShowCoverBot] = useState<boolean>(false);
 
     const moreMenuRef = useRef<HTMLDivElement>(null);
     const fireworksRef = useRef<HTMLDivElement>(null);
@@ -1030,9 +1030,11 @@ export default function GuidePage() {
     // Check if admin is authenticated via sessionStorage in browser only
     useEffect(() => {
         if (typeof window !== "undefined" && window.sessionStorage) {
-            setIsAdmin(window.sessionStorage.getItem("adminAuthenticated") === "true");
+            const isSessionAdmin = window.sessionStorage.getItem("adminAuthenticated") === "true";
+            const isSuperAdminEmail = user?.email?.toLowerCase() === "ismailmuhammad15g@gmail.com";
+            setIsAdmin(isSessionAdmin || isSuperAdminEmail);
         }
-    }, []);
+    }, [user?.email]);
 
     // Robust check for ownership (case-insensitive)
     const isOwner =
@@ -1183,26 +1185,8 @@ export default function GuidePage() {
                     ]}
                 />
 
-                {/* Premium Guide Cover Image */}
-                {guide.cover_image && (
-                    <div className="mb-12 relative group">
-                        {/* Decorative background glow */}
-                        <div className="absolute -inset-1 bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-pink-600/20 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                        
-                        <div className="relative aspect-[21/9] overflow-hidden rounded-[2rem] border border-gray-200 dark:border-gray-800 shadow-2xl bg-gray-100 dark:bg-gray-800">
-                            <img
-                                src={guide.cover_image}
-                                alt={guide.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000 ease-out"
-                            />
-                            {/* Glass overlay on hover */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                        </div>
-                    </div>
-                )}
-
-                {/* Header */}
-                <header className="mb-12 pb-8 border-b-2 border-black">
+                {/* Header Section */}
+                <header className="mb-10">
                     {/* Sign Up Banner for Guest Users */}
                     {!user && (
                         <div className="mb-8 p-6 bg-black text-white border-2 border-gray-800 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] relative overflow-hidden group">
@@ -1229,29 +1213,8 @@ export default function GuidePage() {
                         </div>
                     )}
 
-                    <h1
-                        className="text-4xl sm:text-5xl font-black mb-4 leading-tight relative overflow-hidden select-text z-[1] text-black dark:text-white"
-                        style={{ position: "relative" }}
-                    >
-                        {/* Decorative container: gradient border + solid blue background + padding to fully contain the title */}
-                        <span className="inline-block mb-4 leading-tight select-text z-[1] w-full">
-                            <span className="inline-block p-[2px] rounded-2xl bg-gradient-to-r from-blue-300/40 via-indigo-200/30 to-pink-100/20 shadow-sm">
-                                <span className="inline-block max-w-full px-5 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/60 border border-black/5 overflow-hidden">
-                                    <ShinyText
-                                        size="4xl"
-                                        weight="extrabold"
-                                        className="block break-words w-full text-black"
-                                        speed={3}
-                                        shineWidth={12}
-                                        baseColor="#000000"
-                                        shineColor="rgba(255,255,255,0.25)"
-                                        intensity={1}
-                                    >
-                                        {guide.title}
-                                    </ShinyText>
-                                </span>
-                            </span>
-                        </span>
+                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 leading-[1.1] text-black dark:text-white tracking-tight">
+                        {guide.title}
                     </h1>
 
                     <style>{`
@@ -1312,94 +1275,72 @@ export default function GuidePage() {
             }
           `}</style>
 
-                    {/* Meta */}
-                    <div className="flex flex-wrap items-center gap-4 text-gray-500 dark:text-gray-400 mb-6">
-                        <span className="flex items-center gap-2">
-                            <Calendar size={16} />
-                            {new Date(guide.created_at || Date.now()).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                            })}
-                        </span>
-                        {readingTime > 0 && (
-                            <span className="flex items-center gap-2 px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full text-sm font-medium border border-green-100 dark:border-green-800">
-                                <Clock size={16} />
-                                {readingTime} min read
-                            </span>
-                        )}
-                        {viewsCount > 0 && (
-                            <span className="flex items-center gap-2 px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-sm font-medium border border-blue-100 dark:border-blue-800">
-                                <Eye size={16} />
-                                {viewsCount.toLocaleString()}{" "}
-                                {viewsCount === 1 ? "view" : "views"}
-                            </span>
-                        )}
-                        {historyCount > 0 && (
-                            <span className="flex items-center gap-2 px-3 py-1 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-sm font-medium border border-orange-100 dark:border-orange-800">
-                                <Clock size={16} />
-                                {historyCount} {historyCount === 1 ? "change" : "changes"}
-                            </span>
-                        )}
-                        {guide.content_type === "html" && (
-                            <span className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-300">
-                                <ExternalLink size={12} />
-                                HTML/CSS
-                            </span>
-                        )}
-                    </div>
-
-                    {/* Author Card */}
-                    {guide.user_email && (
-                        <div className="mb-8 p-4 border-2 border-black bg-gradient-to-r from-purple-50 to-pink-50 dark:bg-gradient-to-r from-purple-900/30 to-pink-900/30 dark:border-gray-700">
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                    {authorAvatar ? (
-                                        <img
-                                            src={authorAvatar}
-                                            alt={guide.author_name}
-                                            className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                                        />
-                                    ) : (
-                                        <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                                            {(guide.author_name ||
-                                                guide.user_email)?.[0]?.toUpperCase()}
-                                        </div>
-                                    )}
-                                    <div>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            By
-                                        </p>
-                                        <p className="font-bold text-lg">
-                                            {guide.author_name || guide.user_email.split("@")[0]}
-                                        </p>
-                                        {guide.user_email && (
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                                <Mail size={12} />
-                                                {guide.user_email}
-                                            </p>
-                                        )}
-                                    </div>
+                    {/* Meta & Author info in a clean flex layout */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 py-6 border-y border-gray-200 dark:border-gray-800 mb-8">
+                         {/* Left side: Author */}
+                         <div className="flex items-center gap-4">
+                            {authorAvatar ? (
+                                <img
+                                    src={authorAvatar}
+                                    alt={guide.author_name || "Author"}
+                                    className="w-12 h-12 rounded-full object-cover shadow-sm border border-gray-200 dark:border-gray-800"
+                                />
+                            ) : (
+                                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                                    {(guide.author_name || guide.user_email || "A")?.[0]?.toUpperCase()}
                                 </div>
-
-                                {/* Follow Button and Profile Link */}
-                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                                    <FollowButton
-                                        targetUserEmail={guide.user_email}
-                                        targetUserName={
-                                            guide.author_name || guide.user_email.split("@")[0]
-                                        }
-                                    />
-                                    <Link
-                                        href={`/@${(guide.author_name || guide.user_email.split("@")[0]).toLowerCase()}/workspace`}
-                                        className="px-4 py-2 bg-white dark:bg-gray-800 text-black dark:text-white border-2 border-black dark:border-gray-600 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-center"
-                                    >
-                                        View Profile
-                                    </Link>
+                            )}
+                            <div>
+                                <p className="font-bold text-gray-900 dark:text-white text-lg leading-tight">
+                                    {guide.author_name || (guide.user_email ? guide.user_email.split("@")[0] : "Anonymous")}
+                                </p>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                    <span className="flex items-center gap-1"><Calendar size={14}/> {new Date(guide.created_at || Date.now()).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</span>
+                                    {readingTime > 0 && <><span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700"></span><span className="flex items-center gap-1"><Clock size={14}/> {readingTime} min read</span></>}
+                                    {viewsCount > 0 && (
+                                        <><span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700"></span><span className="flex items-center gap-1"><Eye size={14}/> {viewsCount.toLocaleString()} views</span></>
+                                    )}
+                                    {historyCount > 0 && (
+                                        <><span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700"></span><span className="flex items-center gap-1"><Edit2 size={14}/> {historyCount} changes</span></>
+                                    )}
+                                    {guide.content_type === "html" && (
+                                        <><span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700"></span><span className="flex items-center gap-1"><ExternalLink size={14} /> HTML/CSS</span></>
+                                    )}
                                 </div>
                             </div>
+                         </div>
+                         
+                         {/* Right side: Actions & Follow */}
+                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                             {guide.user_email && (
+                                 <FollowButton
+                                    targetUserEmail={guide.user_email}
+                                    targetUserName={guide.author_name || guide.user_email.split("@")[0]}
+                                 />
+                             )}
+                             {guide.user_email && (
+                                 <Link
+                                    href={`/@${(guide.author_name || guide.user_email.split("@")[0]).toLowerCase()}/workspace`}
+                                    className="px-4 py-2 bg-white dark:bg-gray-800 text-black dark:text-white border border-gray-300 dark:border-gray-600 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors rounded-md shadow-sm text-center"
+                                 >
+                                    View Profile
+                                 </Link>
+                             )}
+                         </div>
+                    </div>
+
+                {/* Premium Guide Cover Image */}
+                {guide.cover_image && (
+                    <div className="mb-14 relative w-full">
+                        <div className="relative aspect-[16/9] md:aspect-[21/9] w-full overflow-hidden rounded-2xl md:rounded-[3rem] border border-gray-200/50 dark:border-gray-800/50 shadow-2xl bg-gray-50 dark:bg-gray-900">
+                            <img
+                                src={guide.cover_image}
+                                alt={guide.title}
+                                className="w-full h-full object-cover"
+                            />
                         </div>
-                    )}
+                    </div>
+                )}
 
                     {/* Keywords */}
                     {guide.keywords && guide.keywords.length > 0 && (
@@ -1418,34 +1359,37 @@ export default function GuidePage() {
 
                     {/* Table of Contents Button (mobile only) */}
                     {tableOfContents.length > 0 && (
-                        <div className="mb-6 lg:hidden">
+                        <div className="mb-8 lg:hidden">
                             <button
                                 onClick={() => setShowTOC(!showTOC)}
-                                className="flex items-center justify-between w-full gap-2 px-4 py-3 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 hover:border-black dark:hover:border-white rounded-3xl transition-colors text-sm font-medium"
+                                className="flex items-center justify-between w-full gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl transition-colors text-sm font-semibold text-gray-900 dark:text-gray-100 shadow-sm"
                                 aria-expanded={showTOC}
                                 aria-label="Toggle table of contents"
                             >
                                 <span className="inline-flex items-center gap-2">
-                                    <List size={16} />
-                                    Table of Contents
+                                    <List size={18} className="text-gray-500" />
+                                    On This Page
                                 </span>
                                 <ChevronDown
-                                    size={16}
-                                    className={`transition-transform ${showTOC ? "rotate-180" : ""}`}
+                                    size={18}
+                                    className={`text-gray-500 transition-transform duration-300 ${showTOC ? "rotate-180" : ""}`}
                                 />
                             </button>
 
                             {/* Table of Contents Dropdown */}
-                            {showTOC && (
-                                <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-3xl shadow-sm">
+                            <div 
+                                className={`overflow-hidden transition-all duration-300 ease-in-out ${showTOC ? "max-h-[500px] opacity-100 mt-2" : "max-h-0 opacity-0"}`}
+                            >
+                                <div className="p-4 bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm overflow-y-auto max-h-[400px]">
                                     <nav aria-label="Table of contents">
-                                        <ul className="space-y-2">
+                                        <ul className="m-0 list-none">
                                             {tableOfContents.map((item, index) => {
                                                 const isActive = activeId === item.id;
                                                 return (
                                                     <li
                                                         key={index}
-                                                        style={{ paddingLeft: `${(item.level - 1) * 12}px` }}
+                                                        className="mt-0 pt-2"
+                                                        style={{ paddingLeft: `${(item.level - 1) * 16}px` }}
                                                     >
                                                         <a
                                                             href={`#${item.id}`}
@@ -1453,17 +1397,17 @@ export default function GuidePage() {
                                                                 e.preventDefault();
                                                                 const element = document.getElementById(item.id);
                                                                 if (element) {
-                                                                    element.scrollIntoView({ behavior: "smooth" });
+                                                                    const y = element.getBoundingClientRect().top + window.scrollY - 100;
+                                                                    window.scrollTo({ top: y, behavior: "smooth" });
                                                                     setShowTOC(false);
                                                                 }
                                                             }}
-                                                            className={`text-sm flex items-center gap-2 py-2 px-3 rounded-xl transition-all ${
+                                                            className={`inline-block py-1 text-sm no-underline transition-colors ${
                                                                 isActive 
-                                                                    ? "text-blue-600 font-bold bg-blue-50 dark:bg-blue-900/40 dark:text-blue-400" 
-                                                                    : "text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
+                                                                    ? "text-blue-600 dark:text-blue-400 font-bold" 
+                                                                    : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-300"
                                                             }`}
                                                         >
-                                                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? "bg-blue-600 animate-pulse" : "bg-gray-400 dark:bg-gray-500"}`} />
                                                             {item.text}
                                                         </a>
                                                     </li>
@@ -1472,7 +1416,7 @@ export default function GuidePage() {
                                         </ul>
                                     </nav>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     )}
 
@@ -1781,48 +1725,47 @@ export default function GuidePage() {
             </div>
 
             <aside className="hidden lg:block w-[260px] flex-shrink-0">
-                <div className="sticky top-[100px] space-y-4">
-                    <div className="bg-white dark:bg-gray-950/50 border border-gray-100 dark:border-gray-800/50 rounded-2xl p-4 shadow-sm">
-                        <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 px-2">
-                            On this page
-                        </h3>
-
-                        {tableOfContents.length > 0 ? (
-                            <nav aria-label="Table of contents" className="mt-4">
-                                <ul className="space-y-2">
-                                    {tableOfContents.map((item, index) => {
-                                        const isActive = activeId === item.id;
-                                        return (
-                                            <li
-                                                key={index}
-                                                style={{ paddingLeft: `${(item.level - 1) * 12}px` }}
+                <div className="sticky top-[100px] max-h-[calc(100vh-120px)] overflow-y-auto rounded-lg bg-white dark:bg-gray-950 p-4 shadow-sm border border-gray-100 dark:border-gray-800">
+                    <p className="font-semibold text-gray-900 dark:text-white mb-4">On This Page</p>
+                    {tableOfContents.length > 0 ? (
+                        <nav aria-label="Table of contents">
+                            <ul className="m-0 list-none">
+                                {tableOfContents.map((item, index) => {
+                                    const isActive = activeId === item.id;
+                                    return (
+                                        <li
+                                            key={index}
+                                            className="mt-0 pt-2"
+                                            style={{ paddingLeft: `${(item.level - 1) * 16}px` }}
+                                        >
+                                            <a
+                                                href={`#${item.id}`}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    const element = document.getElementById(item.id);
+                                                    if (element) {
+                                                        const y = element.getBoundingClientRect().top + window.scrollY - 100;
+                                                        window.scrollTo({ top: y, behavior: "smooth" });
+                                                    }
+                                                }}
+                                                className={`inline-block py-1 text-sm no-underline transition-colors ${
+                                                    isActive 
+                                                        ? "text-blue-600 dark:text-blue-400 font-bold" 
+                                                        : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-300"
+                                                }`}
                                             >
-                                                <button
-                                                    onClick={() => {
-                                                        const element = document.getElementById(item.id);
-                                                        if (element) {
-                                                            element.scrollIntoView({ behavior: "smooth" });
-                                                        }
-                                                    }}
-                                                    className={`w-full text-left text-[13px] transition-all duration-200 block py-1.5 pr-2 pl-4 border-l-2 ${
-                                                        isActive 
-                                                            ? "border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400 font-semibold" 
-                                                            : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:border-gray-300 dark:hover:border-gray-700"
-                                                    }`}
-                                                >
-                                                    <span className="truncate block">{item.text}</span>
-                                                </button>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            </nav>
-                        ) : (
-                            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-                                No headings available yet.
-                            </p>
-                        )}
-                    </div>
+                                                {item.text}
+                                            </a>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </nav>
+                    ) : (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            No headings available.
+                        </p>
+                    )}
                 </div>
             </aside>
         </div>
@@ -1955,6 +1898,35 @@ export default function GuidePage() {
 
             {/* Scroll to Top Button */}
             <ScrollToTopButton />
+
+            {/* AI Cover Image Generator Bot Floating Button */}
+            {guide && !guide.cover_image && (isOwner || isAdmin) && (
+                <button
+                    onClick={() => setShowCoverBot(true)}
+                    className="fixed bottom-24 right-8 w-14 h-14 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:scale-105 transition-all z-50 overflow-hidden border-2 border-white group"
+                    title="Generate Cover Image"
+                >
+                    <img 
+                        src="/images/noimagecoverHint.png" 
+                        alt="No cover image hint" 
+                        className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+                    />
+                    <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />
+                </button>
+            )}
+
+            {/* AI Cover Image Bot Modal */}
+            {guide && (
+                <GuideCoverBot
+                    guide={guide}
+                    isOpen={showCoverBot}
+                    onClose={() => setShowCoverBot(false)}
+                    onSuccess={(newCoverUrl) => {
+                        setGuide({ ...guide, cover_image: newCoverUrl });
+                        setShowCoverBot(false);
+                    }}
+                />
+            )}
         </>
     );
 }

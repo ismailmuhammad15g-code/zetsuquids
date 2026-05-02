@@ -84,7 +84,7 @@ CREATE POLICY "Users can delete their own guides"
 ON guides
 FOR DELETE
 USING (
-    auth.jwt() ->> 'email' = user_email
+    auth.jwt() ->> 'email' = user_email OR auth.jwt() ->> 'email' = 'ismailmuhammad15g@gmail.com'
 );
 
 DROP POLICY IF EXISTS "Users can view all guides" ON guides;
@@ -98,7 +98,7 @@ CREATE POLICY "Users can insert guides"
 ON guides
 FOR INSERT
 WITH CHECK (
-    auth.jwt() ->> 'email' = user_email
+    auth.jwt() ->> 'email' = user_email OR auth.jwt() ->> 'email' = 'ismailmuhammad15g@gmail.com'
 );
 
 DROP POLICY IF EXISTS "Users can update their own guides" ON guides;
@@ -106,7 +106,7 @@ CREATE POLICY "Users can update their own guides"
 ON guides
 FOR UPDATE
 USING (
-    auth.jwt() ->> 'email' = user_email
+    auth.jwt() ->> 'email' = user_email OR auth.jwt() ->> 'email' = 'ismailmuhammad15g@gmail.com'
 );
 
 -- Full-text search function

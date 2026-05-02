@@ -20,7 +20,7 @@ export default function CookiePolicy() {
                         Policy
                     </h1>
                     <p className="text-xl font-medium text-gray-600 max-w-2xl">
-                        Transparency is key. Here's exactly how and why we use cookies on DevVault.
+                        Transparency is key. Here's exactly how and why we use cookies on ZetsuGuide.
                     </p>
                     <p className="mt-4 text-sm font-mono text-gray-500">
                         Last Updated: February 2026
@@ -36,7 +36,7 @@ export default function CookiePolicy() {
                         <p className="text-gray-800 leading-relaxed">
                             Cookies are small text files that are placed on your computer or mobile device when you visit a website.
                             They are widely used to make websites work more efficiently and to provide information to the owners of the site.
-                            At DevVault, we use cookies to keep you logged in, remember your preferences, and understand how you use our platform.
+                            At ZetsuGuide, we use cookies to keep you logged in, remember your preferences, and understand how you use our platform.
                         </p>
                     </section>
 
@@ -134,8 +134,8 @@ export default function CookiePolicy() {
                     </section>
 
                     <footer className="mt-20 pt-10 border-t-2 border-gray-200 text-center text-gray-500 text-sm">
-                        <p>&copy; {new Date().getFullYear()} DevVault. All rights reserved.</p>
-                        <p className="mt-2">For any questions regarding this policy, please contact <a href="mailto:support@devvault.com" className="text-black underline font-bold">support@devvault.com</a>.</p>
+                        <p>&copy; {new Date().getFullYear()} ZetsuGuide. All rights reserved.</p>
+                        <p className="mt-2">For any questions regarding this policy, please contact <a href="mailto:support@ZetsuGuide.com" className="text-black underline font-bold">support@ZetsuGuide.com</a>.</p>
                     </footer>
                 </article>
             </div>

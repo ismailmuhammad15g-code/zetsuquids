@@ -4,8 +4,9 @@ import { createContext, FC, ReactNode, useCallback, useContext, useState } from 
 // Loading Context Value Type
 interface LoadingContextValue {
     isLoading: boolean;
-    setLoading: (loading: boolean) => void;
-    startLoading: () => void;
+    loadingMessage: string;
+    setLoading: (loading: boolean, message?: string) => void;
+    startLoading: (message?: string) => void;
     stopLoading: () => void;
 }
 
@@ -17,6 +18,7 @@ interface LoadingProviderProps {
 // Default context value
 const defaultLoadingValue: LoadingContextValue = {
     isLoading: false,
+    loadingMessage: "",
     setLoading: () => { },
     startLoading: () => { },
     stopLoading: () => { },
@@ -28,18 +30,28 @@ const LoadingContext = createContext<LoadingContextValue>(
 
 export const LoadingProvider: FC<LoadingProviderProps> = ({ children }) => {
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [loadingMessage, setLoadingMessage] = useState<string>("");
 
     // Helper functions for cleaner API
-    const startLoading = useCallback((): void => setIsLoading(true), []);
-    const stopLoading = useCallback((): void => setIsLoading(false), []);
+    const startLoading = useCallback((message: string = ""): void => {
+        setLoadingMessage(message);
+        setIsLoading(true);
+    }, []);
 
-    // Also support direct set for more complex logic
-    const setLoading = useCallback((loading: boolean): void => {
+    const stopLoading = useCallback((): void => {
+        setIsLoading(false);
+        // Clear message after a short delay to allow exit animations to finish
+        setTimeout(() => setLoadingMessage(""), 500);
+    }, []);
+
+    const setLoading = useCallback((loading: boolean, message: string = ""): void => {
+        if (message) setLoadingMessage(message);
         setIsLoading(loading);
     }, []);
 
     const value: LoadingContextValue = {
         isLoading,
+        loadingMessage,
         setLoading,
         startLoading,
         stopLoading,

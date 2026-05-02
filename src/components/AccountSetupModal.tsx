@@ -222,7 +222,7 @@ export default function AccountSetupModal({ user, onClose, onComplete }: Account
     // Step 1: Account Type
     const Step1 = () => (
         <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-            <h2 className="text-2xl font-bold">How will you use DevVault?</h2>
+            <h2 className="text-2xl font-bold">How will you use ZetsuGuide?</h2>
             <div className="grid grid-cols-2 gap-4">
                 <button
                     onClick={() => setSetupData({ ...setupData, accountType: 'individual' })}

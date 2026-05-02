@@ -39,7 +39,7 @@ export default function SubscriptionRenewAd() {
                 setAdContent({
                     id: 'seen_ad_guest',
                     badge: 'Join Us',
-                    message: '🚀 Join DevVault & Start Creating!',
+                    message: '🚀 Join ZetsuGuide & Start Creating!',
                     Icon: UserPlus,
                     iconColor: "text-green-400",
                     onClick: () => router.push('/auth?mode=register')

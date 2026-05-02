@@ -90,7 +90,7 @@ export default async function handler(req, res) {
                     <div class="logo">ZetsuGuides</div>
                 </div>
                 <div class="content">
-                    <h1 class="title">Welcome to DevVault! 🎉</h1>
+                    <h1 class="title">Welcome to ZetsuGuide! 🎉</h1>
                     <p class="text">Hi ${name || "there"},<br>You're one step away from joining your personal coding knowledge base. Click the button below to verify your email.</p>
                     <a href="${action_link}" class="button">Verify Email Address</a>
                 </div>
