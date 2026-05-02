@@ -49,6 +49,7 @@ export default function GlobalErrorHandler() {
 
       const ignoredPatterns = [
         "React Router Future Flag",
+        "Error checking conversation:",
         "AI Enhancement error",
         "AI Generation error",
         "Failed to enhance content",

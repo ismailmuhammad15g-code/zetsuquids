@@ -47,6 +47,18 @@ const STAFF_PROFILES = {
     'staff4': { name: 'Mohammed', animation: profile4Animation, color: '#ef4444' },
 } as const;
 
+function hasMeaningfulErrorInfo(error: unknown): boolean {
+    if (!error || typeof error !== 'object') {
+        return Boolean(error)
+    }
+
+    return Object.values(error as Record<string, unknown>).some((value) => {
+        if (value == null) return false
+        if (typeof value === 'string') return value.trim().length > 0
+        return true
+    })
+}
+
 export default function DirectSupportChat() {
     const { user } = useAuth()
     const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -252,7 +264,13 @@ export default function DirectSupportChat() {
                 .eq('user_email', userEmail)
                 .maybeSingle()
 
-            if (fetchError) console.error('Error checking conversation:', fetchError)
+            if (fetchError) {
+                if (hasMeaningfulErrorInfo(fetchError)) {
+                    console.warn('Error checking conversation:', fetchError)
+                } else {
+                    console.warn('Conversation check returned an empty error object')
+                }
+            }
 
             if (!existingConv) {
                 // Create new conversation
@@ -278,7 +296,11 @@ export default function DirectSupportChat() {
 
                         if (retryConv) existingConv = retryConv
                     } else {
-                        console.error('Error creating conversation:', createError)
+                        if (hasMeaningfulErrorInfo(createError)) {
+                            console.error('Error creating conversation:', createError)
+                        } else {
+                            console.warn('Conversation creation returned an empty error object')
+                        }
                         setMessages([])
                         setLoading(false)
                         return
@@ -314,7 +336,11 @@ export default function DirectSupportChat() {
                 setMessages([])
             }
         } catch (error: unknown) {
-            console.error('Error initializing conversation:', error)
+            if (hasMeaningfulErrorInfo(error)) {
+                console.error('Error initializing conversation:', error)
+            } else {
+                console.warn('Error initializing conversation without details')
+            }
             setMessages([])
         }
 
