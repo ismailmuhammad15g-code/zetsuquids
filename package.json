@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "NODE_OPTIONS=--max-old-space-size=4096 next dev",
-    "build": "NODE_OPTIONS=--max-old-space-size=4096 next build",
-    "start": "next start"
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev -H 0.0.0.0",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
+    "start": "next start -H 0.0.0.0"
   },
   "dependencies": {
     "@babel/parser": "^7.29.2",
@@ -71,6 +71,6 @@
     "ts-morph": "^28.0.0"
   },
   "engines": {
-    "node": "24.x"
+    "node": ">=20.x"
   }
 }

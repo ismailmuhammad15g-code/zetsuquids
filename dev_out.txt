@@ -1,5 +1,0 @@
-
-> ZetsuGuide@1.0.0 dev
-> cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev
-
-Terminate batch job (Y/N)? Terminate batch job (Y/N)? 

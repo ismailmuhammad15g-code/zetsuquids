@@ -16,6 +16,20 @@ export default function RootLayout({
     return (
         <html lang="ar" suppressHydrationWarning>
             <head>
+                {/* EMERGENCY CACHE BUSTER - Wipes local storage once per user */}
+                <Script id="cache-buster" strategy="beforeInteractive">
+                    {`
+                        if (typeof window !== 'undefined') {
+                            const CACHE_VERSION = "v1-nuclear-reset";
+                            if (localStorage.getItem("zetsu_cache_version") !== CACHE_VERSION) {
+                                console.warn("ðŸ”¥ NUCLEAR RESET: Clearing all local caches");
+                                localStorage.clear();
+                                sessionStorage.clear();
+                                localStorage.setItem("zetsu_cache_version", CACHE_VERSION);
+                            }
+                        }
+                    `}
+                </Script>
                 {/* OneDark (DEV.to style) syntax highlighting theme */}
                 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" />
                 <Script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" strategy="afterInteractive" />
