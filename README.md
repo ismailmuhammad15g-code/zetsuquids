@@ -56,3 +56,12 @@ npm install
 to run pdf download server just run:
 cd D:\new\zetsuquids\api
 python generate-pdf.py
+
+
+#### 1. if any problem caused run :
+```bash
+# it cleans everything (not harmfulll it safe)
+rm -rf .next node_modules/.cache .turbo
+
+# then restart the dev server
+npm run dev
