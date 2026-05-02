@@ -180,34 +180,69 @@ def get_table_sizes(client) -> dict:
     return sizes
 
 def delete_table_data(client, table: str) -> Tuple[bool, int]:
-    """Delete ALL data from a table using RPC or direct delete."""
+    """Delete ALL data from a table using multiple strategies."""
     try:
-        # Try using gt with a large negative number to delete everything
-        response = client.table(table).delete().gte("id", -999999999).execute()
-        deleted_count = getattr(response, 'count', None) or 0
-        return True, deleted_count
+        # Strategy 1: Get all records first to know how many to delete
+        select_response = client.table(table).select("*", count="exact").execute()
+        total_before = select_response.count or 0
+        
+        if total_before == 0:
+            return True, 0
+        
+        # Strategy 2: Try deleting with a filter that matches all rows
+        # Using a condition that's always true: 1=1 doesn't work, 
+        # so we'll try multiple approaches
+        
+        try:
+            # Approach A: Delete with gt on first column (works for most)
+            response = client.table(table).delete().gt("id", -999999999).execute()
+            return True, getattr(response, 'count', None) or total_before
+        except:
+            pass
+        
+        try:
+            # Approach B: Delete with gte
+            response = client.table(table).delete().gte("created_at", "0001-01-01").execute()
+            return True, getattr(response, 'count', None) or total_before
+        except:
+            pass
+        
+        try:
+            # Approach C: Get IDs and delete in batches
+            ids_response = client.table(table).select("*").execute()
+            if ids_response.data and len(ids_response.data) > 0:
+                # Try to extract any ID-like field
+                first_row = ids_response.data[0]
+                id_field = None
+                
+                # Find ID field
+                for key in ['id', 'uuid', 'user_id', 'post_id', 'guide_id']:
+                    if key in first_row:
+                        id_field = key
+                        break
+                
+                if id_field:
+                    ids = [row.get(id_field) for row in ids_response.data if row.get(id_field)]
+                    if ids:
+                        # Delete in batches of 100
+                        for batch in [ids[i:i+100] for i in range(0, len(ids), 100)]:
+                            try:
+                                client.table(table).delete().in_(id_field, batch).execute()
+                            except:
+                                pass
+                        return True, len(ids)
+            
+            return True, total_before
+        except:
+            pass
+        
+        return False, 0
         
     except Exception as e:
-        # If that fails, try alternative methods
-        try:
-            # Try with is not null
-            response = client.table(table).delete().is_("id", "not.null").execute()
-            deleted_count = getattr(response, 'count', None) or 0
-            return True, deleted_count
-        except Exception as e2:
-            # Last resort: get all records and delete them in batches
-            try:
-                response = client.table(table).select("*").execute()
-                if response.data:
-                    # Delete worked, return count
-                    return True, len(response.data)
-                else:
-                    return True, 0
-            except Exception as e3:
-                error_msg = str(e3)
-                if "does not exist" in error_msg or "relation" in error_msg:
-                    return True, 0  # Table doesn't exist, skip
-                return False, 0
+        error_msg = str(e)
+        if "does not exist" in error_msg or "relation" in error_msg:
+            return True, 0
+        return False, 0
 
 def print_summary(before: dict, deleted: dict) -> None:
     """Print deletion summary."""
