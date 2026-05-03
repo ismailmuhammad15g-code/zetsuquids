@@ -1,5 +1,5 @@
 import React from "react";
-import { PlusCircle, Hash, LayoutTemplate, Clock, AlertTriangle, Image as ImageIcon, Loader2, X } from "lucide-react";
+import { PlusCircle, Hash, LayoutTemplate, Clock, Image as ImageIcon, Loader2, X } from "lucide-react";
 import { FormData } from "./types";
 
 interface DetailsTabProps {
@@ -97,38 +97,14 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
               <Clock size={14} className="text-gray-400" />
-              Estimated Time
+              Estimated Read Time
             </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="text"
-                placeholder="e.g. 10 mins"
-                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black outline-none transition-all bg-white"
-              />
-              <div className="px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                Read: {readTime} min
-              </div>
+            <div className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600 font-medium">
+              {readTime} min read
             </div>
           </div>
         </div>
       </div>
-
-      {validationErrors.length > 0 && (
-        <div className="mb-8 p-6 bg-red-50 rounded-2xl border border-red-100 animate-in fade-in slide-in-from-top-4 duration-300">
-          <h4 className="text-sm font-bold text-red-900 mb-3 flex items-center gap-2">
-            <AlertTriangle size={16} />
-            Found {validationErrors.length} issues to fix:
-          </h4>
-          <ul className="space-y-2">
-            {validationErrors.map((err, i) => (
-              <li key={i} className="text-xs text-red-700 flex items-start gap-2">
-                <span className="mt-1 w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />
-                {err}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       <div className="space-y-6">
         <div className="space-y-2">

@@ -8,6 +8,7 @@ import {
     ChevronDown, ChevronUp,
     Clock,
     Eye,
+    FileText,
     LogOut,
     Mail,
     Megaphone,
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Ad, adminGuidesApi, adsApi, Guide, supabase } from '../../../lib/api';
+import { ChangelogEntry, fetchChangelog, saveChangelog } from '../../../lib/changelog';
 import { supportApi } from '../../../lib/supportApi';
 
 type LottieAnimationData = object
@@ -102,7 +104,7 @@ export default function StaffConsole() {
     const [loading, setLoading] = useState<boolean>(true)
     const [selectedProfile, setSelectedProfile] = useState<StaffProfile | null>(null)
     const [showProfileSelector, setShowProfileSelector] = useState<boolean>(true)
-    const [activeTab, setActiveTab] = useState<'support' | 'guides' | 'ads'>('support')
+    const [activeTab, setActiveTab] = useState<'support' | 'guides' | 'ads' | 'changelog'>('support')
 
     // Guide Reviews State
     const [pendingGuides, setPendingGuides] = useState<Guide[]>([])
@@ -125,6 +127,14 @@ export default function StaffConsole() {
     const [showAdModal, setShowAdModal] = useState<boolean>(false)
     const [creatingAd, setCreatingAd] = useState<boolean>(false)
     const [newAd, setNewAd] = useState<NewAd>({ title: '', text: '', link_url: '', image_url: '', button_text: '' })
+
+    // Changelog State
+    const [changelogEntries, setChangelogEntries] = useState<ChangelogEntry[]>([])
+    const [loadingChangelog, setLoadingChangelog] = useState<boolean>(false)
+    const [showChangelogModal, setShowChangelogModal] = useState<boolean>(false)
+    const [savingChangelog, setSavingChangelog] = useState<boolean>(false)
+    const [editingEntry, setEditingEntry] = useState<ChangelogEntry | null>(null)
+    const [newEntry, setNewEntry] = useState<Omit<ChangelogEntry, 'id'>>({ title: '', description: '', date: new Date().toISOString().split('T')[0], tag: 'feature', version: '' })
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const activeChannelRef = useRef<RealtimeChannel | null>(null)
     const lastTypingTimeRef = useRef<number>(0)
@@ -165,6 +175,7 @@ export default function StaffConsole() {
             loadConversations()
             loadPendingGuides() // Load guides on init
             loadAds() // Load ads on init
+            loadChangelog()
         } else {
             sessionStorage.removeItem('staffAuthenticated')
             sessionStorage.removeItem('staffLoginTime')
@@ -310,11 +321,11 @@ export default function StaffConsole() {
                 setConversations(result.data)
             } else {
                 setConversations([])
-                setSupportError(result.error || 'فشل تحميل المحادثات')
+                setSupportError(result.error || 'Failed to load conversations')
             }
         } catch (error: unknown) {
             const errorMsg = error instanceof Error ? error.message : JSON.stringify(error)
-            setSupportError(errorMsg || 'فشل تحميل المحادثات')
+            setSupportError(errorMsg || 'Failed to load conversations')
             console.warn('Error loading conversations:', errorMsg)
         }
         setLoadingConversations(false)
@@ -358,6 +369,57 @@ export default function StaffConsole() {
         setLoadingAds(false)
     }
 
+    const loadChangelog = async () => {
+        setLoadingChangelog(true)
+        try {
+            const data = await fetchChangelog()
+            setChangelogEntries(data)
+        } catch (error: unknown) {
+            console.error('Error loading changelog:', error)
+        }
+        setLoadingChangelog(false)
+    }
+
+    const handleSaveEntry = async () => {
+        if (!newEntry.title || !newEntry.description) return
+        setSavingChangelog(true)
+        try {
+            let updated: ChangelogEntry[]
+            if (editingEntry) {
+                updated = changelogEntries.map(e => e.id === editingEntry.id ? { ...newEntry, id: editingEntry.id } : e)
+            } else {
+                const entry: ChangelogEntry = { ...newEntry, id: Date.now().toString(36) + Math.random().toString(36).slice(2) }
+                updated = [entry, ...changelogEntries]
+            }
+            const success = await saveChangelog(updated)
+            if (success) {
+                setChangelogEntries(updated)
+                setShowChangelogModal(false)
+                setEditingEntry(null)
+                setNewEntry({ title: '', description: '', date: new Date().toISOString().split('T')[0], tag: 'feature', version: '' })
+            } else {
+                alert('Failed to save update')
+            }
+        } catch (error: unknown) {
+            console.error('Error saving changelog:', error)
+            alert('Error saving update')
+        }
+        setSavingChangelog(false)
+    }
+
+    const handleDeleteEntry = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this update?')) return
+        const updated = changelogEntries.filter(e => e.id !== id)
+        const success = await saveChangelog(updated)
+        if (success) setChangelogEntries(updated)
+    }
+
+    const handleEditEntry = (entry: ChangelogEntry) => {
+        setEditingEntry(entry)
+        setNewEntry({ title: entry.title, description: entry.description, date: entry.date, tag: entry.tag, version: entry.version || '' })
+        setShowChangelogModal(true)
+    }
+
     const handleCreateAd = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         if (!newAd.title || !newAd.text) return
@@ -374,7 +436,7 @@ export default function StaffConsole() {
             loadAds()
         } catch (error: unknown) {
             if (error instanceof Error) {
-                alert('فشل إنشاء الإعلان: ' + error.message)
+                alert('Failed to create ad: ' + error.message)
             }
         }
         setCreatingAd(false)
@@ -388,7 +450,7 @@ export default function StaffConsole() {
     }
 
     const handleDeleteAd = async (adId: string | number) => {
-        if (!confirm('هل أنت متأكد من حذف هذا الإعلان نهائياً؟')) return
+        if (!confirm('Are you sure you want to permanently delete this ad?')) return
         const success = await adsApi.deleteAd(adId)
         if (success) {
             setAds(prev => prev.filter(a => a.id !== adId))
@@ -406,7 +468,7 @@ export default function StaffConsole() {
                 setPendingGuides(prev => prev.filter(g => g.id !== guide.id))
                 // Notify via toast/alert (optional)
             } else {
-                alert('فشل الموافقة على الدليل')
+                alert('Failed to approve guide')
             }
         } catch (error: unknown) {
             console.error('Error approving guide:', error)
@@ -416,14 +478,14 @@ export default function StaffConsole() {
 
     // Reject guide
     const handleRejectGuide = async (guide: Guide) => {
-        if (!confirm('هل أنت متأكد من رفض وحذف هذا الدليل؟')) return
+        if (!confirm('Are you sure you want to reject and delete this guide?')) return
         setProcessingGuideId(guide.id || null)
         try {
             const success = await adminGuidesApi.rejectGuide(guide.id || 0)
             if (success) {
                 setPendingGuides(prev => prev.filter(g => g.id !== guide.id))
             } else {
-                alert('فشل رفض الدليل')
+                alert('Failed to reject guide')
             }
         } catch (error: unknown) {
             console.error('Error rejecting guide:', error)
@@ -471,11 +533,11 @@ export default function StaffConsole() {
                 await loadMessages(expandedConversation)
                 await loadConversations()
             } else {
-                alert('فشل إرسال الرد: ' + result.error)
+                alert('Failed to send reply: ' + result.error)
             }
         } catch (error: unknown) {
             console.error('Error sending reply:', error)
-            alert('خطأ في إرسال الرد')
+            alert('Error sending reply')
         }
         setSendingReply(false)
     }
@@ -490,7 +552,7 @@ export default function StaffConsole() {
     const formatTime = (timestamp: string | null | undefined) => {
         if (!timestamp) return ''
         const date = new Date(timestamp)
-        return date.toLocaleDateString('ar-EG') + ' ' + date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+        return date.toLocaleDateString('en-US') + ' ' + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     }
 
     // Get avatar for message
@@ -516,7 +578,7 @@ export default function StaffConsole() {
         return (
             <div className="staff-loading">
                 <RefreshCw className="spin" size={32} />
-                <p>جاري التحميل...</p>
+                <p>Loading...</p>
             </div>
         )
     }
@@ -531,8 +593,8 @@ export default function StaffConsole() {
             {showProfileSelector && (
                 <div className="profile-selector-overlay">
                     <div className="profile-selector-modal">
-                        <h2>اختر شخصيتك</h2>
-                        <p>اختر الشخصية التي ستظهر للعملاء عند الرد</p>
+                        <h2>Choose Your Profile</h2>
+                        <p>Select the character that will appear to customers when you reply</p>
                         <div className="profiles-grid">
                             {STAFF_PROFILES.map(profile => (
                                 <button
@@ -599,7 +661,7 @@ export default function StaffConsole() {
                     onClick={() => setActiveTab('support')}
                 >
                     <MessageSquare size={18} />
-                    <span>الدعم الفني</span>
+                    <span>Support</span>
                     {conversations.some(c => (c.unread_count || 0) > 0) && <span className="tab-badge" />}
                 </button>
                 <button
@@ -607,7 +669,7 @@ export default function StaffConsole() {
                     onClick={() => setActiveTab('guides')}
                 >
                     <BookOpen size={18} />
-                    <span>مراجعة الأدلة</span>
+                    <span>Guide Reviews</span>
                     {pendingGuides.length > 0 && <span className="count-badge">{pendingGuides.length}</span>}
                 </button>
                 <button
@@ -617,6 +679,14 @@ export default function StaffConsole() {
                     <Megaphone size={18} />
                     <span>الاعلانات</span>
                     {ads.some(a => a.is_active) && <span className="tab-badge" style={{ backgroundColor: '#10b981' }} />}
+                </button>
+                <button
+                    className={`tab-btn ${activeTab === 'changelog' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('changelog')}
+                >
+                    <FileText size={18} />
+                    <span>سجل التحديثات</span>
+                    {changelogEntries.length > 0 && <span className="count-badge" style={{ backgroundColor: '#8b5cf6' }}>{changelogEntries.length}</span>}
                 </button>
             </div>
 
@@ -891,7 +961,7 @@ export default function StaffConsole() {
                             </div>
                         )}
                     </section>
-                ) : (
+                ) : activeTab === 'ads' ? (
                     <section className="ads-section">
                         <div className="section-header">
                             <Megaphone size={20} />
@@ -990,6 +1060,60 @@ export default function StaffConsole() {
                             </div>
                         )}
                     </section>
+                ) : (
+                    <section className="ads-section">
+                        <div className="section-header">
+                            <FileText size={20} />
+                            <h2>سجل التحديثات</h2>
+                            <span className="conv-count">{changelogEntries.length}</span>
+                            <div className="header-actions" style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+                                <button
+                                    className="add-ad-btn"
+                                    onClick={() => { setEditingEntry(null); setNewEntry({ title: '', description: '', date: new Date().toISOString().split('T')[0], tag: 'feature', version: '' }); setShowChangelogModal(true) }}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#8b5cf6', color: 'white', padding: '6px 14px', borderRadius: '8px', fontWeight: 'bold' }}
+                                >
+                                    <Plus size={16} />
+                                    تحديث جديد
+                                </button>
+                                <button className="refresh-btn" onClick={loadChangelog} disabled={loadingChangelog}>
+                                    <RefreshCw size={16} className={loadingChangelog ? 'spin' : ''} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {loadingChangelog ? (
+                            <div className="loading-state"><RefreshCw className="spin" size={24} /><p>جاري التحميل...</p></div>
+                        ) : changelogEntries.length === 0 ? (
+                            <div className="empty-state"><FileText size={48} /><p>لا توجد تحديثات بعد. ابدأ بإضافة أول تحديث!</p></div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '20px' }}>
+                                {changelogEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(entry => {
+                                    const tagColors: Record<string, string> = { feature: '#8b5cf6', improvement: '#3b82f6', fix: '#10b981', announcement: '#f59e0b' }
+                                    const tagLabels: Record<string, string> = { feature: 'ميزة جديدة', improvement: 'تحسين', fix: 'إصلاح', announcement: 'إعلان' }
+                                    const color = tagColors[entry.tag] || '#8b5cf6'
+                                    return (
+                                        <div key={entry.id} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                    <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '9999px', backgroundColor: `${color}20`, color, border: `1px solid ${color}40`, fontWeight: 600 }}>
+                                                        {tagLabels[entry.tag] || entry.tag}
+                                                    </span>
+                                                    {entry.version && <span style={{ fontSize: '11px', color: '#888', fontFamily: 'monospace' }}>v{entry.version}</span>}
+                                                    <span style={{ fontSize: '11px', color: '#666' }}>{new Date(entry.date).toLocaleDateString('ar-EG')}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '6px' }}>
+                                                    <button onClick={() => handleEditEntry(entry)} style={{ padding: '6px 10px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', fontSize: '12px' }}>تعديل</button>
+                                                    <button onClick={() => handleDeleteEntry(entry.id)} style={{ padding: '6px', borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}><Trash2 size={14} /></button>
+                                                </div>
+                                            </div>
+                                            <h3 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0 }}>{entry.title}</h3>
+                                            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: 0, whiteSpace: 'pre-line' }}>{entry.description}</p>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    </section>
                 )}
             </main>
 
@@ -1077,6 +1201,58 @@ export default function StaffConsole() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Changelog Entry Modal */}
+            {showChangelogModal && (
+                <div className="profile-selector-overlay" style={{ zIndex: 200 }}>
+                    <div className="profile-selector-modal" style={{ maxWidth: '500px', textAlign: 'right' }}>
+                        <h2 style={{ marginBottom: '10px' }}>{editingEntry ? 'تعديل التحديث' : 'إضافة تحديث جديد'}</h2>
+                        <p style={{ marginBottom: '20px' }}>أدخل تفاصيل التحديث ليظهر في صفحة سجل التحديثات</p>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <label style={{ fontSize: '14px', color: '#888' }}>عنوان التحديث</label>
+                                <input type="text" value={newEntry.title} onChange={e => setNewEntry({ ...newEntry, title: e.target.value })} placeholder="مثلاً: إضافة صفحة سجل التحديثات" style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }} dir="rtl" />
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <label style={{ fontSize: '14px', color: '#888' }}>الوصف</label>
+                                <textarea value={newEntry.description} onChange={e => setNewEntry({ ...newEntry, description: e.target.value })} placeholder="اكتب وصف التحديث هنا..." style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white', minHeight: '100px' }} dir="rtl" />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    <label style={{ fontSize: '14px', color: '#888' }}>النوع</label>
+                                    <select value={newEntry.tag} onChange={e => setNewEntry({ ...newEntry, tag: e.target.value as ChangelogEntry['tag'] })} style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}>
+                                        <option value="feature">ميزة جديدة</option>
+                                        <option value="improvement">تحسين</option>
+                                        <option value="fix">إصلاح</option>
+                                        <option value="announcement">إعلان</option>
+                                    </select>
+                                </div>
+                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    <label style={{ fontSize: '14px', color: '#888' }}>التاريخ</label>
+                                    <input type="date" value={newEntry.date} onChange={e => setNewEntry({ ...newEntry, date: e.target.value })} style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }} />
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <label style={{ fontSize: '14px', color: '#888' }}>رقم الإصدار (اختياري)</label>
+                                <input type="text" value={newEntry.version || ''} onChange={e => setNewEntry({ ...newEntry, version: e.target.value })} placeholder="مثلاً: 2.1.0" style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }} />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                <button onClick={handleSaveEntry} disabled={savingChangelog || !newEntry.title || !newEntry.description} style={{ flex: 1, backgroundColor: '#8b5cf6', color: 'white', padding: '12px', borderRadius: '12px', fontWeight: 'bold', opacity: savingChangelog || !newEntry.title || !newEntry.description ? 0.5 : 1 }}>
+                                    {savingChangelog ? <RefreshCw className="spin" size={20} /> : editingEntry ? 'حفظ التعديل' : 'نشر التحديث'}
+                                </button>
+                                <button onClick={() => { setShowChangelogModal(false); setEditingEntry(null) }} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', padding: '12px', borderRadius: '12px' }}>
+                                    إلغاء
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

@@ -1,5 +1,6 @@
 import { Calendar, Code, X } from "lucide-react";
 import React, { useState } from "react";
+import { guidesApi, Guide } from "../lib/api";
 
 interface ModalFormProps {
   onInsert: (content: string) => void;
@@ -984,6 +985,141 @@ export function PlaygroundModalForm({ onInsert, onClose: _onClose }: { onInsert:
           <div className="px-3 py-1 text-xs font-bold text-gray-500 font-mono bg-gray-50 border-b border-gray-100 flex-shrink-0">Preview</div>
           <iframe key={previewKey} sandbox="allow-scripts" srcDoc={srcdoc} className="flex-1 border-none" title="Playground Preview" />
         </div>
+      </div>
+    </div>
+  );
+}
+
+export function GuideLinkModalForm({ currentUserId, onInsert, onClose }: { currentUserId: string; onInsert: (content: string) => void; onClose: () => void }) {
+  const [search, setSearch] = useState("");
+  const [guides, setGuides] = useState<Guide[]>([]);
+  const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    let active = true;
+    guidesApi.getAll().then(allGuides => {
+      if (active) {
+        const sorted = [...allGuides].sort((a, b) => {
+          const aMine = (a.author_id && a.author_id === currentUserId);
+          const bMine = (b.author_id && b.author_id === currentUserId);
+          if (aMine && !bMine) return -1;
+          if (!aMine && bMine) return 1;
+          return 0;
+        });
+        setGuides(sorted);
+        setLoading(false);
+      }
+    }).catch(err => {
+      console.error(err);
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
+  }, [currentUserId]);
+
+  const filteredGuides = guides.filter(g => 
+    g.title?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleInsert = () => {
+    if (!selectedGuide) return;
+    const coverImage = selectedGuide.cover_image || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80";
+    const authorName = selectedGuide.author_name || "Author";
+    const slug = selectedGuide.slug || "";
+    
+    const htmlBlock = `
+<div class="guide-link-card">
+  <a href="/guide/${slug}" class="guide-link-inner" target="_blank" rel="noopener noreferrer">
+    <img src="${coverImage}" alt="${selectedGuide.title}" class="guide-link-cover" />
+    <div class="guide-link-info">
+      <h4 class="guide-link-title">${selectedGuide.title}</h4>
+      <span class="guide-link-author">By ${authorName}</span>
+    </div>
+  </a>
+</div>
+`;
+    onInsert(htmlBlock);
+    onClose();
+  };
+
+  return (
+    <div className="px-6 py-4 space-y-4">
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Search and Select a Guide</label>
+        <div className="space-y-2">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search guides..."
+            className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black outline-none transition-all"
+          />
+          {loading ? (
+            <div className="text-xs text-gray-500 py-2">Loading guides...</div>
+          ) : (
+            <div className="max-h-[220px] overflow-y-auto border border-gray-100 rounded-xl divide-y divide-gray-50 custom-scrollbar">
+              {filteredGuides.length === 0 ? (
+                <div className="p-4 text-sm text-gray-500 text-center">No guides found</div>
+              ) : (
+                filteredGuides.map((guide) => (
+                  <button
+                    key={guide.id || guide.slug}
+                    type="button"
+                    onClick={() => setSelectedGuide(guide)}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
+                      selectedGuide?.id === guide.id ? "bg-gray-50/80 font-semibold" : ""
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-gray-900 truncate">{guide.title}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        By {guide.author_name || "Author"} {(guide.author_id && guide.author_id === currentUserId) ? "(Mine)" : ""}
+                      </div>
+                    </div>
+                    {selectedGuide?.id === guide.id && (
+                      <span className="w-2 h-2 rounded-full bg-black flex-shrink-0 ml-2" />
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {selectedGuide && (
+        <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 animate-in fade-in duration-200">
+          <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Preview Card</div>
+          <div className="flex items-center gap-3 bg-white p-3 rounded-lg border border-gray-100">
+            <img 
+              src={selectedGuide.cover_image || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80"} 
+              alt={selectedGuide.title} 
+              className="w-16 h-12 object-cover rounded-md flex-shrink-0"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-bold text-gray-900 truncate leading-tight">{selectedGuide.title}</div>
+              <div className="text-xs text-gray-400 mt-1">By {selectedGuide.author_name || "Author"}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-3 pt-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium text-sm"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleInsert}
+          disabled={!selectedGuide}
+          className="flex-1 px-4 py-2.5 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Insert Guide Card
+        </button>
       </div>
     </div>
   );

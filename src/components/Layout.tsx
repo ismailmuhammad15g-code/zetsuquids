@@ -723,6 +723,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 </div>
                 <div className="flex flex-wrap items-center justify-center sm:justify-end gap-6">
                   <Link
+                    href="/changelog"
+                    className="text-sm font-medium hover:underline"
+                  >
+                    Changelog
+                  </Link>
+                  <Link
                     href="/faq"
                     className="text-sm font-medium hover:underline"
                   >

@@ -67,7 +67,7 @@ export const PreviewTab: React.FC<PreviewTabProps> = ({
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-gray-900 rounded-b-2xl z-10" />
           )}
           
-          <div className={`p-6 md:p-10 prose prose-lg prose-slate max-w-none ${previewDevice === "phone" ? "pt-12" : ""}`}>
+          <div className={`p-6 md:p-10 prose prose-lg prose-slate max-w-none ${previewDevice === "phone" ? "pt-12" : ""}`} dir="auto">
             <div
               className="preview-content"
               dangerouslySetInnerHTML={{

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Bold, Italic, Strikethrough, Heading1, Heading2, Hash, 
   List, ListOrdered, Table, Link as LinkIcon, Image as ImageIcon, 
@@ -41,6 +41,14 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   const [showMoreTools, setShowMoreTools] = useState(false);
   const [showAIMenu, setShowAIMenu] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("split");
+  const [previewHtml, setPreviewHtml] = useState(() => getMarkdownHtml(formData.content));
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPreviewHtml(getMarkdownHtml(formData.content));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [formData.content]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white">
@@ -112,6 +120,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
                       { label: "KeyVal", action: "key-value", icon: <Key size={18} />, color: "text-amber-500" },
                       { label: "HR", action: "hr", icon: <Minus size={18} />, color: "text-gray-300" },
                       { label: "DL Link", action: "dl-link", icon: <Download size={18} />, color: "text-cyan-600" },
+                      { label: "Guide", action: "guide-link", icon: <BookOpen size={18} />, color: "text-indigo-600" },
                     ].map((tool) => (
                       <button
                         key={tool.label}
@@ -203,6 +212,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
       <div className={`flex-1 flex min-h-0 bg-gray-50/30 ${viewMode === "split" ? "divide-x divide-gray-100" : ""}`}>
         {/* Editor Area */}
         <div className={`flex-1 flex flex-col min-h-0 ${viewMode === "preview" ? "hidden" : "block"}`}>
+          <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/50">Markdown</div>
           <textarea
             ref={textareaRef}
             value={formData.content}
@@ -217,6 +227,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
               }
             }}
             onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+            dir="auto"
             placeholder="Unleash your creativity..."
             className="w-full h-full p-8 resize-none focus:ring-0 border-none font-mono text-[15px] leading-relaxed text-gray-800 bg-transparent custom-scrollbar"
             spellCheck={false}
@@ -225,13 +236,16 @@ export const EditorTab: React.FC<EditorTabProps> = ({
 
         {/* Live Preview Area */}
         {viewMode === "split" && (
-          <div className="flex-1 overflow-y-auto bg-white hidden lg:block custom-scrollbar">
-            <div className="p-10 prose prose-lg prose-slate max-w-none">
-              <div
-                dangerouslySetInnerHTML={{
-                  __html: getMarkdownHtml(formData.content),
-                }}
-              />
+          <div className="flex-1 flex flex-col overflow-hidden bg-white hidden lg:flex custom-scrollbar">
+            <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-white shrink-0">Preview</div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              <div className="p-10 prose prose-lg prose-slate max-w-none" dir="auto">
+                <div
+                  dangerouslySetInnerHTML={{
+                    __html: previewHtml,
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}

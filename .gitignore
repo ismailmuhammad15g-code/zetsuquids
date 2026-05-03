@@ -39,3 +39,6 @@ Thumbs.db
 
 # Guides folder
 public/guides/*.html
+
+# Claude settings
+.claude/

@@ -73,6 +73,56 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       .preview-content img:hover {
         transform: scale(1.02);
       }
+      .guide-link-card {
+        margin: 1.5rem 0;
+        border-radius: 1rem;
+        border: 1px solid #e5e7eb;
+        overflow: hidden;
+        transition: box-shadow 0.2s, border-color 0.2s;
+        background: #fff;
+      }
+      .guide-link-card:hover {
+        box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        border-color: #d1d5db;
+      }
+      .guide-link-inner {
+        display: flex;
+        align-items: stretch;
+        text-decoration: none !important;
+        color: inherit !important;
+      }
+      .guide-link-cover {
+        width: 160px;
+        min-height: 100px;
+        object-fit: cover;
+        flex-shrink: 0;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+      }
+      .guide-link-info {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 1rem 1.25rem;
+        gap: 0.25rem;
+        min-width: 0;
+      }
+      .guide-link-title {
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: #111827;
+        line-height: 1.3;
+      }
+      .guide-link-author {
+        font-size: 0.75rem;
+        color: #9ca3af;
+      }
+      @media (max-width: 480px) {
+        .guide-link-inner { flex-direction: column; }
+        .guide-link-cover { width: 100%; height: 140px; }
+      }
     `;
     document.head.appendChild(style);
     return () => {
@@ -117,6 +167,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
   const [showDownloadLinkModal, setShowDownloadLinkModal] = useState(false);
   const [showAdvancedImageModal, setShowAdvancedImageModal] = useState(false);
   const [showQuizBuilder, setShowQuizBuilder] = useState(false);
+  const [showGuideLinkModal, setShowGuideLinkModal] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
     title: "",
@@ -134,8 +185,27 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
   const [coverUrlError, setCoverUrlError] = useState("");
   const [isFetchingCoverUrl, setIsFetchingCoverUrl] = useState(false);
   const [credits, setCredits] = useState(0);
+  const draftRestoredRef = useRef(false);
 
   const invalidateGuides = useInvalidateGuides();
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("add_guide_draft_v1");
+      if (saved) {
+        const { formData: savedFormData, slugValue: savedSlug } = JSON.parse(saved);
+        if (savedFormData) {
+          setFormData(prev => ({ ...prev, ...savedFormData }));
+        }
+        if (savedSlug) {
+          draftRestoredRef.current = true;
+          setSlugValue(savedSlug);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to restore draft", e);
+    }
+  }, []);
 
   useEffect(() => {
     if (user?.email) {
@@ -146,6 +216,10 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
   const readTime = Math.max(1, Math.ceil((formData.content?.split(/\s+/).length || 0) / 200));
 
   useEffect(() => {
+    if (draftRestoredRef.current) {
+      draftRestoredRef.current = false;
+      return;
+    }
     const slugBase = (formData.title || "")
       .toLowerCase()
       .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
@@ -298,6 +372,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       case "columns": insertText("\n:::columns\n:::column\nColumn 1 content\n:::\n:::column\nColumn 2 content\n:::\n:::\n"); break;
       
       // Modals
+      case "callout": setShowCalloutModal(true); break;
       case "link": setShowLinkModal(true); break;
       case "table": setShowTableModal(true); break;
       case "code": setShowCodeModal(true); break;
@@ -320,6 +395,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       case "version": setShowVersionModal(true); break;
       case "key-value": setShowKeyValueModal(true); break;
       case "run": setShowPlaygroundModal(true); break;
+      case "guide-link": setShowGuideLinkModal(true); break;
     }
   };
 
@@ -420,6 +496,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       await guidesApi.create({
         ...formData,
         slug: slugValue,
+        estimated_time: `${readTime} mins`,
         keywords: formData.keywords.split(",").map((k: string) => k.trim()).filter(Boolean),
         status: "pending",
         author_name: (user?.user_metadata?.full_name as string) || (user?.email?.split("@")[0] as string) || "Author",
@@ -427,6 +504,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         user_email: user?.email || "",
       });
       invalidateGuides.invalidateAll();
+      localStorage.removeItem("add_guide_draft_v1");
       setShowSuccessModal(true);
     } catch (err) { toast.error("Failed to publish"); }
     finally { setSaving(false); }
@@ -464,13 +542,28 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
             ))}
           </div>
 
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="flex items-center gap-2 px-8 py-2 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg shadow-black/10 disabled:opacity-50"
-          >
-            {saving ? <Loader2 size={18} className="animate-spin" /> : "Publish"}
-          </button>
+          <div className="relative group/publish">
+            <button
+              onClick={handleSubmit}
+              disabled={saving || validationErrors.length > 0}
+              className="flex items-center gap-2 px-8 py-2 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? <Loader2 size={18} className="animate-spin" /> : "Publish"}
+            </button>
+            {validationErrors.length > 0 && (
+              <div className="absolute right-0 top-full mt-2 w-72 p-4 bg-red-50 border border-red-200 rounded-xl shadow-xl opacity-0 group-hover/publish:opacity-100 transition-opacity duration-200 pointer-events-none z-[1010]">
+                <p className="text-xs font-bold text-red-900 mb-2">Fix before publishing:</p>
+                <ul className="space-y-1">
+                  {validationErrors.map((err, i) => (
+                    <li key={i} className="text-xs text-red-700 flex items-start gap-1.5">
+                      <span className="mt-1 w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />
+                      {err}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -533,6 +626,8 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         showPlaygroundModal={showPlaygroundModal} setShowPlaygroundModal={setShowPlaygroundModal}
         showDownloadLinkModal={showDownloadLinkModal} setShowDownloadLinkModal={setShowDownloadLinkModal}
         showQuizBuilder={showQuizBuilder} setShowQuizBuilder={setShowQuizBuilder}
+        showGuideLinkModal={showGuideLinkModal} setShowGuideLinkModal={setShowGuideLinkModal}
+        currentUserId={user?.id || ""}
       />
 
       {showAdvancedImageModal && (

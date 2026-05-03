@@ -7,12 +7,6 @@ export interface ResizeOptions {
   backgroundColor?: string;
 }
 
-/**
- * Resizes an image using the ResizePro API.
- * @param file - The image file to resize.
- * @param options - Resizing options.
- * @returns A promise that resolves to the resized image as a Blob.
- */
 export async function resizeImage(
   file: File,
   options: ResizeOptions = {}
@@ -26,35 +20,42 @@ export async function resizeImage(
     backgroundColor = "#ffffff",
   } = options;
 
-  const formData = new FormData();
-  formData.append("image", file);
-  formData.append("width", String(width));
-  formData.append("height", String(height));
-  formData.append("format", format);
-  formData.append("quality", String(quality));
-  formData.append("fitMode", fitMode);
-  formData.append("backgroundColor", backgroundColor);
+  const img = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
 
-  try {
-    const res = await fetch("https://resizepro.onspace.app/api/resize", {
-      method: "POST",
-      body: formData,
-    });
+  ctx.fillStyle = backgroundColor;
+  ctx.fillRect(0, 0, width, height);
 
-    if (!res.ok) {
-      let errorMessage = "Resize failed";
-      try {
-        const err = await res.json();
-        errorMessage = err.message || errorMessage;
-      } catch (e) {
-        // Fallback for non-JSON errors
-      }
-      throw new Error(errorMessage);
-    }
+  let sx = 0, sy = 0, sw = img.width, sh = img.height;
+  let dx = 0, dy = 0, dw = width, dh = height;
 
-    return await res.blob();
-  } catch (error) {
-    console.error("ResizePro API Error:", error);
-    throw error;
+  if (fitMode === "cover") {
+    const scale = Math.max(width / img.width, height / img.height);
+    sw = width / scale;
+    sh = height / scale;
+    sx = (img.width - sw) / 2;
+    sy = (img.height - sh) / 2;
+  } else if (fitMode === "contain") {
+    const scale = Math.min(width / img.width, height / img.height);
+    dw = img.width * scale;
+    dh = img.height * scale;
+    dx = (width - dw) / 2;
+    dy = (height - dh) / 2;
   }
+
+  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Canvas toBlob failed"));
+      },
+      format,
+      quality / 100
+    );
+  });
 }
