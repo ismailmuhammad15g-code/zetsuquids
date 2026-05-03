@@ -417,7 +417,7 @@ export default function UserWorkspacePage() {
 
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 text-center sm:text-left">
             {/* Avatar with Status Bubble */}
-            <div className="relative group flex-shrink-0">
+            <div className="relative group flex-shrink-0 mt-12 sm:mt-12">
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
@@ -432,10 +432,10 @@ export default function UserWorkspacePage() {
 
               {/* Status Cloud/Bubble */}
               {userProfile?.status && (
-                <div className="absolute -top-3 -right-28 sm:-right-36 bg-white dark:bg-zinc-900 border-2 border-black dark:border-white rounded-2xl px-3 py-1.5 shadow-xl max-w-[160px] animate-in fade-in zoom-in duration-300 z-30">
+                <div className="absolute -top-14 left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 bg-white dark:bg-zinc-900 border-2 border-black dark:border-white rounded-2xl px-3.5 py-2 shadow-xl min-w-[120px] max-w-[200px] animate-in fade-in zoom-in duration-300 z-30">
                   {/* Bubble Pointer Tail */}
-                  <div className="absolute -left-2 top-4 w-3 h-3 bg-white dark:bg-zinc-900 border-l-2 border-b-2 border-black dark:border-white transform rotate-45 z-10" />
-                  <p className="text-xs font-black text-gray-800 dark:text-gray-200 leading-tight line-clamp-3 break-words relative z-20">
+                  <div className="absolute left-1/2 -translate-x-1/2 sm:left-6 bottom-[-7px] w-3 h-3 bg-white dark:bg-zinc-900 border-r-2 border-b-2 border-black dark:border-white transform rotate-45 z-10" />
+                  <p className="text-xs font-black text-gray-800 dark:text-gray-200 leading-tight break-words relative z-20 text-center sm:text-left select-none">
                     {userProfile.status}
                   </p>
                 </div>
@@ -445,7 +445,7 @@ export default function UserWorkspacePage() {
               {isOwnWorkspace && (
                 <button
                   onClick={() => setShowEditModal(true)}
-                  className="absolute -bottom-2 -right-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-2 border-2 border-white dark:border-zinc-900 shadow-md hover:scale-105 transition-all animate-pulse"
+                  className="absolute -bottom-2 -right-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-2 border-2 border-white dark:border-zinc-900 shadow-md hover:scale-105 transition-all animate-pulse z-40"
                   title="Update status & profile"
                 >
                   <Edit2 size={12} className="stroke-[3]" />
