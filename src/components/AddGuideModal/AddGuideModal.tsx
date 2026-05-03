@@ -478,10 +478,8 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         {mainTab === "editor" && (
           <EditorTab 
             formData={formData} setFormData={setFormData}
-            insertText={insertText} handleToolbarAction={handleToolbarAction}
-            setShowTableModal={setShowTableModal} setShowLinkModal={setShowLinkModal}
+            handleToolbarAction={handleToolbarAction}
             setShowAdvancedImageModal={setShowAdvancedImageModal} setShowVideoModal={setShowVideoModal}
-            setShowCalloutModal={setShowCalloutModal} setShowPlaygroundModal={setShowPlaygroundModal}
             setShowQuizBuilder={setShowQuizBuilder} setShowDownloadLinkModal={setShowDownloadLinkModal}
             handleAIAction={handleAIAction} aiProcessing={aiProcessing}
             textareaRef={textareaRef}

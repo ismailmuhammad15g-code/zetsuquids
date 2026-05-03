@@ -3,10 +3,10 @@ import {
   Bold, Italic, Strikethrough, Heading1, Heading2, Hash, 
   List, ListOrdered, Table, Link as LinkIcon, Image as ImageIcon, 
   Video, Wand2, Terminal, HelpCircle, MoreHorizontal, Sparkles, 
-  Columns, Maximize2, Code, Quote, ListChecks, Minus, Star, 
+  Columns, Maximize2, Code, ListChecks, Minus, Star, 
   FileText, BookOpen, FileImage, FileCode, MessageCircle, 
   LayoutTemplate, Zap, Activity, Clock, GitMerge, AlertTriangle, 
-  Key, Download, Keyboard, BadgeCheck, Anchor, MousePointer2, ChevronDown
+  Key, Download, Keyboard, BadgeCheck, Anchor, ChevronDown
 } from "lucide-react";
 import { ToolbarButton } from "./ToolbarButton";
 import { FormData, ViewMode } from "./types";
@@ -15,14 +15,9 @@ import { getMarkdownHtml } from "./utils";
 interface EditorTabProps {
   formData: FormData;
   setFormData: (data: FormData) => void;
-  insertText: (text: string) => void;
   handleToolbarAction: (action: string) => void;
-  setShowTableModal: (s: boolean) => void;
-  setShowLinkModal: (s: boolean) => void;
   setShowAdvancedImageModal: (s: boolean) => void;
   setShowVideoModal: (s: boolean) => void;
-  setShowCalloutModal: (s: boolean) => void;
-  setShowPlaygroundModal: (s: boolean) => void;
   setShowQuizBuilder: (s: boolean) => void;
   setShowDownloadLinkModal: (s: boolean) => void;
   handleAIAction: (type: string) => Promise<void>;
@@ -33,18 +28,14 @@ interface EditorTabProps {
 export const EditorTab: React.FC<EditorTabProps> = ({
   formData,
   setFormData,
-  insertText,
   handleToolbarAction,
-  setShowTableModal,
-  setShowLinkModal,
   setShowAdvancedImageModal,
   setShowVideoModal,
-  setShowCalloutModal,
-  setShowPlaygroundModal,
   setShowQuizBuilder,
   setShowDownloadLinkModal,
   handleAIAction,
   aiProcessing,
+
   textareaRef,
 }) => {
   const [showMoreTools, setShowMoreTools] = useState(false);
@@ -140,8 +131,6 @@ export const EditorTab: React.FC<EditorTabProps> = ({
               </>
             )}
           </div>
-        </div>
-         </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0 ml-4">
