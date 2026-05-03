@@ -1,5 +1,5 @@
-import { Calendar, X } from "lucide-react";
-import { useState } from "react";
+import { Calendar, Code, X } from "lucide-react";
+import React, { useState } from "react";
 
 interface ModalFormProps {
   onInsert: (content: string) => void;
@@ -823,29 +823,169 @@ export function KeyValueModalForm({ onInsert, onClose }: ModalFormProps) {
   );
 }
 
-export default {
-  LinkModalForm,
-  TableModalForm,
-  VideoModalForm,
-  CalloutModalForm,
-  CodeModalForm,
-  FigureModalForm,
-  DetailsModalForm,
-  QuoteModalForm,
-  BadgeModalForm,
-  KbdModalForm,
-  CTAModalForm,
-  CitationModalForm,
-  AnchorModalForm,
-  FootnoteModalForm,
-  StepsModalForm,
-  TimelineModalForm,
-  ComparisonModalForm,
-  AlertModalForm,
-  TabsModalForm,
-  DefinitionModalForm,
-  CodeDiffModalForm,
-  FAQModalForm,
-  VersionModalForm,
-  KeyValueModalForm,
-};
+
+
+export function DownloadLinkModalForm({ onInsert, onClose }: ModalFormProps) {
+  const [title, setTitle] = useState("");
+  const [fileInfo, setFileInfo] = useState("");
+  const [url, setUrl] = useState("");
+
+  const handleInsert = () => {
+    const html = `
+<div class="my-6 bg-[#2a2a2a] text-white p-4 rounded-lg flex items-center justify-between" style="border: 1px solid #3f3f3f;">
+  <div class="flex items-center gap-4">
+    <div class="bg-white/10 p-3 rounded-md flex-shrink-0">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+    </div>
+    <div class="overflow-hidden">
+      <h4 class="text-base font-bold text-white m-0 leading-tight truncate">${title}</h4>
+      <div class="flex gap-3 text-gray-400 mt-2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="hover:text-white cursor-pointer transition-colors"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="hover:text-white cursor-pointer transition-colors"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="hover:text-white cursor-pointer transition-colors"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      </div>
+    </div>
+  </div>
+  <a href="${url}" target="_blank" rel="noopener noreferrer" class="bg-[#0d6efd] hover:bg-blue-600 text-white font-bold py-2.5 px-6 rounded text-sm transition-colors uppercase no-underline inline-block flex-shrink-0 ml-4">
+    DOWNLOAD ${fileInfo ? `(${fileInfo})` : ""}
+  </a>
+</div>
+`;
+    onInsert(html);
+  };
+
+  return (
+    <div className="px-6 py-4 space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="GitHub Repository (FREE RDP Script)" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm" />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">File Size/Info</label>
+        <input type="text" value={fileInfo} onChange={(e) => setFileInfo(e.target.value)} placeholder="4.87KB" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm" />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Download URL</label>
+        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm" />
+      </div>
+      <div className="flex gap-3 pt-2">
+        <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
+        <button onClick={handleInsert} disabled={!title || !url} className="flex-1 px-4 py-2.5 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50">Insert</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── PlaygroundPreview ───────────────────────────────────────────────────────
+export function PlaygroundPreview({ data }: { data: any }) {
+  const [activeTab, setActiveTab] = React.useState<"html" | "css" | "js" | "result">("result");
+  const [zoom, setZoom] = React.useState(1);
+  const [reloadKey, setReloadKey] = React.useState(0);
+
+  return (
+    <div className="my-8 rounded overflow-hidden border flex flex-col font-mono" style={{ borderColor: "#444857", backgroundColor: "#1e1e1e", height: "400px" }}>
+      {/* Header tabs */}
+      <div className="flex items-center justify-between px-4 py-2 border-b text-xs" style={{ borderColor: "#444857", backgroundColor: "#1e1e1e" }}>
+        <div className="flex gap-1">
+          {(["html", "css", "js", "result"] as const).map((tab) => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className={`px-3 py-1.5 rounded-sm uppercase font-semibold transition-colors ${activeTab === tab ? "bg-[#444857] text-white" : "text-[#858585] hover:text-white"}`}
+            >{tab}</button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 text-[#858585]">
+          <span className="text-[10px] uppercase tracking-widest">Edit on</span>
+          <div className="flex items-center gap-1 text-white font-bold text-xs">
+            <Code size={14} />
+            <span>ZETSUGUIDE</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-hidden bg-white relative">
+        {activeTab === "result" ? (
+          <div className="w-full h-full" style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: `${100 / zoom}%`, height: `${100 / zoom}%` }}>
+            <iframe
+              key={reloadKey}
+              sandbox="allow-scripts"
+              srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>${data.css || "body{font-family:sans-serif;padding:20px;}"}</style></head><body>${data.html || ""}<script>${data.js || ""}<\/script></body></html>`}
+              className="w-full h-full border-none block bg-white"
+              title={data.title || "Live Demo"}
+            />
+          </div>
+        ) : (
+          <div className="w-full h-full bg-[#1e1e1e] p-4 overflow-auto text-sm text-[#d4d4d4]">
+            <pre className="font-mono"><code>{data[activeTab] || ""}</code></pre>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between px-4 py-2 border-t text-xs" style={{ borderColor: "#444857", backgroundColor: "#1e1e1e" }}>
+        <span className="text-[#858585] font-mono">{data.title || "Live Demo"}</span>
+        <div className="flex gap-1 bg-[#343436] rounded-sm p-0.5">
+          {([1, 0.5, 0.25] as const).map((level) => (
+            <button key={level} onClick={() => setZoom(level)}
+              className={`px-2.5 py-1 rounded-sm font-medium transition-colors ${zoom === level ? "bg-[#5a5f73] text-white" : "text-[#cccccc] hover:text-white"}`}
+            >{level}x</button>
+          ))}
+        </div>
+        <button
+          onClick={() => { setActiveTab("result"); setReloadKey((k) => k + 1); }}
+          className="px-4 py-1.5 bg-[#444857] text-[#cccccc] hover:text-white rounded-sm font-medium transition-colors"
+        >Rerun</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── PlaygroundModalForm ──────────────────────────────────────────────────────
+export function PlaygroundModalForm({ onInsert, onClose: _onClose }: { onInsert: (code: string) => void; onClose: () => void }) {
+  const [pgHtml, setPgHtml] = React.useState("");
+  const [pgCss, setPgCss] = React.useState("");
+  const [pgJs, setPgJs] = React.useState("document.addEventListener('DOMContentLoaded', () => {\n  // Your JS here\n});");
+  const [pgTitle, setPgTitle] = React.useState("Live Demo");
+  const [previewKey, setPreviewKey] = React.useState(0);
+
+  const srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${pgCss}</style></head><body>${pgHtml}<script>${pgJs}<\/script></body></html>`;
+
+  const handleInsert = () => {
+    const payload = JSON.stringify({ title: pgTitle, html: pgHtml, css: pgCss, js: pgJs }, null, 2);
+    onInsert(`\n\`\`\`playground\n${payload}\n\`\`\`\n`);
+  };
+
+  return (
+    <div className="flex flex-col flex-1 overflow-hidden" style={{ minHeight: 0 }}>
+      {/* Title bar */}
+      <div className="flex items-center gap-3 px-4 py-2.5 border-b bg-gray-50 flex-shrink-0">
+        <label className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Title</label>
+        <input type="text" value={pgTitle} onChange={(e) => setPgTitle(e.target.value)} placeholder="Live Demo"
+          className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" />
+        <button type="button" onClick={() => setPreviewKey((k) => k + 1)}
+          className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">▶ Run</button>
+        <button type="button" onClick={handleInsert}
+          className="px-4 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">✓ Insert</button>
+      </div>
+      {/* Editors + Preview */}
+      <div className="flex flex-1 overflow-hidden" style={{ height: "500px" }}>
+        <div className="flex flex-col w-1/2 border-r border-gray-200 bg-gray-950 divide-y divide-gray-800">
+          {[{ label: "HTML", color: "text-orange-400", val: pgHtml, set: setPgHtml },
+            { label: "CSS",  color: "text-blue-400",   val: pgCss,  set: setPgCss  },
+            { label: "JS",   color: "text-yellow-400", val: pgJs,   set: setPgJs   }].map(({ label, color, val, set }) => (
+            <div key={label} className="flex flex-col flex-1 min-h-0">
+              <div className={`px-3 py-1 text-xs font-bold font-mono bg-gray-900 border-b border-gray-800 flex-shrink-0 ${color}`}>{label}</div>
+              <textarea value={val} onChange={(e) => set(e.target.value)}
+                className="flex-1 resize-none bg-gray-950 text-gray-100 font-mono text-sm p-3 focus:outline-none" spellCheck={false} />
+            </div>
+          ))}
+        </div>
+        <div className="w-1/2 flex flex-col bg-white">
+          <div className="px-3 py-1 text-xs font-bold text-gray-500 font-mono bg-gray-50 border-b border-gray-100 flex-shrink-0">Preview</div>
+          <iframe key={previewKey} sandbox="allow-scripts" srcDoc={srcdoc} className="flex-1 border-none" title="Playground Preview" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
