@@ -63,6 +63,14 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const [navLoading, setNavLoading] = useState(false);
 
   const [isFirstRender, setIsFirstRender] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 450);
+    return () => clearTimeout(t);
+  }, []);
 
   // Determine page name for the loader
   const getPageName = (path: string) => {
@@ -342,6 +350,14 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const getWorkspaceSlug = (): string => {
     return getUserDisplayName().toLowerCase();
   };
+
+  if (isInitialLoading) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
+        <GlobalLoader forceShow={true} />
+      </div>
+    );
+  }
 
   return (
     <ClickSpark

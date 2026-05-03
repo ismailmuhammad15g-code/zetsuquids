@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import cakeAnimation from "../assets/cake_snipper.json";
 import { useLoading } from "../contexts/LoadingContext";
 
-export default function GlobalLoader() {
+export default function GlobalLoader({ forceShow }: { forceShow?: boolean } = {}) {
   const { isLoading: contextLoading, loadingMessage } = useLoading();
   const pathname = usePathname();
   
@@ -49,7 +49,7 @@ export default function GlobalLoader() {
     }
   }, [contextLoading, loadingMessage, pathname]);
 
-  if (!shouldShow) return null;
+  if (!shouldShow && !forceShow) return null;
 
   // Robustly handle JSON import (ESM default vs Raw)
   const animationData = (cakeAnimation as any).default || cakeAnimation;
