@@ -1,7 +1,0 @@
-# ⚠️ DEPRECATED - Project uses Vercel + Separate Backend
-# Netlify configuration removed - see deployment instructions in README.md
-#
-# Frontend: Deploy to Vercel
-# Backend: Deploy to separate server (Railway, Render, Heroku, VPS, etc.)
-#
-# Set VITE_API_URL environment variable in Vercel to point to backend server

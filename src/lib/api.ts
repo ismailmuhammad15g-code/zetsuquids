@@ -62,7 +62,6 @@ function mergeGuideWithLocalCover(guide: Guide): Guide {
     return guide;
 }
 
-// Types for Guides
 export interface Guide {
     id?: number | string;
     title: string;
@@ -74,6 +73,9 @@ export interface Guide {
     cover_image?: string | null;
     keywords?: string[];
     content_type?: string;
+    category?: string;
+    difficulty?: string;
+    estimated_time?: string;
     user_email?: string;
     author_name?: string;
     author_id?: string | null;
@@ -102,7 +104,7 @@ export interface SearchResult extends Guide {
 // Guides API
 export const guidesApi = {
     async getAll(): Promise<Guide[]> {
-        let supabaseGuides: Guide[] = [];
+        let supabaseGuides: Guide[] | null = null;
         const localGuides: Guide[] = getLocalGuides();
 
         // Try Supabase FIRST if configured
@@ -115,7 +117,6 @@ export const guidesApi = {
                     .order("created_at", { ascending: false });
 
                 if (error) {
-                    // Ignore AbortError and 'Lock broken' errors silently
                     const isAbortError = 
                         error.name === "AbortError" || 
                         error.message?.includes("aborted") ||
@@ -140,44 +141,44 @@ export const guidesApi = {
             }
         }
 
-        // MERGE: Combine Supabase guides with LocalStorage guides
-        // Priority: Supabase (latest) > LocalStorage (unsynced), but keep local cover image if DB lacks it
+        // SMART SYNC: Validate Local Storage against Supabase Truth
+        if (supabaseGuides !== null) {
+            // We got successful data from Supabase! This is the absolute truth.
+            
+            const syncedMap = new Map<string, Guide>();
 
-        const mergedMap = new Map<string, Guide>();
+            // 1. We ONLY keep guides that exist in Supabase.
+            // But we can borrow local cover_images if Supabase lacks them.
+            supabaseGuides.forEach((g) => {
+                if (!g.slug) return;
+                const existingLocal = localGuides.find(lg => lg.slug === g.slug);
+                if (existingLocal?.cover_image && !g.cover_image) {
+                    syncedMap.set(g.slug, { ...g, cover_image: existingLocal.cover_image });
+                } else {
+                    syncedMap.set(g.slug, g);
+                }
+            });
 
-        // 1. Add local guides first (Filter ONLY approved guides for public view)
-        localGuides.forEach((g) => {
-            if (g.status === "approved" && g.slug) {
-                mergedMap.set(g.slug, g);
-            }
-        });
-
-        // 2. Overwrite/Add Supabase guides (authoritative source), but preserve local cover_image when needed
-        supabaseGuides.forEach((g) => {
-            if (!g.slug) return;
-            const existingLocal = mergedMap.get(g.slug);
-            if (existingLocal?.cover_image && !g.cover_image) {
-                mergedMap.set(g.slug, { ...g, cover_image: existingLocal.cover_image });
-            } else {
-                mergedMap.set(g.slug, g);
-            }
-        });
-
-        // 3. Convert back to array
-        const mergedGuides = Array.from(mergedMap.values()).sort(
-            (a, b) => {
+            const syncedGuides = Array.from(syncedMap.values()).sort((a, b) => {
                 const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
                 const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
                 return dateB - dateA;
-            }
-        );
+            });
 
-        // Safe Update of LocalStorage
-        if (mergedGuides.length > 0) {
-            saveLocalGuides(mergedGuides);
+            // THIS REMOVES DELETED/NUKED GUIDES AUTOMATICALLY FROM BROWSER 
+            saveLocalGuides(syncedGuides);
+
+            return syncedGuides;
         }
 
-        return mergedGuides;
+        // FALLBACK: If Supabase query failed (offline), just return local
+        const validLocalGuides = localGuides.filter(g => g.status === "approved").sort((a, b) => {
+            const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return dateB - dateA;
+        });
+        
+        return validLocalGuides;
     },
 
     async getBySlug(slug: string): Promise<Guide | null> {
@@ -204,7 +205,7 @@ export const guidesApi = {
                             if (res.ok) {
                                 const extra = await res.json();
                                 guide = { ...guide, ...extra };
-                                console.log("✅ Fetched full guide content from GitHub");
+                                console.log("âœ… Fetched full guide content from GitHub");
                             }
                         } catch (e) {
                             console.warn("Failed to fetch guide content from GitHub, using DB fallback");
@@ -291,6 +292,9 @@ export const guidesApi = {
             css_content: guide.css_content || "",
             keywords: guide.keywords || [],
             content_type: guide.content_type || "markdown",
+            category: guide.category || "Development",
+            difficulty: guide.difficulty || "Beginner",
+            estimated_time: guide.estimated_time || "5 mins",
             user_email: guide.user_email, // Author email
             author_name: guide.author_name || "", // Author name
             author_id: guide.author_id || null, // Author ID
@@ -304,13 +308,13 @@ export const guidesApi = {
             try {
                 // 1. Handle Cover Image
                 if (guideData.cover_image?.startsWith('data:')) {
-                    console.log("📤 Uploading cover image to GitHub...");
+                    console.log("ðŸ“¤ Uploading cover image to GitHub...");
                     const { url } = await uploadToGitHub(guideData.cover_image, 'guides/covers');
                     guideData.cover_image = url;
                 }
 
                 // 2. Handle Content (Upload JSON bundle)
-                console.log("📤 Uploading guide content to GitHub...");
+                console.log("ðŸ“¤ Uploading guide content to GitHub...");
                 const contentPayload = {
                     content: guideData.content,
                     markdown: guideData.markdown,
@@ -324,10 +328,10 @@ export const guidesApi = {
                 );
 
                 // 3. Clear heavy fields from Supabase payload to save space/bandwidth
-                guideData.content = "";
-                guideData.markdown = "";
-                guideData.html_content = "";
-                guideData.css_content = "";
+                delete (guideData as any).content;
+                delete (guideData as any).markdown;
+                delete (guideData as any).html_content;
+                delete (guideData as any).css_content;
             } catch (err) {
                 console.error("GitHub upload failed, falling back to Supabase storage:", err);
                 // Continue with Supabase as fallback
@@ -453,7 +457,7 @@ export const guidesApi = {
             if (isGitHubConfigured()) {
                 const { data: meta } = await supabase.from("guides").select("slug").eq("id", id).single();
                 if (meta?.slug) {
-                    console.log("📤 Archiving current version to GitHub history...");
+                    console.log("ðŸ“¤ Archiving current version to GitHub history...");
                     const timestamp = Date.now();
                     const historyPayload = {
                         title: currentGuide.title,
@@ -490,14 +494,14 @@ export const guidesApi = {
                 if (activeSlug) {
                     // 1. Handle Cover Image update
                     if (updates.cover_image?.startsWith('data:')) {
-                        console.log("📤 Updating cover image on GitHub...");
+                        console.log("ðŸ“¤ Updating cover image on GitHub...");
                         const { url } = await uploadToGitHub(updates.cover_image, 'guides/covers');
                         updates.cover_image = url;
                     }
 
                     // 2. Handle Content update
                     if (updates.content !== undefined || updates.markdown !== undefined || updates.html_content !== undefined) {
-                        console.log("📤 Updating guide content on GitHub...");
+                        console.log("ðŸ“¤ Updating guide content on GitHub...");
                         // We need the full current state to avoid wiping fields not in this specific update
                         const { data: full } = await supabase.from("guides").select("*").eq("id", id).single();
                         
@@ -515,10 +519,10 @@ export const guidesApi = {
                         );
 
                         // Clear heavy fields from Supabase update payload
-                        if (updates.content !== undefined) updates.content = "";
-                        if (updates.markdown !== undefined) updates.markdown = "";
-                        if (updates.html_content !== undefined) updates.html_content = "";
-                        if (updates.css_content !== undefined) updates.css_content = "";
+                        if (updates.content !== undefined) delete (updates as any).content;
+                        if (updates.markdown !== undefined) delete (updates as any).markdown;
+                        if (updates.html_content !== undefined) delete (updates as any).html_content;
+                        if (updates.css_content !== undefined) delete (updates as any).css_content;
                     }
                 }
             } catch (err) {
@@ -631,7 +635,7 @@ export const guidesApi = {
             .order("created_at", { ascending: false });
 
         if (!error && sbHistory) {
-            const mapped: GuideVersion[] = sbHistory.map(v => ({
+            const mapped: GuideVersion[] = sbHistory.map((v: any) => ({
                 ...v,
                 storage_type: 'supabase'
             }));
@@ -648,7 +652,7 @@ export const guidesApi = {
 
     async restoreVersion(guideId: string | number, version: GuideVersion): Promise<boolean> {
         try {
-            console.log("🔄 Restoring version:", version.id, "from", version.storage_type);
+            console.log("ðŸ”„ Restoring version:", version.id, "from", version.storage_type);
             let contentToRestore: Partial<Guide> = {};
 
             if (version.storage_type === 'github' && version.download_url) {
@@ -988,110 +992,6 @@ export const adsApi = {
     }
 };
 
-// Sample data for testing
-const sampleGuides: Guide[] = [
-    {
-        title: "مقدمة في JavaScript",
-        content: "دليل شامل لتعلم JavaScript",
-        markdown: `# مقدمة في JavaScript
-
-JavaScript هي لغة برمجة قوية ومرنة تستخدم لإنشاء مواقع تفاعلية.
-
-## المتغيرات
-
-\`\`\`javascript
-let name = "أحمد";
-const age = 25;
-var city = "الرياض";
-\`\`\`
-
-## الدوال
-
-\`\`\`javascript
-function greet(name) {
-    return "مرحباً " + name;
-}
-\`\`\`
-
-## المصفوفات
-
-\`\`\`javascript
-const fruits = ["تفاح", "موز", "برتقال"];
-fruits.forEach(fruit => console.log(fruit));
-\`\`\`
-`,
-        keywords: ["javascript", "برمجة", "تعلم", "مبتدئين"],
-        content_type: "markdown",
-        status: "approved",
-    },
-    {
-        title: "React Hooks Guide",
-        content: "Complete guide to React Hooks",
-        markdown: `# React Hooks Guide
-
-Hooks let you use state and other React features without writing a class.
-
-## useState
-
-\`\`\`jsx
-import { useState } from 'react';
-
-function Counter() {
-    const [count, setCount] = useState(0);
-
-    return (
-        <button onClick={() => setCount(count + 1)}>
-            Count: {count}
-        </button>
-    );
-}
-\`\`\`
-
-## useEffect
-
-\`\`\`jsx
-useEffect(() => {
-    document.title = \`Count: \${count}\`;
-}, [count]);
-\`\`\`
-`,
-        keywords: ["react", "hooks", "useState", "useEffect"],
-        content_type: "markdown",
-        status: "approved",
-    },
-    {
-        title: "CSS Flexbox Tutorial",
-        content: "Learn CSS Flexbox layout",
-        markdown: `# CSS Flexbox Tutorial
-
-Flexbox makes it easy to design flexible responsive layouts.
-
-## Container Properties
-
-\`\`\`css
-.container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-}
-\`\`\`
-
-## Item Properties
-
-\`\`\`css
-.item {
-    flex: 1;
-    flex-grow: 1;
-    flex-shrink: 0;
-}
-\`\`\`
-`,
-        keywords: ["css", "flexbox", "layout", "responsive"],
-        content_type: "markdown",
-        status: "approved",
-    },
-];
 
 // Admin/Staff Guide Management API
 export interface PendingGuide extends Guide {
@@ -1237,21 +1137,8 @@ export const dailyCreditsApi = {
 };
 
 export async function initializeSampleData(): Promise<boolean> {
-    try {
-        const existing = await guidesApi.getAll();
-        if (existing.length === 0) {
-            console.log("Database empty, adding sample guides...");
-            for (const guide of sampleGuides) {
-                await guidesApi.create(guide);
-            }
-            console.log("Sample guides added successfully!");
-            return true;
-        }
-        return false;
-    } catch (error) {
-        console.error("Error initializing sample data:", error);
-        return false;
-    }
+    console.log("Sample data initialization disabled for production.");
+    return false;
 }
 
 // Prompts API (backward compatibility - already exported from supabase.ts)
@@ -1326,3 +1213,4 @@ export const promptsApi = {
 
 // Backward compatibility alias
 export const creditsApi = dailyCreditsApi;
+

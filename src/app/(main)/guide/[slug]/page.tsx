@@ -1213,6 +1213,26 @@ export default function GuidePage() {
                         </div>
                     )}
 
+                    {/* Premium Metadata Badges */}
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-6">
+                       {guide.category && (
+                           <span className="px-3 py-1 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-bold text-xs tracking-widest uppercase rounded-full border border-indigo-200/60 dark:border-indigo-700/50">
+                              {guide.category}
+                           </span>
+                       )}
+                       {guide.difficulty && (
+                           <span className={`px-3 py-1 font-bold text-xs tracking-widest uppercase rounded-full border ${guide.difficulty.toLowerCase() === 'beginner' ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-900/30 dark:border-emerald-800/50 dark:text-emerald-400' : guide.difficulty.toLowerCase() === 'intermediate' ? 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-900/30 dark:border-amber-800/50 dark:text-amber-400' : 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-900/30 dark:border-rose-800/50 dark:text-rose-400'}`}>
+                              {guide.difficulty}
+                           </span>
+                       )}
+                       {guide.estimated_time && (
+                         <span className="px-3 py-1 bg-gray-50 text-gray-700 dark:bg-gray-800 dark:text-gray-300 font-bold text-xs tracking-widest uppercase rounded-full border border-gray-200 dark:border-gray-700 flex items-center gap-1.5">
+                            <Clock size={12} strokeWidth={2.5} />
+                            {guide.estimated_time}
+                         </span>
+                       )}
+                    </div>
+
                     <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 leading-[1.1] text-black dark:text-white tracking-tight">
                         {guide.title}
                     </h1>

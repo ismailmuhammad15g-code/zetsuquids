@@ -40,6 +40,8 @@ export function sanitizeContent(html: string | null | undefined): string {
             "width",
             "height",
             "src",
+            "srcdoc",
+            "sandbox",
             "id",
             "aria-label",
             "aria-hidden",

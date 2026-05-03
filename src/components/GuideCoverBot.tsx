@@ -9,8 +9,7 @@ import {
     ImageIcon,
     Link as LinkIcon,
     Loader2,
-    MessageSquare,
-    Sparkles,
+        Sparkles,
     Upload,
     X,
 } from "lucide-react";

@@ -246,15 +246,15 @@ export const uiComponentsApi = {
                         description: component.description || null,
                         tags: component.tags || [],
                         env_vars: component.env_vars || {},
-                        html_code: component.html_code,
-                        css_code: component.css_code,
-                        js_code: component.js_code,
+                        // html_code: heavy fields removed
+                        // css_code: heavy fields removed
+                        // js_code: heavy fields removed
                         author_name: component.author_name || 'Anonymous',
                         author_id: sanitizedAuthorId,
                         author_avatar: component.author_avatar || null,
                         theme: component.theme || 'light',
                         component_type: component.component_type || 'component',
-                        react_files: component.react_files || [],
+                        // react_files: heavy fields removed
                         lottie_url: component.lottie_url || null,
                         preview_url: component.preview_url || null,
                     },
@@ -308,10 +308,10 @@ export const uiComponentsApi = {
         if (fields.description !== undefined) updatePayload.description = fields.description;
         if (fields.tags !== undefined) updatePayload.tags = fields.tags;
         if (fields.env_vars !== undefined) updatePayload.env_vars = fields.env_vars;
-        if (fields.html_code !== undefined) updatePayload.html_code = fields.html_code;
-        if (fields.css_code !== undefined) updatePayload.css_code = fields.css_code;
-        if (fields.js_code !== undefined) updatePayload.js_code = fields.js_code;
-        if (fields.react_files !== undefined) updatePayload.react_files = fields.react_files;
+        
+        
+        
+        
         if (fields.preview_url !== undefined) updatePayload.preview_url = fields.preview_url;
         if (fields.lottie_url !== undefined) updatePayload.lottie_url = fields.lottie_url;
         if (fields.theme !== undefined) updatePayload.theme = fields.theme;
