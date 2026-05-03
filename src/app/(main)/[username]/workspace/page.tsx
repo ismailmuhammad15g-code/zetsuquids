@@ -664,6 +664,16 @@ export default function UserWorkspacePage() {
                     className="group border-2 border-black hover:bg-black transition-colors duration-200"
                   >
                     <div className="p-6">
+                      {guide.cover_image && (
+                        <div className="w-full h-44 overflow-hidden mb-4 border border-black dark:border-white rounded-lg">
+                          <img
+                            src={guide.cover_image}
+                            alt={guide.title}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                        </div>
+                      )}
+
                       <h3 className="font-bold text-lg mb-2 group-hover:text-white transition-colors">
                         {guide.title}
                       </h3>
