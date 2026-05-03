@@ -34,10 +34,10 @@ export default function GlobalLoader() {
     let timer: NodeJS.Timeout;
     
     if (contextLoading) {
-      // Delay showing the loader by 350ms to prevent flickering on fast loads
+      // Delay showing the loader slightly to prevent flickering on ultra-fast loads
       timer = setTimeout(() => {
         setShouldShow(true);
-      }, 350);
+      }, 100);
     } else {
       setShouldShow(false);
     }
