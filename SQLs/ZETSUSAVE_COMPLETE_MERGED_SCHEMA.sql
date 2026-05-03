@@ -398,6 +398,7 @@ CREATE TABLE IF NOT EXISTS zetsuguide_user_profiles (
   followers_count INT DEFAULT 0,
   following_count INT DEFAULT 0,
   has_seen_onboarding BOOLEAN DEFAULT FALSE,
+  status TEXT DEFAULT '',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -408,6 +409,7 @@ ALTER TABLE zetsuguide_user_profiles ADD COLUMN IF NOT EXISTS display_name TEXT;
 ALTER TABLE zetsuguide_user_profiles ADD COLUMN IF NOT EXISTS banner_url TEXT;
 ALTER TABLE zetsuguide_user_profiles ADD COLUMN IF NOT EXISTS location TEXT;
 ALTER TABLE zetsuguide_user_profiles ADD COLUMN IF NOT EXISTS website TEXT;
+ALTER TABLE zetsuguide_user_profiles ADD COLUMN IF NOT EXISTS status TEXT DEFAULT '';
 
 -- Migration to ensure all profiles have a username and display_name
 UPDATE zetsuguide_user_profiles

@@ -20,6 +20,7 @@ interface UserProfile {
   author_id?: string | null;
   bio?: string;
   avatar_url?: string;
+  status?: string;
   created_at?: string;
   guides_count?: number;
   followers_count?: number;
@@ -56,6 +57,7 @@ export default function UserWorkspacePage() {
   const [showGuideEditModal, setShowGuideEditModal] = useState<boolean>(false);
   const [selectedGuideToEdit, setSelectedGuideToEdit] = useState<Guide | null>(null);
   const [editBio, setEditBio] = useState<string>("");
+  const [editStatus, setEditStatus] = useState<string>("");
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState<boolean>(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -166,10 +168,11 @@ export default function UserWorkspacePage() {
       // Fetch complete user profile with avatar and bio from database
       let userAvatarUrl = null;
       let userBio = null;
+      let userStatus = "";
       try {
         const { data: profileData } = await supabase
           .from("zetsuguide_user_profiles")
-          .select("avatar_url, bio")
+          .select("avatar_url, bio, status")
           .eq("user_email", firstGuide.user_email || firstGuide.author_email || "")
           .maybeSingle();
 
@@ -178,6 +181,9 @@ export default function UserWorkspacePage() {
         }
         if (profileData?.bio) {
           userBio = profileData.bio;
+        }
+        if (profileData?.status) {
+          userStatus = profileData.status;
         }
       } catch (err) {
         console.error("Error fetching profile:", err);
@@ -190,9 +196,12 @@ export default function UserWorkspacePage() {
       );
       setAvatarUrl(finalAvatarUrl);
 
-      // Add bio to profile if available
+      // Add bio and status to profile if available
       if (userBio) {
         profile.bio = userBio;
+      }
+      if (userStatus) {
+        profile.status = userStatus;
       }
 
       setUserProfile(profile);
@@ -202,6 +211,7 @@ export default function UserWorkspacePage() {
         ),
       );
       setEditBio(userBio || "");
+      setEditStatus(userStatus || "");
       setSelectedAvatar(userAvatarUrl || null);
     } catch (err: unknown) {
       console.error("Error loading workspace:", err);
@@ -229,6 +239,7 @@ export default function UserWorkspacePage() {
           .from("zetsuguide_user_profiles")
           .update({
             bio: editBio,
+            status: editStatus,
             avatar_url: selectedAvatar,
             updated_at: new Date().toISOString(),
           })
@@ -250,6 +261,7 @@ export default function UserWorkspacePage() {
             {
               user_email: user.email,
               bio: editBio,
+              status: editStatus,
               avatar_url: selectedAvatar,
               account_type: "individual",
             },
@@ -269,6 +281,7 @@ export default function UserWorkspacePage() {
       setUserProfile({
         ...userProfile,
         bio: editBio,
+        status: editStatus,
       });
       setAvatarUrl(getAvatarForUser(user.email, selectedAvatar));
       setShowEditModal(false);
@@ -384,19 +397,61 @@ export default function UserWorkspacePage() {
       {/* Profile Header */}
       <div className="border-b-2 border-black">
         <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 text-center sm:text-left">
-            {/* Avatar */}
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={userProfile?.author_name || "User avatar"}
-                className="w-24 h-24 rounded-full flex-shrink-0 object-cover"
-              />
-            ) : (
-              <div className="w-24 h-24 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white text-4xl font-bold flex-shrink-0">
-                {userProfile?.author_name?.[0]?.toUpperCase() || "👤"}
+          {/* Owner Guidance Banner */}
+          {isOwnWorkspace && !userProfile?.status && (
+            <div className="w-full bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800/50 rounded-2xl px-4 py-3 mb-6 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">💭</span>
+                <p className="text-xs font-bold text-indigo-900 dark:text-indigo-200">
+                  Let others know what you are up to! Set your custom <span className="underline decoration-indigo-400">Profile Status</span> like WhatsApp & Slack.
+                </p>
               </div>
-            )}
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl transition-all shadow-md shadow-indigo-600/20"
+              >
+                Set Status
+              </button>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 text-center sm:text-left">
+            {/* Avatar with Status Bubble */}
+            <div className="relative group flex-shrink-0">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={userProfile?.author_name || "User avatar"}
+                  className="w-24 h-24 rounded-full flex-shrink-0 object-cover border-2 border-black dark:border-white shadow-lg"
+                />
+              ) : (
+                <div className="w-24 h-24 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full flex items-center justify-center text-white text-4xl font-bold flex-shrink-0 border-2 border-black dark:border-white shadow-lg">
+                  {userProfile?.author_name?.[0]?.toUpperCase() || "👤"}
+                </div>
+              )}
+
+              {/* Status Cloud/Bubble */}
+              {userProfile?.status && (
+                <div className="absolute -top-3 -right-28 sm:-right-36 bg-white dark:bg-zinc-900 border-2 border-black dark:border-white rounded-2xl px-3 py-1.5 shadow-xl max-w-[160px] animate-in fade-in zoom-in duration-300 z-30">
+                  {/* Bubble Pointer Tail */}
+                  <div className="absolute -left-2 top-4 w-3 h-3 bg-white dark:bg-zinc-900 border-l-2 border-b-2 border-black dark:border-white transform rotate-45 z-10" />
+                  <p className="text-xs font-black text-gray-800 dark:text-gray-200 leading-tight line-clamp-3 break-words relative z-20">
+                    {userProfile.status}
+                  </p>
+                </div>
+              )}
+
+              {/* Action/Prompt for Account Owner */}
+              {isOwnWorkspace && (
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="absolute -bottom-2 -right-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-2 border-2 border-white dark:border-zinc-900 shadow-md hover:scale-105 transition-all animate-pulse"
+                  title="Update status & profile"
+                >
+                  <Edit2 size={12} className="stroke-[3]" />
+                </button>
+              )}
+            </div>
 
             {/* Profile Info */}
             <div className="flex-1 w-full">
@@ -734,6 +789,22 @@ export default function UserWorkspacePage() {
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     {editBio.length}/200 characters
+                  </p>
+                </div>
+
+                {/* Status Editor */}
+                <div>
+                  <label className="block font-bold text-lg mb-2">Profile Status (Bubble Text)</label>
+                  <textarea
+                    value={editStatus}
+                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditStatus(e.target.value)}
+                    placeholder="e.g., Working remotely, Writing a guide, Out for lunch ☕..."
+                    maxLength={100}
+                    className="w-full p-3 border-2 border-gray-300 rounded focus:border-black outline-none resize-none"
+                    rows={2}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {editStatus.length}/100 characters
                   </p>
                 </div>
               </div>
