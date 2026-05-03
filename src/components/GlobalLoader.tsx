@@ -31,18 +31,11 @@ export default function GlobalLoader() {
   };
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    
     if (contextLoading) {
-      // Delay showing the loader slightly to prevent flickering on ultra-fast loads
-      timer = setTimeout(() => {
-        setShouldShow(true);
-      }, 100);
+      setShouldShow(true);
     } else {
       setShouldShow(false);
     }
-    
-    return () => clearTimeout(timer);
   }, [contextLoading]);
 
   // Update message when loading starts or path changes
