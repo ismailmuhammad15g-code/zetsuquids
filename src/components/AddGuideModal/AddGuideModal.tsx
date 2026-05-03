@@ -421,7 +421,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         ...formData,
         slug: slugValue,
         keywords: formData.keywords.split(",").map((k: string) => k.trim()).filter(Boolean),
-        status: "approved",
+        status: "pending",
         author_name: (user?.user_metadata?.full_name as string) || (user?.email?.split("@")[0] as string) || "Author",
         author_id: user?.id || "",
         user_email: user?.email || "",

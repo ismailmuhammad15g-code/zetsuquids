@@ -66,7 +66,7 @@ export function useGuides(): UseQueryResult<Guide[], Error> {
                     if (!local) return undefined;
 
                     const guides: Guide[] = JSON.parse(local);
-                    return guides.filter((g) => g.status === "approved");
+                    return guides.filter((g) => g.status === "approved" || g.status === "pending");
                 } catch (e) {
                     return undefined;
                 }

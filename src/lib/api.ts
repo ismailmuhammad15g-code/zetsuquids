@@ -159,6 +159,13 @@ export const guidesApi = {
                 }
             });
 
+            // Keep local pending/draft guides so they aren't deleted from creator's view
+            localGuides.forEach((lg) => {
+                if (lg.slug && lg.status === "pending") {
+                    syncedMap.set(lg.slug, lg);
+                }
+            });
+
             const syncedGuides = Array.from(syncedMap.values()).sort((a, b) => {
                 const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
                 const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
