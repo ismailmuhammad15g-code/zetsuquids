@@ -62,6 +62,23 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const { isLoading, startLoading, stopLoading } = useLoading();
   const [navLoading, setNavLoading] = useState(false);
 
+  const [isFirstRender, setIsFirstRender] = useState(true);
+
+  // Determine page name for the loader
+  const getPageName = (path: string) => {
+    if (path === "/") return "Home";
+    if (path.includes("/workspace")) return "Workspace";
+    if (path.includes("/guide")) return "Guide";
+    if (path.includes("/community")) return "Community";
+    if (path.includes("/components")) return "Components";
+    if (path.includes("/zetsuguide-ai")) return "Zetsu AI";
+    return "";
+  };
+
+  useEffect(() => {
+    setIsFirstRender(false);
+  }, []);
+
   // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -69,16 +86,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
   // Show loaders on navigation changes
   useEffect(() => {
-    // Determine page name for the loader
-    const getPageName = (path: string) => {
-      if (path === "/") return "Home";
-      if (path.includes("/workspace")) return "Workspace";
-      if (path.includes("/guide")) return "Guide";
-      if (path.includes("/community")) return "Community";
-      if (path.includes("/components")) return "Components";
-      if (path.includes("/zetsuguide-ai")) return "Zetsu AI";
-      return "";
-    };
+    if (isFirstRender) return;
 
     const pageName = getPageName(pathname);
     const msg = pageName ? `Entering ${pageName}...` : "Loading next page...";
@@ -95,7 +103,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       clearTimeout(t);
       stopLoading();
     };
-  }, [pathname, startLoading, stopLoading]);
+  }, [pathname, startLoading, stopLoading, isFirstRender]);
 
   // Also show top loader when internal links are clicked (improves perceived responsiveness)
   useEffect(() => {
@@ -104,9 +112,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       while (el && el !== document.body) {
         if (el.tagName === "A") {
           const href = el.getAttribute("href");
-          if (href && href.startsWith("/")) {
+          if (href && href.startsWith("/") && !href.startsWith("/#") && href !== pathname) {
             setNavLoading(true);
-            setTimeout(() => setNavLoading(false), 900);
+            const targetPage = getPageName(href);
+            const msg = targetPage ? `Entering ${targetPage}...` : "Loading next page...";
+            startLoading(msg);
           }
           break;
         }
@@ -115,7 +125,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     };
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);
-  }, []);
+  }, [pathname, startLoading]);
 
   // Keyboard shortcut for search
   useEffect(() => {
