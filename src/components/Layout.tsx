@@ -46,7 +46,7 @@ interface UserProfileState {
 export default function Layout({ children }: { children?: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isAddGuideModalOpen, closeAddModal, openAddModal, isSearchModalOpen, closeSearchModal, openSearchModal } = useModal();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -397,7 +397,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 )}
 
                 {/* Auth Section */}
-                {isAuthenticated() ? (
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-24 h-9 bg-gray-100 dark:bg-white/10 animate-pulse border border-gray-200 dark:border-white/10 rounded-lg" />
+                  </div>
+                ) : isAuthenticated() ? (
                   <div className="relative">
                     <button
                       onClick={() => setShowUserMenu(!showUserMenu)}
@@ -596,7 +600,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
                   {/* Mobile Profile / Auth */}
                   <div>
-                    {isAuthenticated() ? (
+                    {loading ? (
+                      <div className="space-y-3">
+                        <div className="w-full h-12 bg-gray-100 dark:bg-white/10 animate-pulse border border-gray-200 dark:border-white/10 rounded-xl" />
+                      </div>
+                    ) : isAuthenticated() ? (
                       <div className="space-y-2">
                         <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 mb-2">
                           <div className="w-10 h-10 rounded-full overflow-hidden border border-black dark:border-white">
