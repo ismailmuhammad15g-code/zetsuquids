@@ -198,7 +198,7 @@ export const guidesApi = {
                     let guide = mergeGuideWithLocalCover(data);
                     
                     // FETCH FROM GITHUB: Try to get full content from GitHub if metadata exists
-                    if (guide && guide.slug && isGitHubConfigured()) {
+                    if (guide && guide.slug && RAW_BASE) {
                         try {
                             const contentUrl = `${RAW_BASE}/guides/content/${guide.slug}.json`;
                             const res = await fetch(contentUrl);
@@ -303,13 +303,17 @@ export const guidesApi = {
             status: guide.status || "pending", // Default to pending
         };
 
+        // Make a clone of guideData for GitHub and Supabase
+        const supabasePayload = { ...guideData };
+
         // GITHUB STORAGE: Upload heavy data to GitHub to save Supabase space
         if (isGitHubConfigured()) {
             try {
                 // 1. Handle Cover Image
-                if (guideData.cover_image?.startsWith('data:')) {
+                if (supabasePayload.cover_image?.startsWith('data:')) {
                     console.log("ðŸ“¤ Uploading cover image to GitHub...");
-                    const { url } = await uploadToGitHub(guideData.cover_image, 'guides/covers');
+                    const { url } = await uploadToGitHub(supabasePayload.cover_image, 'guides/covers');
+                    supabasePayload.cover_image = url;
                     guideData.cover_image = url;
                 }
 
@@ -328,10 +332,10 @@ export const guidesApi = {
                 );
 
                 // 3. Clear heavy fields from Supabase payload to save space/bandwidth
-                delete (guideData as any).content;
-                delete (guideData as any).markdown;
-                delete (guideData as any).html_content;
-                delete (guideData as any).css_content;
+                delete (supabasePayload as any).content;
+                delete (supabasePayload as any).markdown;
+                delete (supabasePayload as any).html_content;
+                delete (supabasePayload as any).css_content;
             } catch (err) {
                 console.error("GitHub upload failed, falling back to Supabase storage:", err);
                 // Continue with Supabase as fallback
@@ -352,7 +356,7 @@ export const guidesApi = {
                 console.log("Attempting to save to Supabase...");
                 const { data, error } = await supabase
                     .from("guides")
-                    .insert([guideData])
+                    .insert([supabasePayload])
                     .select()
                     .single();
 
@@ -373,7 +377,7 @@ export const guidesApi = {
                             "\nPLEASE RUN THIS SQL IN YOUR SUPABASE SQL EDITOR:",
                             "\nALTER TABLE guides ADD COLUMN IF NOT EXISTS cover_image TEXT;"
                         );
-                        const { cover_image, ...fallbackGuideData } = guideData;
+                        const { cover_image, ...fallbackGuideData } = supabasePayload;
                         const retryResult = await supabase
                             .from("guides")
                             .insert([fallbackGuideData])
@@ -382,10 +386,11 @@ export const guidesApi = {
 
                         if (!retryResult.error && retryResult.data) {
                             console.log("Supabase insert succeeded after removing unsupported cover_image column:", retryResult.data);
+                            const fullGuide = { ...guideData, ...retryResult.data };
                             const guides: Guide[] = getLocalGuides();
-                            guides.unshift(retryResult.data);
+                            guides.unshift(fullGuide);
                             saveLocalGuides(guides);
-                            return retryResult.data;
+                            return fullGuide;
                         }
 
                         console.warn(
@@ -397,10 +402,11 @@ export const guidesApi = {
                 } else if (data) {
                     console.log("Successfully saved to Supabase:", data);
                     // Also save to localStorage for offline access
+                    const fullGuide = { ...guideData, ...data };
                     const guides: Guide[] = getLocalGuides();
-                    guides.unshift(data);
+                    guides.unshift(fullGuide);
                     saveLocalGuides(guides);
-                    return data;
+                    return fullGuide;
                 }
             } catch (err) {
                 console.error("Supabase connection error:", err);
