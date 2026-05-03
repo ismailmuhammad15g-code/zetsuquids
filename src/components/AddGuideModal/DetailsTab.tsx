@@ -42,6 +42,12 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
         Guide Configuration
       </h2>
 
+      {validationErrors && validationErrors.length > 0 && (
+        <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-xl text-xs font-bold text-red-800 animate-in fade-in duration-200">
+          ⚠️ Please resolve the validation issues listed on the Publish button before continuing.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="space-y-4">
           <div className="flex flex-col gap-1.5">
