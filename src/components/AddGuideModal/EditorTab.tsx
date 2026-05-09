@@ -229,12 +229,11 @@ export const EditorTab: React.FC<EditorTabProps> = ({
             onChange={(e) => setFormData({ ...formData, content: e.target.value })}
             dir="auto"
             placeholder="Unleash your creativity..."
-            className="w-full h-full p-8 resize-none focus:ring-0 border-none font-mono text-[15px] leading-relaxed text-gray-800 bg-transparent custom-scrollbar"
+            className="w-full h-full p-4 sm:p-6 md:p-8 resize-none focus:ring-0 border-none font-mono text-[14px] sm:text-[15px] leading-relaxed text-gray-800 bg-transparent custom-scrollbar"
             spellCheck={false}
           />
         </div>
 
-        {/* Live Preview Area */}
         {viewMode === "split" && (
           <div className="flex-1 flex flex-col overflow-hidden bg-white hidden lg:flex custom-scrollbar">
             <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-white shrink-0">Preview</div>

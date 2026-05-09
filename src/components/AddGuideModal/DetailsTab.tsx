@@ -136,12 +136,12 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
         </div>
 
         <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50/50 p-6 space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <p className="text-sm font-bold text-gray-900">Cover Image</p>
               <p className="text-xs text-gray-500">Professional guides deserve a 16:9 cover image.</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
               <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-full border shadow-sm hover:border-black transition-all">
                 <div
                   onClick={(e) => { e.preventDefault(); setAutoResize(!autoResize); }}
@@ -151,7 +151,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600">Auto-Resize</span>
               </label>
-              <label className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-black text-white text-sm font-bold cursor-pointer hover:bg-gray-800 transition-colors shadow-lg shadow-black/10">
+              <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black text-white text-sm font-bold cursor-pointer hover:bg-gray-800 transition-colors shadow-lg shadow-black/10">
                 <ImageIcon size={16} />
                 Upload
                 <input type="file" accept="image/*" className="hidden" onChange={handleCoverImageUpload} />

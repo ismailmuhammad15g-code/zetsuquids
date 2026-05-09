@@ -515,25 +515,26 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[9999] bg-white text-gray-900 flex flex-col animate-in fade-in duration-300">
       {/* Header */}
-      <div className="h-16 border-b border-gray-200 px-6 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-[1003]">
-        <div className="flex items-center gap-4">
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-900">
-            <X size={20} />
+      <div className="h-14 md:h-16 border-b border-gray-200 px-3 md:px-6 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-[1003]">
+        <div className="flex items-center gap-2 md:gap-4 min-w-0">
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-900 flex-shrink-0">
+            <X size={18} />
           </button>
-          <div className="h-6 w-px bg-gray-200" />
-          <div className="flex items-center gap-2 text-sm font-bold text-gray-400">
-            <Plus size={16} />
-            <span className="text-gray-900 truncate max-w-[200px]">New Guide: {formData.title || "Untitled"}</span>
+          <div className="h-5 w-px bg-gray-200 hidden sm:block" />
+          <div className="flex items-center gap-1.5 text-sm font-bold text-gray-400 min-w-0">
+            <Plus size={14} className="flex-shrink-0" />
+            <span className="text-gray-900 truncate max-w-[120px] sm:max-w-[200px] text-xs sm:text-sm">{formData.title || "New Guide"}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
+          {/* Desktop tab switcher */}
           <div className="hidden md:flex bg-gray-100 p-1 rounded-xl gap-1">
             {(["editor", "preview", "details"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setMainTab(tab)}
-                className={`px-6 py-2 text-xs font-bold rounded-lg transition-all capitalize ${
+                className={`px-5 py-2 text-xs font-bold rounded-lg transition-all capitalize ${
                   mainTab === tab ? "bg-white shadow-lg text-black" : "text-gray-500 hover:text-gray-900"
                 }`}
               >
@@ -546,12 +547,12 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
             <button
               onClick={handleSubmit}
               disabled={saving || validationErrors.length > 0}
-              className="flex items-center gap-2 px-8 py-2 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-4 sm:px-6 md:px-8 py-2 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
             >
-              {saving ? <Loader2 size={18} className="animate-spin" /> : "Publish"}
+              {saving ? <Loader2 size={16} className="animate-spin" /> : "Publish"}
             </button>
             {validationErrors.length > 0 && (
-              <div className="absolute right-0 top-full mt-2 w-72 p-4 bg-red-50 border border-red-200 rounded-xl shadow-xl opacity-0 group-hover/publish:opacity-100 transition-opacity duration-200 pointer-events-none z-[1010]">
+              <div className="absolute right-0 top-full mt-2 w-64 sm:w-72 p-4 bg-red-50 border border-red-200 rounded-xl shadow-xl opacity-0 group-hover/publish:opacity-100 transition-opacity duration-200 pointer-events-none z-[1010]">
                 <p className="text-xs font-bold text-red-900 mb-2">Fix before publishing:</p>
                 <ul className="space-y-1">
                   {validationErrors.map((err, i) => (
@@ -567,7 +568,8 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      <div className="flex-1 flex min-h-0 flex-col overflow-hidden bg-gray-50/30">
+      {/* Content area — shrinks above mobile bottom nav */}
+      <div className="flex-1 flex min-h-0 flex-col overflow-hidden bg-gray-50/30 pb-14 md:pb-0">
         {mainTab === "editor" && (
           <EditorTab 
             formData={formData} setFormData={setFormData}
@@ -595,6 +597,24 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
             coverUrlError={coverUrlError} handleCoverImageUpload={handleCoverImageUpload}
           />
         )}
+      </div>
+
+      {/* Mobile Bottom Tab Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[1004] bg-white/95 backdrop-blur-md border-t border-gray-200 flex">
+        {(["editor", "preview", "details"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setMainTab(tab)}
+            className={`flex-1 py-3 flex flex-col items-center gap-0.5 text-[10px] font-bold uppercase tracking-wide transition-colors ${
+              mainTab === tab ? "text-black border-t-2 border-black -mt-px" : "text-gray-400"
+            }`}
+          >
+            {tab === "editor" && <Plus size={18} />}
+            {tab === "preview" && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>}
+            {tab === "details" && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>}
+            {tab}
+          </button>
+        ))}
       </div>
 
       <ModalsContainer 
