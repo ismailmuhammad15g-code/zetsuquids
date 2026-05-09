@@ -134,7 +134,7 @@ export default function GuidePage() {
         }
         searchTimeoutRef.current = setTimeout(() => {
             setDebouncedSearch(searchQuery);
-        }, 300);
+        }, 400);
         return () => {
             if (searchTimeoutRef.current) {
                 clearTimeout(searchTimeoutRef.current);
@@ -174,25 +174,29 @@ export default function GuidePage() {
         initMermaid();
     }, []);
 
-    // Track view when user scrolls to bottom
+    // Track view when user scrolls to bottom — throttled + passive
     useEffect(() => {
         if (!guide || hasRecordedView) return;
 
+        let ticking = false;
         const handleScroll = () => {
-            const windowHeight = window.innerHeight;
-            const documentHeight = document.documentElement.scrollHeight;
-            const scrollTop = window.scrollY || document.documentElement.scrollTop;
-            const scrollPercentage = (scrollTop + windowHeight) / documentHeight;
-
-            // If user scrolled 85% or more, record view
-            if (scrollPercentage >= 0.85 && !hasRecordedView) {
-                recordView();
-            }
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(() => {
+                const windowHeight = window.innerHeight;
+                const documentHeight = document.documentElement.scrollHeight;
+                const scrollTop = window.scrollY || document.documentElement.scrollTop;
+                const scrollPercentage = (scrollTop + windowHeight) / documentHeight;
+                if (scrollPercentage >= 0.85) {
+                    recordView();
+                }
+                ticking = false;
+            });
         };
 
-        window.addEventListener("scroll", handleScroll);
+        window.addEventListener("scroll", handleScroll, { passive: true });
         return () => window.removeEventListener("scroll", handleScroll);
-    }, [guide, hasRecordedView]);
+    }, [guide?.id, hasRecordedView]);
 
     // Fetch views count
     useEffect(() => {
@@ -251,15 +255,19 @@ export default function GuidePage() {
         }
     }, [guide]);
 
-    // Process content with memoization to avoid Hook violations and performance issues
+    // Process content — deps are primitives so no unnecessary re-runs
+    const guideMarkdown = guide?.markdown ?? guide?.content ?? "";
+    const guideHtmlContent = guide?.html_content ?? "";
+    const guideContentType = guide?.content_type ?? "";
+
     const processedContent = useMemo((): ProcessedContent | null => {
         if (!guide) return null;
 
         if (
-            guide.content_type === "html" ||
-            (guide.html_content && guide.html_content.trim())
+            guideContentType === "html" ||
+            (guideHtmlContent && guideHtmlContent.trim())
         ) {
-            const htmlContent = guide.html_content?.trim() || "";
+            const htmlContent = guideHtmlContent.trim();
             const isFullDocument =
                 htmlContent.toLowerCase().includes("<!doctype") ||
                 htmlContent.toLowerCase().includes("<html");
@@ -287,9 +295,8 @@ export default function GuidePage() {
             return { type: "html", content: fullHTML };
         }
 
-        let markdownContent = guide.markdown || guide.content || "";
+        let markdownContent = guideMarkdown;
 
-        // Search highlighting on markdown (basic regex approach)
         if (debouncedSearch && debouncedSearch.trim()) {
             const escaped = debouncedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const regex = new RegExp(`(${escaped})`, "gi");
@@ -297,7 +304,7 @@ export default function GuidePage() {
         }
 
         return { type: "markdown", content: markdownContent };
-    }, [guide, debouncedSearch]);
+    }, [guideMarkdown, guideHtmlContent, guideContentType, debouncedSearch]);
 
     // Calculate reading time
     const readingTime = useMemo(() => {
@@ -308,42 +315,37 @@ export default function GuidePage() {
         return readingTimeMinutes;
     }, [guide]);
 
-    // Extract Table of Contents directly from Markdown headings
+    // Extract Table of Contents — only depends on markdown text (primitive)
     useEffect(() => {
-        if (!processedContent || processedContent.type === "html") {
+        if (!guideMarkdown || guideContentType === "html" || (guideHtmlContent && guideHtmlContent.trim())) {
             setTableOfContents([]);
             setContentWithAnchors(null);
             return;
         }
 
         try {
-            const rawMarkdown = guide?.markdown || guide?.content || "";
-            // Only extract h1 and h2 for clean TOC
             const headingRegex = /^(#{1,2})\s+(.+)$/gm;
             const tocItems: TocItem[] = [];
             let match;
 
-            while ((match = headingRegex.exec(rawMarkdown)) !== null) {
+            while ((match = headingRegex.exec(guideMarkdown)) !== null) {
                 const level = match[1].length as 1 | 2;
                 const text = match[2].trim().replace(/[*_`~\[\]]/g, "");
-                // Must match what rehype-slug generates
                 const id = text
                     .toLowerCase()
                     .trim()
                     .replace(/[^\w\s-]/g, "")
                     .replace(/\s+/g, "-")
                     .replace(/-+/g, "-");
-
                 tocItems.push({ id, text, level });
             }
 
-            console.log(`[TOC] Found ${tocItems.length} h1/h2 headings.`);
             setTableOfContents(tocItems);
-            setContentWithAnchors(rawMarkdown);
+            setContentWithAnchors(guideMarkdown);
         } catch (e) {
-            console.error("[TOC] Extraction error:", e);
+            // silent
         }
-    }, [processedContent, guide]);
+    }, [guideMarkdown, guideContentType, guideHtmlContent]);
 
     // Scroll Spy is now handled by GuideTOC component via IntersectionObserver
 
@@ -426,53 +428,26 @@ export default function GuidePage() {
         };
     }, [contentWithAnchors, processedContent]);
 
-    // Hydrate Interactive Quizzes
+    // Hydrate Interactive Quizzes — no hljs call (rehype-highlight handles it)
     useEffect(() => {
         const containers = document.querySelectorAll(".interactive-quiz-container");
         containers.forEach((container: any) => {
             if (container.getAttribute("data-hydrated") === "true") return;
-
             const encoded = container.getAttribute("data-quiz");
             if (!encoded) return;
-
             try {
                 const json = decodeURIComponent(
-                    atob(encoded)
-                        .split("")
-                        .map(function (c) {
-                            return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-                        })
-                        .join(""),
+                    atob(encoded).split("").map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join(""),
                 );
-
                 const data = JSON.parse(json);
                 const root = createRoot(container);
                 root.render(<QuizComponent data={data} />);
                 container.setAttribute("data-hydrated", "true");
             } catch (e) {
-                console.error("Quiz hydration error:", e);
                 container.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded">Failed to load quiz.</div>`;
             }
         });
-
-        // --- Highlight.js Syntax Highlighting ---
-        const highlightTimer = setTimeout(() => {
-            if (typeof window !== "undefined" && (window as any).hljs) {
-                try {
-                    document.querySelectorAll("pre code").forEach((block) => {
-                        if (!block.parentElement?.classList.contains("mermaid-render") &&
-                            !block.classList.contains("language-mermaid") &&
-                            !block.getAttribute("data-highlighted")) {
-                            (window as any).hljs.highlightElement(block);
-                        }
-                    });
-                } catch (e) {
-                    console.error("Highlight.js error", e);
-                }
-            }
-        }, 150);
-        return () => clearTimeout(highlightTimer);
-    }, [guide, processedContent]);
+    }, [guideMarkdown]);
 
     const loadGuide = useCallback(async () => {
         try {
@@ -756,8 +731,8 @@ export default function GuidePage() {
 
 
 
-    // Pure CSS approach: Find and wrap text with inline comments
-    function renderContentWithComments(): JSX.Element | null {
+    // Memoized: inject inline comment spans into markdown
+    const renderContentWithComments = useCallback((): JSX.Element | null => {
         if (!processedContent) return null;
 
         if (processedContent.type === "html") {
@@ -772,7 +747,6 @@ export default function GuidePage() {
             );
         }
 
-        // For inline comments we still inject spans into markdown
         let md = contentWithAnchors || processedContent.content;
         inlineComments.forEach((comment: any) => {
             if (!comment.selected_text) return;
@@ -790,7 +764,7 @@ export default function GuidePage() {
         });
 
         return <div ref={contentRef}><GuideMarkdownRenderer content={md} /></div>;
-    }
+    }, [processedContent, contentWithAnchors, inlineComments, guide?.title]);
 
     function renderContent(): JSX.Element | null {
         if (!processedContent) return null;
@@ -839,21 +813,7 @@ export default function GuidePage() {
         }
     };
 
-    // Debug permissions
-    useEffect(() => {
-        if (guide) {
-            console.log("[GuidePage] Permissions Check:", {
-                userEmail: user?.email,
-                guideAuthor: guide?.user_email,
-                isOwner,
-                isAdmin,
-                sessionAdmin:
-                    typeof window !== "undefined" && window.sessionStorage
-                        ? window.sessionStorage.getItem("adminAuthenticated")
-                        : null,
-            });
-        }
-    }, [guide, user, isOwner, isAdmin]);
+    // (debug logging removed for performance)
 
     // Loading State
     if (loading) {
@@ -1615,14 +1575,9 @@ function ScrollToTopButton() {
 
     useEffect(() => {
         const toggleVisibility = () => {
-            if (window.scrollY > 300) {
-                setIsVisible(true);
-            } else {
-                setIsVisible(false);
-            }
+            setIsVisible(window.scrollY > 300);
         };
-
-        window.addEventListener("scroll", toggleVisibility);
+        window.addEventListener("scroll", toggleVisibility, { passive: true });
         return () => window.removeEventListener("scroll", toggleVisibility);
     }, []);
 
