@@ -927,45 +927,66 @@ export default function App() {
         </div>
       )}
 
-      {/* Top Navbar for Editor */}
-      <div className="h-14 border-b border-[#333] flex items-center justify-between px-6 bg-[#252526] shrink-0">
-        <div className="flex items-center gap-4">
-          <Link href="/components" className="p-1.5 hover:bg-[#333] rounded transition-colors text-gray-400 hover:text-white">
-            <ArrowLeft size={18} />
+      {/* Top Navbar — Premium Studio */}
+      <div className="h-14 border-b border-white/5 flex items-center justify-between px-3 sm:px-5 bg-gradient-to-r from-[#0d0d12] via-[#13131a] to-[#0d0d12] shrink-0 relative">
+        {/* subtle glow line */}
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent pointer-events-none" />
+
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <Link href="/components" className="p-2 hover:bg-white/5 rounded-lg transition-colors text-gray-500 hover:text-gray-200 flex-shrink-0">
+            <ArrowLeft size={16} />
           </Link>
-          <div className="h-6 w-px bg-[#444] mx-2"></div>
-          
-          {/* Creation Mode Switcher */}
-          <div className="flex bg-[#1e1e1e] p-1 rounded-lg border border-[#333]">
+          <div className="h-5 w-px bg-white/10 hidden sm:block" />
+
+          {/* Brand badge */}
+          <div className="hidden sm:flex items-center gap-2">
+            <div className="w-5 h-5 rounded-md bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+              <Layers size={11} className="text-white" />
+            </div>
+            <span className="text-[11px] font-black text-white/80 tracking-widest uppercase">Studio</span>
+          </div>
+
+          <div className="h-5 w-px bg-white/10 hidden sm:block" />
+
+          {/* Mode switcher */}
+          <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/8 gap-0.5">
             <button
-              onClick={() => {
-                setCreationMode('classic');
-                setActiveTab('html');
-              }}
-              className={"px-3 py-1 text-[10px] font-bold rounded-md transition-all " + (creationMode === 'classic' ? "bg-[#007acc] text-white shadow-lg" : "text-gray-500 hover:text-gray-300")}
+              onClick={() => { setCreationMode('classic'); setActiveTab('html'); }}
+              className={"flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold rounded-md transition-all " + (creationMode === 'classic' ? "bg-[#007acc] text-white shadow-lg shadow-blue-500/20" : "text-gray-500 hover:text-gray-300")}
             >
-              CLASSIC (HTML/CSS)
+              <span className="hidden xs:inline">HTML/CSS</span>
+              <span className="xs:hidden">HTML</span>
             </button>
             <button
-              onClick={() => {
-                setCreationMode('react');
-                setActiveTab('react');
-              }}
-              className={"px-3 py-1 text-[10px] font-bold rounded-md transition-all " + (creationMode === 'react' ? "bg-blue-600 text-white shadow-lg" : "text-gray-500 hover:text-gray-300")}
+              onClick={() => { setCreationMode('react'); setActiveTab('react'); }}
+              className={"flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold rounded-md transition-all " + (creationMode === 'react' ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25" : "text-gray-500 hover:text-gray-300")}
             >
-              REACT COMPONENT
+              <span>React</span>
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className="hidden sm:inline text-xs text-gray-500 font-medium italic">{creationMode === 'react' ? "React Mode Active" : "HTML Mode Active"}</span>
+        {/* Title in center (hidden on small) */}
+        <div className="absolute left-1/2 -translate-x-1/2 hidden md:block pointer-events-none">
+          <span className="text-xs text-gray-600 font-mono truncate max-w-[200px] block text-center">
+            {title || "untitled-component"}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Live indicator */}
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Live</span>
+          </div>
+
           <button
             onClick={() => setShowPublishModal(true)}
             disabled={isSaving}
-            className="flex items-center gap-2 bg-[#007acc] hover:bg-[#005c99] text-white px-4 py-1.5 rounded transition-all text-sm font-medium disabled:opacity-50"
+            className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-3 sm:px-4 py-1.5 rounded-lg transition-all text-xs font-bold disabled:opacity-50 shadow-lg shadow-indigo-500/25"
           >
-            <Save size={14} /> Publish
+            <Save size={13} />
+            <span className="hidden sm:inline">Publish</span>
           </button>
         </div>
       </div>
@@ -974,33 +995,43 @@ export default function App() {
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
 
         {/* Left Side: Code Editor */}
-        <div className={"w-full lg:w-1/2 flex flex-col border-r border-[#333] bg-[#1e1e1e] " + (isFullscreen ? "hidden" : "flex")}>
+        <div className={"flex flex-col border-r border-white/5 bg-[#0d0d12] " + (isFullscreen ? "hidden" : "w-full lg:w-1/2 flex")}>
           {/* Tabs */}
-          <div className="flex bg-[#2d2d2d] shrink-0 overflow-x-auto no-scrollbar">
-            {(creationMode === 'classic' ? ['html', 'css', 'js', 'env'] : ['react', 'env']).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab as any)}
-                className={"flex items-center gap-2 px-6 py-3 text-[10px] font-bold uppercase tracking-wider transition-all border-b-2 " + (activeTab === tab ? "border-[#007acc] text-white bg-[#1e1e1e]" : "border-transparent text-gray-400 hover:text-gray-200 bg-[#2d2d2d]")}
-              >
-                {tab === 'env' && <Settings size={12} />}
-                {tab === 'react' && <Layers size={12} className="text-blue-400" />}
-                {tab}
-                {tab === 'env' && detectedEnvCount > 0 && (
-                  <span className="ml-1.5 px-2 py-0.5 bg-blue-500 text-white text-[9px] rounded-full font-bold">
-                    {detectedEnvCount}
-                  </span>
-                )}
-              </button>
-            ))}
+          <div className="flex bg-[#0a0a0f] shrink-0 overflow-x-auto no-scrollbar border-b border-white/5">
+            {(creationMode === 'classic' ? ['html', 'css', 'js', 'env'] : ['react', 'env']).map(tab => {
+              const colors: Record<string, string> = {
+                html: 'text-orange-400', css: 'text-blue-400', js: 'text-yellow-400',
+                react: 'text-cyan-400', env: 'text-emerald-400',
+              };
+              const activeBg: Record<string, string> = {
+                html: 'border-orange-500', css: 'border-blue-500', js: 'border-yellow-500',
+                react: 'border-cyan-500', env: 'border-emerald-500',
+              };
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab as any)}
+                  className={"flex items-center gap-1.5 px-4 py-3 text-[10px] font-bold uppercase tracking-wider transition-all border-b-2 whitespace-nowrap " + (activeTab === tab ? (activeBg[tab] || 'border-indigo-500') + ' ' + (colors[tab] || 'text-white') + ' bg-[#1a1a24]' : 'border-transparent text-gray-600 hover:text-gray-400')}
+                >
+                  {tab === 'env' && <Settings size={11} />}
+                  {tab === 'react' && <Layers size={11} className="text-cyan-400" />}
+                  {tab}
+                  {tab === 'env' && detectedEnvCount > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 bg-blue-500 text-white text-[8px] rounded-full font-bold animate-pulse">
+                      {detectedEnvCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {/* Editor Container */}
-          <div className="flex-1 relative bg-[#1e1e1e] flex flex-col">
+          <div className="flex-1 relative bg-[#0d0d12] flex flex-col">
             {activeTab === 'react' && (
-              <div className="flex bg-[#252526] border-b border-[#333] shrink-0 overflow-x-auto no-scrollbar items-stretch">
+              <div className="flex bg-[#0a0a0f] border-b border-white/5 shrink-0 overflow-x-auto no-scrollbar items-stretch">
                 {reactFiles.map((file, idx) => (
-                  <div key={idx} className="flex items-center group border-r border-[#333]">
+                  <div key={idx} className="flex items-center group border-r border-white/5">
                     {renamingIdx === idx ? (
                       <input
                         autoFocus
@@ -1032,7 +1063,7 @@ export default function App() {
                         onClick={() => setActiveReactFile(idx)}
                         onDoubleClick={() => { setRenamingIdx(idx); setRenameValue(file.name); }}
                         title="Double-click to rename"
-                        className={"flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold transition-all " + (activeReactFile === idx ? "text-blue-400 bg-[#1e1e1e]" : "text-gray-500 hover:text-gray-300")}
+                        className={"flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold transition-all " + (activeReactFile === idx ? "text-cyan-400 bg-[#0d0d12]" : "text-gray-600 hover:text-gray-300")}
                       >
                         <span className="opacity-40 text-[9px]">{file.name.endsWith('.tsx') || file.name.endsWith('.ts') ? 'TS' : 'JS'}</span>
                         {file.name}
@@ -1056,7 +1087,7 @@ export default function App() {
                 ))}
                 <button
                   onClick={() => { setNewFileName(''); setShowNewFileDialog(true); }}
-                  className="px-4 py-2 text-[10px] font-bold text-gray-500 hover:text-blue-400 transition-all shrink-0 flex items-center gap-1"
+                  className="px-4 py-2 text-[10px] font-bold text-gray-600 hover:text-cyan-400 transition-all shrink-0 flex items-center gap-1"
                   title="Add new file"
                 >
                   + New File
@@ -1120,45 +1151,38 @@ export default function App() {
         </div>
 
         {/* Right Side: Live Preview */}
-        <div className={"w-full flex flex-col bg-white relative " + (isFullscreen ? "lg:w-full" : "lg:w-1/2")}>
-          <div className="absolute top-4 right-4 z-10 flex gap-2">
-            <div className="bg-[#1e1e1e] border border-[#333] flex items-center p-1 rounded-md shadow-lg backdrop-blur-sm">
+        <div className={"flex flex-col relative overflow-hidden " + (isFullscreen ? "w-full" : "w-full lg:w-1/2")}>
+          {/* Preview header bar */}
+          <div className="h-9 bg-[#0a0a0f] border-b border-white/5 flex items-center justify-between px-4 shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
+                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/60" />
+              </div>
+              <span className="text-[10px] text-gray-600 font-mono ml-2">preview</span>
+            </div>
+            <div className="flex items-center gap-1.5">
               {creationMode === 'classic' && (
-                <>
-                  <button
-                    onClick={() => {
-                      setDebouncedHtml(htmlCode);
-                      setDebouncedCss(cssCode);
-                      setDebouncedJs(jsCode);
-                    }}
-                    className="p-1.5 text-gray-400 hover:text-white rounded transition-all"
-                    title="Force Rerender"
-                  >
-                    <Play size={16} />
-                  </button>
-                  <div className="w-px h-4 bg-[#444] mx-1"></div>
-                </>
+                <button
+                  onClick={() => { setDebouncedHtml(htmlCode); setDebouncedCss(cssCode); setDebouncedJs(jsCode); }}
+                  className="p-1 text-gray-600 hover:text-emerald-400 rounded transition-all"
+                  title="Rerun"
+                >
+                  <Play size={13} />
+                </button>
               )}
               <button
                 onClick={() => setIsFullscreen(!isFullscreen)}
-                className="p-1.5 text-gray-400 hover:text-white rounded transition-all hidden lg:block"
+                className="p-1 text-gray-600 hover:text-white rounded transition-all hidden lg:block"
                 title="Toggle Fullscreen"
               >
-                {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
               </button>
             </div>
-            </div>
-            {/* Premium Header Overlay for React Mode */}
-            {creationMode === 'react' && (
-              <div className="absolute top-4 left-4 z-10 flex gap-2 pointer-events-none">
-                <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 flex items-center gap-2 px-3 py-1.5 rounded-full shadow-lg">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                  <span className="text-[10px] font-bold text-gray-700 uppercase tracking-widest">Live React</span>
-                </div>
-              </div>
-            )}
+          </div>
 
-          <div className="flex-1 bg-[#f8f9fa] relative w-full h-full">
+          <div className="flex-1 relative w-full overflow-hidden" style={{ background: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0)', backgroundSize: '20px 20px', backgroundColor: '#0d0d12' }}>
             {creationMode === 'react' ? (
               <div className="flex-1 flex flex-col relative w-full h-full bg-[#f8f9fa] rounded-tl-2xl border-t border-l border-gray-200 shadow-inner overflow-hidden">
                 <iframe
@@ -1219,89 +1243,85 @@ export default function App() {
 
       {/* Publish Modal */}
       {showPublishModal && (
-        <div className="fixed inset-0 z-[999] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-[#1e1e1e] border border-[#333] w-full max-w-lg rounded-xl shadow-2xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-white">Publish Component</h2>
-              <button onClick={() => setShowPublishModal(false)} className="text-gray-400 hover:text-white">
-                <X size={20} />
+        <div className="fixed inset-0 z-[999] bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-md">
+          <div className="bg-gradient-to-b from-[#13131a] to-[#0d0d12] border border-white/10 w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                  <Save size={15} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-white">Publish Component</h2>
+                  <p className="text-[10px] text-gray-600 mt-0.5">Share your creation with the community</p>
+                </div>
+              </div>
+              <button onClick={() => setShowPublishModal(false)} className="p-2 text-gray-600 hover:text-white hover:bg-white/5 rounded-lg transition-all">
+                <X size={18} />
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Title</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Title *</label>
                 <input
                   type="text"
                   value={title}
                   onChange={e => setTitle(e.target.value)}
-                  className="w-full bg-[#2d2d2d] border border-[#444] rounded p-2.5 text-white focus:outline-none focus:border-[#007acc] focus:ring-1 focus:ring-[#007acc]"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 placeholder-gray-700 transition-all"
                   placeholder="e.g., Neon Liquid Button"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Description <span className="text-xs text-gray-500">(Optional)</span></label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Description <span className="text-gray-700 normal-case font-normal">(optional)</span></label>
                 <textarea
                   value={description}
                   onChange={e => setDescription(e.target.value)}
-                  className="w-full bg-[#2d2d2d] border border-[#444] rounded p-2.5 text-white focus:outline-none focus:border-[#007acc] focus:ring-1 focus:ring-[#007acc] h-24 resize-none"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 h-20 resize-none placeholder-gray-700 transition-all"
                   placeholder="What does this component do?"
                 />
               </div>
 
-              {/* Component Type Selector */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setComponentType('component')}
-                    className={"flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all text-sm font-semibold " + (componentType === 'component' ? "border-[#007acc] bg-[#007acc]/10 text-[#007acc]" : "border-[#444] text-gray-400 hover:border-[#555] hover:text-gray-300")}
-                  >
-                    <Layers size={16} />
-                    Component
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Type</label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setComponentType('component')}
+                    className={"flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all text-sm font-bold " + (componentType === 'component' ? "border-indigo-500/50 bg-indigo-500/10 text-indigo-400" : "border-white/10 text-gray-600 hover:border-white/20 hover:text-gray-400")}>
+                    <Layers size={15} /> Component
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setComponentType('template')}
-                    className={"flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all text-sm font-semibold " + (componentType === 'template' ? "border-purple-500 bg-purple-500/10 text-purple-400" : "border-[#444] text-gray-400 hover:border-[#555] hover:text-gray-300")}
-                  >
-                    <Layers size={16} />
-                    Template
+                  <button type="button" onClick={() => setComponentType('template')}
+                    className={"flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all text-sm font-bold " + (componentType === 'template' ? "border-purple-500/50 bg-purple-500/10 text-purple-400" : "border-white/10 text-gray-600 hover:border-white/20 hover:text-gray-400")}>
+                    <Layers size={15} /> Template
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Tags (comma-separated)</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tags</label>
                 <input
                   type="text"
                   value={tags}
                   onChange={e => setTags(e.target.value)}
-                  className="w-full bg-[#2d2d2d] border border-[#444] rounded p-2.5 text-white focus:outline-none focus:border-[#007acc] focus:ring-1 focus:ring-[#007acc]"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 placeholder-gray-700 transition-all"
                   placeholder="button, neon, hover, 3d"
                 />
               </div>
 
-              <p className="text-xs text-yellow-500/80 mt-2 italic">
-                * Environment variables added in the ENV tab are saved securely and will not be displayed in the public code viewer.
-              </p>
+              <div className="flex items-start gap-2 p-3 bg-amber-500/5 border border-amber-500/15 rounded-xl">
+                <span className="text-amber-500/60 mt-0.5 text-sm">🔒</span>
+                <p className="text-[11px] text-amber-500/60 leading-relaxed">ENV variables are encrypted and never shown publicly.</p>
+              </div>
             </div>
 
-            <div className="mt-8 flex justify-end gap-3.5">
-              <button
-                onClick={() => setShowPublishModal(false)}
-                className="px-4 py-2 rounded text-gray-300 hover:bg-[#333] transition"
-              >
+            <div className="px-6 pb-6 flex gap-3">
+              <button onClick={() => setShowPublishModal(false)}
+                className="flex-1 px-4 py-3 rounded-xl text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-all text-sm font-medium border border-white/5">
                 Cancel
               </button>
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="flex items-center justify-center gap-2 w-32 bg-[#007acc] hover:bg-[#005c99] text-white px-4 py-2 rounded transition font-medium disabled:opacity-50"
-              >
-                {isSaving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> : 'Publish Now'}
+              <button onClick={handleSave} disabled={isSaving}
+                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-4 py-3 rounded-xl transition-all font-bold text-sm disabled:opacity-50 shadow-lg shadow-indigo-500/25">
+                {isSaving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Publish Now'}
               </button>
             </div>
           </div>
