@@ -9,7 +9,7 @@ import {
   Repeat2,
   Share
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { toast } from "sonner";
@@ -17,6 +17,8 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { getAvatarForUser } from "../../../../lib/avatar";
 import { communityApi } from "../../../../lib/communityApi";
 import { useRouter, useParams } from "next/navigation";
+import { useMention } from "../../../../hooks/useMention";
+import MentionDropdown from "../../../../components/community/MentionDropdown";
 
 // --- Components ---
 
@@ -77,7 +79,22 @@ const CommentItem = ({ comment }: { comment: PostCommentItem }) => {
           <span className="text-[#71767b]">{commentDate}</span>
         </div>
         <div className="text-[#e7e9ea] text-[15px] whitespace-pre-wrap">
-          {comment.content}
+          {comment.content.split(/((?:#[A-Za-z0-9_\u0600-\u06FF]{2,30})|(?:@[A-Za-z0-9_\u0600-\u06FF]{2,30}))/g).map((part, i) => {
+            if (part.match(/^#[A-Za-z0-9_\u0600-\u06FF]{2,30}$/)) {
+              return (
+                <a key={i} href={`/community/explore?q=${encodeURIComponent(part)}`} className="text-[#1d9bf0] hover:underline" onClick={e => e.stopPropagation()}>
+                  {part}
+                </a>
+              );
+            } else if (part.match(/^@[A-Za-z0-9_\u0600-\u06FF]{2,30}$/)) {
+              return (
+                <a key={i} href={`/profile/${encodeURIComponent(part.substring(1))}`} className="text-[#1d9bf0] hover:underline" onClick={e => e.stopPropagation()}>
+                  {part}
+                </a>
+              );
+            }
+            return <span key={i}>{part}</span>;
+          })}
         </div>
       </div>
     </div>
@@ -99,6 +116,16 @@ export default function PostDetailsPage() {
   // Optimistic like state
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
+
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const {
+    showMentionDropdown,
+    filteredUsers,
+    selectedIndex,
+    handleMentionInput,
+    handleMentionKeyDown,
+    insertMention,
+  } = useMention(replyText, setReplyText, textareaRef);
 
   useEffect(() => {
     loadData();
@@ -264,9 +291,59 @@ export default function PostDetailsPage() {
                   </code>
                 );
               },
-              p: ({ node, ...props }) => (
-                <p className="mb-3 last:mb-0" {...props} />
-              ),
+              p: ({ node, children, ...props }: any) => {
+                const textChildren: (string | React.ReactNode)[] = [];
+                const nonTextElements: React.ReactNode[] = [];
+
+                const flattenChildren = (items: React.ReactNode): React.ReactNode[] => {
+                  return Array.isArray(items) ? items.flat() : [items];
+                };
+
+                flattenChildren(children).forEach((child) => {
+                  if (child && typeof child === "object" && "type" in child) {
+                    nonTextElements.push(child);
+                  } else {
+                    textChildren.push(child);
+                  }
+                });
+
+                const processTextChildren = (items: (string | React.ReactNode)[]): React.ReactNode[] => {
+                  return items.map((child, i) => {
+                    if (typeof child === "string") {
+                      return child
+                        .split(/((?:#[A-Za-z0-9_\u0600-\u06FF]{2,30})|(?:@[A-Za-z0-9_\u0600-\u06FF]{2,30}))/g)
+                        .map((part, j) => {
+                          if (part.match(/^#[A-Za-z0-9_\u0600-\u06FF]{2,30}$/)) {
+                            return (
+                              <a key={`${i}-${j}`} href={`/community/explore?q=${encodeURIComponent(part)}`} className="text-[#1d9bf0] hover:underline" onClick={(e) => e.stopPropagation()}>
+                                {part}
+                              </a>
+                            );
+                          } else if (part.match(/^@[A-Za-z0-9_\u0600-\u06FF]{2,30}$/)) {
+                            return (
+                              <a key={`${i}-${j}`} href={`/profile/${encodeURIComponent(part.substring(1))}`} className="text-[#1d9bf0] hover:underline" onClick={(e) => e.stopPropagation()}>
+                                {part}
+                              </a>
+                            );
+                          }
+                          return part;
+                        });
+                    }
+                    return child;
+                  });
+                };
+
+                return (
+                  <>
+                    {textChildren.length > 0 && (
+                      <p className="mb-3 last:mb-0" {...props}>
+                        {processTextChildren(textChildren)}
+                      </p>
+                    )}
+                    {nonTextElements}
+                  </>
+                );
+              },
             }}
           />
         </div>
@@ -321,12 +398,31 @@ export default function PostDetailsPage() {
           <div className="flex-1">
             <div className="relative">
               <textarea
+                ref={textareaRef}
                 value={replyText}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReplyText(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+                  setReplyText(e.target.value);
+                  handleMentionInput(e);
+                }}
+                onKeyDown={handleMentionKeyDown}
                 placeholder="Post your reply"
                 className="w-full bg-transparent text-[20px] text-[#e7e9ea] placeholder-[#71767b] border-none focus:ring-0 resize-none py-2 scrollbar-none"
                 rows={1}
+                onInput={(e: React.FormEvent<HTMLTextAreaElement>) => {
+                  const target = e.currentTarget;
+                  target.style.height = "auto";
+                  target.style.height = target.scrollHeight + "px";
+                }}
               />
+              {showMentionDropdown && (
+                <div className="-mt-14 absolute z-50 bottom-full w-full">
+                  <MentionDropdown
+                    users={filteredUsers}
+                    selectedIndex={selectedIndex}
+                    onSelect={insertMention}
+                  />
+                </div>
+              )}
             </div>
             <div className="flex justify-end mt-2">
               <button

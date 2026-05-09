@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { getAvatarForUser } from "../../lib/avatar";
 import { communityApi } from "../../lib/communityApi";
 import { uploadImageToImgBB } from "../../lib/imgbb";
+import { useMention } from "../../hooks/useMention";
+import MentionDropdown from "./MentionDropdown";
 
 const MAX_CHARS = 280;
 
@@ -56,6 +58,15 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
   const charPercent = Math.min((charCount / MAX_CHARS) * 100, 100);
   const isOverLimit = charCount > MAX_CHARS;
   const charsRemaining = MAX_CHARS - charCount;
+
+  const {
+    showMentionDropdown,
+    filteredUsers,
+    selectedIndex,
+    handleMentionInput,
+    handleMentionKeyDown,
+    insertMention,
+  } = useMention(content, setContent, textareaRef);
 
   // Global click listener to close emoji picker
   useEffect(() => {
@@ -223,7 +234,11 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
           <textarea
             ref={textareaRef}
             value={content}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+              setContent(e.target.value);
+              handleMentionInput(e);
+            }}
+            onKeyDown={handleMentionKeyDown}
             placeholder={placeholder}
             className="w-full resize-none border-none bg-transparent text-[20px] text-[#e7e9ea] placeholder-[#71767b] focus:ring-0 focus:outline-none min-h-[56px] scrollbar-none py-3"
             rows={isModal ? 3 : 1}
@@ -233,6 +248,13 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
               target.style.height = target.scrollHeight + "px";
             }}
           />
+          {showMentionDropdown && (
+            <MentionDropdown
+              users={filteredUsers}
+              selectedIndex={selectedIndex}
+              onSelect={insertMention}
+            />
+          )}
           {uploadingImage && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md rounded-xl border border-[#1d9bf0]/20">
               {tempPreview && <img src={tempPreview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />}

@@ -300,12 +300,13 @@ export default function PostCard({ post, onDeleted }: PostCardProps) {
               }
             });
 
-            // Process text children to highlight hashtags
+            // Process text children to highlight hashtags and mentions
             const processTextChildren = (items: (string | React.ReactNode)[]): React.ReactNode[] => {
               return items.map((child, i) => {
                 if (typeof child === "string") {
+                  // Split by either hashtags or mentions
                   return child
-                    .split(/(#[A-Za-z0-9_\u0600-\u06FF]{2,30})/g)
+                    .split(/((?:#[A-Za-z0-9_\u0600-\u06FF]{2,30})|(?:@[A-Za-z0-9_\u0600-\u06FF]{2,30}))/g)
                     .map((part, j) => {
                       if (part.match(/^#[A-Za-z0-9_\u0600-\u06FF]{2,30}$/)) {
                         return (
@@ -315,6 +316,20 @@ export default function PostCard({ post, onDeleted }: PostCardProps) {
                             onClick={(e: React.MouseEvent<HTMLElement>) => {
                               e.stopPropagation();
                               router.push(`/community/explore?q=${encodeURIComponent(part)}`);
+                            }}
+                          >
+                            {part}
+                          </span>
+                        );
+                      } else if (part.match(/^@[A-Za-z0-9_\u0600-\u06FF]{2,30}$/)) {
+                        return (
+                          <span
+                            key={`${i}-${j}`}
+                            className="text-[#1d9bf0] hover:underline cursor-pointer"
+                            onClick={(e: React.MouseEvent<HTMLElement>) => {
+                              e.stopPropagation();
+                              const username = part.substring(1);
+                              router.push(`/profile/${encodeURIComponent(username)}`);
                             }}
                           >
                             {part}

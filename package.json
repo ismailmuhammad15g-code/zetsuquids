@@ -20,7 +20,7 @@
     "@radix-ui/react-tooltip": "^1.0.7",
     "@remotion/renderer": "^4.0.0",
     "@supabase/ssr": "^0.10.2",
-    "@supabase/supabase-js": "^2.39.0",
+    "@supabase/supabase-js": "^2.105.4",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.90.20",
     "@types/babel__traverse": "^7.28.0",

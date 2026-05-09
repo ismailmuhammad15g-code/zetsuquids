@@ -21,7 +21,9 @@ export function generateSlug(title: string): string {
             .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
             .replace(/^-|-$/g, "") +
         "-" +
-        Date.now().toString(36)
+        Date.now().toString(36) +
+        "-" +
+        Math.random().toString(36).substring(2, 8)
     );
 }
 
