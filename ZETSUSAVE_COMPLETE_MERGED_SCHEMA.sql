@@ -2787,3 +2787,78 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION toggle_ui_component_like TO authenticated;
+
+-- ==================================================================================
+-- PART N: SITE REVIEWS (Community Love Section)
+-- ==================================================================================
+
+-- ===== SECTION: site_reviews.sql - Real User Reviews for Homepage =====
+CREATE TABLE IF NOT EXISTS site_reviews (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_email TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  username TEXT,
+  avatar_url TEXT,
+  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  review_text TEXT NOT NULL CHECK (char_length(review_text) >= 10 AND char_length(review_text) <= 500),
+  role TEXT,
+  is_approved BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_site_reviews_user_id ON site_reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_site_reviews_user_email ON site_reviews(user_email);
+CREATE INDEX IF NOT EXISTS idx_site_reviews_created_at ON site_reviews(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_site_reviews_rating ON site_reviews(rating);
+CREATE INDEX IF NOT EXISTS idx_site_reviews_approved ON site_reviews(is_approved) WHERE is_approved = true;
+
+-- Trigger to keep updated_at fresh
+DROP TRIGGER IF EXISTS update_site_reviews_updated_at ON site_reviews;
+CREATE TRIGGER update_site_reviews_updated_at
+  BEFORE UPDATE ON site_reviews
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable Row Level Security
+ALTER TABLE site_reviews ENABLE ROW LEVEL SECURITY;
+
+-- Everyone can read approved reviews
+DROP POLICY IF EXISTS "Public can read approved reviews" ON site_reviews;
+CREATE POLICY "Public can read approved reviews"
+  ON site_reviews FOR SELECT
+  USING (is_approved = true);
+
+-- Authenticated users can insert their own review (one per user)
+DROP POLICY IF EXISTS "Authenticated users can insert review" ON site_reviews;
+CREATE POLICY "Authenticated users can insert review"
+  ON site_reviews FOR INSERT
+  WITH CHECK (auth.uid() = user_id AND auth.jwt() ->> 'email' = user_email);
+
+-- Users can update their own review
+DROP POLICY IF EXISTS "Users can update own review" ON site_reviews;
+CREATE POLICY "Users can update own review"
+  ON site_reviews FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- Users can delete their own review
+DROP POLICY IF EXISTS "Users can delete own review" ON site_reviews;
+CREATE POLICY "Users can delete own review"
+  ON site_reviews FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Unique constraint: one review per user
+ALTER TABLE site_reviews DROP CONSTRAINT IF EXISTS site_reviews_one_per_user;
+ALTER TABLE site_reviews ADD CONSTRAINT site_reviews_one_per_user UNIQUE (user_id);
+
+-- Grant permissions
+GRANT SELECT ON site_reviews TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON site_reviews TO authenticated;
+
+COMMENT ON TABLE site_reviews IS 'Real user reviews for the ZetsuGuide homepage Community Love section. One review per authenticated user.';
+COMMENT ON COLUMN site_reviews.rating IS 'Star rating from 1 to 5';
+COMMENT ON COLUMN site_reviews.review_text IS 'The user review text, must be positive (10-500 chars)';
+COMMENT ON COLUMN site_reviews.is_approved IS 'Admin can toggle approval status. Defaults to true for positive-only submissions.';
+

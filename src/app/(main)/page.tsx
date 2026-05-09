@@ -13,7 +13,7 @@ import {
 import { useEffect, useState } from "react";
 import Chatbot from "../../components/Chatbot";
 import ProgrammingMarquee from "../../components/ProgrammingMarquee";
-import TestimonialsMarquee from "../../components/TestimonialsMarquee";
+import CommunityReviews from "../../components/CommunityReviews";
 import { AICard } from "../../components/ui/ai-card";
 import { ComicText } from "../../components/ui/comic-text";
 import { FlipWords } from "../../components/ui/flip-words";
@@ -344,8 +344,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <TestimonialsMarquee />
+      {/* Community Reviews */}
+      <CommunityReviews />
 
       {/* CTA */}
       <section className="bg-black text-white py-12 sm:py-20">
