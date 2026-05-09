@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, ChangeEvent, KeyboardEvent } from "react";
+import { useState, useEffect, ChangeEvent, KeyboardEvent } from "react";
 import { communityApi } from "../lib/communityApi";
 
 export interface MentionUser {

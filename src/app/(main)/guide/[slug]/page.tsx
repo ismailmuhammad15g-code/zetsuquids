@@ -22,15 +22,15 @@ import {
     Share2,
     Sparkles,
     Sun,
-    Tag,
     Trash2,
     UserPlus,
     Volume2,
     VolumeX,
-    X,
+    X
 } from "lucide-react";
 
-import { marked } from "marked";
+
+import "highlight.js/styles/github-dark.css";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -39,17 +39,18 @@ import { toast } from "sonner";
 import Breadcrumbs from "../../../../components/Breadcrumbs";
 import ConfirmModal from "../../../../components/ConfirmModal";
 import DownloadGuideModal from "../../../../components/DownloadGuideModal";
-import { Balloons } from "../../../../components/ui/balloons";
 import FollowButton from "../../../../components/FollowButton";
 import { GuideAIChat } from "../../../../components/GuideAIChat";
 import GuideComments from "../../../../components/GuideComments";
 import GuideEditModal from "../../../../components/GuideEditModal";
 import GuideHistoryModal from "../../../../components/GuideHistoryModal";
 import GuideInlineComments from "../../../../components/GuideInlineComment";
+import GuideMarkdownRenderer from "../../../../components/GuideMarkdownRenderer";
 import GuideRating from "../../../../components/GuideRating";
 import GuideRecommendations from "../../../../components/GuideRecommendations";
 import { GuideSummarizer } from "../../../../components/GuideSummarizer";
 import GuideTimer from "../../../../components/GuideTimer";
+import GuideTOC, { type TocItem } from "../../../../components/GuideTOC";
 import { GuideTranslator } from "../../../../components/GuideTranslator";
 import QuizComponent from "../../../../components/quiz/QuizComponent";
 import SEOHelmet from "../../../../components/SEOHelmet";
@@ -61,15 +62,11 @@ import { useGuideInteraction } from "../../../../hooks/useGuideInteraction";
 import { Guide, guidesApi } from "../../../../lib/api";
 import { getAvatarForUser } from "../../../../lib/avatar";
 import { supabase } from "../../../../lib/supabase";
-import { sanitizeContent } from "../../../../lib/utils";
+
 import { GuideCoverBot } from "../../../../components/GuideCoverBot";
 
 // Type definitions
-interface TableOfContentsItem {
-    id: string
-    text: string | null
-    level: number
-}
+// TableOfContentsItem is imported as TocItem from GuideTOC
 
 interface InlineComment {
     id: string
@@ -82,76 +79,6 @@ interface ProcessedContent {
     content: string
 }
 
-// Configure marked
-const renderer = {
-    code(code: string | { text: string; lang: string }, language?: string): string {
-        // Handle newer marked versions passing object
-        let text = code;
-        let lang = language;
-
-        if (typeof code === "object" && code !== null) {
-            text = code.text || "";
-            lang = code.lang || "";
-        }
-
-        // Ensure text is a string
-        text = String(text || "");
-
-        if (
-            lang === "mermaid" ||
-            text.trim().startsWith("graph ") ||
-            text.trim().startsWith("sequenceDiagram") ||
-            text.trim().startsWith("classDiagram") ||
-            text.trim().startsWith("stateDiagram") ||
-            text.trim().startsWith("erDiagram") ||
-            text.trim().startsWith("gantt") ||
-            text.trim().startsWith("pie") ||
-            text.trim().startsWith("flowchart")
-        ) {
-            return `<pre class="mermaid">${text}</pre>`;
-        }
-
-        if (lang === "quiz") {
-            try {
-                const jsonStr = typeof code === "object" ? code.text : code;
-                // Secure encoding for data attribute
-                const encoded = btoa(
-                    encodeURIComponent(jsonStr).replace(
-                        /%([0-9A-F]{2})/g,
-                        function toSolidBytes(_match: string, p1: string) {
-                            return String.fromCharCode(parseInt(p1, 16));
-                        },
-                    ),
-                );
-                return `<div class="interactive-quiz-container my-8" data-quiz="${encoded}"></div>`;
-            } catch (e) {
-                console.error("Quiz encoding error", e);
-                return `<pre class="bg-red-50 text-red-600 p-4 rounded border border-red-200">Error rendering quiz</pre>`;
-            }
-        }
-
-        // Manual fallback for normal code blocks to avoid renderer recursion issues
-        const escapedText = text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#39;");
-
-        if (!lang) {
-            return `<pre><code>${escapedText}</code></pre>`;
-        }
-
-        const langClass = `language-${lang}`;
-        return `<pre><code class="${langClass}">${escapedText}</code></pre>`;
-    },
-};
-
-marked.use({ renderer } as any);
-marked.setOptions({
-    breaks: true,
-    gfm: true,
-} as any);
 
 export default function GuidePage() {
     const params = useParams();
@@ -190,18 +117,15 @@ export default function GuidePage() {
     const [showTranslator, setShowTranslator] = useState<boolean>(false);
     const [aiToolsExpanded, setAiToolsExpanded] = useState<boolean>(false);
     const [showTOC, setShowTOC] = useState<boolean>(false);
-    const [tableOfContents, setTableOfContents] = useState<TableOfContentsItem[]>([]);
-    const [activeId, setActiveId] = useState<string | null>(null);
+    const [tableOfContents, setTableOfContents] = useState<TocItem[]>([]);
+    // activeId is now handled internally by GuideTOC via IntersectionObserver
     const [contentWithAnchors, setContentWithAnchors] = useState<string | null>(null);
     const [showCoverBot, setShowCoverBot] = useState<boolean>(false);
 
     const moreMenuRef = useRef<HTMLDivElement>(null);
-    const fireworksRef = useRef<HTMLDivElement>(null);
-    const balloonsRef = useRef<any>(null);
     const ttsRef = useRef<any>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const [showCelebrationText, setShowCelebrationText] = useState<boolean>(true);
 
     // Debounce search query for performance
     useEffect(() => {
@@ -218,38 +142,7 @@ export default function GuidePage() {
         };
     }, [searchQuery]);
 
-    useEffect(() => {
-        if (!fireworksRef.current || loading || !guide) return;
 
-        let hasFired = false;
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                // Also check if the page has actually been scrolled (prevent immediate firing on short pages)
-                if (entry.isIntersecting && !hasFired && window.scrollY > 100) {
-                    hasFired = true;
-                    console.log("[Celebration] Triggering balloons!");
-                    
-                    if (balloonsRef.current && typeof balloonsRef.current.launchAnimation === 'function') {
-                        balloonsRef.current.launchAnimation();
-                    } else {
-                        console.error("[Celebration] balloonsRef.current.launchAnimation is not available", balloonsRef.current);
-                    }
-                    
-                    // Fade out the text after 4 seconds
-                    setTimeout(() => {
-                        setShowCelebrationText(false);
-                    }, 4000);
-                    
-                    observer.disconnect();
-                }
-            },
-            { threshold: 0.1, rootMargin: "0px" }
-        );
-
-        observer.observe(fireworksRef.current);
-
-        return () => observer.disconnect();
-    }, [loading, guide]);
 
     // Record guide read in localStorage for recommendation engine
     useEffect(() => {
@@ -362,7 +255,6 @@ export default function GuidePage() {
     const processedContent = useMemo((): ProcessedContent | null => {
         if (!guide) return null;
 
-        // 1. Handle HTML Content Type
         if (
             guide.content_type === "html" ||
             (guide.html_content && guide.html_content.trim())
@@ -395,55 +287,16 @@ export default function GuidePage() {
             return { type: "html", content: fullHTML };
         }
 
-        // 2. Handle Markdown Content
-        const markdownContent = guide.markdown || guide.content || "";
-        const html = marked.parse(markdownContent) as string;
-        const sanitizedHtml = sanitizeContent(html);
+        let markdownContent = guide.markdown || guide.content || "";
 
-        // Apply Search Highlighting (using debounced search for performance)
-        if (!debouncedSearch || !debouncedSearch.trim()) {
-            return { type: "markdown", content: sanitizedHtml };
+        // Search highlighting on markdown (basic regex approach)
+        if (debouncedSearch && debouncedSearch.trim()) {
+            const escaped = debouncedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(${escaped})`, "gi");
+            markdownContent = markdownContent.replace(regex, '<mark class="bg-yellow-200 text-black font-bold px-1 rounded-sm">$1</mark>');
         }
 
-        try {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(sanitizedHtml, "text/html");
-            const walker = document.createTreeWalker(
-                doc.body,
-                NodeFilter.SHOW_TEXT,
-                null
-            );
-            const nodes = [];
-            while (walker.nextNode()) nodes.push(walker.currentNode);
-
-            const regex = new RegExp(
-                `(${debouncedSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
-                "gi",
-            );
-
-            nodes.forEach((node: any) => {
-                if (node.nodeValue && regex.test(node.nodeValue)) {
-                    const fragment = document.createDocumentFragment();
-                    const parts = node.nodeValue.split(regex);
-                    parts.forEach((part: any) => {
-                        if (regex.test(part)) {
-                            const mark = document.createElement("mark");
-                            mark.className =
-                                "bg-yellow-200 text-black font-bold px-1 rounded-sm";
-                            mark.textContent = part;
-                            fragment.appendChild(mark);
-                        } else {
-                            fragment.appendChild(document.createTextNode(part));
-                        }
-                    });
-                    node.parentNode.replaceChild(fragment, node);
-                }
-            });
-            return { type: "markdown", content: doc.body.innerHTML };
-        } catch (e) {
-            console.error("Highlight error:", e);
-            return { type: "markdown", content: sanitizedHtml };
-        }
+        return { type: "markdown", content: markdownContent };
     }, [guide, debouncedSearch]);
 
     // Calculate reading time
@@ -455,7 +308,7 @@ export default function GuidePage() {
         return readingTimeMinutes;
     }, [guide]);
 
-    // Extract Table of Contents from headings
+    // Extract Table of Contents directly from Markdown headings
     useEffect(() => {
         if (!processedContent || processedContent.type === "html") {
             setTableOfContents([]);
@@ -464,88 +317,35 @@ export default function GuidePage() {
         }
 
         try {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(processedContent.content, "text/html");
-            const headings = doc.querySelectorAll("h1, h2, h3, h4");
-            const tocItems: TableOfContentsItem[] = [];
+            const rawMarkdown = guide?.markdown || guide?.content || "";
+            // Only extract h1 and h2 for clean TOC
+            const headingRegex = /^(#{1,2})\s+(.+)$/gm;
+            const tocItems: TocItem[] = [];
+            let match;
 
-            headings.forEach((heading, index) => {
-                const text = heading.textContent || "";
+            while ((match = headingRegex.exec(rawMarkdown)) !== null) {
+                const level = match[1].length as 1 | 2;
+                const text = match[2].trim().replace(/[*_`~\[\]]/g, "");
+                // Must match what rehype-slug generates
                 const id = text
-                    ? text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-")
-                    : `heading-${index}`;
-                
-                heading.id = id; 
-                // Ensure clicking standard anchor links doesn't hide the heading behind the sticky header
-                (heading as HTMLElement).style.scrollMarginTop = '100px';
+                    .toLowerCase()
+                    .trim()
+                    .replace(/[^\w\s-]/g, "")
+                    .replace(/\s+/g, "-")
+                    .replace(/-+/g, "-");
 
-                tocItems.push({
-                    id,
-                    text: heading.textContent,
-                    level: parseInt(heading.tagName.charAt(1)),
-                });
-            });
+                tocItems.push({ id, text, level });
+            }
 
-            console.log(`[TOC] Generated ${tocItems.length} IDs for headings.`);
+            console.log(`[TOC] Found ${tocItems.length} h1/h2 headings.`);
             setTableOfContents(tocItems);
-            setContentWithAnchors(doc.body.innerHTML);
+            setContentWithAnchors(rawMarkdown);
         } catch (e) {
             console.error("[TOC] Extraction error:", e);
         }
-    }, [processedContent]);
+    }, [processedContent, guide]);
 
-    // Scroll Spy: Track active section using getBoundingClientRect
-    useEffect(() => {
-        if (tableOfContents.length === 0) return;
-
-        const handleScroll = () => {
-            const headerElement = document.querySelector('header');
-            const headerHeight = headerElement ? headerElement.offsetHeight : 80;
-            
-            // Define an "active reading zone" (e.g., the top 35% of the screen or at least just below the header)
-            // This ensures that as soon as a heading is comfortably visible in the upper part of the screen, it becomes active.
-            const activeZone = Math.max(headerHeight + 150, window.innerHeight * 0.35);
-            
-            let currentActive = tableOfContents[0]?.id || ""; // Fallback to first
-            
-            for (const item of tableOfContents) {
-                const element = document.getElementById(item.id);
-                if (element) {
-                    const rect = element.getBoundingClientRect();
-                    
-                    // If the heading has reached the active zone
-                    if (rect.top <= activeZone) {
-                        currentActive = item.id;
-                    } else {
-                        // Headings are ordered. If this one isn't in the zone yet, the next ones won't be either.
-                        break;
-                    }
-                }
-            }
-
-            if (currentActive && currentActive !== activeId) {
-                setActiveId(currentActive);
-            }
-        };
-
-        // Initial check and event listener
-        handleScroll();
-        window.addEventListener("scroll", handleScroll, { passive: true });
-
-        // MutationObserver to detect when dangerouslySetInnerHTML has finished rendering
-        const observer = new MutationObserver(() => {
-            handleScroll();
-        });
-
-        if (contentRef.current) {
-            observer.observe(contentRef.current, { childList: true, subtree: true });
-        }
-
-        return () => {
-            window.removeEventListener("scroll", handleScroll);
-            observer.disconnect();
-        };
-    }, [tableOfContents, contentWithAnchors]);
+    // Scroll Spy is now handled by GuideTOC component via IntersectionObserver
 
     useEffect(() => {
         const container = contentRef.current;
@@ -964,7 +764,7 @@ export default function GuidePage() {
             return (
                 <iframe
                     srcDoc={processedContent.content}
-                    className="w-full min-h-[700px] border-2 border-black bg-white"
+                    className="w-full min-h-[700px] bg-white"
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
                     title={guide?.title || "Guide Document"}
                     style={{ display: "block" }}
@@ -972,14 +772,12 @@ export default function GuidePage() {
             );
         }
 
-        let html = contentWithAnchors || processedContent.content;
-
-        // Inject inline comments using Pure CSS - wrap matching text in span with FigmaComment
+        // For inline comments we still inject spans into markdown
+        let md = contentWithAnchors || processedContent.content;
         inlineComments.forEach((comment: any) => {
             if (!comment.selected_text) return;
             const escaped = comment.selected_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const regex = new RegExp(`(${escaped})`, 'gi');
-
             let isApproved = false;
             try {
                 if (comment.position_json) {
@@ -987,23 +785,13 @@ export default function GuidePage() {
                     isApproved = !!pos.approved;
                 }
             } catch (e) { }
-
-            const bgClass = isApproved ? 'bg-blue-200/60 hover:bg-blue-300/80' : 'bg-yellow-200/60 hover:bg-yellow-300/80';
-
-            const commentHtml = `<span id="comment-ghost-${comment.id}" class="relative ${bgClass} rounded px-0.5 cursor-pointer transition-colors inline" data-comment-id="${comment.id}">$1</span>`;
-            html = html.replace(regex, commentHtml);
+            const bgClass = isApproved ? 'bg-blue-200/60' : 'bg-yellow-200/60';
+            md = md.replace(regex, `<span id="comment-ghost-${comment.id}" class="relative ${bgClass} rounded px-0.5 cursor-pointer inline" data-comment-id="${comment.id}">$1</span>`);
         });
 
-        return (
-            <div
-                ref={contentRef}
-                className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800"
-                dangerouslySetInnerHTML={{ __html: html }}
-            />
-        );
+        return <div ref={contentRef}><GuideMarkdownRenderer content={md} /></div>;
     }
 
-    // Legacy render - without injection (works)
     function renderContent(): JSX.Element | null {
         if (!processedContent) return null;
 
@@ -1011,7 +799,7 @@ export default function GuidePage() {
             return (
                 <iframe
                     srcDoc={processedContent.content}
-                    className="w-full min-h-[700px] border-2 border-black bg-white"
+                    className="w-full min-h-[700px] bg-white"
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
                     title={guide?.title || "Guide Document"}
                     style={{ display: "block" }}
@@ -1020,11 +808,9 @@ export default function GuidePage() {
         }
 
         return (
-            <div
-                ref={contentRef}
-                className="prose md:prose-lg max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800"
-                dangerouslySetInnerHTML={{ __html: contentWithAnchors || processedContent.content }}
-            />
+            <div ref={contentRef}>
+                <GuideMarkdownRenderer content={contentWithAnchors || processedContent.content} />
+            </div>
         );
     }
     // Check if admin is authenticated via sessionStorage in browser only
@@ -1160,84 +946,90 @@ export default function GuidePage() {
                     />
                 </div>
             </div>
-            <article className="max-w-6xl mx-auto px-4 py-8 relative z-10 bg-white dark:bg-gray-900 text-black dark:text-white">
-                {/* Top Bar: Back Link & Timer */}
-                <div className="flex items-center justify-between mb-4">
-                    <Link
-                        href="/guides"
-                        className="inline-flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
-                    >
-                        <ArrowLeft size={18} />
-                        Back to Guides
-                    </Link>
-
-                    {/* Real-time Usage Timer */}
-                    {user && guide && <GuideTimer guideId={guide.id} userId={user.id} />}
-                </div>
-
-                {/* Breadcrumbs Navigation */}
-                <Breadcrumbs
-                    dividerType="chevron"
-                    items={[
-                        { href: "/", label: "Home" },
-                        { href: "/guides", label: "Guides" },
-                        { href: "#", label: guide.title },
-                    ]}
-                />
-
-                {/* Header Section */}
-                <header className="mb-10">
-                    {/* Sign Up Banner for Guest Users */}
-                    {!user && (
-                        <div className="mb-8 p-6 bg-black text-white border-2 border-gray-800 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full translate-x-16 -translate-y-16 group-hover:scale-110 transition-transform duration-500" />
-                            <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
-                                <div>
-                                    <h3 className="text-xl font-black mb-2 flex items-center justify-center sm:justify-start gap-2">
-                                        <UserPlus size={24} className="text-white" />
-                                        Join ZetsuGuide Community
-                                    </h3>
-                                    <p className="text-gray-300 max-w-lg">
-                                        Sign up now to unlock exclusive features: Follow authors,
-                                        save guides to your profile, comment, and create your own
-                                        content!
-                                    </p>
-                                </div>
-                                <Link
-                                    href="/auth"
-                                    className="px-8 py-3 bg-white text-black font-black text-lg border-2 border-transparent hover:border-black hover:bg-gray-200 transition-all shadow-[4px_4px_0px_0px_rgba(255,255,255,0.3)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]"
-                                >
-                                    Join Now
-                                </Link>
-                            </div>
+            <article className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10 bg-white dark:bg-gray-900 text-black dark:text-white">
+                <div className="flex flex-col lg:flex-row gap-12 items-start">
+                    {/* ── Left Column: Main Content ── */}
+                    <div className="flex-1 min-w-0 max-w-[800px] w-full mx-auto lg:mx-0">
+                        {/* Real-time Usage Timer */}
+                        <div className="hidden">
+                            {user && guide && <GuideTimer guideId={guide.id} userId={user.id} />}
                         </div>
-                    )}
 
-                    {/* Premium Metadata Badges */}
-                    <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-6">
-                       {guide.category && (
-                           <span className="px-3 py-1 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-bold text-xs tracking-widest uppercase rounded-full border border-indigo-200/60 dark:border-indigo-700/50">
-                              {guide.category}
-                           </span>
-                       )}
-                       {guide.difficulty && (
-                           <span className={`px-3 py-1 font-bold text-xs tracking-widest uppercase rounded-full border ${guide.difficulty.toLowerCase() === 'beginner' ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-900/30 dark:border-emerald-800/50 dark:text-emerald-400' : guide.difficulty.toLowerCase() === 'intermediate' ? 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-900/30 dark:border-amber-800/50 dark:text-amber-400' : 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-900/30 dark:border-rose-800/50 dark:text-rose-400'}`}>
-                              {guide.difficulty}
-                           </span>
-                       )}
-                       {guide.estimated_time && (
-                         <span className="px-3 py-1 bg-gray-50 text-gray-700 dark:bg-gray-800 dark:text-gray-300 font-bold text-xs tracking-widest uppercase rounded-full border border-gray-200 dark:border-gray-700 flex items-center gap-1.5">
-                            <Clock size={12} strokeWidth={2.5} />
-                            {guide.estimated_time}
-                         </span>
-                       )}
-                    </div>
+                        {/* Breadcrumbs Navigation */}
+                        <div className="mb-6">
+                            <Breadcrumbs
+                                dividerType="chevron"
+                                items={[
+                                    { href: "/", label: "Home" },
+                                    { href: "/guides", label: "Blog" },
+                                    { href: "#", label: guide.title },
+                                ]}
+                            />
+                        </div>
 
-                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 leading-[1.1] text-black dark:text-white tracking-tight">
-                        {guide.title}
-                    </h1>
+                        {/* Header Section */}
+                        <header className="mb-10">
+                            {/* Sign Up Banner for Guest Users */}
+                            {!user && (
+                                <div className="mb-8 p-6 bg-black text-white border-2 border-gray-800 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full translate-x-16 -translate-y-16 group-hover:scale-110 transition-transform duration-500" />
+                                    <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
+                                        <div>
+                                            <h3 className="text-xl font-black mb-2 flex items-center justify-center sm:justify-start gap-2">
+                                                <UserPlus size={24} className="text-white" />
+                                                Join ZetsuGuide Community
+                                            </h3>
+                                            <p className="text-gray-300 max-w-lg">
+                                                Sign up now to unlock exclusive features: Follow authors,
+                                                save guides to your profile, comment, and create your own
+                                                content!
+                                            </p>
+                                        </div>
+                                        <Link
+                                            href="/auth"
+                                            className="px-8 py-3 bg-white text-black font-black text-lg border-2 border-transparent hover:border-black hover:bg-gray-200 transition-all shadow-[4px_4px_0px_0px_rgba(255,255,255,0.3)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]"
+                                        >
+                                            Join Now
+                                        </Link>
+                                    </div>
+                                </div>
+                            )}
 
-                    <style>{`
+                            {/* Premium Guide Cover Image */}
+                            {guide.cover_image && (
+                                <div className="mb-8 w-full group">
+                                    <div className="aspect-[16/9] md:aspect-[21/9] w-full overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-800 transition-all duration-300">
+                                        <img
+                                            src={guide.cover_image}
+                                            alt={guide.title}
+                                            className="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-105"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Meta Badges/Tags */}
+                            <div className="flex flex-wrap items-center gap-2 mb-6">
+                                {guide.category && (
+                                    <span className="px-3 py-1 bg-white text-gray-700 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 dark:text-gray-300 font-semibold text-xs tracking-wider uppercase rounded-full shadow-sm hover:shadow-md transition-shadow">
+                                        {guide.category}
+                                    </span>
+                                )}
+                                {guide.keywords && guide.keywords.length > 0 && guide.keywords.map((kw, i) => (
+                                    <span
+                                        key={i}
+                                        className="px-3 py-1 bg-white text-gray-700 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 dark:text-gray-300 font-semibold text-xs tracking-wider uppercase rounded-full shadow-sm hover:shadow-md transition-shadow"
+                                    >
+                                        {kw}
+                                    </span>
+                                ))}
+                            </div>
+
+                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 leading-[1.1] text-black dark:text-white tracking-tight">
+                                {guide.title}
+                            </h1>
+
+                            <style>{`
             @keyframes shimmer-wave {
               0% { background-position: 200% 0; }
               100% { background-position: -200% 0; }
@@ -1295,540 +1087,406 @@ export default function GuidePage() {
             }
           `}</style>
 
-                    {/* Meta & Author info in a clean flex layout */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 py-6 border-y border-gray-200 dark:border-gray-800 mb-8">
-                         {/* Left side: Author */}
-                         <div className="flex items-center gap-4">
-                            {authorAvatar ? (
-                                <img
-                                    src={authorAvatar}
-                                    alt={guide.author_name || "Author"}
-                                    className="w-12 h-12 rounded-full object-cover shadow-sm border border-gray-200 dark:border-gray-800"
-                                />
-                            ) : (
-                                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm">
-                                    {(guide.author_name || guide.user_email || "A")?.[0]?.toUpperCase()}
-                                </div>
-                            )}
-                            <div>
-                                <p className="font-bold text-gray-900 dark:text-white text-lg leading-tight">
-                                    {guide.author_name || (guide.user_email ? guide.user_email.split("@")[0] : "Anonymous")}
-                                </p>
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                    <span className="flex items-center gap-1"><Calendar size={14}/> {new Date(guide.created_at || Date.now()).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</span>
-                                    {readingTime > 0 && <><span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700"></span><span className="flex items-center gap-1"><Clock size={14}/> {readingTime} min read</span></>}
-                                    {viewsCount > 0 && (
-                                        <><span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700"></span><span className="flex items-center gap-1"><Eye size={14}/> {viewsCount.toLocaleString()} views</span></>
-                                    )}
-                                    {historyCount > 0 && (
-                                        <><span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700"></span><span className="flex items-center gap-1"><Edit2 size={14}/> {historyCount} changes</span></>
-                                    )}
-                                    {guide.content_type === "html" && (
-                                        <><span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700"></span><span className="flex items-center gap-1"><ExternalLink size={14} /> HTML/CSS</span></>
-                                    )}
-                                </div>
-                            </div>
-                         </div>
-                         
-                         {/* Right side: Actions & Follow */}
-                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                             {guide.user_email && (
-                                 <FollowButton
-                                    targetUserEmail={guide.user_email}
-                                    targetUserName={guide.author_name || guide.user_email.split("@")[0]}
-                                 />
-                             )}
-                             {guide.user_email && (
-                                 <Link
-                                    href={`/@${(guide.author_name || guide.user_email.split("@")[0]).toLowerCase()}/workspace`}
-                                    className="px-4 py-2 bg-white dark:bg-gray-800 text-black dark:text-white border border-gray-300 dark:border-gray-600 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors rounded-md shadow-sm text-center"
-                                 >
-                                    View Profile
-                                 </Link>
-                             )}
-                         </div>
-                    </div>
-
-                {/* Premium Guide Cover Image */}
-                {guide.cover_image && (
-                    <div className="mb-14 relative w-full">
-                        <div className="relative aspect-[16/9] md:aspect-[21/9] w-full overflow-hidden rounded-2xl md:rounded-[3rem] border border-gray-200/50 dark:border-gray-800/50 shadow-2xl bg-gray-50 dark:bg-gray-900">
-                            <img
-                                src={guide.cover_image}
-                                alt={guide.title}
-                                className="w-full h-full object-cover"
-                            />
-                        </div>
-                    </div>
-                )}
-
-                    {/* Keywords */}
-                    {guide.keywords && guide.keywords.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-6">
-                            {guide.keywords.map((kw, i) => (
-                                <span
-                                    key={i}
-                                    className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >
-                                    <Tag size={12} />
-                                    {kw}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Table of Contents Button (mobile only) */}
-                    {tableOfContents.length > 0 && (
-                        <div className="mb-8 lg:hidden">
-                            <button
-                                onClick={() => setShowTOC(!showTOC)}
-                                className="flex items-center justify-between w-full gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl transition-colors text-sm font-semibold text-gray-900 dark:text-gray-100 shadow-sm"
-                                aria-expanded={showTOC}
-                                aria-label="Toggle table of contents"
-                            >
-                                <span className="inline-flex items-center gap-2">
-                                    <List size={18} className="text-gray-500" />
-                                    On This Page
-                                </span>
-                                <ChevronDown
-                                    size={18}
-                                    className={`text-gray-500 transition-transform duration-300 ${showTOC ? "rotate-180" : ""}`}
-                                />
-                            </button>
-
-                            {/* Table of Contents Dropdown */}
-                            <div 
-                                className={`overflow-hidden transition-all duration-300 ease-in-out ${showTOC ? "max-h-[500px] opacity-100 mt-2" : "max-h-0 opacity-0"}`}
-                            >
-                                <div className="p-4 bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm overflow-y-auto max-h-[400px]">
-                                    <nav aria-label="Table of contents">
-                                        <ul className="m-0 list-none">
-                                            {tableOfContents.map((item, index) => {
-                                                const isActive = activeId === item.id;
-                                                return (
-                                                    <li
-                                                        key={index}
-                                                        className="mt-0 pt-2"
-                                                        style={{ paddingLeft: `${(item.level - 1) * 16}px` }}
-                                                    >
-                                                        <a
-                                                            href={`#${item.id}`}
-                                                            onClick={(e: any) => {
-                                                                e.preventDefault();
-                                                                const element = document.getElementById(item.id);
-                                                                if (element) {
-                                                                    const y = element.getBoundingClientRect().top + window.scrollY - 100;
-                                                                    window.scrollTo({ top: y, behavior: "smooth" });
-                                                                    setShowTOC(false);
-                                                                }
-                                                            }}
-                                                            className={`inline-block py-1 text-sm no-underline transition-colors ${
-                                                                isActive 
-                                                                    ? "text-blue-600 dark:text-blue-400 font-bold" 
-                                                                    : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-300"
-                                                            }`}
-                                                        >
-                                                            {item.text}
-                                                        </a>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
-                                    </nav>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Actions */}
-                    {!isPreviewMode && (
-                        <div className="flex flex-wrap gap-2">
-                            {/* Save/Download Button - Available to all users */}
-                            <button
-                            onClick={() => setShowDownloadModal(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black hover:from-purple-600 hover:to-pink-600 transition-all text-sm font-medium shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                        >
-                            <Download size={16} />
-                            Save
-                        </button>
-
-                        <button
-                            onClick={handleCopyLink}
-                            className="flex items-center gap-2 px-4 py-2 border border-gray-300 hover:border-black transition-colors text-sm"
-                        >
-                            {copied ? (
-                                <>
-                                    <Check size={16} className="text-green-600" />
-                                    Copied!
-                                </>
-                            ) : (
-                                <>
-                                    <Share2 size={16} />
-                                    Share
-                                </>
-                            )}
-                        </button>
-
-                        {/* More Menu */}
-                        <div className="relative" ref={moreMenuRef}>
-                            <button
-                                onClick={() => setShowMoreMenu(!showMoreMenu)}
-                                className="flex items-center gap-2 px-4 py-2 border border-gray-300 hover:border-black transition-colors text-sm"
-                            >
-                                <MoreVertical size={16} />
-                                More
-                            </button>
-
-                            {/* Dropdown Menu */}
-                            {showMoreMenu && (
-                                <div className="absolute right-0 mt-2 w-56 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-50 rounded-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                    {/* Guest Actions */}
-                                    {!user && (
-                                        <div className="p-2 bg-gray-50 border-b border-gray-200">
-                                            <p className="text-xs font-bold text-gray-500 px-2 mb-2 uppercase tracking-wide">
-                                                Join Community
-                                            </p>
-                                            <Link
-                                                href="/auth"
-                                                className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black mb-1"
-                                            >
-                                                <UserPlus size={16} />
-                                                Sign Up Free
-                                            </Link>
-                                            <Link
-                                                href="/auth?mode=login"
-                                                className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black"
-                                            >
-                                                <Lock size={16} />
-                                                Login to Interact
-                                            </Link>
+                            {/* Meta & Author info in a clean flex layout */}
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 py-6 border-y border-gray-200 dark:border-gray-800 mb-8">
+                                {/* Left side: Author */}
+                                <div className="flex items-center gap-4">
+                                    {authorAvatar ? (
+                                        <img
+                                            src={authorAvatar}
+                                            alt={guide.author_name || "Author"}
+                                            className="w-12 h-12 rounded-full object-cover shadow-sm border border-gray-200 dark:border-gray-800"
+                                        />
+                                    ) : (
+                                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                                            {(guide.author_name || guide.user_email || "A")?.[0]?.toUpperCase()}
                                         </div>
                                     )}
-
-                                    {/* Text-to-Speech Button */}
-                                    {guide.content && (
-                                        <button
-                                            onClick={() => {
-                                                if (ttsRef.current) {
-                                                    if (isPlayingTTS) {
-                                                        ttsRef.current.stopSpeech();
-                                                        setIsPlayingTTS(false);
-                                                    } else {
-                                                        ttsRef.current.startSpeech();
-                                                        setIsPlayingTTS(true);
-                                                    }
-                                                    setShowMoreMenu(false);
-                                                }
-                                            }}
-                                            className={
-                                                isPlayingTTS
-                                                    ? "w-full text-left px-4 py-3 hover:bg-red-50 transition-colors text-sm flex items-center gap-3 font-medium text-red-600 border-b border-gray-100"
-                                                    : "w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black border-b border-gray-100"
-                                            }
-                                            title={
-                                                isPlayingTTS ? "Stop listening" : "Listen to this guide"
-                                            }
-                                        >
-                                            {isPlayingTTS ? (
-                                                <VolumeX size={16} />
-                                            ) : (
-                                                <Volume2 size={16} />
+                                    <div>
+                                        <p className="font-bold text-gray-900 dark:text-white text-lg leading-tight">
+                                            {guide.author_name || (guide.user_email ? guide.user_email.split("@")[0] : "Anonymous")}
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                            <span className="flex items-center gap-1"><Calendar size={14} /> {new Date(guide.created_at || Date.now()).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</span>
+                                            {readingTime > 0 && <><span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700"></span><span className="flex items-center gap-1"><Clock size={14} /> {readingTime} min read</span></>}
+                                            {viewsCount > 0 && (
+                                                <><span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700"></span><span className="flex items-center gap-1"><Eye size={14} /> {viewsCount.toLocaleString()} views</span></>
                                             )}
-                                            {isPlayingTTS ? "Stop Listening" : "Listen to Guide"}
-                                        </button>
+                                            {historyCount > 0 && (
+                                                <><span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700"></span><span className="flex items-center gap-1"><Edit2 size={14} /> {historyCount} changes</span></>
+                                            )}
+                                            {guide.content_type === "html" && (
+                                                <><span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700"></span><span className="flex items-center gap-1"><ExternalLink size={14} /> HTML/CSS</span></>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right side: Actions & Follow */}
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                                    {guide.user_email && (
+                                        <FollowButton
+                                            targetUserEmail={guide.user_email}
+                                            targetUserName={guide.author_name || guide.user_email.split("@")[0]}
+                                        />
                                     )}
-
-                                    {/* Dark Mode Toggle - NEW FEATURE */}
-                                    <button
-                                        onClick={() => {
-                                            toggleDarkMode();
-                                            setShowMoreMenu(false);
-                                        }}
-                                        className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors text-sm flex items-center gap-3 font-medium text-blue-600 border-b border-gray-100"
-                                    >
-                                        {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
-                                        {isDarkMode ? "Light Mode" : "Dark Mode"}
-                                    </button>
-
-                                    {/* Focus Mode Button - NEW FEATURE */}
-                                    <button
-                                        onClick={() => {
-                                            setIsFocusMode(true);
-                                            setShowMoreMenu(false);
-                                        }}
-                                        className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors text-sm flex items-center gap-3 font-medium text-purple-600 border-b border-gray-100"
-                                    >
-                                        <Eye size={16} />
-                                        Enter Focus Mode
-                                    </button>
-
-                                    {/* AI Tools Section */}
-                                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
-                                        <button
-                                            onClick={() => setAiToolsExpanded(!aiToolsExpanded)}
-                                            className="w-full flex items-center justify-between px-4 py-3 hover:bg-purple-100/50 transition-colors"
+                                    {guide.user_email && (
+                                        <Link
+                                            href={`/@${(guide.author_name || guide.user_email.split("@")[0]).toLowerCase()}/workspace`}
+                                            className="px-4 py-2 bg-white dark:bg-gray-800 text-black dark:text-white border border-gray-300 dark:border-gray-600 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors rounded-md shadow-sm text-center"
                                         >
-                                            <div className="flex items-center gap-2">
-                                                <Sparkles size={16} className="text-purple-600" />
-                                                <p className="text-sm font-bold text-purple-700 uppercase tracking-wide">
-                                                    AI Tools
-                                                </p>
-                                            </div>
-                                            {aiToolsExpanded ? (
-                                                <ChevronUp size={16} className="text-purple-600" />
-                                            ) : (
-                                                <ChevronDown size={16} className="text-purple-600" />
-                                            )}
+                                            View Profile
+                                        </Link>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Old Cover Image placement removed */}
+
+                            {/* Table of Contents Button (mobile only) */}
+                            {tableOfContents.length > 0 && (
+                                <div className="mb-8 lg:hidden">
+                                    <button
+                                        onClick={() => setShowTOC(!showTOC)}
+                                        className="flex items-center justify-between w-full gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl transition-colors text-sm font-semibold text-gray-900 dark:text-gray-100 shadow-sm"
+                                        aria-expanded={showTOC}
+                                        aria-label="Toggle table of contents"
+                                    >
+                                        <span className="inline-flex items-center gap-2">
+                                            <List size={18} className="text-gray-500" />
+                                            On This Page
+                                        </span>
+                                        <ChevronDown
+                                            size={18}
+                                            className={`text-gray-500 transition-transform duration-300 ${showTOC ? "rotate-180" : ""}`}
+                                        />
+                                    </button>
+
+                                    {/* Table of Contents Dropdown */}
+                                    <div
+                                        className={`overflow-hidden transition-all duration-300 ease-in-out ${showTOC ? "max-h-[500px] opacity-100 mt-2" : "max-h-0 opacity-0"}`}
+                                    >
+                                        <div className="p-4 bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm overflow-y-auto max-h-[400px]">
+                                            <GuideTOC items={tableOfContents} />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Actions */}
+                            {!isPreviewMode && (
+                                <div className="flex flex-wrap gap-2">
+                                    {/* Save/Download Button - Available to all users */}
+                                    <button
+                                        onClick={() => setShowDownloadModal(true)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black hover:from-purple-600 hover:to-pink-600 transition-all text-sm font-medium shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                                    >
+                                        <Download size={16} />
+                                        Save
+                                    </button>
+
+                                    <button
+                                        onClick={handleCopyLink}
+                                        className="flex items-center gap-2 px-4 py-2 border border-gray-300 hover:border-black transition-colors text-sm"
+                                    >
+                                        {copied ? (
+                                            <>
+                                                <Check size={16} className="text-green-600" />
+                                                Copied!
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Share2 size={16} />
+                                                Share
+                                            </>
+                                        )}
+                                    </button>
+
+                                    {/* More Menu */}
+                                    <div className="relative" ref={moreMenuRef}>
+                                        <button
+                                            onClick={() => setShowMoreMenu(!showMoreMenu)}
+                                            className="flex items-center gap-2 px-4 py-2 border border-gray-300 hover:border-black transition-colors text-sm"
+                                        >
+                                            <MoreVertical size={16} />
+                                            More
                                         </button>
 
-                                        {aiToolsExpanded && (
-                                            <div className="px-2 pb-2">
+                                        {/* Dropdown Menu */}
+                                        {showMoreMenu && (
+                                            <div className="absolute right-0 mt-2 w-56 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-50 rounded-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                                {/* Guest Actions */}
+                                                {!user && (
+                                                    <div className="p-2 bg-gray-50 border-b border-gray-200">
+                                                        <p className="text-xs font-bold text-gray-500 px-2 mb-2 uppercase tracking-wide">
+                                                            Join Community
+                                                        </p>
+                                                        <Link
+                                                            href="/auth"
+                                                            className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black mb-1"
+                                                        >
+                                                            <UserPlus size={16} />
+                                                            Sign Up Free
+                                                        </Link>
+                                                        <Link
+                                                            href="/auth?mode=login"
+                                                            className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black"
+                                                        >
+                                                            <Lock size={16} />
+                                                            Login to Interact
+                                                        </Link>
+                                                    </div>
+                                                )}
+
+                                                {/* Text-to-Speech Button */}
+                                                {guide.content && (
+                                                    <button
+                                                        onClick={() => {
+                                                            if (ttsRef.current) {
+                                                                if (isPlayingTTS) {
+                                                                    ttsRef.current.stopSpeech();
+                                                                    setIsPlayingTTS(false);
+                                                                } else {
+                                                                    ttsRef.current.startSpeech();
+                                                                    setIsPlayingTTS(true);
+                                                                }
+                                                                setShowMoreMenu(false);
+                                                            }
+                                                        }}
+                                                        className={
+                                                            isPlayingTTS
+                                                                ? "w-full text-left px-4 py-3 hover:bg-red-50 transition-colors text-sm flex items-center gap-3 font-medium text-red-600 border-b border-gray-100"
+                                                                : "w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black border-b border-gray-100"
+                                                        }
+                                                        title={
+                                                            isPlayingTTS ? "Stop listening" : "Listen to this guide"
+                                                        }
+                                                    >
+                                                        {isPlayingTTS ? (
+                                                            <VolumeX size={16} />
+                                                        ) : (
+                                                            <Volume2 size={16} />
+                                                        )}
+                                                        {isPlayingTTS ? "Stop Listening" : "Listen to Guide"}
+                                                    </button>
+                                                )}
+
+                                                {/* Dark Mode Toggle - NEW FEATURE */}
                                                 <button
                                                     onClick={() => {
-                                                        setShowSummarizer(true);
+                                                        toggleDarkMode();
                                                         setShowMoreMenu(false);
                                                     }}
-                                                    className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-purple-600 mb-1"
+                                                    className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors text-sm flex items-center gap-3 font-medium text-blue-600 border-b border-gray-100"
                                                 >
-                                                    <FileText size={16} />
-                                                    <div className="flex-1">
-                                                        <div className="font-bold">Guide Summarizer</div>
-                                                        <div className="text-xs text-gray-500">
-                                                            1 FREE trial
-                                                        </div>
-                                                    </div>
+                                                    {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+                                                    {isDarkMode ? "Light Mode" : "Dark Mode"}
                                                 </button>
 
+                                                {/* Focus Mode Button - NEW FEATURE */}
                                                 <button
                                                     onClick={() => {
-                                                        setShowAIChat(true);
+                                                        setIsFocusMode(true);
                                                         setShowMoreMenu(false);
                                                     }}
-                                                    className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-purple-600 mb-1"
+                                                    className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors text-sm flex items-center gap-3 font-medium text-purple-600 border-b border-gray-100"
                                                 >
-                                                    <Bot size={16} />
-                                                    <div className="flex-1">
-                                                        <div className="font-bold">Ask Guide</div>
-                                                        <div className="text-xs text-gray-500">
-                                                            2 credits/question
-                                                        </div>
-                                                    </div>
+                                                    <Eye size={16} />
+                                                    Enter Focus Mode
                                                 </button>
 
-                                                <button
-                                                    onClick={() => {
-                                                        setShowTranslator(true);
-                                                        setShowMoreMenu(false);
-                                                    }}
-                                                    className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-purple-600"
-                                                >
-                                                    <Languages size={16} />
-                                                    <div className="flex-1">
-                                                        <div className="font-bold">Translator</div>
-                                                        <div className="text-xs text-gray-500">FREE</div>
-                                                    </div>
-                                                </button>
+                                                {/* AI Tools Section */}
+                                                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
+                                                    <button
+                                                        onClick={() => setAiToolsExpanded(!aiToolsExpanded)}
+                                                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-purple-100/50 transition-colors"
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <Sparkles size={16} className="text-purple-600" />
+                                                            <p className="text-sm font-bold text-purple-700 uppercase tracking-wide">
+                                                                AI Tools
+                                                            </p>
+                                                        </div>
+                                                        {aiToolsExpanded ? (
+                                                            <ChevronUp size={16} className="text-purple-600" />
+                                                        ) : (
+                                                            <ChevronDown size={16} className="text-purple-600" />
+                                                        )}
+                                                    </button>
+
+                                                    {aiToolsExpanded && (
+                                                        <div className="px-2 pb-2">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setShowSummarizer(true);
+                                                                    setShowMoreMenu(false);
+                                                                }}
+                                                                className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-purple-600 mb-1"
+                                                            >
+                                                                <FileText size={16} />
+                                                                <div className="flex-1">
+                                                                    <div className="font-bold">Guide Summarizer</div>
+                                                                    <div className="text-xs text-gray-500">
+                                                                        1 FREE trial
+                                                                    </div>
+                                                                </div>
+                                                            </button>
+
+                                                            <button
+                                                                onClick={() => {
+                                                                    setShowAIChat(true);
+                                                                    setShowMoreMenu(false);
+                                                                }}
+                                                                className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-purple-600 mb-1"
+                                                            >
+                                                                <Bot size={16} />
+                                                                <div className="flex-1">
+                                                                    <div className="font-bold">Ask Guide</div>
+                                                                    <div className="text-xs text-gray-500">
+                                                                        2 credits/question
+                                                                    </div>
+                                                                </div>
+                                                            </button>
+
+                                                            <button
+                                                                onClick={() => {
+                                                                    setShowTranslator(true);
+                                                                    setShowMoreMenu(false);
+                                                                }}
+                                                                className="w-full text-left px-3 py-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-purple-600"
+                                                            >
+                                                                <Languages size={16} />
+                                                                <div className="flex-1">
+                                                                    <div className="font-bold">Translator</div>
+                                                                    <div className="text-xs text-gray-500">FREE</div>
+                                                                </div>
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Owner/Admin Actions */}
+                                                {(isOwner || isAdmin) && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => {
+                                                                setShowEditModal(true);
+                                                                setShowMoreMenu(false);
+                                                            }}
+                                                            className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black border-b border-gray-100"
+                                                        >
+                                                            <Edit2 size={16} />
+                                                            Edit Guide
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setShowHistory(true);
+                                                                setShowMoreMenu(false);
+                                                            }}
+                                                            className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black border-b border-gray-100"
+                                                        >
+                                                            <Clock size={16} />
+                                                            History
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => {
+                                                                handleDeleteClick();
+                                                                setShowMoreMenu(false);
+                                                            }}
+                                                            disabled={deleting}
+                                                            className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-600 transition-colors text-sm flex items-center gap-3 font-medium disabled:opacity-50"
+                                                        >
+                                                            {deleting ? (
+                                                                <Loader2 size={16} className="animate-spin" />
+                                                            ) : (
+                                                                <Trash2 size={16} />
+                                                            )}
+                                                            Delete
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         )}
                                     </div>
-
-                                    {/* Owner/Admin Actions */}
-                                    {(isOwner || isAdmin) && (
-                                        <>
-                                            <button
-                                                onClick={() => {
-                                                    setShowEditModal(true);
-                                                    setShowMoreMenu(false);
-                                                }}
-                                                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black border-b border-gray-100"
-                                            >
-                                                <Edit2 size={16} />
-                                                Edit Guide
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setShowHistory(true);
-                                                    setShowMoreMenu(false);
-                                                }}
-                                                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors text-sm flex items-center gap-3 font-medium text-gray-700 hover:text-black border-b border-gray-100"
-                                            >
-                                                <Clock size={16} />
-                                                History
-                                            </button>
-
-                                            <button
-                                                onClick={() => {
-                                                    handleDeleteClick();
-                                                    setShowMoreMenu(false);
-                                                }}
-                                                disabled={deleting}
-                                                className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-600 transition-colors text-sm flex items-center gap-3 font-medium disabled:opacity-50"
-                                            >
-                                                {deleting ? (
-                                                    <Loader2 size={16} className="animate-spin" />
-                                                ) : (
-                                                    <Trash2 size={16} />
-                                                )}
-                                                Delete
-                                            </button>
-                                        </>
-                                    )}
                                 </div>
                             )}
-                        </div>
-                    </div>
-                )}
-            </header>
+                        </header>
 
-                {/* Match Search Bar */}
-                <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] gap-8">
-                    <div className="space-y-8">
-                        <div className="max-w-md mb-8 mx-auto sm:mx-0">
-                            <div className="flex w-full shadow-sm hover:shadow-md transition-shadow rounded-lg overflow-hidden border border-gray-300 hover:border-black group">
-                        <div className="flex-1 bg-white dark:bg-gray-800 flex items-center px-4 group-focus-within:ring-2 group-focus-within:ring-black dark:group-focus-within:ring-white group-focus-within:ring-inset">
-                            <Search size={18} className="text-gray-400 mr-2 flex-shrink-0" />
-                            <input
-                                className="w-full py-3 outline-none text-gray-800 dark:text-gray-200 placeholder:text-gray-400 bg-transparent text-sm font-medium"
-                                placeholder="Search related text in guide..."
-                                value={searchQuery}
-                                onChange={(e: any) => setSearchQuery(e.target.value)}
-                                aria-label="Search in guide"
-                            />
-                            {searchQuery && (
-                                <button
-                                    onClick={() => setSearchQuery("")}
-                                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-                                    aria-label="Clear search"
-                                >
-                                    <X size={16} className="text-gray-400" />
+                        {/* Search Bar */}
+                        <div className="mb-8">
+                            <div className="flex w-full rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 transition-colors group">
+                                <div className="flex-1 bg-white dark:bg-gray-800 flex items-center px-4 group-focus-within:ring-2 group-focus-within:ring-blue-500 group-focus-within:ring-inset">
+                                    <Search size={16} className="text-gray-400 mr-2 flex-shrink-0" />
+                                    <input
+                                        className="w-full py-2.5 outline-none text-gray-800 dark:text-gray-200 placeholder:text-gray-400 bg-transparent text-sm"
+                                        placeholder="Search in guide..."
+                                        value={searchQuery}
+                                        onChange={(e: any) => setSearchQuery(e.target.value)}
+                                        aria-label="Search in guide"
+                                    />
+                                    {searchQuery && (
+                                        <button
+                                            onClick={() => setSearchQuery("")}
+                                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                                            aria-label="Clear search"
+                                        >
+                                            <X size={14} className="text-gray-400" />
+                                        </button>
+                                    )}
+                                </div>
+                                <button className="bg-gray-900 dark:bg-white dark:text-black text-white px-5 py-2.5 text-sm font-medium hover:bg-gray-700 transition-colors flex-shrink-0">
+                                    Search
                                 </button>
+                            </div>
+                            {debouncedSearch && (
+                                <p className="text-xs text-gray-400 mt-1.5 ml-1">
+                                    Searching: <span className="font-medium text-gray-600 dark:text-gray-300">"{debouncedSearch}"</span>
+                                </p>
                             )}
                         </div>
-                        <button className="bg-black dark:bg-white dark:text-black text-white px-6 py-3 font-bold text-sm hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors flex-shrink-0">
-                            Search
-                        </button>
-                    </div>
-                    {debouncedSearch && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-1">
-                            Searching for:{" "}
-                            <span className="font-medium">"{debouncedSearch}"</span>
-                        </p>
-                    )}
-                </div>
 
-                {/* Content with Pure CSS inline comments (Gutter) */}
-                <div ref={contentRef} className="guide-content relative pl-16 md:pl-20 overflow-visible">
-                    {inlineComments.length > 0 ? renderContentWithComments() : renderContent()}
-                </div>
+                        {/* Guide Content */}
+                        {inlineComments.length > 0 ? renderContentWithComments() : renderContent()}
 
-                {/* Inline Comments on Text */}
-                <GuideInlineComments
-                    guideId={guide.id!}
-                    isGuideOwner={!!isOwner}
-                    onCommentsUpdated={loadGuide}
-                    commentCount={0}
-                    onCommentCountChange={() => { }}
-                />
+                        {/* Inline Comments */}
+                        <GuideInlineComments
+                            guideId={guide.id!}
+                            isGuideOwner={!!isOwner}
+                            onCommentsUpdated={loadGuide}
+                            commentCount={0}
+                            onCommentCountChange={() => { }}
+                        />
 
-                {/* Comments Section */}
-                <GuideComments guideId={String(guide.id)} onCommentPosted={recordComment} />
+                        {/* Comments */}
+                        <GuideComments guideId={String(guide.id)} onCommentPosted={recordComment} />
 
-                {/* Recommendations Section */}
-                <div className="mt-16 mb-12">
-                    <GuideRecommendations
-                        currentGuideSlug={slug}
-                        currentGuideKeywords={guide.keywords}
-                        currentGuideAuthor={guide.user_email}
-                        limit={3}
-                    />
-                </div>
-            </div>
+                        {/* Recommendations */}
+                        <div className="mt-16 mb-12">
+                            <GuideRecommendations
+                                currentGuideSlug={slug}
+                                currentGuideKeywords={guide.keywords}
+                                currentGuideAuthor={guide.user_email}
+                                limit={3}
+                            />
+                        </div>
 
-            <aside className="hidden lg:block w-[260px] flex-shrink-0">
-                <div className="sticky top-[100px] max-h-[calc(100vh-120px)] overflow-y-auto rounded-lg bg-white dark:bg-gray-950 p-4 shadow-sm border border-gray-100 dark:border-gray-800">
-                    <p className="font-semibold text-gray-900 dark:text-white mb-4">On This Page</p>
-                    {tableOfContents.length > 0 ? (
-                        <nav aria-label="Table of contents">
-                            <ul className="m-0 list-none">
-                                {tableOfContents.map((item, index) => {
-                                    const isActive = activeId === item.id;
-                                    return (
-                                        <li
-                                            key={index}
-                                            className="mt-0 pt-2"
-                                            style={{ paddingLeft: `${(item.level - 1) * 16}px` }}
-                                        >
-                                            <a
-                                                href={`#${item.id}`}
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    const element = document.getElementById(item.id);
-                                                    if (element) {
-                                                        const y = element.getBoundingClientRect().top + window.scrollY - 100;
-                                                        window.scrollTo({ top: y, behavior: "smooth" });
-                                                    }
-                                                }}
-                                                className={`inline-block py-1 text-sm no-underline transition-colors ${
-                                                    isActive 
-                                                        ? "text-blue-600 dark:text-blue-400 font-bold" 
-                                                        : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-300"
-                                                }`}
-                                            >
-                                                {item.text}
-                                            </a>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </nav>
-                    ) : (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                            No headings available.
-                        </p>
-                    )}
-                </div>
-            </aside>
-        </div>
-
-                {/* Bottom Celebration Section */}
-                <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800 relative">
-                    <div
-                        ref={fireworksRef}
-                        className="relative overflow-hidden rounded-3xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 p-8 transition-all duration-1000"
-                        style={{ opacity: showCelebrationText ? 1 : 0, pointerEvents: showCelebrationText ? "auto" : "none" }}
-                    >
-                        <div className="relative z-10 text-center py-10 flex flex-col items-center">
-                            <p className="text-xs uppercase tracking-[0.2em] font-bold text-blue-500 dark:text-blue-400 mb-4">
-                                Celebration
-                            </p>
-                            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mb-6">
-                                You've reached the end of the guide! 🎉
-                            </h2>
-                            <button 
-                                onClick={() => {
-                                    if (balloonsRef.current && typeof balloonsRef.current.launchAnimation === 'function') {
-                                        balloonsRef.current.launchAnimation();
-                                    }
-                                }}
-                                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all active:scale-95"
+                        {/* Bottom Nav */}
+                        <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
+                            <Link
+                                href="/guides"
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 dark:bg-white dark:text-black text-white text-sm font-medium hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors rounded-lg"
                             >
-                                <Sparkles size={18} />
-                                Celebrate Again!
-                            </button>
+                                <ArrowLeft size={16} />
+                                Back to Guides
+                            </Link>
                         </div>
                     </div>
-                    <Balloons ref={balloonsRef} />
-                </div>
 
-                {/* Bottom Navigation */}
-                <div className="mt-12 pt-8 border-t-2 border-black">
-                    <Link
-                        href="/guides"
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white font-medium hover:bg-gray-800"
-                    >
-                        <ArrowLeft size={18} />
-                        Back to All Guides
-                    </Link>
+                    {/* ── Right Column: Sticky TOC ── */}
+                    <aside className="hidden lg:block w-[280px] flex-shrink-0 sticky top-24 self-start max-h-[calc(100vh-120px)] overflow-y-auto pr-2">
+                        {tableOfContents.length > 0 && <GuideTOC items={tableOfContents} />}
+                    </aside>
                 </div>
 
                 {/* Delete Confirmation Modal */}
@@ -1926,9 +1584,9 @@ export default function GuidePage() {
                     className="fixed bottom-24 right-8 w-14 h-14 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:scale-105 transition-all z-50 overflow-hidden border-2 border-white group"
                     title="Generate Cover Image"
                 >
-                    <img 
-                        src="/images/noimagecoverHint.png" 
-                        alt="No cover image hint" 
+                    <img
+                        src="/images/noimagecoverHint.png"
+                        alt="No cover image hint"
                         className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
                     />
                     <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />

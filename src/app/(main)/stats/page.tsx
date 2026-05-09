@@ -5,15 +5,18 @@ import {
   Calendar,
   Clock,
   Eye,
-  Star
+  Star,
+  Users
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AreaChart } from "../../../components/retroui/charts/AreaChart";
+import { GettingStartedWizard } from "../../../components/wizard/GettingStartedWizard";
+import { PublicationSettings } from "../../../components/wizard/PublicationSettings";
 import { useAuth } from "../../../contexts/AuthContext";
 import { supabase } from "../../../lib/supabase";
-import Link from "next/link";
 
-type ActiveTab = "overview" | "analytics";
+type ActiveTab = "overview" | "analytics" | "publication" | "followers";
 
 interface GuideSummary {
   id: string | number;
@@ -63,6 +66,22 @@ interface RatingsChartPoint {
   count: number;
 }
 
+interface FollowerItem {
+  id: string | number;
+  user_id: string;
+  followed_at: string;
+  user?: {
+    display_name: string | null;
+    avatar_url: string | null;
+    bio: string | null;
+  };
+}
+
+interface FollowersData {
+  totalFollowers: number;
+  followers: FollowerItem[];
+}
+
 export default function UserStatsPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState<GuideTimeLogRow[]>([]);
@@ -73,13 +92,20 @@ export default function UserStatsPage() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [viewsChartData, setViewsChartData] = useState<ViewsChartPoint[]>([]);
   const [ratingsChartData, setRatingsChartData] = useState<RatingsChartPoint[]>([]);
+  const [followersData, setFollowersData] = useState<FollowersData>({
+    totalFollowers: 0,
+    followers: []
+  });
+  const [followersLoading, setFollowersLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
       if (activeTab === "overview") {
         fetchStats();
-      } else {
+      } else if (activeTab === "analytics") {
         fetchAnalytics();
+      } else if (activeTab === "followers") {
+        fetchFollowers();
       }
     }
   }, [user, activeTab]);
@@ -277,6 +303,61 @@ export default function UserStatsPage() {
     }
   };
 
+  const fetchFollowers = async () => {
+    if (!user?.id) return;
+    try {
+      setFollowersLoading(true);
+
+      // Get followers from user_follows table (following_id = current user)
+      const { data: follows, error: followsError } = await supabase
+        .from("user_follows")
+        .select("id, follower_id, created_at")
+        .eq("following_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (followsError) {
+        console.error("Error fetching follows:", followsError);
+      }
+
+      if (!follows || follows.length === 0) {
+        setFollowersData({ totalFollowers: 0, followers: [] });
+        setFollowersLoading(false);
+        return;
+      }
+
+      // Get follower user details
+      const followerIds = follows.map((f: { id: string; follower_id: string; created_at: string }) => f.follower_id);
+      const { data: userProfiles } = await supabase
+        .from("zetsuguide_user_profiles")
+        .select("user_id, display_name, avatar_url, bio")
+        .in("user_id", followerIds);
+
+      const userMap: Record<string, any> = {};
+      (userProfiles || []).forEach((p: { user_id: string; display_name: string | null; avatar_url: string | null; bio: string | null }) => {
+        userMap[p.user_id] = p;
+      });
+
+      // Enrich follower data
+      const enrichedFollowers: FollowerItem[] = follows.map((f: { id: string; follower_id: string; created_at: string }) => ({
+        id: f.id,
+        user_id: f.follower_id,
+        followed_at: f.created_at,
+        user: userMap[f.follower_id] || { display_name: "Unknown", avatar_url: null, bio: null }
+      }));
+
+      setFollowersData({
+        totalFollowers: follows.length,
+        followers: enrichedFollowers
+      });
+    } catch (err: unknown) {
+      console.error("Error fetching followers:", err);
+      setFollowersData({ totalFollowers: 0, followers: [] });
+    } finally {
+      setFollowersLoading(false);
+    }
+  };
+
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -320,6 +401,10 @@ export default function UserStatsPage() {
           <h1 className="text-3xl font-black">My Dashboard</h1>
         </div>
 
+        {/* Onboarding Wizard */}
+        <GettingStartedWizard />
+
+
         {/* Tabs */}
         <div className="flex gap-4 mb-8 border-b-2 border-gray-200">
           <button
@@ -337,9 +422,91 @@ export default function UserStatsPage() {
               Beta
             </span>
           </button>
+          <button
+            onClick={() => setActiveTab("publication")}
+            className={`pb-2 px-4 font-bold text-lg transition-colors ${activeTab === "publication" ? "border-b-4 border-black text-black" : "text-gray-400 hover:text-gray-600"}`}
+          >
+            Publication
+          </button>
+          <button
+            onClick={() => setActiveTab("followers")}
+            className={`pb-2 px-4 font-bold text-lg transition-colors ${activeTab === "followers" ? "border-b-4 border-black text-black" : "text-gray-400 hover:text-gray-600"}`}
+          >
+            Followers
+          </button>
         </div>
 
-        {activeTab === "overview" ? (
+        {activeTab === "publication" && <PublicationSettings />}
+
+        {activeTab === "followers" && (
+          <div className="space-y-6">
+            {/* Total Followers Card */}
+            <div className="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <div className="flex items-center gap-3 mb-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                <p className="text-gray-500 text-sm">Total Followers</p>
+              </div>
+              <h2 className="text-3xl font-black">{followersData.totalFollowers}</h2>
+              <p className="text-xs text-gray-400 mt-2">People following your content</p>
+            </div>
+
+            {/* Followers List */}
+            <div className="bg-white border-2 border-black">
+              <div className="p-6 border-b-2 border-gray-200">
+                <h3 className="font-bold text-lg">Recent Followers</h3>
+                <p className="text-gray-500 text-sm mt-1">Latest people following you</p>
+              </div>
+
+              {followersLoading ? (
+                <div className="p-8 text-center text-gray-500">
+                  Loading followers...
+                </div>
+              ) : followersData.followers.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p>No followers yet. Share your content to gain followers!</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {followersData.followers.map((follower) => (
+                    <div
+                      key={follower.id}
+                      className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <img
+                          src={follower.user?.avatar_url || "/avatars/default.png"}
+                          alt={follower.user?.display_name || "Follower"}
+                          className="w-10 h-10 rounded-full border border-gray-200"
+                        />
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">
+                            {follower.user?.display_name || "Unknown User"}
+                          </p>
+                          {follower.user?.bio && (
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-1">
+                              {follower.user.bio}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-1">
+                            Followed{" "}
+                            {new Date(follower.followed_at).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "overview" && (
           <>
             {/* Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
@@ -434,7 +601,9 @@ export default function UserStatsPage() {
               )}
             </div>
           </>
-        ) : (
+        )}
+
+        {activeTab === "analytics" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Analytics Summary */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
