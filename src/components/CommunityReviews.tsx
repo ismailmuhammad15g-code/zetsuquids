@@ -37,23 +37,6 @@ const ReviewCard = ({ review, myUserId, onEdit }: { review: SiteReview; myUserId
     .toUpperCase()
     .slice(0, 2);
 
-  const avatarColors = [
-    "from-violet-500 to-purple-700",
-    "from-blue-500 to-cyan-700",
-    "from-emerald-500 to-teal-700",
-    "from-rose-500 to-pink-700",
-    "from-amber-500 to-orange-700",
-  ];
-  const colorIdx = review.display_name.charCodeAt(0) % avatarColors.length;
-
-  const borderGradients = [
-    "before:from-violet-500/40 before:to-fuchsia-500/40",
-    "before:from-cyan-500/40 before:to-blue-500/40",
-    "before:from-emerald-500/40 before:to-teal-500/40",
-    "before:from-rose-500/40 before:to-pink-500/40",
-    "before:from-amber-500/40 before:to-orange-500/40",
-  ];
-
   return (
     <figure
       className="relative w-80 mx-4 flex-shrink-0 rounded-2xl p-px overflow-hidden group cursor-default"
@@ -66,9 +49,7 @@ const ReviewCard = ({ review, myUserId, onEdit }: { review: SiteReview; myUserId
       <div
         className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
         style={{
-          background: `linear-gradient(135deg,
-            ${["#7c3aed", "#06b6d4", "#8b5cf6", "#0ea5e9"][colorIdx % 4]}44,
-            transparent 60%)`,
+          background: `linear-gradient(135deg, rgba(255,255,255,0.05), transparent 60%)`,
         }}
       />
       {/* Card inner */}
@@ -76,14 +57,8 @@ const ReviewCard = ({ review, myUserId, onEdit }: { review: SiteReview; myUserId
         className="relative rounded-[15px] p-6 h-full"
         style={{ background: "linear-gradient(145deg,#18181b,#111113)" }}
       >
-        {/* Top accent line per card */}
-        <div
-          className="absolute top-0 left-6 right-6 h-px rounded-full opacity-60"
-          style={{
-            background: `linear-gradient(90deg,transparent,${["#8b5cf6", "#06b6d4", "#10b981", "#f43f5e", "#f59e0b"][colorIdx]
-              },transparent)`,
-          }}
-        />
+        {/* Top accent line per card — white */}
+        <div className="absolute top-0 left-6 right-6 h-px rounded-full opacity-40 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
 
         <div className="flex items-center gap-3 mb-4 mt-1">
           {review.avatar_url ? (
@@ -94,9 +69,7 @@ const ReviewCard = ({ review, myUserId, onEdit }: { review: SiteReview; myUserId
               onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
           ) : (
-            <div
-              className={`w-11 h-11 rounded-full bg-gradient-to-br ${avatarColors[colorIdx]} flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ring-2 ring-white/10`}
-            >
+            <div className="w-11 h-11 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 font-bold text-sm flex-shrink-0 ring-2 ring-white/10">
               {initials}
             </div>
           )}
