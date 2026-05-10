@@ -27,20 +27,23 @@ export function getAllAvatars(): string[] {
  * 3. Fallback
  */
 export function getAvatarForUser(email: string | null | undefined, savedAvatarUrl: string | null = null): string {
-    // 1. Check saved avatar
-    if (savedAvatarUrl) {
+    // 1. Check saved avatar (prioritize non-empty savedAvatarUrl)
+    const avatarToUse = savedAvatarUrl || (email?.startsWith('http') || email?.startsWith('/') ? email : null);
+    
+    if (avatarToUse && avatarToUse.trim() !== "") {
         // Fix legacy broken paths from Dev environment
-        if (savedAvatarUrl.includes('/src/assets/')) {
-            const fileName = savedAvatarUrl.split('/').pop() // e.g. "peep-10.svg"
+        if (avatarToUse.includes('/src/assets/')) {
+            const fileName = avatarToUse.split('/').pop() // e.g. "peep-10.svg"
             return `/avatars/${fileName}`
         }
-        return savedAvatarUrl
+        return avatarToUse
     }
 
-    // 2. Fallback if no email
-    if (!email) return fallbackAvatar
+    // 2. Fallback if no email to hash
+    // If 'email' was actually an avatar URL that was empty, and we have no email, use fallback
+    if (!email || email.startsWith('http') || email.startsWith('/')) return fallbackAvatar
 
-    // 3. Deterministic hash
+    // 3. Deterministic hash based on email
     let hash = 0
     for (let i = 0; i < email.length; i++) {
         hash = ((hash << 5) - hash) + email.charCodeAt(i)

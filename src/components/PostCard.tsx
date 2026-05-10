@@ -103,8 +103,7 @@ export default function PostCard({ post, onDeleted }: PostCardProps) {
   };
 
 
-  const authorAvatar =
-    authorProfile?.avatar_url || getAvatarForUser(authorProfile?.user_email);
+  const authorAvatar = getAvatarForUser(authorProfile?.user_email, authorProfile?.avatar_url);
 
   const isVerified = authorProfile?.is_verified;
 

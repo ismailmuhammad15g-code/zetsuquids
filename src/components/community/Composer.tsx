@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { getAvatarForUser } from "../../lib/avatar";
 import { communityApi } from "../../lib/communityApi";
 import { uploadImageToImgBB } from "../../lib/imgbb";
+import { useAuth } from "../../contexts/AuthContext";
 import { useMention } from "../../hooks/useMention";
 import MentionDropdown from "./MentionDropdown";
 
@@ -38,6 +39,7 @@ interface EmojiData {
 }
 
 export default function Composer({ user, onPostCreated, isModal = false, groupId = null, placeholder = "What is happening?!" }: ComposerProps) {
+  const { profileAvatar } = useAuth();
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -226,7 +228,7 @@ export default function Composer({ user, onPostCreated, isModal = false, groupId
     <div className={`flex gap-3 px-4 py-3 ${isModal ? '' : 'border-b border-[#2f3336]'} ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
       <div className="flex-shrink-0 pt-1">
         <div className="h-10 w-10 overflow-hidden rounded-full bg-[#2f3336]">
-          <img src={getAvatarForUser(user?.email)} alt="" className="h-full w-full object-cover" />
+          <img src={getAvatarForUser(user?.email, profileAvatar)} alt="" className="h-full w-full object-cover" />
         </div>
       </div>
       <div className="flex-1 min-w-0">
