@@ -1,5 +1,5 @@
 "use client";
-import { Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import PostCard from "../../components/PostCard";
 import Composer from "../../components/community/Composer";
