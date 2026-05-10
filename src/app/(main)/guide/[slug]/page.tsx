@@ -487,29 +487,35 @@ export default function GuidePage() {
                 console.error("[GuidePage] AI Previews load error:", e);
             }
 
-            // 2. Check Standard LocalStorage (Fallback)
+            // 2. Fetch from API (Supabase + GitHub)
             if (!guideData) {
+                try {
+                    guideData = await guidesApi.getBySlug(slug as string);
+                } catch (apiErr) {
+                    console.error("[GuidePage] API load error:", apiErr);
+                }
+            }
+
+            // 3. Check Standard LocalStorage (True Fallback if API fails or offline)
+            if (!guideData || (!guideData.content && !guideData.markdown)) {
                 try {
                     const localGuidesStr = typeof window !== 'undefined' ? localStorage.getItem("guides") : null;
                     if (localGuidesStr) {
                         const localGuides = JSON.parse(localGuidesStr);
                         const match = localGuides.find((g: any) => g.slug === slug);
-                        if (match) {
-                            console.log("[GuidePage] Found guide in local guides:", slug);
-                            guideData = match;
+                        // Only use local fallback if it has content, or if API completely failed
+                        if (match && (match.content || match.markdown || !guideData)) {
+                            console.log("[GuidePage] Using guide from local guides fallback:", slug);
+                            // Merge to keep API metadata (like views) but use local content
+                            guideData = guideData ? { ...guideData, ...match } : match;
                         }
                     }
                 } catch (e) {
-                    console.error("[GuidePage] Local guides load error:", e);
+                    console.error("[GuidePage] Local guides fallback error:", e);
                 }
             }
 
-            // 2. If not found in preview, or not in preview mode, fetch from API
-            if (!guideData) {
-                guideData = await guidesApi.getBySlug(slug as string);
-            }
-
-            // 3. If still not found by slug, try by ID (for backward compatibility)
+            // 4. If still not found by slug, try by ID (for backward compatibility)
             if (!guideData && slug && /^\d+$/.test(slug)) {
                 guideData = await guidesApi.getById(parseInt(slug as string));
             }

@@ -154,8 +154,15 @@ export const guidesApi = {
             supabaseGuides.forEach((g) => {
                 if (!g.slug) return;
                 const existingLocal = localGuides.find(lg => lg.slug === g.slug);
-                if (existingLocal?.cover_image && !g.cover_image) {
-                    syncedMap.set(g.slug, { ...g, cover_image: existingLocal.cover_image });
+                if (existingLocal) {
+                    syncedMap.set(g.slug, { 
+                        ...g, 
+                        cover_image: g.cover_image || existingLocal.cover_image,
+                        content: g.content || existingLocal.content || "",
+                        markdown: g.markdown || existingLocal.markdown || "",
+                        html_content: g.html_content || existingLocal.html_content || "",
+                        css_content: g.css_content || existingLocal.css_content || ""
+                    });
                 } else {
                     syncedMap.set(g.slug, g);
                 }

@@ -258,9 +258,25 @@ export default function UserWorkspacePage() {
         profile.status = userStatus;
       }
 
+      let localGuides: any[] = [];
+      try {
+        if (typeof window !== "undefined") {
+          localGuides = JSON.parse(localStorage.getItem("guides") || "[]");
+        }
+      } catch(e) {}
+
+      const mergedMatchingGuides = matchingGuides.map(g => {
+        const local = localGuides.find(lg => lg.slug === g.slug);
+        return {
+          ...g,
+          content: g.content || local?.content || "",
+          markdown: g.markdown || local?.markdown || ""
+        };
+      });
+
       setUserProfile(profile);
       setUserGuides(
-        matchingGuides.sort(
+        mergedMatchingGuides.sort(
           (a, b) => new Date(b.created_at || "").getTime() - new Date(a.created_at || "").getTime(),
         ),
       );
