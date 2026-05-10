@@ -872,14 +872,22 @@ function formatDate(dateStr: string | null): string {
 function MermaidChart({ chart }: { chart: string }): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (containerRef.current && chart) {
-      try {
-        if (containerRef.current) containerRef.current.innerHTML = chart;
-        mermaid.init(undefined, containerRef.current);
-      } catch (err) {
-        console.error("Mermaid format error:", err);
+    let isMounted = true;
+    const renderChart = async () => {
+      if (containerRef.current && chart) {
+        try {
+          const id = `mermaid-${Math.random().toString(36).substring(7)}`;
+          const { svg } = await mermaid.render(id, chart);
+          if (isMounted && containerRef.current) {
+            containerRef.current.innerHTML = svg;
+          }
+        } catch (err) {
+          console.error("Mermaid format error:", err);
+        }
       }
-    }
+    };
+    renderChart();
+    return () => { isMounted = false; };
   }, [chart]);
   return (
     <div
@@ -1047,12 +1055,12 @@ function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string 
       const encodedPrompt = encodeURIComponent(prompt);
       const seed = Math.floor(Math.random() * 1000000);
       const imgUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1280&height=720&nologo=true&seed=${seed}`;
-      
+
       // Since fetch/proxies might get blocked by Cloudflare, we use the browser's native Image loader
       // which safely bypasses bot protections, and extract the Base64 via Canvas!
       const img = new Image();
       img.crossOrigin = "anonymous"; // Allowed because Pollinations sends Access-Control-Allow-Origin: *
-      
+
       img.onload = () => {
         try {
           const canvas = document.createElement("canvas");
@@ -1060,7 +1068,7 @@ function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string 
           canvas.height = img.height;
           const ctx = canvas.getContext("2d");
           ctx?.drawImage(img, 0, 0);
-          
+
           // This is a Base64 string, which guidesApi will automatically upload to GitHub
           const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
           setImageUrl(dataUrl);
@@ -1071,13 +1079,13 @@ function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string 
           setStatus('review');
         }
       };
-      
+
       img.onerror = () => {
         console.warn("Image load error, falling back to direct URL");
         setImageUrl(imgUrl);
         setStatus('review');
       };
-      
+
       img.src = imgUrl;
     } catch (err) {
       console.error("Image generation error:", err);
@@ -1098,7 +1106,7 @@ function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string 
       status: "draft",
       created_at: new Date().toISOString()
     };
-    
+
     // Inject into localStorage so the GuidePage component can render it
     try {
       const existingStr = localStorage.getItem("guides");
@@ -1108,7 +1116,7 @@ function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string 
     } catch (e) {
       console.error("Failed to save preview draft to localStorage", e);
     }
-    
+
     // Open preview in new tab
     window.open(`/guide/${previewSlug}?preview=true`, '_blank');
   }
@@ -1166,9 +1174,9 @@ function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string 
         )}
         <div className="font-semibold text-gray-900 mb-1">{data.title}</div>
         <div className="text-xs text-gray-500 mb-4 line-clamp-2">{data.markdown?.replace(/[#*]/g, "").substring(0, 150)}...</div>
-        
-        <Link 
-          href={`/guide/${guideSlug}`} 
+
+        <Link
+          href={`/guide/${guideSlug}`}
           target="_blank"
           className="inline-flex items-center gap-2 bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800 transition-colors"
         >
@@ -1198,7 +1206,7 @@ function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string 
         </div>
         <span className="text-[10px] font-bold tracking-wider text-gray-400 uppercase bg-white border border-gray-200 px-2 py-0.5 rounded-full">Preview</span>
       </div>
-      
+
       {/* Content */}
       <div className="p-5">
         {imageUrl ? (
@@ -1209,9 +1217,9 @@ function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string 
             <span className="text-xs ml-2">No cover image</span>
           </div>
         )}
-        
+
         <h3 className="font-extrabold text-lg text-gray-900 mb-2 leading-tight">{data.title}</h3>
-        
+
         {data.keywords && data.keywords.length > 0 && (
           <div className="flex gap-2 flex-wrap mb-4">
             {data.keywords.map((kw: string, i: number) => (
@@ -1221,7 +1229,7 @@ function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string 
             ))}
           </div>
         )}
-        
+
         <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 relative">
           <div className="absolute top-0 left-0 w-1 h-full bg-blue-400 rounded-l-lg"></div>
           <div className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Content Snippet</div>
@@ -1239,31 +1247,31 @@ function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string 
 
       {/* Actions */}
       <div className="bg-gray-50 border-t border-gray-100 px-5 py-4 flex items-center justify-between gap-3">
-        <button 
+        <button
           onClick={handlePreview}
           disabled={status === 'publishing'}
           className="px-4 py-2 text-sm font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-200 bg-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
         >
           <ExternalLink size={14} /> Live Preview
         </button>
-        
+
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={() => setStatus('rejected')}
             disabled={status === 'publishing'}
             className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
           >
             Discard
           </button>
-          <button 
+          <button
             onClick={handleApprove}
             disabled={status === 'publishing'}
             className="px-6 py-2 text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-lg transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
           >
             {status === 'publishing' ? (
-               <><Loader2 size={14} className="animate-spin" /> Publishing...</>
+              <><Loader2 size={14} className="animate-spin" /> Publishing...</>
             ) : (
-               <><Check size={14} /> Approve & Publish</>
+              <><Check size={14} /> Approve & Publish</>
             )}
           </button>
         </div>
@@ -1330,11 +1338,11 @@ function MessageContent({ text, isError, isThinking, userEmail, selectedGuideNam
       {response && (
         <FilteredMarkdown content={response} />
       )}
-      
+
       {guideAction && !isThinking && (
         <GuideCreatorAction data={guideAction} userEmail={userEmail} />
       )}
-      
+
       {isGuideActionStreaming && isThinking && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 my-4 flex items-center gap-3 text-blue-800">
           <Loader2 className="animate-spin text-blue-600" size={16} />
@@ -2119,11 +2127,11 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                         <div className="zg-ai-avatar"><Bot size={16} /></div>
                         <div className="zg-ai-body">
                           <div className="zg-ai-name">ZetsuGuide AI</div>
-                          <MessageContent 
-                            text={msg.content} 
-                            isThinking={idx === messages.length - 1 && isThinking} 
-                            userEmail={user?.email} 
-                            selectedGuideName={isReadingGuide && idx === messages.length - 1 ? selectedGuide?.title : null} 
+                          <MessageContent
+                            text={msg.content}
+                            isThinking={idx === messages.length - 1 && isThinking}
+                            userEmail={user?.email}
+                            selectedGuideName={isReadingGuide && idx === messages.length - 1 ? selectedGuide?.title : null}
                           />
                           {false && null}
                           {msg.role === 'assistant' && (
@@ -2168,17 +2176,17 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                     ⚡ You have no credits left. Please purchase more to continue chatting.
                   </div>
                 )}
-                
+
                 {/* Ask Guide Tools Area */}
                 <div className="relative mb-2 flex items-center gap-2">
-                  <button 
+                  <button
                     type="button"
                     onClick={toggleGuidesDropdown}
                     className="flex items-center gap-1.5 text-[13px] font-bold text-gray-700 bg-white border border-gray-200 px-3 py-1.5 rounded-full hover:bg-gray-50 transition shadow-sm"
                   >
                     <Sparkles size={14} className="text-blue-500" /> Ask Guide
                   </button>
-                  
+
                   {/* Selected Guide Pill */}
                   {selectedGuide && (
                     <div className="flex items-center gap-2 bg-white border border-gray-200 pl-1.5 pr-3 py-1.5 rounded-full shadow-sm max-w-[350px] animate-in fade-in zoom-in duration-200">
@@ -2191,12 +2199,12 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                         <span className="text-gray-400 font-semibold mr-1.5">Resource:</span>
                         {selectedGuide.title}
                       </span>
-                      <button 
-                        type="button" 
-                        onClick={() => { setSelectedGuide(null); setInput(""); }} 
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedGuide(null); setInput(""); }}
                         className="text-gray-400 hover:text-red-500 hover:bg-red-50 ml-1 transition-colors bg-gray-50 rounded-full p-0.5"
                       >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                       </button>
                     </div>
                   )}
@@ -2206,20 +2214,20 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                     <div className="absolute left-0 bottom-[calc(100%+8px)] w-[360px] bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
                       <div className="p-3 border-b border-gray-100 bg-gray-50/50">
                         <div className="relative">
-                          <input 
-                            type="text" 
-                            placeholder="Search guides to ask about..." 
+                          <input
+                            type="text"
+                            placeholder="Search guides to ask about..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-8 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-[13px] font-medium outline-none focus:border-blue-500 transition-colors shadow-sm placeholder:text-gray-400"
                           />
-                          <svg className="absolute left-3 top-2.5 text-gray-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                          <svg className="absolute left-3 top-2.5 text-gray-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                         </div>
                       </div>
                       <div className="max-h-[280px] overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-gray-200">
                         {isFetchingGuides ? (
                           <div className="space-y-2 p-1">
-                            {[1,2,3,4].map(i => (
+                            {[1, 2, 3, 4].map(i => (
                               <div key={i} className="flex gap-3 items-center p-2 rounded-lg bg-gray-50 animate-pulse border border-white">
                                 <div className="w-12 h-12 bg-white rounded-md shadow-sm border border-gray-100"></div>
                                 <div className="flex-1 space-y-2">
@@ -2240,8 +2248,8 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                               <button
                                 key={guide.id}
                                 type="button"
-                                onClick={() => { 
-                                  setSelectedGuide(guide); 
+                                onClick={() => {
+                                  setSelectedGuide(guide);
                                   setIsGuideDropdownOpen(false);
                                   setInput(`Can you explain the main concepts of the guide: "${guide.title}" and provide a summary?`);
                                   if (textareaRef.current) {
@@ -2324,9 +2332,6 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                     </div>
                   </div>
                 </form>
-                <div className="zg-disclaimer">
-                  ZetsuGuide AI can make mistakes. Review important information carefully.
-                </div>
               </div>
             </div>
           )}
