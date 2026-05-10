@@ -240,11 +240,11 @@ export const communityApi = {
         const { data, error } = await supabase
             .from("posts")
             .insert([post])
-            .select()
-            .single();
+            .select();
 
         if (error) throw error;
-        return data;
+        if (!data || data.length === 0) throw new Error("Post created but no data returned");
+        return data[0];
     },
 
     // --- Interactions ---
@@ -330,11 +330,11 @@ export const communityApi = {
         const { data, error } = await supabase
             .from("post_comments")
             .insert([{ post_id: postId, content, user_id: userId }])
-            .select()
-            .single();
+            .select();
 
         if (error) throw error;
-        return data;
+        if (!data || data.length === 0) throw new Error("Comment added but no data returned");
+        return data[0];
     },
 
     // --- Post Detail ---
@@ -779,15 +779,28 @@ export const communityApi = {
                     creator_id: creatorId,
                 },
             ])
-            .select()
-            .single();
+            .select();
 
-        if (error) throw error;
+        if (error) {
+            console.error("Supabase error creating community:", error);
+            throw error;
+        }
+
+        if (!data || data.length === 0) {
+            throw new Error("Community created but no data returned. This might be an RLS issue.");
+        }
+
+        const newCommunity = data[0];
 
         // Automatically join the community
-        await this.joinCommunity(data.id, creatorId);
+        try {
+            await this.joinCommunity(newCommunity.id, creatorId);
+        } catch (joinError) {
+            console.error("Community created but failed to auto-join:", joinError);
+            // We still return the community since it was created
+        }
 
-        return data;
+        return newCommunity;
     },
 
     async getGroup(id: string | number): Promise<Community | null> {
@@ -868,10 +881,11 @@ export const communityApi = {
             .from("community_groups")
             .update(updates)
             .eq("id", id)
-            .select()
-            .single();
+            .select();
+        
         if (error) throw error;
-        return data;
+        if (!data || data.length === 0) throw new Error("Community updated but no data returned");
+        return data[0];
     },
 
     async getCommunityMembers(groupId: string | number): Promise<UserProfile[]> {
