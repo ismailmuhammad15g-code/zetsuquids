@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import CommunityLeftSidebar from "./CommunityLeftSidebar";
+import CommunityLoginModal from "./CommunityLoginModal";
 import PostModal from "./PostModal";
 import TrendsSidebar from "./TrendsSidebar";
 
@@ -13,6 +14,7 @@ export default function CommunityLayout({ children }: { children?: React.ReactNo
 
   return (
     <div className="min-h-screen bg-black text-[#e7e9ea] flex justify-center font-sans subpixel-antialiased">
+      <CommunityLoginModal />
       {/* Global Post Modal for Community routes */}
       <PostModal
         isOpen={isPostModalOpen}
