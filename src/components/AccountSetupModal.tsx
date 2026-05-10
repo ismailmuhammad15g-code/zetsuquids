@@ -186,23 +186,24 @@ export default function AccountSetupModal({ user, onClose, onComplete }: Account
 
             // Try to claim referral bonus (only if it wasn't already claimed)
             try {
-                const response = await fetch("/api/payments?type=claim_referral", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: user.id })
-                })
+                const pendingCode = user?.user_metadata?.referral_pending;
+                if (pendingCode) {
+                    const { data, error: rpcError } = await supabase.rpc("process_referral_reward", {
+                        p_new_user_email: user.email.toLowerCase(),
+                        p_referral_code: pendingCode
+                    });
 
-                // Always try to parse JSON, even if status is not 200
-                const result = await response.json().catch(() => ({}))
+                    console.log('[AccountSetup] Referral Claim Result:', data, rpcError);
 
-                console.log('[AccountSetup] Referral Claim Result:', result)
-
-                if (result.success && result.bonusApplied) {
-                    _setBonusCredits(result.newCredits || 10)
-                    setShowSuccessModal(true)
-                    return // Stop execution here, let the SuccessModal handle closing on dismiss
-                } else {
-                    console.log('[AccountSetup] No bonus applied or already claimed')
+                    if (data && !rpcError) {
+                        await supabase.auth.updateUser({ data: { referral_pending: null } });
+                        _setBonusCredits(10); // Standard bonus amount
+                        setShowSuccessModal(true);
+                        return; // Stop execution here, let the SuccessModal handle closing on dismiss
+                    } else {
+                        await supabase.auth.updateUser({ data: { referral_pending: null } });
+                        console.log('[AccountSetup] No bonus applied or already claimed');
+                    }
                 }
             } catch (refError) {
                 console.error('[AccountSetup] Referral claim exception:', refError)

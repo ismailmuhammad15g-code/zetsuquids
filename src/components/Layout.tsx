@@ -42,6 +42,7 @@ import TourCursor from "./TourCursor";
 import { useModal } from "../contexts/ModalContext";
 import NotificationBell from "./NotificationBell";
 import { useLocalStoragePurge } from "../hooks/useLocalStoragePurge";
+import { toast } from "sonner";
 
 const CookieConsent = lazy(() => import("./CookieConsent").catch(() => import("./AdBlockFallback")));
 
@@ -163,7 +164,6 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       setCheckingReferral(false);
       return;
     }
-    const userId = user.id;
 
     async function tryClaimReferral() {
       // Check if we even have a pending referral to claim
@@ -176,20 +176,23 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
       console.log("Found pending referral, claiming...");
       try {
-        const response = await fetch("/api/payments?type=claim_referral", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId }),
+        const pendingCode = user?.user_metadata?.referral_pending;
+        const { data, error } = await supabase.rpc("process_referral_reward", {
+          p_new_user_email: user.email.toLowerCase(),
+          p_referral_code: pendingCode
         });
-        const result = await response.json();
-        console.log("Claim Result:", result);
 
-        if (result.success && result.bonusApplied) {
+        console.log("Claim Result:", data, error);
+
+        if (data && !error) {
           console.log("Bonus applied! Showing success modal...");
+          // Clear the pending referral code so it doesn't trigger again
+          await supabase.auth.updateUser({ data: { referral_pending: null } });
           setShowReferralSuccess(true);
           // DON'T set checkingReferral to false yet - let modal close handle it
         } else {
-          console.log("Bonus not applied, marking as checked anyway");
+          console.log("Bonus not applied (invalid code, or already claimed), marking as checked anyway");
+          await supabase.auth.updateUser({ data: { referral_pending: null } });
           setCheckingReferral(false);
         }
       } catch (err: unknown) {
@@ -315,6 +318,27 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     }
     checkBugRewards();
   }, [user]);
+
+  // Listen for Zp awards from api.ts
+  useEffect(() => {
+    const handleZpAwarded = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { points, reason } = customEvent.detail;
+      toast.success(
+        <div className="flex items-center gap-3">
+          <img src="/images/Zpoint.svg" alt="Zp" className="w-8 h-8 drop-shadow-md animate-pulse" />
+          <div>
+            <div className="font-bold text-base">+{points} Zp Earned!</div>
+            <div className="text-sm opacity-90">{reason}</div>
+          </div>
+        </div>,
+        { duration: 4000 }
+      );
+    };
+
+    window.addEventListener("zp_awarded", handleZpAwarded);
+    return () => window.removeEventListener("zp_awarded", handleZpAwarded);
+  }, []);
 
   const navItems = [
     {

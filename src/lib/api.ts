@@ -490,6 +490,18 @@ export const guidesApi = {
                             const guides: Guide[] = getLocalGuides();
                             guides.unshift(fullGuide);
                             saveLocalGuides(guides);
+
+                            // Award Zp for creating a guide
+                            if (guide.user_email) {
+                                supabase.rpc("award_zpoints", { p_user_email: guide.user_email.toLowerCase(), p_points: 10 })
+                                    .then(({ error }: { error: any }) => {
+                                        if (!error && typeof window !== "undefined") {
+                                            // Dispatch event so UI can show notification
+                                            window.dispatchEvent(new CustomEvent("zp_awarded", { detail: { points: 10, reason: "Creating a guide" } }));
+                                        }
+                                    });
+                            }
+
                             return fullGuide;
                         }
                         // Throw with the retry error message
@@ -513,6 +525,18 @@ export const guidesApi = {
                     const guides: Guide[] = getLocalGuides();
                     guides.unshift(fullGuide);
                     saveLocalGuides(guides);
+
+                    // Award Zp for creating a guide
+                    if (guide.user_email) {
+                        supabase.rpc("award_zpoints", { p_user_email: guide.user_email.toLowerCase(), p_points: 10 })
+                            .then(({ error }: { error: any }) => {
+                                if (!error && typeof window !== "undefined") {
+                                    // Dispatch event so UI can show notification
+                                    window.dispatchEvent(new CustomEvent("zp_awarded", { detail: { points: 10, reason: "Creating a guide" } }));
+                                }
+                            });
+                    }
+
                     return fullGuide;
                 }
 

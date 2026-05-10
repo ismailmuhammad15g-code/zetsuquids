@@ -17,8 +17,9 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { useNotifications } from "../../../contexts/NotificationContext";
 import { supabase } from "../../../lib/supabase";
 import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
-type ActiveTab = "overview" | "analytics" | "publication" | "followers" | "notifications";
+type ActiveTab = "overview" | "analytics" | "publication" | "followers" | "notifications" | "earn-zp";
 
 interface GuideSummary {
   id: string | number;
@@ -102,6 +103,8 @@ export default function UserStatsPage() {
     followers: []
   });
   const [followersLoading, setFollowersLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referralCount, setReferralCount] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -111,6 +114,8 @@ export default function UserStatsPage() {
         fetchAnalytics();
       } else if (activeTab === "followers") {
         fetchFollowers();
+      } else if (activeTab === "earn-zp") {
+        fetchReferralCode();
       }
     }
   }, [user, activeTab]);
@@ -368,6 +373,71 @@ export default function UserStatsPage() {
     }
   };
 
+  const fetchReferralCode = async () => {
+    if (!user?.email) return;
+    try {
+      const { data } = await supabase
+        .from("zetsuguide_credits")
+        .select("referral_code, total_referrals")
+        .eq("user_email", user.email.toLowerCase())
+        .maybeSingle();
+
+      if (data && data.referral_code) {
+        setReferralCode(data.referral_code);
+        setReferralCount(data.total_referrals || 0);
+      } else {
+        // Force generation of referral code if null
+        const { data: newCode, error: rpcError } = await supabase.rpc("generate_referral_code", { p_user_email: user.email.toLowerCase() });
+        if (newCode && !rpcError) {
+          setReferralCode(newCode);
+        } else {
+          // Fallback if RPC doesn't exist yet, we will generate a random string
+          const fallbackCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+          await supabase.from("zetsuguide_credits").update({ referral_code: fallbackCode }).eq("user_email", user.email.toLowerCase());
+          setReferralCode(fallbackCode);
+        }
+        setReferralCount(data?.total_referrals || 0);
+      }
+    } catch (err) {
+      console.error("Error fetching referral code:", err);
+    }
+  };
+
+  const handleCheckActivity = async () => {
+    if (!user?.email) return;
+    
+    const toastId = toast.loading("Checking your activity logs...");
+    
+    try {
+      const { data, error } = await supabase.rpc("check_continuous_activity", {
+        p_user_email: user.email.toLowerCase()
+      });
+
+      if (error) throw error;
+
+      if (data) {
+        toast.dismiss(toastId);
+        toast.success(
+          <div className="flex items-center gap-3">
+            <img src="/images/Zpoint.svg" alt="Zp" className="w-8 h-8 drop-shadow-md animate-pulse" />
+            <div>
+              <div className="font-bold text-base">+100 Zp Earned!</div>
+              <div className="text-sm opacity-90">3 Days Streak Reward</div>
+            </div>
+          </div>,
+          { duration: 5000 }
+        );
+      } else {
+        toast.dismiss(toastId);
+        toast.info("You haven't reached the next streak yet. Keep logging in daily!", { duration: 4000 });
+      }
+    } catch (err) {
+      console.error("Activity check error:", err);
+      toast.dismiss(toastId);
+      toast.error("Could not check activity. Make sure the database functions are updated.");
+    }
+  };
+
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -454,6 +524,13 @@ export default function UserStatsPage() {
                 {unreadCount}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => setActiveTab("earn-zp")}
+            className={`pb-2 px-4 font-bold text-lg transition-colors flex items-center gap-2 ${activeTab === "earn-zp" ? "border-b-4 border-black text-black" : "text-gray-400 hover:text-gray-600"}`}
+          >
+            <img src="/images/Zpoint.svg" alt="Zp" className="w-5 h-5 object-contain" />
+            Earn Zp
           </button>
         </div>
 
@@ -827,6 +904,95 @@ export default function UserStatsPage() {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "earn-zp" && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header section */}
+            <div className="bg-gradient-to-r from-gray-900 to-black text-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
+              <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div>
+                  <h2 className="text-3xl font-black mb-2 flex items-center gap-3">
+                    Earn Z-Points <img src="/images/Zpoint.svg" alt="Zp" className="w-8 h-8 object-contain" />
+                  </h2>
+                  <p className="text-gray-300 max-w-lg font-medium text-lg leading-relaxed">
+                    Complete tasks to earn Zp. You can convert Zp to Z-Coins to unlock premium features and AI credits!
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Task 1: Continuous Activity */}
+              <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-indigo-500"></div>
+                <div className="flex justify-between items-start mb-6">
+                  <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100 group-hover:scale-110 transition-transform">
+                    <Calendar className="w-7 h-7 text-blue-600" />
+                  </div>
+                  <div className="bg-amber-100 text-amber-800 font-bold px-4 py-1.5 rounded-full flex items-center gap-2">
+                    <span>+100</span>
+                    <img src="/images/Zpoint.svg" alt="Zp" className="w-4 h-4 object-contain" />
+                  </div>
+                </div>
+                <h3 className="text-2xl font-black mb-2 text-gray-900">3 Days Streak</h3>
+                <p className="text-gray-500 mb-6 font-medium">Log in and learn consistently for 3 days in a row to earn 100 Zp. Stay active!</p>
+                <button 
+                  className="w-full py-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-800 font-bold rounded-2xl transition-colors"
+                  onClick={handleCheckActivity}
+                >
+                  Check Eligibility
+                </button>
+              </div>
+
+              {/* Task 2: Refer a Friend */}
+              <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-emerald-500"></div>
+                <div className="flex justify-between items-start mb-6">
+                  <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center border border-green-100 group-hover:scale-110 transition-transform">
+                    <Users className="w-7 h-7 text-green-600" />
+                  </div>
+                  <div className="bg-amber-100 text-amber-800 font-bold px-4 py-1.5 rounded-full flex items-center gap-2">
+                    <span>+200</span>
+                    <img src="/images/Zpoint.svg" alt="Zp" className="w-4 h-4 object-contain" />
+                  </div>
+                </div>
+                <h3 className="text-2xl font-black mb-2 text-gray-900">Refer a Friend</h3>
+                <p className="text-gray-500 mb-6 font-medium">Invite your friends. You both earn Zp when they sign up using your link!</p>
+                
+                {referralCode ? (
+                  <div className="bg-gray-50 border border-gray-200 rounded-2xl p-2 pl-4 flex items-center justify-between">
+                    <span className="font-mono text-sm text-gray-600 truncate mr-4">
+                      {typeof window !== 'undefined' ? `${window.location.origin}/auth?ref=${referralCode}` : `.../auth?ref=${referralCode}`}
+                    </span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/auth?ref=${referralCode}`);
+                        toast.success("Referral link copied to clipboard!");
+                      }}
+                      className="shrink-0 bg-black text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors"
+                    >
+                      Copy Link
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={fetchReferralCode}
+                    className="w-full py-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-800 font-bold rounded-2xl transition-colors"
+                  >
+                    Generate Referral Link
+                  </button>
+                )}
+                
+                <div className="mt-4 text-center">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    Total Referrals: {referralCount}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         )}
