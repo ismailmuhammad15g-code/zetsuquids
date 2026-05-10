@@ -938,7 +938,11 @@ function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true, 
   const [isOpen, setIsOpen] = useState(isInitialOpen);
 
   useEffect(() => {
-    if (isStreaming) setIsOpen(true);
+    if (isStreaming) {
+      setIsOpen(true);
+    } else {
+      setIsOpen(false);
+    }
   }, [isStreaming]);
 
   let titleText = isStreaming ? "🧠 Thinking..." : "💭 Thought Process";
@@ -988,9 +992,15 @@ function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true, 
               wordBreak: "break-word",
               margin: 0,
               fontFamily: "inherit",
-              background: "#f9fafb",
-              padding: "8px",
-              borderRadius: "6px"
+              background: "#f3f4f6",
+              color: "#1f2937",
+              padding: "12px",
+              borderRadius: "8px",
+              border: "1px solid #e5e7eb",
+              maxHeight: "350px",
+              overflowY: "auto",
+              scrollbarWidth: "thin",
+              scrollbarColor: "#d1d5db transparent"
             }}>{thought}</pre>
           ) : (
             <span style={{ color: "#9ca3af", fontStyle: "italic" }}>
