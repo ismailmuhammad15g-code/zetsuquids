@@ -827,6 +827,21 @@ const styles = `
     50% { opacity: 0.3; transform: scale(0.8); }
   }
 
+  @keyframes zg-skeleton-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .zg-title-skeleton {
+    height: 14px;
+    width: 150px;
+    background: linear-gradient(90deg, #f3f4f6 25%, #d1d5db 50%, #f3f4f6 75%);
+    background-size: 200% 100%;
+    animation: zg-skeleton-shimmer 1.5s infinite linear;
+    border-radius: 4px;
+    display: inline-block;
+    vertical-align: middle;
+    opacity: 0.8;
+  }
 `;
 
 // ─── Components & Helpers ───────────────────────────────────────────────────
@@ -1483,12 +1498,15 @@ export default function ZetsuGuideAIPage() {
   const [isGuideDropdownOpen, setIsGuideDropdownOpen] = useState<boolean>(false);
   const [guidesList, setGuidesList] = useState<any[]>([]);
   const [isFetchingGuides, setIsFetchingGuides] = useState<boolean>(false);
+  const [isGeneratingTitle, setIsGeneratingTitle] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedGuide, setSelectedGuide] = useState<any | null>(null);
   const [isReadingGuide, setIsReadingGuide] = useState<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Track which conv IDs already had their title generated (per session)
+  const titledConvIds = useRef<Set<string>>(new Set());
 
   // Auto-resize textarea
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -1832,7 +1850,13 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
           .insert({ user_email: user.email.toLowerCase(), title, messages: msgs, updated_at: new Date().toISOString() })
           .select()
           .single();
-        if (data) setCurrentConvId(data.id);
+        if (data) {
+          setCurrentConvId(data.id);
+          // Schedule auto-title for brand new conversations
+          setTimeout(() => {
+            generateConversationTitle(data.id, msgs);
+          }, 5000);
+        }
       } else {
         await supabase
           .from("zetsuguide_conversations")
@@ -1841,6 +1865,70 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
       }
       loadConversations();
     } catch { }
+  }
+
+  async function generateConversationTitle(convId: string | number, msgs: ChatMessage[]) {
+    if (!convId) return;
+    const idKey = String(convId);
+
+    // ── Guard: Don't generate twice for the same conversation ──
+    if (titledConvIds.current.has(idKey)) {
+      console.log("[AutoTitle] Already titled, skipping:", idKey);
+      return;
+    }
+
+    console.log("[AutoTitle] Starting for conv:", idKey);
+    setIsGeneratingTitle(true);
+    try {
+      const userMsg = msgs.find(m => m.role === 'user')?.content || "";
+      if (!userMsg) {
+        console.log("[AutoTitle] No user message found, skipping");
+        return;
+      }
+
+      // Smart title extraction
+      let autoTitle = userMsg.trim();
+
+      if (userMsg.toLowerCase().includes("guide for")) {
+        const parts = userMsg.toLowerCase().split("guide for");
+        if (parts[1]) autoTitle = "Guide: " + parts[1].trim().split("\n")[0].split(".")[0];
+      } else if (userMsg.toLowerCase().includes("create a")) {
+        const parts = userMsg.toLowerCase().split("create a");
+        if (parts[1]) autoTitle = parts[1].trim().split("\n")[0].split(".")[0];
+      } else if (userMsg.toLowerCase().includes("make a")) {
+        const parts = userMsg.toLowerCase().split("make a");
+        if (parts[1]) autoTitle = parts[1].trim().split("\n")[0].split(".")[0];
+      }
+
+      if (autoTitle.length > 40) {
+        autoTitle = autoTitle.substring(0, 37).trimEnd() + "...";
+      }
+
+      console.log("[AutoTitle] Generated title:", autoTitle);
+
+      const { error } = await supabase
+        .from("zetsuguide_conversations")
+        .update({ title: autoTitle })
+        .eq("id", convId);
+
+      if (error) {
+        console.error("[AutoTitle] Supabase error:", error);
+        return;
+      }
+
+      // Mark as titled so it won't run again this session
+      titledConvIds.current.add(idKey);
+
+      // Immediately update local state so the topbar re-renders
+      setConversations(prev =>
+        prev.map(c => c.id === idKey ? { ...c, title: autoTitle } : c)
+      );
+      console.log("[AutoTitle] Done!");
+    } catch (err) {
+      console.error("[AutoTitle] Error:", err);
+    } finally {
+      setIsGeneratingTitle(false);
+    }
   }
 
   const startNewChat = (): void => {
@@ -1866,6 +1954,22 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
         }));
         setMessages(typedMessages);
         setCurrentConvId(conv.id);
+
+        // ── Auto-Title: Only trigger if title looks like a raw un-processed message ──
+        // The initial title saved by saveConversation is raw first-50-chars of user message.
+        // A "good" title would be shorter, more descriptive, or was already processed.
+        const firstUserMsg = typedMessages.find(m => m.role === 'user')?.content || "";
+        const isRawTitle =
+          conv.title === "New Chat" ||
+          conv.title === "Chat" ||
+          // Title exactly matches the first 50 chars of user message (raw, unprocessed)
+          (firstUserMsg.length > 0 && firstUserMsg.substring(0, conv.title.length) === conv.title && conv.title.length >= 45);
+
+        if (isRawTitle && !titledConvIds.current.has(conv.id)) {
+          setTimeout(() => {
+            generateConversationTitle(conv.id, typedMessages);
+          }, 5000);
+        }
       }
     } catch { toast.error("Failed to load conversation."); }
   };
@@ -2006,9 +2110,13 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
               {showSidebar ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
             </button>
             <span className="zg-topbar-title">
-              {currentConvId
-                ? conversations.find(c => c.id === currentConvId)?.title || "Chat"
-                : "New Conversation"}
+              {isGeneratingTitle ? (
+                <span className="zg-title-skeleton" />
+              ) : currentConvId ? (
+                conversations.find(c => c.id === currentConvId)?.title || "Chat"
+              ) : (
+                "New Conversation"
+              )}
             </span>
             <button className="zg-icon-btn" onClick={startNewChat} title="New chat">
               <SquarePen size={16} />
