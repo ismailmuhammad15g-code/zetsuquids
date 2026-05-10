@@ -1258,11 +1258,16 @@ interface MessageContentProps {
   isThinking?: boolean;
 }
 
-function MessageContent({ text, isError, isThinking, userEmail }: MessageContentProps & { userEmail?: string | null }) {
+function MessageContent({ text, isError, isThinking, userEmail, selectedGuideName }: MessageContentProps & { userEmail?: string | null, selectedGuideName?: string | null }) {
   // If the AI is expected to think but hasn't sent text yet, show a placeholder
   if (isThinking && !text) {
     return (
       <div className="zg-ai-content prose prose-sm max-w-none" dir="auto">
+        {selectedGuideName && (
+          <div className="flex items-center gap-2 text-sm text-blue-600 mb-3 font-medium bg-blue-50/50 p-2.5 rounded-lg border border-blue-100 shadow-sm animate-pulse">
+            <Loader2 size={16} className="animate-spin" /> Zetsu Guide is reading {selectedGuideName}...
+          </div>
+        )}
         <ReasoningBlock thought="" duration={undefined} isStreaming={true} isInitialOpen={true} />
       </div>
     );
@@ -1297,6 +1302,12 @@ function MessageContent({ text, isError, isThinking, userEmail }: MessageContent
 
   return (
     <div className={`zg-ai-content prose prose-sm max-w-none ${isError ? "text-red-600" : ""}`} dir="auto">
+      {selectedGuideName && isStreaming && (
+        <div className="flex items-center gap-2 text-sm text-blue-600 mb-3 font-medium bg-blue-50/50 p-2.5 rounded-lg border border-blue-100 shadow-sm">
+          <Check size={16} className="text-blue-500" /> Finished reading {selectedGuideName}
+        </div>
+      )}
+      
       {showThought && (
         <ReasoningBlock
           thought={thought}
@@ -1434,6 +1445,14 @@ export default function ZetsuGuideAIPage() {
   const [apiKeyError, setApiKeyError] = useState<string>("");
   const [apiKeySuccess, setApiKeySuccess] = useState<boolean>(false);
 
+  // Ask Guide Feature States
+  const [isGuideDropdownOpen, setIsGuideDropdownOpen] = useState<boolean>(false);
+  const [guidesList, setGuidesList] = useState<any[]>([]);
+  const [isFetchingGuides, setIsFetchingGuides] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedGuide, setSelectedGuide] = useState<any | null>(null);
+  const [isReadingGuide, setIsReadingGuide] = useState<boolean>(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1485,6 +1504,22 @@ export default function ZetsuGuideAIPage() {
     setIsLoadingHistory(false);
   }
 
+  async function toggleGuidesDropdown() {
+    setIsGuideDropdownOpen(!isGuideDropdownOpen);
+    if (!isGuideDropdownOpen && guidesList.length === 0) {
+      setIsFetchingGuides(true);
+      try {
+        const { data } = await supabase
+          .from("guides")
+          .select("id, title, slug, markdown, cover_image, created_at")
+          .eq("status", "approved")
+          .order("created_at", { ascending: false });
+        setGuidesList(data || []);
+      } catch { }
+      setIsFetchingGuides(false);
+    }
+  }
+
   const handleSend = async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
     if (!input.trim() || isThinking) return;
@@ -1507,21 +1542,27 @@ export default function ZetsuGuideAIPage() {
     try {
       // ── Smart Search: Fetch guides from Supabase for AI context ──
       let guidesContext = "";
-      try {
-        const { data: guides } = await supabase
-          .from("guides")
-          .select("id, title, slug, markdown, keywords, created_at")
-          .eq("status", "approved")
-          .order("created_at", { ascending: false })
-          .limit(50);
+      if (selectedGuide) {
+        setIsReadingGuide(true);
+        guidesContext = `## ${selectedGuide.title}\nSlug: ${selectedGuide.slug}\nContent:\n${selectedGuide.markdown}\n\n`;
+      } else {
+        setIsReadingGuide(false);
+        try {
+          const { data: guides } = await supabase
+            .from("guides")
+            .select("id, title, slug, markdown, keywords, created_at")
+            .eq("status", "approved")
+            .order("created_at", { ascending: false })
+            .limit(50);
 
-        if (guides && guides.length > 0) {
-          guidesContext = guides.map((g: { id: string | number; title: string; slug: string; markdown: string | null; keywords: string[] | null; created_at: string }) =>
-            `## ${g.title}\nSlug: ${g.slug}\nKeywords: ${(g.keywords || []).join(", ")}\nContent: ${(g.markdown || "").substring(0, 500)}\nLink: /guide/${g.slug}`
-          ).join("\n\n---\n\n");
+          if (guides && guides.length > 0) {
+            guidesContext = guides.map((g: { id: string | number; title: string; slug: string; markdown: string | null; keywords: string[] | null; created_at: string }) =>
+              `## ${g.title}\nSlug: ${g.slug}\nKeywords: ${(g.keywords || []).join(", ")}\nContent: ${(g.markdown || "").substring(0, 500)}\nLink: /guide/${g.slug}`
+            ).join("\n\n---\n\n");
+          }
+        } catch (err) {
+          console.warn("Failed to fetch guides for AI context:", err);
         }
-      } catch (err) {
-        console.warn("Failed to fetch guides for AI context:", err);
       }
 
       // Build messages payload with guides context injected as system message
@@ -1530,8 +1571,7 @@ export default function ZetsuGuideAIPage() {
           role: "system",
           content: `You are ZetsuGuide AI, a technical expert for the ZetsuGuide platform.
 
-KNOWLEDGE BASE:
-${guidesContext}
+${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a specific guide for you to read. You MUST read the full content of this guide and use it to answer the user's question. Here is the full content of the selected guide:\n\n${guidesContext}\n\n` : `KNOWLEDGE BASE:\n${guidesContext}`}
 
 🧠 DEEP THINKING INSTRUCTIONS:
 - START your response IMMEDIATELY with the <thinking> tag. NEVER omit it.
@@ -2079,7 +2119,12 @@ ${guidesContext}
                         <div className="zg-ai-avatar"><Bot size={16} /></div>
                         <div className="zg-ai-body">
                           <div className="zg-ai-name">ZetsuGuide AI</div>
-                          <MessageContent text={msg.content} isThinking={idx === messages.length - 1 && isThinking} userEmail={user?.email} />
+                          <MessageContent 
+                            text={msg.content} 
+                            isThinking={idx === messages.length - 1 && isThinking} 
+                            userEmail={user?.email} 
+                            selectedGuideName={isReadingGuide && idx === messages.length - 1 ? selectedGuide?.title : null} 
+                          />
                           {false && null}
                           {msg.role === 'assistant' && (
                             <div className="zg-ai-actions">
@@ -2123,6 +2168,92 @@ ${guidesContext}
                     ⚡ You have no credits left. Please purchase more to continue chatting.
                   </div>
                 )}
+                
+                {/* Ask Guide Tools Area */}
+                <div className="relative mb-2 flex items-center gap-2">
+                  <button 
+                    type="button"
+                    onClick={toggleGuidesDropdown}
+                    className="flex items-center gap-1.5 text-[13px] font-bold text-gray-700 bg-white border border-gray-200 px-3 py-1.5 rounded-full hover:bg-gray-50 transition shadow-sm"
+                  >
+                    <Sparkles size={14} className="text-blue-500" /> Ask Guide
+                  </button>
+                  
+                  {/* Selected Guide Pill */}
+                  {selectedGuide && (
+                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 pl-1 pr-3 py-1 rounded-full shadow-sm max-w-[300px] animate-in fade-in zoom-in duration-200">
+                      {selectedGuide.cover_image ? (
+                        <div className="w-5 h-5 rounded-full bg-cover bg-center border border-blue-100" style={{ backgroundImage: `url(${selectedGuide.cover_image})` }}></div>
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-blue-500"><ImageIcon size={10} /></div>
+                      )}
+                      <span className="text-xs font-bold text-blue-700 truncate block">Resources: {selectedGuide.title}</span>
+                      <button type="button" onClick={() => setSelectedGuide(null)} className="text-blue-400 hover:text-blue-700 ml-1 transition-colors bg-white/50 rounded-full p-0.5">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Dropdown Popover */}
+                  {isGuideDropdownOpen && (
+                    <div className="absolute left-0 bottom-[calc(100%+8px)] w-[360px] bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                      <div className="p-3 border-b border-gray-100 bg-gray-50/50">
+                        <div className="relative">
+                          <input 
+                            type="text" 
+                            placeholder="Search guides to ask about..." 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-8 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-[13px] font-medium outline-none focus:border-blue-500 transition-colors shadow-sm placeholder:text-gray-400"
+                          />
+                          <svg className="absolute left-3 top-2.5 text-gray-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        </div>
+                      </div>
+                      <div className="max-h-[280px] overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-gray-200">
+                        {isFetchingGuides ? (
+                          <div className="space-y-2 p-1">
+                            {[1,2,3,4].map(i => (
+                              <div key={i} className="flex gap-3 items-center p-2 rounded-lg bg-gray-50 animate-pulse border border-white">
+                                <div className="w-12 h-12 bg-white rounded-md shadow-sm border border-gray-100"></div>
+                                <div className="flex-1 space-y-2">
+                                  <div className="h-3 bg-white rounded-full w-3/4 shadow-sm"></div>
+                                  <div className="h-2 bg-white rounded-full w-1/2 shadow-sm"></div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : guidesList.filter(g => g.title.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? (
+                          <div className="p-6 text-center text-sm font-medium text-gray-500 flex flex-col items-center gap-2">
+                            <Bot size={24} className="text-gray-300" />
+                            No guides found.
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            {guidesList.filter(g => g.title.toLowerCase().includes(searchQuery.toLowerCase())).map(guide => (
+                              <button
+                                key={guide.id}
+                                type="button"
+                                onClick={() => { setSelectedGuide(guide); setIsGuideDropdownOpen(false); }}
+                                className="w-full text-left flex gap-3 items-center p-2 rounded-lg hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100"
+                              >
+                                {guide.cover_image ? (
+                                  <div className="w-12 h-12 rounded-md bg-gray-100 bg-cover bg-center border border-gray-200 flex-shrink-0 shadow-sm" style={{ backgroundImage: `url(${guide.cover_image})` }}></div>
+                                ) : (
+                                  <div className="w-12 h-12 rounded-md bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0 text-gray-400 shadow-sm"><ImageIcon size={16} /></div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-[13px] font-bold text-gray-900 truncate">{guide.title}</div>
+                                  <div className="text-[11px] font-medium text-gray-500 truncate mt-0.5">{guide.markdown?.replace(/<[^>]*>?/gm, '').substring(0, 60) || "No description"}</div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <form onSubmit={handleSend}>
                   <div className="zg-input-box">
                     <textarea
