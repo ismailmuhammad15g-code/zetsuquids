@@ -54,8 +54,7 @@ const CommentItem = ({ comment }: { comment: PostCommentItem }) => {
   const authorHandle = authorProfile?.username
     ? `@${authorProfile.username}`
     : `@${(authorProfile?.user_email?.split("@")[0] || "anon").toLowerCase()}`;
-  const avatarUrl =
-    authorProfile?.avatar_url || getAvatarForUser(authorProfile?.user_email);
+  const avatarUrl = getAvatarForUser(authorProfile?.user_email, authorProfile?.avatar_url);
   const commentDate = comment.created_at
     ? format(new Date(comment.created_at), "MMM d")
     : "";
@@ -104,7 +103,7 @@ const CommentItem = ({ comment }: { comment: PostCommentItem }) => {
 export default function PostDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profileAvatar } = useAuth();
 
   const [post, setPost] = useState<PostDetails | null>(null);
   const [comments, setComments] = useState<PostCommentItem[]>([]);
@@ -216,8 +215,7 @@ export default function PostDetailsPage() {
   const authorHandle = authorProfile.username
     ? `@${authorProfile.username}`
     : `@${(authorProfile.user_email?.split("@")[0] || "anon").toLowerCase()}`;
-  const avatarUrl =
-    authorProfile.avatar_url || getAvatarForUser(authorProfile.user_email);
+  const avatarUrl = getAvatarForUser(authorProfile.user_email, authorProfile.avatar_url);
 
   const formattedDate = post.created_at
     ? format(new Date(post.created_at), "h:mm a · MMM d, yyyy")
@@ -390,7 +388,7 @@ export default function PostDetailsPage() {
         <div className="flex gap-4 mb-6">
           <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden flex-shrink-0">
             <img
-              src={getAvatarForUser(user?.email)}
+              src={getAvatarForUser(user?.email, profileAvatar)}
               alt=""
               className="w-full h-full object-cover"
             />

@@ -20,7 +20,7 @@ interface NavItem {
 }
 
 export default function CommunityLeftSidebar({ onPostClick }: CommunityLeftSidebarProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, profileAvatar } = useAuth();
   const pathname = usePathname();
   const [showMenu, setShowMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -201,7 +201,7 @@ export default function CommunityLeftSidebar({ onPostClick }: CommunityLeftSideb
                 className="flex items-center gap-3 p-3 rounded-full hover:bg-[#181818] transition-colors cursor-pointer w-fit xl:w-[250px]"
               >
                 <img
-                  src={getAvatarForUser(user.email)}
+                  src={getAvatarForUser(user.email, profileAvatar)}
                   alt="Avatar"
                   className="w-10 h-10 rounded-full object-cover shrink-0"
                 />

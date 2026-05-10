@@ -392,7 +392,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
                 >
                   <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-800 flex-shrink-0">
                     <img
-                      src={u?.avatar_url || getAvatarForUser(u?.user_email || u?.email || "")}
+                      src={getAvatarForUser(u?.user_email || u?.email, u?.avatar_url)}
                       alt={u?.username || "User"}
                       className="w-full h-full object-cover"
                       onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.src = getAvatarForUser(""); }}
