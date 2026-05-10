@@ -1,5 +1,5 @@
-import React from 'react';
 import { X, Loader2 } from 'lucide-react';
+
 
 export default function AddGuideSkeleton({ onClose }: { onClose: () => void }) {
   return (

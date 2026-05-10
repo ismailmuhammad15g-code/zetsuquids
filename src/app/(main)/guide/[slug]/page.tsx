@@ -82,7 +82,8 @@ interface ProcessedContent {
 
 export default function GuidePage() {
     const params = useParams();
-    const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
+    const rawSlug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
+    const slug = rawSlug ? decodeURIComponent(rawSlug) : "";
     const router = useRouter();
     const searchParams = useSearchParams();
     const isPreviewMode = searchParams.get('preview') === 'true';
@@ -830,10 +831,68 @@ export default function GuidePage() {
     // Loading State
     if (loading) {
         return (
-            <div className="max-w-4xl mx-auto px-4 py-20">
-                <div className="flex flex-col items-center justify-center">
-                    <Loader2 size={48} className="animate-spin text-gray-400 mb-4" />
-                    <p className="text-gray-500">Loading guide...</p>
+            <div className="bg-white dark:bg-black min-h-screen transition-colors duration-200">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8 animate-pulse">
+                    {/* Main Content Column */}
+                    <div className="flex-1 max-w-3xl w-full">
+                        {/* Breadcrumbs Skeleton */}
+                        <div className="flex items-center gap-2 mb-8">
+                            <div className="h-4 w-16 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                            <div className="h-4 w-4 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                            <div className="h-4 w-24 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                        </div>
+
+                        {/* Title Skeleton */}
+                        <div className="space-y-3 mb-6">
+                            <div className="h-10 w-3/4 bg-gray-200 dark:bg-gray-800 rounded-lg"></div>
+                            <div className="h-10 w-1/2 bg-gray-200 dark:bg-gray-800 rounded-lg"></div>
+                        </div>
+
+                        {/* Meta Row Skeleton */}
+                        <div className="flex flex-wrap items-center gap-4 mb-8 py-4 border-y border-gray-100 dark:border-gray-800">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800"></div>
+                                <div className="space-y-2">
+                                    <div className="h-4 w-24 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                                    <div className="h-3 w-16 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                                </div>
+                            </div>
+                            <div className="hidden sm:block h-8 w-px bg-gray-200 dark:bg-gray-800 mx-2"></div>
+                            <div className="flex items-center gap-6">
+                                <div className="h-4 w-20 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                                <div className="h-4 w-16 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                                <div className="h-4 w-24 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                            </div>
+                        </div>
+
+                        {/* Image/Cover Skeleton */}
+                        <div className="w-full aspect-video bg-gray-200 dark:bg-gray-800 rounded-xl mb-10"></div>
+
+                        {/* Content Skeleton */}
+                        <div className="space-y-4">
+                            <div className="h-4 w-full bg-gray-200 dark:bg-gray-800 rounded"></div>
+                            <div className="h-4 w-full bg-gray-200 dark:bg-gray-800 rounded"></div>
+                            <div className="h-4 w-5/6 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                            <div className="h-4 w-full bg-gray-200 dark:bg-gray-800 rounded"></div>
+                            <div className="h-4 w-4/5 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                            <div className="h-4 w-full bg-gray-200 dark:bg-gray-800 rounded mt-6"></div>
+                            <div className="h-4 w-3/4 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                        </div>
+                    </div>
+
+                    {/* Sidebar TOC Skeleton */}
+                    <div className="hidden lg:block w-72 flex-shrink-0">
+                        <div className="sticky top-24">
+                            <div className="h-6 w-32 bg-gray-200 dark:bg-gray-800 rounded mb-6"></div>
+                            <div className="space-y-4">
+                                <div className="h-4 w-full bg-gray-200 dark:bg-gray-800 rounded"></div>
+                                <div className="h-4 w-5/6 bg-gray-200 dark:bg-gray-800 rounded ml-4"></div>
+                                <div className="h-4 w-4/5 bg-gray-200 dark:bg-gray-800 rounded ml-4"></div>
+                                <div className="h-4 w-11/12 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                                <div className="h-4 w-3/4 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         );

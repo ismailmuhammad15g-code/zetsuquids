@@ -6,16 +6,15 @@ import {
   Columns, Maximize2, Code, ListChecks, Minus, Star, 
   FileText, BookOpen, FileImage, FileCode, MessageCircle, 
   LayoutTemplate, Zap, Activity, Clock, GitMerge, AlertTriangle, 
-  Key, Download, Keyboard, BadgeCheck, Anchor, ChevronDown
+  Key, Download, Keyboard, BadgeCheck, Anchor, ChevronDown, ChevronRight
 } from "lucide-react";
 import { ToolbarButton } from "./ToolbarButton";
 import { FormData, ViewMode } from "./types";
 import { getMarkdownHtml, highlightEditorText, getViolations, Violation } from "./utils";
-import { ChevronRight, ChevronLeft } from "lucide-react";
 
 interface EditorTabProps {
   formData: FormData;
-  setFormData: (data: FormData) => void;
+  setFormData: React.Dispatch<React.SetStateAction<FormData>>;
   handleToolbarAction: (action: string) => void;
   setShowAdvancedImageModal: (s: boolean) => void;
   setShowVideoModal: (s: boolean) => void;
@@ -47,7 +46,11 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   const [currentViolationIndex, setCurrentViolationIndex] = useState(0);
 
   useEffect(() => {
-    setViolations(getViolations(formData.content));
+    // Debounce violations calculation to avoid infinite re-renders
+    const timer = setTimeout(() => {
+      setViolations(getViolations(formData.content));
+    }, 200);
+    return () => clearTimeout(timer);
   }, [formData.content]);
 
   const goToNextViolation = () => {
@@ -287,10 +290,13 @@ export const EditorTab: React.FC<EditorTabProps> = ({
                 if (isEntirelyWrapped && isEntirelyWrapped[1] && (!formData.content || formData.content.trim() === "")) {
                   e.preventDefault();
                   const cleanText = isEntirelyWrapped[1].trim();
-                  setFormData({ ...formData, content: cleanText });
+                  setFormData(prev => ({ ...prev, content: cleanText }));
                 }
               }}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                setFormData(prev => ({ ...prev, content: val }));
+              }}
               dir="auto"
               placeholder="Unleash your creativity..."
               className="w-full h-full p-4 sm:p-6 md:p-8 resize-none focus:ring-0 border-none font-mono text-[14px] sm:text-[15px] leading-relaxed text-gray-800 bg-transparent relative z-10 custom-scrollbar whitespace-pre-wrap break-words"

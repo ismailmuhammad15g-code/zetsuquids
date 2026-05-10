@@ -58,24 +58,19 @@ export function useGuides(): UseQueryResult<Guide[], Error> {
         queryFn: fetchGuides,
         enabled: isClient,
 
-        // Use browser-local cache only after hydration to avoid SSR/client mismatch.
-        initialData: isClient
-            ? (): Guide[] | undefined => {
-                try {
-                    const local = window.localStorage.getItem("guides");
-                    if (!local) return undefined;
+        // ── NO initialData from localStorage ──────────────────────────────────
+        // We intentionally do NOT seed from localStorage here.
+        // Reason: if a guide was rejected or deleted in Supabase, it would
+        // still exist in localStorage and flash on screen before the purge
+        // hook runs. guidesApi.getAll() is the single source of truth: it
+        // fetches approved guides from Supabase AND simultaneously purges any
+        // stale/rejected entries from localStorage, so the cleanup is atomic.
+        // ─────────────────────────────────────────────────────────────────────
 
-                    const guides: Guide[] = JSON.parse(local);
-                    return guides.filter((g) => g.status === "approved" || g.status === "pending");
-                } catch (e) {
-                    return undefined;
-                }
-            }
-            : undefined,
-        initialDataUpdatedAt: isClient ? 0 : undefined,
-
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 30 * 60 * 1000, // 30 minutes
+        staleTime: 0,             // Always refetch on mount to catch rejections
+        gcTime: 10 * 60 * 1000,  // Keep in memory 10 minutes
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
     });
 }
 

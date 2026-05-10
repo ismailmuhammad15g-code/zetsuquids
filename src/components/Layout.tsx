@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { lazy, Suspense, useEffect, useState, memo } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import dynamic from 'next/dynamic';
 import AddGuideSkeleton from "./AddGuideModal/AddGuideSkeleton";
 import { useAuth } from "../contexts/AuthContext";
@@ -41,6 +41,7 @@ import { TopLoader } from "./TopLoader";
 import TourCursor from "./TourCursor";
 import { useModal } from "../contexts/ModalContext";
 import NotificationBell from "./NotificationBell";
+import { useLocalStoragePurge } from "../hooks/useLocalStoragePurge";
 
 const CookieConsent = lazy(() => import("./CookieConsent").catch(() => import("./AdBlockFallback")));
 
@@ -67,6 +68,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   // Top loader for navigation / global actions
   const { isLoading, startLoading, stopLoading } = useLoading();
   const [navLoading, setNavLoading] = useState(false);
+
+  // Auto-purge orphaned/rejected guides from localStorage silently
+  useLocalStoragePurge();
 
   const [isFirstRender, setIsFirstRender] = useState(true);
   const [isInitialLoading, setIsInitialLoading] = useState(true);

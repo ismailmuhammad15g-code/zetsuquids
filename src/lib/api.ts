@@ -162,29 +162,41 @@ export const guidesApi = {
             });
 
             // Keep local pending/draft guides so they aren't deleted from creator's view
-            // BUT verify them against Supabase to ensure they haven't been rejected
-            const localPendingSlugs = localGuides.filter(g => g.status === "pending" && g.slug).map(g => g.slug as string);
+            // BUT rigorously verify them against Supabase to ensure they haven't been rejected or deleted
+            const localSlugsToCheck = localGuides.filter(g => g.slug).map(g => g.slug as string);
             
-            if (localPendingSlugs.length > 0) {
+            if (localSlugsToCheck.length > 0) {
                 try {
-                    const { data: verifiedPending } = await supabase
+                    const { data: dbStatuses, error } = await supabase
                         .from('guides')
                         .select('slug, status')
-                        .in('slug', localPendingSlugs)
-                        .eq('status', 'pending');
+                        .in('slug', localSlugsToCheck);
                         
-                    const verifiedSlugs = new Set(verifiedPending?.map((g: any) => g.slug) || []);
-                    
-                    localGuides.forEach((lg) => {
-                        if (lg.slug && lg.status === "pending" && verifiedSlugs.has(lg.slug)) {
-                            syncedMap.set(lg.slug, lg);
-                        }
-                    });
+                    if (!error && dbStatuses) {
+                        const statusMap = new Map(dbStatuses.map((g: any) => [g.slug, g.status]));
+                        
+                        localGuides.forEach((lg) => {
+                            if (!lg.slug) return;
+                            const dbStatus = statusMap.get(lg.slug);
+                            
+                            // If it doesn't exist in DB at all, it was deleted -> DO NOT ADD
+                            if (!dbStatus) return;
+                            
+                            // If it's rejected in DB -> DO NOT ADD
+                            if (dbStatus === "rejected") return;
+                            
+                            // If it's pending in DB -> author sees their pending guide
+                            // (Approved guides are already in syncedMap from step 1)
+                            if (dbStatus === "pending") {
+                                // Keep local cover image if available
+                                syncedMap.set(lg.slug, lg);
+                            }
+                        });
+                    }
                 } catch(e) {
-                    // Fallback to keep them if check fails
-                    localGuides.forEach((lg) => {
-                        if (lg.slug && lg.status === "pending") syncedMap.set(lg.slug, lg);
-                    });
+                    // If error checking DB, DO NOT blindly add local guides.
+                    // Better to temporarily hide a pending guide than show a rejected one permanently!
+                    console.warn("Failed to verify local pending guides, ignoring them for this render.", e);
                 }
             }
 
