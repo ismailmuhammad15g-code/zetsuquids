@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { Bell, Star, Sparkles } from "lucide-react";
+import { Bell, Loader } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNotifications } from "../contexts/NotificationContext";
 import { ZetsuNotification } from "../lib/notificationsApi";
@@ -37,24 +37,45 @@ export default function NotificationBell() {
 
 
 
-    const getActorAvatar = (actorName: string, type: string) => {
-        if (actorName.toLowerCase() === "system") {
-            return (
-                <div className="w-10 h-10 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
-                    <Sparkles size={20} className="text-blue-500" />
-                </div>
-            );
-        }
-        if (actorName.toLowerCase() === "staff" || type === "approved" || type === "rejected") {
-            return (
-                <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center shrink-0">
-                    <Star size={20} className="text-white" />
-                </div>
-            );
-        }
+    // Avatar Image wrapper with Apple-style spinner during loading
+    const AvatarImage = ({ src, alt }: { src: string, alt: string }) => {
+        const [loaded, setLoaded] = useState(false);
         return (
-            <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
-                <span className="font-bold text-gray-500">{actorName.charAt(0).toUpperCase()}</span>
+            <div className="relative w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center shrink-0 overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
+                {!loaded && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <Loader size={16} className="animate-spin text-gray-400" />
+                    </div>
+                )}
+                <img 
+                    src={src} 
+                    alt={alt}
+                    onLoad={() => setLoaded(true)}
+                    className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+                />
+            </div>
+        );
+    };
+
+    const getActorAvatar = (actorName: string, type: string) => {
+        const name = actorName?.toLowerCase() || "";
+
+        if (name === "zetsu ai moderator" || name.includes("ai moderator")) {
+            return <AvatarImage src="/images/roles_for_notification_insider/ai-guide-reviewer.png" alt="AI Moderator" />;
+        }
+
+        if (name === "system" || type === "system") {
+            return <AvatarImage src="/images/roles_for_notification_insider/system-notification.png" alt="System" />;
+        }
+
+        if (name === "staff" || type === "approved" || type === "rejected") {
+            return <AvatarImage src="/images/roles_for_notification_insider/human-guide-reviewer.png" alt="Staff" />;
+        }
+
+        // Fallback generic avatar
+        return (
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 flex items-center justify-center shrink-0 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-800/50 shadow-sm">
+                <span className="font-bold text-blue-600 dark:text-blue-400">{actorName ? actorName.charAt(0).toUpperCase() : '?'}</span>
             </div>
         );
     };
