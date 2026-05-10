@@ -1,5 +1,6 @@
 "use client";
-import { BookOpen, Calendar, Edit2, Loader2, Mail, X } from "lucide-react";
+import { BookOpen, Bot, Calendar, Edit2, Loader2, Mail, Sparkles, X } from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { type ChangeEvent, useEffect, useState } from "react";
 import FollowButton from "../../../../components/FollowButton";
@@ -64,6 +65,11 @@ export default function UserWorkspacePage() {
   const [userExists, setUserExists] = useState<boolean>(true);
   const [showStatusOnTap, setShowStatusOnTap] = useState<boolean>(false);
 
+  // AI Generated Guides (private — owner only)
+  const [aiGuides, setAiGuides] = useState<WorkspaceGuide[]>([]);
+  const [aiGuidesLoading, setAiGuidesLoading] = useState<boolean>(false);
+  const [aiGuidesLoaded, setAiGuidesLoaded] = useState<boolean>(false);
+
   // Check if this is the current user's workspace
   const isOwnWorkspace =
     user?.email && userProfile?.author_email === user.email;
@@ -71,6 +77,53 @@ export default function UserWorkspacePage() {
   useEffect(() => {
     loadUserWorkspace();
   }, [username]);
+
+  // Load AI guides once we know this is the owner's workspace
+  useEffect(() => {
+    if (isOwnWorkspace && user?.email && !aiGuidesLoaded) {
+      loadAiGeneratedGuides();
+    }
+  }, [isOwnWorkspace, user?.email]);
+
+  async function loadAiGeneratedGuides() {
+    if (!user?.email) return;
+    setAiGuidesLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("guides")
+        .select("*")
+        .eq("status", "ai_generated")
+        .eq("user_email", user.email.toLowerCase())
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("[AI Guides] Fetch error:", error);
+      } else {
+        // Since Supabase doesn't store the content column to save space, we pull the snippet from localStorage
+        let localGuides: any[] = [];
+        try {
+          if (typeof window !== "undefined") {
+            localGuides = JSON.parse(localStorage.getItem("guides") || "[]");
+          }
+        } catch(e) {}
+        
+        const mergedData = (data || []).map((g: any) => {
+          const local = localGuides.find((lg: any) => lg.slug === g.slug);
+          return {
+            ...g,
+            content: g.content || local?.content || "",
+            markdown: g.markdown || local?.markdown || ""
+          };
+        });
+        setAiGuides(mergedData);
+      }
+    } catch (err) {
+      console.error("[AI Guides] Exception:", err);
+    } finally {
+      setAiGuidesLoading(false);
+      setAiGuidesLoaded(true);
+    }
+  }
 
   async function loadUserWorkspace() {
     setLoading(true);
@@ -756,6 +809,187 @@ export default function UserWorkspacePage() {
             </>
           )}
         </div>
+
+        {/* ── AI Generated Guides Section (Private – Owner Only) ── */}
+        {isOwnWorkspace && (
+          <div className="max-w-6xl mx-auto px-4 py-12 border-t-2 border-black">
+            {/* Section Header */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div style={{
+                  width: 36, height: 36,
+                  background: "#111",
+                  borderRadius: 10,
+                  display: "flex", alignItems: "center", justifyContent: "center"
+                }}>
+                  <Bot size={18} color="#fff" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight">AI Generated Guides</h2>
+                  <p className="text-xs text-gray-400 font-medium mt-0.5">Visible only to you • Generated via ZetsuGuide AI</p>
+                </div>
+              </div>
+              <Link
+                href="/zetsuguide-ai"
+                className="flex items-center gap-2 px-4 py-2 bg-black text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-sm"
+              >
+                <Sparkles size={14} /> Create New
+              </Link>
+            </div>
+
+            {/* Skeleton Loading */}
+            {aiGuidesLoading && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="border-2 border-gray-100 rounded-lg overflow-hidden">
+                    {/* Cover skeleton */}
+                    <div
+                      className="w-full h-44"
+                      style={{
+                        background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)",
+                        backgroundSize: "200% 100%",
+                        animation: "ai-skeleton-shimmer 1.5s infinite linear",
+                      }}
+                    />
+                    <div className="p-5 space-y-3">
+                      {/* Title skeleton */}
+                      <div
+                        className="h-5 rounded-full w-3/4"
+                        style={{
+                          background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)",
+                          backgroundSize: "200% 100%",
+                          animation: "ai-skeleton-shimmer 1.5s infinite linear",
+                          animationDelay: `${i * 0.1}s`,
+                        }}
+                      />
+                      {/* Tags skeleton */}
+                      <div className="flex gap-2">
+                        {[1,2].map(j => (
+                          <div key={j}
+                            className="h-4 rounded-full w-16"
+                            style={{
+                              background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)",
+                              backgroundSize: "200% 100%",
+                              animation: "ai-skeleton-shimmer 1.5s infinite linear",
+                              animationDelay: `${(i + j) * 0.12}s`,
+                            }}
+                          />
+                        ))}
+                      </div>
+                      {/* Excerpt skeleton */}
+                      <div className="space-y-2">
+                        <div className="h-3 rounded-full w-full" style={{ background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", animation: "ai-skeleton-shimmer 1.5s infinite linear" }} />
+                        <div className="h-3 rounded-full w-5/6" style={{ background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", animation: "ai-skeleton-shimmer 1.5s infinite linear" }} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Shimmer keyframe */}
+            <style>{`
+              @keyframes ai-skeleton-shimmer {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+              }
+            `}</style>
+
+            {/* Empty State */}
+            {!aiGuidesLoading && aiGuidesLoaded && aiGuides.length === 0 && (
+              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-14 text-center">
+                <div className="w-16 h-16 bg-gray-50 border-2 border-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Bot size={28} className="text-gray-300" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-700 mb-1">No AI Guides Yet</h3>
+                <p className="text-sm text-gray-400 mb-6 max-w-xs mx-auto">
+                  Generate a guide using ZetsuGuide AI and approve it — it will appear here privately.
+                </p>
+                <Link
+                  href="/zetsuguide-ai"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-colors"
+                >
+                  <Sparkles size={14} /> Open ZetsuGuide AI
+                </Link>
+              </div>
+            )}
+
+            {/* Guide Cards */}
+            {!aiGuidesLoading && aiGuides.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {aiGuides.map((guide) => (
+                  <div
+                    key={guide.id || guide.slug}
+                    className="group border-2 border-gray-200 hover:border-black rounded-lg overflow-hidden transition-all duration-200 hover:shadow-lg relative"
+                  >
+                    {/* Private Badge */}
+                    <div className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">
+                      <Bot size={9} /> AI
+                    </div>
+
+                    {guide.cover_image ? (
+                      <div className="w-full h-44 overflow-hidden">
+                        <img
+                          src={guide.cover_image}
+                          alt={guide.title}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full h-44 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                        <Bot size={32} className="text-gray-300" />
+                      </div>
+                    )}
+
+                    <div className="p-5">
+                      <h3 className="font-bold text-lg mb-2 leading-tight group-hover:text-black transition-colors line-clamp-2">
+                        {guide.title}
+                      </h3>
+
+                      {guide.keywords && guide.keywords.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                          {guide.keywords.slice(0, 3).map((keyword: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 text-[10px] font-semibold bg-gray-100 text-gray-600 rounded-full"
+                            >
+                              #{keyword}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <p className="text-gray-500 text-sm mb-4 line-clamp-2 leading-relaxed">
+                        {(guide.markdown || guide.content || "")
+                          .substring(0, 120)
+                          .replace(/[#*`]/g, "")
+                          .trim()}...
+                      </p>
+
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                        <span className="text-xs text-gray-400">
+                          {guide.created_at
+                            ? new Date(guide.created_at).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })
+                            : "Unknown date"}
+                        </span>
+                        <Link
+                          href={`/guide/${guide.slug}`}
+                          className="text-xs font-bold text-gray-500 hover:text-black transition-colors flex items-center gap-1"
+                        >
+                          Read →
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Edit Profile Modal */}
         {showEditModal && isOwnWorkspace && (

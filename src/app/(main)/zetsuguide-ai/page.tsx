@@ -13,7 +13,6 @@ import {
   Sparkles,
   SquarePen,
   Trash2,
-  Zap,
   Loader2,
   ExternalLink,
   Image as ImageIcon
@@ -1055,7 +1054,6 @@ function parseGuideAction(text: string) {
 function GuideCreatorAction({ data, userEmail, userId }: { data: any, userEmail: string | null | undefined, userId?: string | null }) {
   const [status, setStatus] = useState<'init' | 'generating_image' | 'review' | 'publishing' | 'published' | 'rejected' | 'error'>('init');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [guideSlug, setGuideSlug] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
@@ -1144,7 +1142,7 @@ function GuideCreatorAction({ data, userEmail, userId }: { data: any, userEmail:
     setStatus('publishing');
     setErrorMessage("");
     try {
-      console.log("[GuideCreator] Attempting to publish guide...", { title: data.title, userEmail, userId });
+      console.log("[GuideCreator] Saving AI-generated guide privately...", { title: data.title, userEmail, userId });
       const newGuide = await guidesApi.create({
         title: data.title || "Untitled Guide",
         content: data.markdown || "",
@@ -1153,22 +1151,21 @@ function GuideCreatorAction({ data, userEmail, userId }: { data: any, userEmail:
         keywords: data.keywords || [],
         user_email: userEmail || "ai@zetsuguide.com",
         author_id: userId || null,
-        status: "approved"
+        status: "ai_generated"  // Private: never shown on public Guides page
       });
       
       if (newGuide && newGuide.slug) {
-        setGuideSlug(newGuide.slug);
         setStatus('published');
-        toast.success("Guide published successfully!");
+        toast.success("Guide saved to your Workspace → AI Generated Guides!");
       } else {
-        throw new Error("Published guide missing slug information");
+        throw new Error("Saved guide missing slug information");
       }
     } catch (err) {
-      console.error("[GuideCreator] Publish failed:", err);
-      const msg = err instanceof Error ? err.message : "Failed to publish";
+      console.error("[GuideCreator] Save failed:", err);
+      const msg = err instanceof Error ? err.message : "Failed to save";
       setErrorMessage(msg);
       setStatus('error');
-      toast.error(`Publishing failed: ${msg}`);
+      toast.error(`Saving failed: ${msg}`);
     }
   }
 
@@ -1192,27 +1189,32 @@ function GuideCreatorAction({ data, userEmail, userId }: { data: any, userEmail:
   }
 
   if (status === 'published') {
+    const workspaceUsername = userEmail ? userEmail.split("@")[0] : null;
     return (
       <div className="bg-green-50 border border-green-200 rounded-xl p-5 my-4">
         <div className="flex items-center gap-3 text-green-800 mb-3">
           <div className="bg-green-100 p-2 rounded-full">
             <Check size={18} className="text-green-600" />
           </div>
-          <div className="font-bold text-sm">Guide Successfully Published!</div>
+          <div className="font-bold text-sm">Guide Saved to Your Workspace!</div>
         </div>
         {imageUrl && (
           <div className="h-32 w-full rounded-lg bg-cover bg-center mb-3 border border-black/10" style={{ backgroundImage: `url(${imageUrl})` }} />
         )}
         <div className="font-semibold text-gray-900 mb-1">{data.title}</div>
-        <div className="text-xs text-gray-500 mb-4 line-clamp-2">{data.markdown?.replace(/[#*]/g, "").substring(0, 150)}...</div>
-
-        <Link
-          href={`/guide/${guideSlug}`}
-          target="_blank"
-          className="inline-flex items-center gap-2 bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800 transition-colors"
-        >
-          View Guide <ExternalLink size={14} />
-        </Link>
+        <div className="text-xs text-gray-500 mb-2 line-clamp-2">{data.markdown?.replace(/[#*]/g, "").substring(0, 150)}...</div>
+        <div className="text-xs text-gray-400 mb-4 flex items-center gap-1.5">
+          <Sparkles size={11} className="text-amber-400" />
+          Saved privately — visible only in your Workspace → AI Generated Guides
+        </div>
+        {workspaceUsername && (
+          <Link
+            href={`/@${workspaceUsername}/workspace`}
+            className="inline-flex items-center gap-2 bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800 transition-colors"
+          >
+            View in Workspace <ExternalLink size={14} />
+          </Link>
+        )}
       </div>
     );
   }
@@ -1268,6 +1270,10 @@ function GuideCreatorAction({ data, userEmail, userId }: { data: any, userEmail:
             {data.markdown?.replace(/<[^>]*>?/gm, '') || "No content provided."}
           </div>
         </div>
+        <div className="mt-3 flex items-center gap-1.5 text-xs text-gray-400">
+          <Sparkles size={11} className="text-amber-400" />
+          Approving saves this guide <strong className="text-gray-500">privately</strong> to your Workspace only
+        </div>
 
         {errorMessage && (
           <div className="mt-4 p-3 bg-red-50 text-red-600 text-xs rounded-lg border border-red-100 flex items-center gap-2">
@@ -1300,9 +1306,9 @@ function GuideCreatorAction({ data, userEmail, userId }: { data: any, userEmail:
             className="px-6 py-2 text-sm font-bold text-white bg-black hover:bg-gray-800 active:scale-95 rounded-lg transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
           >
             {status === 'publishing' ? (
-              <><Loader2 size={14} className="animate-spin" /> Publishing...</>
+              <><Loader2 size={14} className="animate-spin" /> Saving...</>
             ) : (
-              <><Check size={14} /> Approve & Publish</>
+              <><Check size={14} /> Approve & Save</>
             )}
           </button>
         </div>

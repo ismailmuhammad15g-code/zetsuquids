@@ -250,9 +250,23 @@ export const guidesApi = {
                                 guide.html_content = extra.html_content || "";
                                 guide.css_content = extra.css_content || "";
                                 console.log("✅ Fetched full guide content from GitHub");
+                            } else {
+                                // FALLBACK: GitHub CDN delay, try local storage for recent content
+                                const localGuide = getLocalGuides().find((g) => g.slug === guide.slug);
+                                if (localGuide) {
+                                    console.log("⚠️ GitHub content not ready, falling back to localStorage content");
+                                    guide.content = guide.content || localGuide.content || "";
+                                    guide.markdown = guide.markdown || localGuide.markdown || "";
+                                    guide.html_content = guide.html_content || localGuide.html_content || "";
+                                }
                             }
                         } catch (e) {
                             console.warn("Failed to fetch guide content from GitHub, using DB fallback");
+                            const localGuide = getLocalGuides().find((g) => g.slug === guide.slug);
+                            if (localGuide) {
+                                guide.content = guide.content || localGuide.content || "";
+                                guide.markdown = guide.markdown || localGuide.markdown || "";
+                            }
                         }
                     }
                     
@@ -301,9 +315,23 @@ export const guidesApi = {
                                 guide.html_content = extra.html_content || "";
                                 guide.css_content = extra.css_content || "";
                                 console.log("✅ Fetched full guide content from GitHub by ID");
+                            } else {
+                                // FALLBACK: GitHub CDN delay
+                                const localGuide = getLocalGuides().find((g) => String(g.id) === String(id));
+                                if (localGuide) {
+                                    console.log("⚠️ GitHub content not ready, falling back to localStorage content");
+                                    guide.content = guide.content || localGuide.content || "";
+                                    guide.markdown = guide.markdown || localGuide.markdown || "";
+                                    guide.html_content = guide.html_content || localGuide.html_content || "";
+                                }
                             }
                         } catch (e) {
                             console.warn("Failed to fetch guide content from GitHub");
+                            const localGuide = getLocalGuides().find((g) => String(g.id) === String(id));
+                            if (localGuide) {
+                                guide.content = guide.content || localGuide.content || "";
+                                guide.markdown = guide.markdown || localGuide.markdown || "";
+                            }
                         }
                     }
                     
@@ -444,7 +472,14 @@ export const guidesApi = {
 
                         if (!retryResult.error && retryResult.data) {
                             console.log("Supabase insert succeeded without cover_image:", retryResult.data);
-                            const fullGuide = { ...guideData, ...retryResult.data };
+                            const fullGuide = { 
+                                ...guideData, 
+                                ...retryResult.data,
+                                content: guideData.content,
+                                markdown: guideData.markdown,
+                                html_content: guideData.html_content,
+                                css_content: guideData.css_content
+                            };
                             const guides: Guide[] = getLocalGuides();
                             guides.unshift(fullGuide);
                             saveLocalGuides(guides);
@@ -460,7 +495,14 @@ export const guidesApi = {
 
                 if (data) {
                     console.log("✅ Successfully saved to Supabase:", data.id, data.title);
-                    const fullGuide = { ...guideData, ...data };
+                    const fullGuide = { 
+                        ...guideData, 
+                        ...data,
+                        content: guideData.content,
+                        markdown: guideData.markdown,
+                        html_content: guideData.html_content,
+                        css_content: guideData.css_content
+                    };
                     const guides: Guide[] = getLocalGuides();
                     guides.unshift(fullGuide);
                     saveLocalGuides(guides);
