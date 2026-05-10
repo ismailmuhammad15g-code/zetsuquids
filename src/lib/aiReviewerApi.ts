@@ -1,6 +1,6 @@
 import { Guide } from './api';
 
-const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+// API Key loaded dynamically inside function to support Next.js env replacement
 
 export interface AIReviewResult {
     approved: boolean;
@@ -12,13 +12,22 @@ export const aiReviewerApi = {
     async reviewGuide(guide: Guide): Promise<AIReviewResult> {
         const startTime = Date.now();
         
-        if (!GEMINI_API_KEY) {
+        // Load inside the function to ensure Next.js environment variable replacement works correctly
+        const apiKey = 
+            process.env.NEXT_PUBLIC_AI_API_KEY || 
+            process.env.NEXT_PUBLIC_GEMINI_API_KEY || 
+            "";
+
+        if (!apiKey) {
             return {
                 approved: false,
-                reason: "Error: Gemini API Key is missing.",
+                reason: "Error: Gemini API Key is missing. Please check .env.local",
                 durationMs: Date.now() - startTime
             };
         }
+
+        const modelName = process.env.NEXT_PUBLIC_AI_MODEL || "gemini-1.5-flash";
+        const apiUrl = process.env.NEXT_PUBLIC_AI_API_URL || `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
 
         const prompt = `
 You are an expert AI content moderator for "ZetsuGuide", a premium developer community.
@@ -51,7 +60,8 @@ Format:
 `;
 
         try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`, {
+            const finalUrl = apiUrl.includes('?') ? `${apiUrl}&key=${apiKey}` : `${apiUrl}?key=${apiKey}`;
+            const response = await fetch(finalUrl, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

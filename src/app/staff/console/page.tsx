@@ -478,6 +478,83 @@ export default function StaffConsole() {
         localStorage.setItem('zetsu_ai_auto_review', String(newState));
     }
 
+    const handleRetryAiReview = async (logId: string, guideId: number | string) => {
+        let guide = pendingGuides.find(g => String(g.id) === String(guideId));
+        
+        if (!guide) {
+            // Try fetching from DB directly
+            const dbGuide = await adminGuidesApi.fetchGuideById(guideId);
+            if (dbGuide) {
+                guide = dbGuide;
+            }
+        }
+
+        if (!guide) {
+            alert(`Guide (ID: ${guideId}) not found in database or pending list.`);
+            return;
+        }
+
+        // Update log to processing
+        setAiLogs(prev => prev.map(log => log.id === logId ? { ...log, status: 'processing', message: 'Retrying review...' } : log));
+        
+        setProcessingGuideId(guide.id || null);
+        try {
+            const reviewResult = await aiReviewerApi.reviewGuide(guide);
+            let status: 'ready' | 'error' = 'error';
+            
+            if (reviewResult.approved) {
+                const success = await adminGuidesApi.approveGuide(guide.id!);
+                if (success) {
+                    status = 'ready';
+                    // Send notification
+                    await notificationsApi.createNotification({
+                        user_id: guide.author_id!,
+                        actor_name: "Zetsu AI Moderator",
+                        type: "approved",
+                        title: "Guide Auto-Approved",
+                        message: `Your guide "${guide.title}" was reviewed and approved by AI!`,
+                        link: `/guide/${guide.slug}`
+                    });
+                }
+            } else {
+                const success = await adminGuidesApi.rejectGuide(guide.id!);
+                if (success) {
+                    status = 'error';
+                    // Send notification
+                    await notificationsApi.createNotification({
+                        user_id: guide.author_id!,
+                        actor_name: "Zetsu AI Moderator",
+                        type: "rejected",
+                        title: "Guide Rejected by AI",
+                        message: `Your guide "${guide.title}" was rejected by AI. Reason: ${reviewResult.reason}`
+                    });
+                }
+            }
+            
+            const updatedLog: AiReviewLog = {
+                ...aiLogs.find(l => l.id === logId)!,
+                status: status,
+                duration: (reviewResult.durationMs / 1000).toFixed(2) + 's',
+                time: new Date().toISOString(),
+                message: reviewResult.reason
+            };
+            
+            setAiLogs(prev => {
+                const updated = prev.map(log => log.id === logId ? updatedLog : log);
+                localStorage.setItem('zetsu_ai_review_logs', JSON.stringify(updated));
+                return updated;
+            });
+            
+            if (status === 'ready' || status === 'error') {
+                loadPendingGuides();
+            }
+        } catch (err) {
+            console.error("Retry AI Review failed", err);
+            setAiLogs(prev => prev.map(log => log.id === logId ? { ...log, status: 'error', message: 'Retry failed: ' + String(err) } : log));
+        }
+        setProcessingGuideId(null);
+    }
+
     const loadAds = async () => {
         setLoadingAds(true)
         try {
@@ -1201,7 +1278,18 @@ export default function StaffConsole() {
                                                             {log.duration}
                                                         </td>
                                                         <td className="px-5 py-4 text-sm text-gray-500 text-right">
-                                                            {new Date(log.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                            <div className="flex flex-col items-end gap-1">
+                                                                <span>{new Date(log.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                                {log.status === 'error' && (
+                                                                    <button 
+                                                                        onClick={() => handleRetryAiReview(log.id, log.guide_id)}
+                                                                        className="text-[10px] bg-gray-100 dark:bg-white/5 hover:bg-indigo-600 hover:text-white px-2 py-0.5 rounded transition-all flex items-center gap-1 font-bold"
+                                                                    >
+                                                                        <RefreshCw size={10} />
+                                                                        RETRY
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))

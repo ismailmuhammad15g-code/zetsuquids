@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import { ToolbarButton } from "./ToolbarButton";
 import { FormData, ViewMode } from "./types";
-import { getMarkdownHtml } from "./utils";
+import { getMarkdownHtml, highlightEditorText, getViolations, Violation } from "./utils";
+import { ChevronRight, ChevronLeft } from "lucide-react";
 
 interface EditorTabProps {
   formData: FormData;
@@ -42,6 +43,30 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   const [showAIMenu, setShowAIMenu] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const [previewHtml, setPreviewHtml] = useState(() => getMarkdownHtml(formData.content));
+  const [violations, setViolations] = useState<Violation[]>([]);
+  const [currentViolationIndex, setCurrentViolationIndex] = useState(0);
+
+  useEffect(() => {
+    setViolations(getViolations(formData.content));
+  }, [formData.content]);
+
+  const goToNextViolation = () => {
+    if (violations.length === 0) return;
+    const nextIndex = (currentViolationIndex + 1) % violations.length;
+    setCurrentViolationIndex(nextIndex);
+    
+    const violation = violations[nextIndex];
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(violation.index, violation.index + violation.length);
+      
+      // Scroll to it
+      const lineHeight = 24; // Approximation
+      const textBefore = formData.content.substring(0, violation.index);
+      const linesBefore = textBefore.split('\n').length;
+      textareaRef.current.scrollTop = (linesBefore - 5) * lineHeight;
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -211,27 +236,70 @@ export const EditorTab: React.FC<EditorTabProps> = ({
 
       <div className={`flex-1 flex min-h-0 bg-gray-50/30 ${viewMode === "split" ? "divide-x divide-gray-100" : ""}`}>
         {/* Editor Area */}
-        <div className={`flex-1 flex flex-col min-h-0 ${viewMode === "preview" ? "hidden" : "block"}`}>
-          <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/50">Markdown</div>
-          <textarea
-            ref={textareaRef}
-            value={formData.content}
-            onPaste={(e) => {
-              const pastedText = e.clipboardData.getData("text");
-              const isEntirelyWrapped = /^(?:[\s\S]*?)`{3,4}markdown\n([\s\S]*?)\n`{3,4}(?:[\s\S]*)$/.exec(pastedText);
+        <div className={`flex-1 flex flex-col min-h-0 ${viewMode === "preview" ? "hidden" : "block"} relative`}>
+          <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/50 flex justify-between items-center h-9">
+            <div className="flex items-center gap-2">
+              <FileCode size={14} />
+              <span>Markdown Editor</span>
+            </div>
+            
+            {violations.length > 0 && (
+              <div className="flex items-center gap-2 bg-red-50 px-2 py-0.5 rounded-md border border-red-100 animate-in fade-in slide-in-from-right-2">
+                <AlertTriangle size={12} className="text-red-500" />
+                <span className="text-[10px] text-red-600 font-black">
+                  {violations.length} {violations.length === 1 ? 'VIOLATION' : 'VIOLATIONS'}
+                </span>
+                <button 
+                  onClick={goToNextViolation}
+                  className="flex items-center gap-0.5 px-1.5 py-px bg-red-600 text-white rounded hover:bg-red-700 transition-colors ml-1 shadow-sm"
+                  title="Go to next violation"
+                >
+                  <span className="text-[9px]">FIX</span>
+                  <ChevronRight size={10} />
+                </button>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex-1 relative overflow-hidden bg-transparent">
+            {/* Highlight Backdrop */}
+            <div 
+              aria-hidden="true"
+              className="absolute inset-0 p-4 sm:p-6 md:p-8 font-mono text-[14px] sm:text-[15px] leading-relaxed text-transparent pointer-events-none whitespace-pre-wrap break-words overflow-y-auto no-scrollbar"
+              style={{ 
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+              }}
+              id="editor-highlight-backdrop"
+              dangerouslySetInnerHTML={{ __html: highlightEditorText(formData.content) }}
+            />
 
-              if (isEntirelyWrapped && isEntirelyWrapped[1] && (!formData.content || formData.content.trim() === "")) {
-                e.preventDefault();
-                const cleanText = isEntirelyWrapped[1].trim();
-                setFormData({ ...formData, content: cleanText });
-              }
-            }}
-            onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-            dir="auto"
-            placeholder="Unleash your creativity..."
-            className="w-full h-full p-4 sm:p-6 md:p-8 resize-none focus:ring-0 border-none font-mono text-[14px] sm:text-[15px] leading-relaxed text-gray-800 bg-transparent custom-scrollbar"
-            spellCheck={false}
-          />
+            <textarea
+              ref={textareaRef}
+              value={formData.content}
+              onScroll={(e) => {
+                const backdrop = document.getElementById("editor-highlight-backdrop");
+                if (backdrop) backdrop.scrollTop = e.currentTarget.scrollTop;
+              }}
+              onPaste={(e) => {
+                const pastedText = e.clipboardData.getData("text");
+                const isEntirelyWrapped = /^(?:[\s\S]*?)`{3,4}markdown\n([\s\S]*?)\n`{3,4}(?:[\s\S]*)$/.exec(pastedText);
+
+                if (isEntirelyWrapped && isEntirelyWrapped[1] && (!formData.content || formData.content.trim() === "")) {
+                  e.preventDefault();
+                  const cleanText = isEntirelyWrapped[1].trim();
+                  setFormData({ ...formData, content: cleanText });
+                }
+              }}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              dir="auto"
+              placeholder="Unleash your creativity..."
+              className="w-full h-full p-4 sm:p-6 md:p-8 resize-none focus:ring-0 border-none font-mono text-[14px] sm:text-[15px] leading-relaxed text-gray-800 bg-transparent relative z-10 custom-scrollbar whitespace-pre-wrap break-words"
+              style={{ 
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+              }}
+              spellCheck={false}
+            />
+          </div>
         </div>
 
         {viewMode === "split" && (

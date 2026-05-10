@@ -1138,9 +1138,10 @@ export const adminGuidesApi = {
     async rejectGuide(id: number | string): Promise<boolean> {
         if (!isSupabaseConfigured()) return false;
 
-        // For now, we delete rejected guides.
-        // Alternatively, we could set status='rejected' if we wanted to keep them.
-        const { error } = await supabase.from("guides").delete().eq("id", id);
+        const { error } = await supabase
+            .from("guides")
+            .update({ status: "rejected" })
+            .eq("id", id);
 
         if (error) {
             console.error("Error rejecting guide:", error);
@@ -1148,6 +1149,26 @@ export const adminGuidesApi = {
         }
         return true;
     },
+
+    async fetchGuideById(id: number | string): Promise<PendingGuide | null> {
+        if (!isSupabaseConfigured()) return null;
+        const { data, error } = await supabase.from("guides").select("*").eq("id", id).single();
+        if (error) return null;
+        
+        const guide = data as PendingGuide;
+        // Fetch content if missing
+        if (isGitHubConfigured() && RAW_BASE && !guide.content && guide.slug) {
+            try {
+                const contentUrl = `${RAW_BASE}/guides/content/${guide.slug}.json?t=${Date.now()}`;
+                const res = await fetch(contentUrl);
+                if (res.ok) {
+                    const extra = await res.json();
+                    guide.content = extra.content || extra.markdown || "";
+                }
+            } catch (e) {}
+        }
+        return guide;
+    }
 };
 
 // Types for Daily Credits

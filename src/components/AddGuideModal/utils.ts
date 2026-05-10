@@ -102,6 +102,48 @@ export const highlightForbiddenContent = (html: string): string => {
   return highlighted;
 };
 
+export const highlightEditorText = (text: string): string => {
+  if (!text) return "";
+  let highlighted = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  forbiddenPatterns.forEach(({ pattern }) => {
+    highlighted = highlighted.replace(pattern, (match: string) => {
+      return `<mark style="background-color: rgba(239, 68, 68, 0.2); border-bottom: 2px solid #ef4444; color: transparent; border-radius: 2px;">${match}</mark>`;
+    });
+  });
+
+  return highlighted + "\n";
+};
+
+export interface Violation {
+  index: number;
+  length: number;
+  message: string;
+}
+
+export const getViolations = (text: string): Violation[] => {
+  if (!text) return [];
+  const violations: Violation[] = [];
+  
+  forbiddenPatterns.forEach(({ pattern, message }) => {
+    // Reset regex index for global patterns
+    pattern.lastIndex = 0;
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      violations.push({
+        index: match.index,
+        length: match[0].length,
+        message
+      });
+    }
+  });
+  
+  return violations.sort((a, b) => a.index - b.index);
+};
+
 export const validateContent = (formData: FormData, activeTab: string): string[] => {
   const errors: string[] = [];
   const { title, keywords, content, html_content } = formData;
