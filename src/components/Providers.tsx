@@ -10,6 +10,7 @@ import NetworkStatusMonitor from "./NetworkStatusMonitor";
 import { Toaster } from "sonner";
 
 import { ModalProvider } from "../contexts/ModalContext";
+import { NotificationProvider } from "../contexts/NotificationContext";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
     return (
@@ -18,11 +19,13 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                 <AuthProvider>
                     <ThemeProvider>
                         <ModalProvider>
-                            <GlobalLoader />
-                            <GlobalErrorHandler />
-                            <NetworkStatusMonitor />
-                            <Toaster position="top-center" richColors closeButton />
-                            {children}
+                            <NotificationProvider>
+                                <GlobalLoader />
+                                <GlobalErrorHandler />
+                                <NetworkStatusMonitor />
+                                <Toaster position="top-center" richColors closeButton />
+                                {children}
+                            </NotificationProvider>
                         </ModalProvider>
                     </ThemeProvider>
                 </AuthProvider>

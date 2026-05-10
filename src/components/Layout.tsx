@@ -35,6 +35,7 @@ import SubscriptionRenewAd from "./SubscriptionRenewAd";
 import { TopLoader } from "./TopLoader";
 import TourCursor from "./TourCursor";
 import { useModal } from "../contexts/ModalContext";
+import NotificationBell from "./NotificationBell";
 
 const CookieConsent = lazy(() => import("./CookieConsent").catch(() => import("./AdBlockFallback")));
 
@@ -420,6 +421,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                     <Plus size={18} />
                     <span className="hidden 2xl:inline">Add Guide</span>
                   </button>
+                )}
+
+                {/* Notifications Bell */}
+                {isAuthenticated() && (
+                  <NotificationBell />
                 )}
 
                 {/* Auth Section */}

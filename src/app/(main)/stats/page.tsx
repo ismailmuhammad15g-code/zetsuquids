@@ -14,9 +14,11 @@ import { AreaChart } from "../../../components/retroui/charts/AreaChart";
 import { GettingStartedWizard } from "../../../components/wizard/GettingStartedWizard";
 import { PublicationSettings } from "../../../components/wizard/PublicationSettings";
 import { useAuth } from "../../../contexts/AuthContext";
+import { useNotifications } from "../../../contexts/NotificationContext";
 import { supabase } from "../../../lib/supabase";
+import { useSearchParams } from "next/navigation";
 
-type ActiveTab = "overview" | "analytics" | "publication" | "followers";
+type ActiveTab = "overview" | "analytics" | "publication" | "followers" | "notifications";
 
 interface GuideSummary {
   id: string | number;
@@ -87,7 +89,10 @@ export default function UserStatsPage() {
   const [stats, setStats] = useState<GuideTimeLogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalTime, setTotalTime] = useState(0);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("overview"); // 'overview' or 'analytics'
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get("tab") as ActiveTab) || "overview";
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [analyticsData, setAnalyticsData] = useState<AnalyticsItem[]>([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [viewsChartData, setViewsChartData] = useState<ViewsChartPoint[]>([]);
@@ -109,6 +114,11 @@ export default function UserStatsPage() {
       }
     }
   }, [user, activeTab]);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab") as ActiveTab;
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
 
   const fetchStats = async () => {
     if (!user?.id) return;
@@ -434,9 +444,83 @@ export default function UserStatsPage() {
           >
             Followers
           </button>
+          <button
+            onClick={() => setActiveTab("notifications")}
+            className={`pb-2 px-4 font-bold text-lg transition-colors flex items-center gap-2 ${activeTab === "notifications" ? "border-b-4 border-black text-black" : "text-gray-400 hover:text-gray-600"}`}
+          >
+            Notifications
+            {unreadCount > 0 && (
+              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                {unreadCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {activeTab === "publication" && <PublicationSettings />}
+
+        {activeTab === "notifications" && (
+          <div className="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-black">Notification Center</h2>
+                <p className="text-gray-500 mt-1">Stay updated with your latest alerts</p>
+              </div>
+              {unreadCount > 0 && (
+                <button
+                  onClick={() => markAllAsRead()}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-black font-bold text-sm transition-colors border border-gray-300"
+                >
+                  Mark all as read
+                </button>
+              )}
+            </div>
+
+            {notifications.length === 0 ? (
+              <div className="p-12 text-center border-2 border-dashed border-gray-200 rounded-xl">
+                <p className="text-gray-500 font-medium">You have no notifications yet.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100 border-t border-gray-100">
+                {notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    onClick={() => {
+                       if (!notif.is_read) markAsRead(notif.id);
+                    }}
+                    className={`p-4 sm:p-6 flex flex-col sm:flex-row gap-4 transition-colors hover:bg-gray-50 ${!notif.is_read ? 'bg-blue-50/30' : ''}`}
+                  >
+                    <div className="flex-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mb-2">
+                        <span className="font-bold text-lg">{notif.title}</span>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium border border-gray-200">
+                            From: {notif.actor_name}
+                          </span>
+                          <span>•</span>
+                          <span>{new Date(notif.created_at).toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <p className="text-gray-700">{notif.message}</p>
+                      {notif.link && (
+                        <div className="mt-3">
+                          <Link href={notif.link} className="text-blue-600 hover:text-blue-800 font-bold text-sm underline">
+                            View Details
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                    {!notif.is_read && (
+                      <div className="flex items-center sm:items-start shrink-0">
+                         <div className="w-3 h-3 bg-blue-500 rounded-full mt-1.5" title="Unread"></div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {activeTab === "followers" && (
           <div className="space-y-6">
