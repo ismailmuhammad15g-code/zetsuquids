@@ -869,20 +869,27 @@ export const guidesApi = {
                 }
 
                 // Insert to Supabase (Add owner)
-                const guideData: Guide = {
+                const supabasePayload: any = {
                     title: guide.title,
                     slug: guide.slug,
-                    content: guide.content || "",
-                    markdown: guide.markdown || "",
-                    html_content: guide.html_content || "",
-                    css_content: guide.css_content || "",
                     keywords: guide.keywords || [],
                     content_type: guide.content_type || "markdown",
-                    user_email: guide.user_email || userEmail, // Backfill owner if provided
+                    user_email: guide.user_email || userEmail,
                     created_at: guide.created_at || new Date().toISOString(),
+                    cover_image: guide.cover_image || null,
+                    category: guide.category || "Development",
+                    difficulty: guide.difficulty || "Beginner",
+                    estimated_time: guide.estimated_time || "5 mins",
+                    status: guide.status || "approved"
                 };
 
-                const { error } = await supabase.from("guides").insert([guideData]);
+                // Remove fields that no longer exist in Supabase (stored in GitHub now)
+                delete supabasePayload.content;
+                delete supabasePayload.markdown;
+                delete supabasePayload.html_content;
+                delete supabasePayload.css_content;
+
+                const { error } = await supabase.from("guides").insert([supabasePayload]);
 
                 if (error) {
                     // Check for duplicate key violation (409 or code 23505)
