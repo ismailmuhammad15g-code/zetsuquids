@@ -371,21 +371,15 @@ export const guidesApi = {
 
                 if (error) {
                     const errorMessage = `${error.message || ""} ${error.details || ""} ${error.hint || ""}`.trim();
-                    console.warn(
-                        "Supabase insert error:",
-                        errorMessage,
-                    );
+                    console.error("Supabase insert error:", errorMessage, "\nCode:", error.code);
 
+                    // Only retry if specifically the cover_image column is missing
                     const shouldRetryWithoutCover =
                         error.code === "42703" ||
                         errorMessage.toLowerCase().includes("cover_image");
 
                     if (shouldRetryWithoutCover) {
-                        console.error(
-                            "CRITICAL DATABASE ERROR: The 'cover_image' column is missing in your Supabase 'guides' table.",
-                            "\nPLEASE RUN THIS SQL IN YOUR SUPABASE SQL EDITOR:",
-                            "\nALTER TABLE guides ADD COLUMN IF NOT EXISTS cover_image TEXT;"
-                        );
+                        console.warn("Retrying without cover_image...");
                         const { cover_image, ...fallbackGuideData } = supabasePayload;
                         const retryResult = await supabase
                             .from("guides")
@@ -394,36 +388,39 @@ export const guidesApi = {
                             .single();
 
                         if (!retryResult.error && retryResult.data) {
-                            console.log("Supabase insert succeeded after removing unsupported cover_image column:", retryResult.data);
+                            console.log("Supabase insert succeeded without cover_image:", retryResult.data);
                             const fullGuide = { ...guideData, ...retryResult.data };
                             const guides: Guide[] = getLocalGuides();
                             guides.unshift(fullGuide);
                             saveLocalGuides(guides);
                             return fullGuide;
                         }
-
-                        console.warn(
-                            "Retry without cover_image also failed:",
-                            retryResult.error?.message || retryResult.error,
-                        );
+                        // Throw with the retry error message
+                        throw new Error(retryResult.error?.message || errorMessage);
                     }
-                    // Fall through to localStorage
-                } else if (data) {
-                    console.log("Successfully saved to Supabase:", data);
-                    // Also save to localStorage for offline access
+
+                    // Throw the error so handleSubmit catches it and shows error toast
+                    throw new Error(errorMessage || "Database error: failed to save guide");
+                }
+
+                if (data) {
+                    console.log("✅ Successfully saved to Supabase:", data.id, data.title);
                     const fullGuide = { ...guideData, ...data };
                     const guides: Guide[] = getLocalGuides();
                     guides.unshift(fullGuide);
                     saveLocalGuides(guides);
                     return fullGuide;
                 }
+
+                throw new Error("Database returned no data after insert");
             } catch (err) {
-                console.error("Supabase connection error:", err);
+                // Re-throw so the caller (handleSubmit) gets the error
+                throw err;
             }
         }
 
-        // Fallback to localStorage
-        console.log("Saving to localStorage as fallback");
+        // No Supabase configured — save locally only (dev/offline mode)
+        console.warn("⚠️ Supabase not configured. Saving to localStorage only (guide will NOT appear in admin).");
         const guides: Guide[] = JSON.parse(localStorage.getItem("guides") || "[]");
         const newGuide: Guide = { ...guideData, id: Date.now() };
         guides.unshift(newGuide);

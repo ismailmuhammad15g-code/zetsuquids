@@ -37,6 +37,27 @@ const ReviewCard = ({ review, myUserId, onEdit }: { review: SiteReview; myUserId
     .toUpperCase()
     .slice(0, 2);
 
+  const [imgError, setImgError] = useState(false);
+  const [dynamicAvatar, setDynamicAvatar] = useState<string | null>(review.avatar_url);
+
+  // If the saved avatar is missing, try to fetch the latest from the profile table
+  useEffect(() => {
+    if (!review.avatar_url && review.user_id) {
+      import("../lib/supabase").then(m => {
+        m.supabase
+          .from("zetsuguide_user_profiles")
+          .select("avatar_url")
+          .eq("user_id", review.user_id)
+          .maybeSingle()
+          .then(({ data }: { data: { avatar_url: string | null } | null }) => {
+            if (data?.avatar_url) setDynamicAvatar(data.avatar_url);
+          });
+      });
+    }
+  }, [review.avatar_url, review.user_id]);
+
+  const finalAvatar = dynamicAvatar || review.avatar_url;
+
   return (
     <figure
       className="relative w-80 mx-4 flex-shrink-0 rounded-2xl p-px overflow-hidden group cursor-default"
@@ -61,12 +82,12 @@ const ReviewCard = ({ review, myUserId, onEdit }: { review: SiteReview; myUserId
         <div className="absolute top-0 left-6 right-6 h-px rounded-full opacity-40 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
 
         <div className="flex items-center gap-3 mb-4 mt-1">
-          {review.avatar_url ? (
+          {finalAvatar && !imgError ? (
             <img
-              src={review.avatar_url}
+              src={finalAvatar}
               alt={review.display_name}
               className="w-11 h-11 rounded-full object-cover ring-2 ring-white/10 flex-shrink-0"
-              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+              onError={() => setImgError(true)}
             />
           ) : (
             <div className="w-11 h-11 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 font-bold text-sm flex-shrink-0 ring-2 ring-white/10">
@@ -209,21 +230,28 @@ const AddReviewModal = ({
     // Fetch profile for display_name / username
     let displayName = (user.user_metadata?.full_name as string) || user.email?.split("@")[0] || "User";
     let username: string | null = null;
+    let finalAvatar: string | null = profileAvatar;
 
     try {
       const { data: profile } = await import("../lib/supabase").then(m =>
-        m.supabase.from("zetsuguide_user_profiles").select("display_name,username").eq("user_id", user.id).maybeSingle()
+        m.supabase.from("zetsuguide_user_profiles").select("display_name,username,avatar_url").eq("user_id", user.id).maybeSingle()
       );
       if (profile?.display_name) displayName = profile.display_name;
       if (profile?.username) username = profile.username;
+      if (profile?.avatar_url) finalAvatar = profile.avatar_url;
     } catch { /* ignore */ }
+
+    // Final fallback for avatar
+    if (!finalAvatar) {
+        finalAvatar = (user.user_metadata?.avatar_url as string) || null;
+    }
 
     const result = await reviewsApi.submitReview({
       user_id: user.id,
       user_email: user.email,
       display_name: displayName,
       username,
-      avatar_url: profileAvatar ?? null,
+      avatar_url: finalAvatar,
       rating,
       review_text: text,
       role: role.trim() || null,

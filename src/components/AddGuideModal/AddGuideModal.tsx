@@ -506,7 +506,11 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       invalidateGuides.invalidateAll();
       localStorage.removeItem("add_guide_draft_v1");
       setShowSuccessModal(true);
-    } catch (err) { toast.error("Failed to publish"); }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to publish guide";
+      console.error("Guide submission failed:", err);
+      toast.error(`Failed to publish: ${msg}`);
+    }
     finally { setSaving(false); }
   };
 

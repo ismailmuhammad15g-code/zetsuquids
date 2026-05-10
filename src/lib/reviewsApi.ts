@@ -34,20 +34,27 @@ export const reviewsApi = {
   async getApprovedReviews(limit = 50): Promise<SiteReview[]> {
     if (!isSupabaseConfigured()) return [];
 
-    const { data, error } = await supabase
-      .from("site_reviews")
-      .select("*")
-      .eq("is_approved", true)
-      .order("created_at", { ascending: false })
-      .limit(limit);
+    try {
+      const { data, error } = await supabase
+        .from("site_reviews")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(limit);
 
-    if (error) {
-      // Table may not exist yet — fail silently
-      console.error("reviewsApi.getApprovedReviews error:", error.message);
+      if (error) {
+        console.error("reviewsApi.getApprovedReviews error:", error.message);
+        return [];
+      }
+
+      if (!data || data.length === 0) return [];
+
+      // Filter for approved reviews in JS to be extra safe
+      const approved = (data as SiteReview[]).filter(r => r && r.is_approved !== false);
+      return approved;
+    } catch (err) {
+      console.error("reviewsApi.getApprovedReviews exception:", err);
       return [];
     }
-
-    return (data as SiteReview[]) || [];
   },
 
   /**

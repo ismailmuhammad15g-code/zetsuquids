@@ -62,16 +62,25 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
 
     // Fetch avatar from profiles table whenever user changes
     useEffect(() => {
-        if (!user?.email) { setProfileAvatar(null); return; }
-        supabase
-            .from('zetsuguide_user_profiles')
-            .select('avatar_url')
-            .eq('user_email', user.email)
-            .maybeSingle()
-            .then(({ data }: { data: any }) => {
-                if (data?.avatar_url) setProfileAvatar(data.avatar_url);
-            });
-    }, [user?.email]);
+        if (!user) { setProfileAvatar(null); return; }
+        
+        // Initial fallback to metadata avatar (from OAuth providers)
+        const metaAvatar = (user.user_metadata?.avatar_url as string) || null;
+        setProfileAvatar(metaAvatar);
+
+        if (user.email) {
+            supabase
+                .from('zetsuguide_user_profiles')
+                .select('avatar_url')
+                .eq('user_email', user.email)
+                .maybeSingle()
+                .then(({ data }: { data: any }) => {
+                    if (data?.avatar_url) {
+                        setProfileAvatar(data.avatar_url);
+                    }
+                });
+        }
+    }, [user]);
 
     // Load user from localStorage on mount AND monitor Supabase auth state changes
     useEffect(() => {
