@@ -1650,20 +1650,10 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
         ...newMessages.slice(-8).filter(m => m.content.trim() !== "")
       ];
 
-      // If it's the first message, ask for brief response
-      const isFirstMessage = messages.length === 0;
       const modelToUse = customModel || "google/gemini-2.0-flash-exp:free";
       const bodyPayload = {
         model: modelToUse,
-        messages: isFirstMessage
-          ? [
-            contextSystemMessage,
-            {
-              role: "user",
-              content: `${query}\n\n(Note: This is the first message. After thinking, give a SHORT and friendly greeting response - max 100 words. Be welcoming but don't give long explanations yet.)`
-            }
-          ]
-          : messagesPayload,
+        messages: messagesPayload,
         userEmail: user?.email,
         userId: user?.id,
         isDeepReasoning,
