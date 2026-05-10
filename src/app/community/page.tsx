@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import PostCard from "../../components/PostCard";
 import Composer from "../../components/community/Composer";
 import FeedTabs from "../../components/community/FeedTabs";
+import PostSkeleton from "../../components/community/PostSkeleton";
 import { useAuth } from "../../contexts/AuthContext";
 import { communityApi } from "../../lib/communityApi";
 
@@ -75,8 +76,10 @@ export default function CommunityFeed() {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="animate-spin text-[#1d9bf0]" size={28} />
+        <div className="divide-y divide-[#2f3336]">
+          {[...Array(5)].map((_, i) => (
+            <PostSkeleton key={i} />
+          ))}
         </div>
       ) : posts.length === 0 ? (
         <div className="flex flex-col items-center px-8 py-16 text-center">

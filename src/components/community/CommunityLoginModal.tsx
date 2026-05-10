@@ -4,38 +4,83 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { LogIn, UserPlus } from "lucide-react";
+import { supabase } from "../../lib/supabase";
 
 export default function CommunityLoginModal() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [show, setShow] = useState(false);
   const [hasJoined, setHasJoined] = useState(true); // Default true to prevent flash
+  const [checkingDb, setCheckingDb] = useState(true);
+  const [profile, setProfile] = useState<{ display_name: string | null; avatar_url: string | null } | null>(null);
+  const [isJoining, setIsJoining] = useState(false);
 
   useEffect(() => {
-    // Check if user has joined community
-    const joined = localStorage.getItem("community_joined") === "true";
-    setHasJoined(joined);
+    if (loading) return;
 
-    if (!joined && !loading) {
-      // Show modal after 3 seconds
-      const timer = setTimeout(() => {
-        setShow(true);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
+    const checkCommunityStatus = async () => {
+      // If not logged in, immediately consider as not joined
+      if (!user) {
+        setHasJoined(false);
+        setCheckingDb(false);
+        const timer = setTimeout(() => setShow(true), 3000);
+        return () => clearTimeout(timer);
+      }
+
+      // Check DB if logged in
+      try {
+        const { data } = await supabase
+          .from("zetsuguide_user_profiles")
+          .select("has_joined_community, display_name, avatar_url")
+          .eq("user_id", user.id)
+          .single();
+
+        const joined = data?.has_joined_community === true;
+        setHasJoined(joined);
+        setProfile(data);
+        setCheckingDb(false);
+
+        if (!joined) {
+          const timer = setTimeout(() => setShow(true), 3000);
+          return () => clearTimeout(timer);
+        }
+      } catch (err) {
+        console.error("Failed to check community status:", err);
+        setCheckingDb(false);
+      }
+    };
+
+    checkCommunityStatus();
   }, [loading, user]);
 
-  const handleContinue = () => {
-    localStorage.setItem("community_joined", "true");
-    setHasJoined(true);
-    setShow(false);
+  const handleContinue = async () => {
+    if (!user) return;
+    
+    setIsJoining(true);
+
+    try {
+      await supabase
+        .from("zetsuguide_user_profiles")
+        .update({ has_joined_community: true })
+        .eq("user_id", user.id);
+      
+      // Small delay for the "Premium" feel
+      setTimeout(() => {
+        setHasJoined(true);
+        setShow(false);
+        setIsJoining(false);
+      }, 800);
+    } catch (err) {
+      console.error("Failed to update community status:", err);
+      setIsJoining(false);
+    }
   };
 
   const handleLogin = () => {
     router.push("/auth");
   };
 
-  if (!show || hasJoined) return null;
+  if (!show || hasJoined || checkingDb) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 backdrop-blur-md bg-black/40 animate-in fade-in duration-500">
@@ -46,10 +91,12 @@ export default function CommunityLoginModal() {
         <div className="p-8 flex flex-col items-center text-center">
           {/* Skeleton effect logo/avatar area */}
           <div className="relative mb-6">
-            <div className="w-24 h-24 rounded-full bg-gray-100 border-4 border-white shadow-lg overflow-hidden flex items-center justify-center relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent w-[200%] animate-[shimmer_2s_infinite] -translate-x-full"></div>
-              {user ? (
-                <span className="text-3xl font-black text-gray-300">
+            <div className="w-24 h-24 rounded-full bg-gray-100 border-4 border-white shadow-xl overflow-hidden flex items-center justify-center relative group">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/60 to-transparent w-[200%] animate-[shimmer_2s_infinite] -translate-x-full z-20"></div>
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+              ) : user ? (
+                <span className="text-3xl font-black text-gray-400">
                   {user.email?.[0].toUpperCase()}
                 </span>
               ) : (
@@ -57,33 +104,39 @@ export default function CommunityLoginModal() {
               )}
             </div>
             {user && (
-              <div className="absolute -bottom-2 -right-2 bg-green-500 w-8 h-8 rounded-full border-4 border-white flex items-center justify-center">
-                <div className="w-2 h-2 bg-white rounded-full"></div>
+              <div className="absolute -bottom-1 -right-1 bg-green-500 w-7 h-7 rounded-full border-4 border-white shadow-md flex items-center justify-center z-30">
+                <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
               </div>
             )}
           </div>
 
-          <h2 className="text-2xl font-black text-gray-900 mb-2">
-            Welcome to Community
+          <h2 className="text-2xl font-black text-gray-900 mb-1">
+            {profile?.display_name ? `Welcome back, ${profile.display_name}` : "Welcome to Community"}
           </h2>
+          <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-6">Discovery awaits</p>
           
-          <div className="w-full space-y-4 mt-6">
+          <div className="w-full space-y-4 mt-2">
             {user ? (
               <>
-                <p className="text-gray-500 text-sm mb-6 font-medium">
-                  You are currently logged into ZetsuGuide as:
-                  <br/>
-                  <strong className="text-black block mt-1 text-base relative overflow-hidden inline-block px-4 py-1 bg-gray-50 rounded-lg border border-gray-100">
+                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-6 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent w-[200%] animate-[shimmer_3s_infinite] -translate-x-full"></div>
+                  <p className="text-gray-400 text-[10px] font-black uppercase tracking-tighter mb-1">ZetsuGuide Identity</p>
+                  <p className="text-gray-900 font-bold truncate">
                     {user.email}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent w-[200%] animate-[shimmer_2s_infinite] -translate-x-full"></div>
-                  </strong>
-                </p>
+                  </p>
+                </div>
                 <button
                   onClick={handleContinue}
-                  className="w-full py-4 px-6 bg-black text-white font-bold rounded-2xl hover:bg-gray-800 hover:scale-[1.02] active:scale-95 transition-all shadow-md relative overflow-hidden group"
+                  disabled={isJoining}
+                  className="w-full py-4 px-6 bg-black text-white font-bold rounded-2xl hover:bg-gray-800 hover:scale-[1.02] active:scale-95 transition-all shadow-xl relative overflow-hidden group disabled:opacity-70 disabled:scale-100"
                 >
                   <div className="absolute inset-0 bg-white/20 w-[150%] -skew-x-12 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
-                  Continue with ZetsuGuide Account
+                  {isJoining ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Joining Community...
+                    </span>
+                  ) : "Continue with ZetsuGuide Account"}
                 </button>
               </>
             ) : (
