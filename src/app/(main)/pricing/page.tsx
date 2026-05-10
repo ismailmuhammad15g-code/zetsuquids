@@ -246,16 +246,16 @@ export default function PricingPage() {
       {isAuthenticated() && (
         <div className="w-full px-4 mb-4 flex justify-center animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="flex flex-col sm:flex-row items-center gap-3 bg-card border border-border rounded-xl px-6 py-3 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-primary" />
-              <span className="text-sm font-medium">Your Balance:</span>
+            <div className="flex items-center gap-3">
+              <img src="/images/zcoin.svg" alt="coin" className="h-12 w-12 object-contain drop-shadow-md" />
+              <span className="text-lg font-bold text-gray-900">Your Balance:</span>
             </div>
 
             <div className="flex items-center gap-3">
               {loadingCredits ? (
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               ) : (
-                <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                <span className="text-3xl font-black bg-gradient-to-r from-amber-600 via-yellow-700 to-amber-900 bg-clip-text text-transparent">
                   {credits} Credits
                 </span>
               )}

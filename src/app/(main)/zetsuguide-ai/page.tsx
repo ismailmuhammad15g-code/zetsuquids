@@ -1968,8 +1968,8 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                 <div className="zg-user-info">
                   <div className="zg-user-name">{user?.email?.split("@")[0]}</div>
                   <div className="zg-credits-badge">
-                    <Zap size={11} style={{ color: "#f59e0b" }} />
-                    {creditsLoading ? "..." : credits?.balance ?? 0} credits
+                    <img src="/images/zcoin.svg" alt="coin" className="w-6 h-6 object-contain" />
+                    <span className="ml-2 text-[14px] font-black">{creditsLoading ? "..." : credits?.balance ?? 0} Credits</span>
                   </div>
                 </div>
               </div>
@@ -2165,8 +2165,9 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
             <div className="zg-input-area">
               <div className="zg-input-shell">
                 {credits !== null && credits.balance !== undefined && credits.balance <= 0 && (
-                  <div className="zg-no-credits">
-                    ⚡ You have no credits left. Please purchase more to continue chatting.
+                  <div className="zg-no-credits" style={{ padding: "30px 20px", flexDirection: "column", gap: "20px" }}>
+                    <img src="/images/zcoin.svg" alt="coin" className="w-24 h-24 object-contain animate-bounce" />
+                    <span style={{ fontSize: "18px", fontWeight: 800 }}>You have no credits left. Please purchase more to continue chatting.</span>
                   </div>
                 )}
 
