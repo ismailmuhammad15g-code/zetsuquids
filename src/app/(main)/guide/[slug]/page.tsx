@@ -468,9 +468,48 @@ export default function GuidePage() {
             setError(null);
 
             // Try to find by slug first
-            let guideData = await guidesApi.getBySlug(slug as string);
+            let guideData = null;
 
-            // If not found by slug, try by ID (for backward compatibility)
+            // 1. Check AI Previews Storage FIRST (Dedicated key to avoid sync deletion)
+            try {
+                if (typeof window !== 'undefined') {
+                    const aiPreviewsStr = localStorage.getItem("zetsuguide_ai_previews");
+                    if (aiPreviewsStr) {
+                        const aiPreviews = JSON.parse(aiPreviewsStr);
+                        const match = aiPreviews.find((g: any) => g.slug === slug);
+                        if (match) {
+                            console.log("[GuidePage] Found guide in AI Previews:", slug);
+                            guideData = match;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("[GuidePage] AI Previews load error:", e);
+            }
+
+            // 2. Check Standard LocalStorage (Fallback)
+            if (!guideData) {
+                try {
+                    const localGuidesStr = typeof window !== 'undefined' ? localStorage.getItem("guides") : null;
+                    if (localGuidesStr) {
+                        const localGuides = JSON.parse(localGuidesStr);
+                        const match = localGuides.find((g: any) => g.slug === slug);
+                        if (match) {
+                            console.log("[GuidePage] Found guide in local guides:", slug);
+                            guideData = match;
+                        }
+                    }
+                } catch (e) {
+                    console.error("[GuidePage] Local guides load error:", e);
+                }
+            }
+
+            // 2. If not found in preview, or not in preview mode, fetch from API
+            if (!guideData) {
+                guideData = await guidesApi.getBySlug(slug as string);
+            }
+
+            // 3. If still not found by slug, try by ID (for backward compatibility)
             if (!guideData && slug && /^\d+$/.test(slug)) {
                 guideData = await guidesApi.getById(parseInt(slug as string));
             }
@@ -535,7 +574,7 @@ export default function GuidePage() {
         } finally {
             setLoading(false);
         }
-    }, [slug]);
+    }, [slug, isPreviewMode]);
 
     // Call loadGuide when slug changes
     useEffect(() => {
@@ -1481,26 +1520,32 @@ export default function GuidePage() {
                         {inlineComments.length > 0 ? renderContentWithComments() : renderContent()}
 
                         {/* Inline Comments */}
-                        <GuideInlineComments
-                            guideId={guide.id!}
-                            isGuideOwner={!!isOwner}
-                            onCommentsUpdated={loadGuide}
-                            commentCount={0}
-                            onCommentCountChange={() => { }}
-                        />
+                        {!isPreviewMode && (
+                            <GuideInlineComments
+                                guideId={guide.id!}
+                                isGuideOwner={!!isOwner}
+                                onCommentsUpdated={loadGuide}
+                                commentCount={0}
+                                onCommentCountChange={() => { }}
+                            />
+                        )}
 
                         {/* Comments */}
-                        <GuideComments guideId={String(guide.id)} onCommentPosted={recordComment} />
+                        {!isPreviewMode && (
+                            <GuideComments guideId={String(guide.id)} onCommentPosted={recordComment} />
+                        )}
 
                         {/* Recommendations */}
-                        <div className="mt-16 mb-12">
-                            <GuideRecommendations
-                                currentGuideSlug={slug}
-                                currentGuideKeywords={guide.keywords}
-                                currentGuideAuthor={guide.user_email}
-                                limit={3}
-                            />
-                        </div>
+                        {!isPreviewMode && (
+                            <div className="mt-16 mb-12">
+                                <GuideRecommendations
+                                    currentGuideSlug={slug}
+                                    currentGuideKeywords={guide.keywords}
+                                    currentGuideAuthor={guide.user_email}
+                                    limit={3}
+                                />
+                            </div>
+                        )}
 
                         {/* Bottom Nav */}
                         <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
@@ -1575,7 +1620,7 @@ export default function GuidePage() {
                     />
                 )}
                 {/* Guide Rating System */}
-                {guide && (
+                {guide && !isPreviewMode && (
                     <GuideRating
                         guideId={String(guide.id)}
                         authorId={guide.author_id!}

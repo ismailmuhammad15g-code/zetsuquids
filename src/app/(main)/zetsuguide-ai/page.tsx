@@ -220,10 +220,11 @@ const styles = `
   .zg-credits-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    color: #6b7280;
-    font-weight: 500;
+    gap: 6px;
+    font-size: 13px;
+    color: #111;
+    font-weight: 700;
+    margin-top: 2px;
   }
 
   /* ─── Main content ─── */
@@ -1036,7 +1037,7 @@ function parseGuideAction(text: string) {
   return null;
 }
 
-function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string | null | undefined }) {
+function GuideCreatorAction({ data, userEmail, userId }: { data: any, userEmail: string | null | undefined, userId?: string | null }) {
   const [status, setStatus] = useState<'init' | 'generating_image' | 'review' | 'publishing' | 'published' | 'rejected' | 'error'>('init');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [guideSlug, setGuideSlug] = useState<string | null>(null);
@@ -1107,12 +1108,15 @@ function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string 
       created_at: new Date().toISOString()
     };
 
-    // Inject into localStorage so the GuidePage component can render it
+    // Inject into dedicated preview storage so it doesn't get nuked by api.ts sync
     try {
-      const existingStr = localStorage.getItem("guides");
+      const key = "zetsuguide_ai_previews";
+      const existingStr = localStorage.getItem(key);
       const existing = existingStr ? JSON.parse(existingStr) : [];
       existing.unshift(draftGuide);
-      localStorage.setItem("guides", JSON.stringify(existing));
+      // Keep only last 10 previews to save space
+      localStorage.setItem(key, JSON.stringify(existing.slice(0, 10)));
+      console.log("[GuideCreator] Saved draft to zetsuguide_ai_previews", previewSlug);
     } catch (e) {
       console.error("Failed to save preview draft to localStorage", e);
     }
@@ -1123,7 +1127,9 @@ function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string 
 
   async function handleApprove() {
     setStatus('publishing');
+    setErrorMessage("");
     try {
+      console.log("[GuideCreator] Attempting to publish guide...", { title: data.title, userEmail, userId });
       const newGuide = await guidesApi.create({
         title: data.title || "Untitled Guide",
         content: data.markdown || "",
@@ -1131,13 +1137,23 @@ function GuideCreatorAction({ data, userEmail }: { data: any, userEmail: string 
         cover_image: imageUrl,
         keywords: data.keywords || [],
         user_email: userEmail || "ai@zetsuguide.com",
+        author_id: userId || null,
         status: "approved"
       });
-      setGuideSlug(newGuide.slug || null);
-      setStatus('published');
+      
+      if (newGuide && newGuide.slug) {
+        setGuideSlug(newGuide.slug);
+        setStatus('published');
+        toast.success("Guide published successfully!");
+      } else {
+        throw new Error("Published guide missing slug information");
+      }
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to publish");
+      console.error("[GuideCreator] Publish failed:", err);
+      const msg = err instanceof Error ? err.message : "Failed to publish";
+      setErrorMessage(msg);
       setStatus('error');
+      toast.error(`Publishing failed: ${msg}`);
     }
   }
 
@@ -1286,7 +1302,7 @@ interface MessageContentProps {
   isThinking?: boolean;
 }
 
-function MessageContent({ text, isError, isThinking, userEmail, selectedGuideName }: MessageContentProps & { userEmail?: string | null, selectedGuideName?: string | null }) {
+function MessageContent({ text, isError, isThinking, userEmail, userId, selectedGuideName }: MessageContentProps & { userEmail?: string | null, userId?: string | null, selectedGuideName?: string | null }) {
   // If the AI is expected to think but hasn't sent text yet, show a placeholder
   if (isThinking && !text) {
     return (
@@ -1340,7 +1356,7 @@ function MessageContent({ text, isError, isThinking, userEmail, selectedGuideNam
       )}
 
       {guideAction && !isThinking && (
-        <GuideCreatorAction data={guideAction} userEmail={userEmail} />
+        <GuideCreatorAction data={guideAction} userEmail={userEmail} userId={userId} />
       )}
 
       {isGuideActionStreaming && isThinking && (
@@ -1968,8 +1984,8 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                 <div className="zg-user-info">
                   <div className="zg-user-name">{user?.email?.split("@")[0]}</div>
                   <div className="zg-credits-badge">
-                    <img src="/images/zcoin.svg" alt="coin" className="w-6 h-6 object-contain" />
-                    <span className="ml-2 text-[14px] font-black">{creditsLoading ? "..." : credits?.balance ?? 0} Credits</span>
+                    <img src="/images/zcoin.svg" alt="coin" className="w-8 h-8 object-contain" />
+                    <span className="ml-1">{creditsLoading ? "..." : credits?.balance ?? 0} Credits</span>
                   </div>
                 </div>
               </div>
@@ -2090,7 +2106,7 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                 </div>
                 <div className="zg-suggestions-grid">
                   {[
-                    "Optimize this React component for performance",
+                    "create a guide for :",
                     "Explain Supabase Row Level Security policies",
                     "Create a clean authentication flow in Next.js",
                     "Debug my Tailwind CSS responsive layout",
@@ -2124,6 +2140,7 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                             text={msg.content}
                             isThinking={idx === messages.length - 1 && isThinking}
                             userEmail={user?.email}
+                            userId={user?.id}
                             selectedGuideName={isReadingGuide && idx === messages.length - 1 ? selectedGuide?.title : null}
                           />
                           {false && null}
