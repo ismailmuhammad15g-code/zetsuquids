@@ -19,13 +19,18 @@ import {
     ToggleLeft, ToggleRight,
     Trash2,
     User,
-    XCircle
+    XCircle,
+    Bot,
+    Activity,
+    Check,
+    X
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Ad, adminGuidesApi, adsApi, Guide, supabase } from '../../../lib/api';
 import { ChangelogEntry, fetchChangelog, saveChangelog } from '../../../lib/changelog';
 import { supportApi } from '../../../lib/supportApi';
 import { notificationsApi } from '../../../lib/notificationsApi';
+import { aiReviewerApi } from '../../../lib/aiReviewerApi';
 
 type LottieAnimationData = object
 
@@ -81,6 +86,17 @@ interface NewAd {
     button_text: string
 }
 
+export interface AiReviewLog {
+    id: string;
+    guide_id: string | number;
+    title: string;
+    author: string;
+    status: 'ready' | 'error' | 'processing';
+    duration: string;
+    time: string;
+    message: string;
+}
+
 // Import staff profile animations
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -111,6 +127,12 @@ export default function StaffConsole() {
     const [pendingGuides, setPendingGuides] = useState<Guide[]>([])
     const [loadingGuides, setLoadingGuides] = useState<boolean>(false)
     const [processingGuideId, setProcessingGuideId] = useState<string | number | null>(null)
+    const [guideSubTab, setGuideSubTab] = useState<'human' | 'ai'>('human')
+
+    // AI Reviews State
+    const [aiAutoReviewEnabled, setAiAutoReviewEnabled] = useState<boolean>(false)
+    const [aiLogs, setAiLogs] = useState<AiReviewLog[]>([])
+    const isAiProcessingRef = useRef<boolean>(false)
 
     // Support Messages State
     const [conversations, setConversations] = useState<SupportConversation[]>([])
@@ -177,6 +199,16 @@ export default function StaffConsole() {
             loadPendingGuides() // Load guides on init
             loadAds() // Load ads on init
             loadChangelog()
+            
+            // Load AI Review settings
+            const aiEnabled = localStorage.getItem('zetsu_ai_auto_review') === 'true';
+            setAiAutoReviewEnabled(aiEnabled);
+            const savedLogs = localStorage.getItem('zetsu_ai_review_logs');
+            if (savedLogs) {
+                try {
+                    setAiLogs(JSON.parse(savedLogs));
+                } catch(e) {}
+            }
         } else {
             sessionStorage.removeItem('staffAuthenticated')
             sessionStorage.removeItem('staffLoginTime')
@@ -357,6 +389,93 @@ export default function StaffConsole() {
             console.error('Error loading pending guides:', error)
         }
         setLoadingGuides(false)
+    }
+
+    // AI Auto Review processing effect
+    useEffect(() => {
+        const processAiAutoReview = async () => {
+            if (!aiAutoReviewEnabled || pendingGuides.length === 0 || isAiProcessingRef.current) return;
+            
+            isAiProcessingRef.current = true;
+            let changesMade = false;
+            
+            for (const guide of pendingGuides) {
+                // Skip if already processed in logs recently
+                if (aiLogs.some(log => log.guide_id === guide.id && (Date.now() - new Date(log.time).getTime() < 60000))) continue;
+                
+                setProcessingGuideId(guide.id || null);
+                try {
+                    const reviewResult = await aiReviewerApi.reviewGuide(guide);
+                    let status: 'ready' | 'error' = 'error';
+                    
+                    if (reviewResult.approved) {
+                        const success = await adminGuidesApi.approveGuide(guide.id!);
+                        if (success) {
+                            status = 'ready';
+                            changesMade = true;
+                            // Send notification
+                            await notificationsApi.createNotification({
+                                user_id: guide.author_id!,
+                                actor_name: "Zetsu AI Moderator",
+                                type: "approved",
+                                title: "Guide Auto-Approved",
+                                message: `Your guide "${guide.title}" was reviewed and approved by AI!`,
+                                link: `/guide/${guide.slug}`
+                            });
+                        }
+                    } else {
+                        const success = await adminGuidesApi.rejectGuide(guide.id!);
+                        if (success) {
+                            status = 'error';
+                            changesMade = true;
+                            // Send notification
+                            await notificationsApi.createNotification({
+                                user_id: guide.author_id!,
+                                actor_name: "Zetsu AI Moderator",
+                                type: "rejected",
+                                title: "Guide Rejected by AI",
+                                message: `Your guide "${guide.title}" was rejected by AI. Reason: ${reviewResult.reason}`
+                            });
+                        }
+                    }
+                    
+                    const newLog: AiReviewLog = {
+                        id: Math.random().toString(36).substring(7),
+                        guide_id: guide.id!,
+                        title: guide.title,
+                        author: guide.author_name || guide.user_email || 'Unknown',
+                        status: status,
+                        duration: (reviewResult.durationMs / 1000).toFixed(2) + 's',
+                        time: new Date().toISOString(),
+                        message: reviewResult.reason
+                    };
+                    
+                    setAiLogs(prev => {
+                        const updated = [newLog, ...prev].slice(0, 50);
+                        localStorage.setItem('zetsu_ai_review_logs', JSON.stringify(updated));
+                        return updated;
+                    });
+                    
+                } catch (err) {
+                    console.error("AI Review failed for guide", guide.id, err);
+                }
+            }
+            
+            setProcessingGuideId(null);
+            isAiProcessingRef.current = false;
+            
+            if (changesMade) {
+                loadPendingGuides();
+            }
+        };
+
+        processAiAutoReview();
+    }, [pendingGuides, aiAutoReviewEnabled, aiLogs]);
+
+    const toggleAiAutoReview = () => {
+        const newState = !aiAutoReviewEnabled;
+        setAiAutoReviewEnabled(newState);
+        localStorage.setItem('zetsu_ai_auto_review', String(newState));
     }
 
     const loadAds = async () => {
@@ -921,63 +1040,175 @@ export default function StaffConsole() {
                             </button>
                         </div>
 
-                        {loadingGuides ? (
-                            <div className="loading-state">
-                                <RefreshCw className="spin" size={24} />
-                                <p>جاري التحميل...</p>
-                            </div>
-                        ) : pendingGuides.length === 0 ? (
-                            <div className="empty-state">
-                                <BookOpen size={48} />
-                                <p>لا توجد أدلة معلقة</p>
-                            </div>
-                        ) : (
-                            <div className="guides-grid">
-                                {pendingGuides.map(guide => (
-                                    <div key={guide.id} className="guide-review-card">
-                                        <div className="guide-header">
-                                            <h3>{guide.title}</h3>
-                                            <span className="guide-date">{guide.created_at ? new Date(guide.created_at).toLocaleDateString() : ''}</span>
-                                        </div>
-                                        <div className="guide-meta">
-                                            <div className="guide-author">
-                                                <User size={14} />
-                                                <span>{guide.author_name || guide.user_email}</span>
-                                            </div>
-                                            <span className="guide-type">{guide.content_type || 'markdown'}</span>
-                                        </div>
-                                        <p className="guide-preview text-sm text-gray-400 mt-2 mb-4 line-clamp-3">
-                                            {guide.content?.substring(0, 150) || 'No content preview'}...
-                                        </p>
-                                        <div className="guide-actions">
-                                            <button
-                                                className="preview-btn"
-                                                onClick={() => window.open(`/guide/${guide.slug}?preview=true`, '_blank')}
-                                            >
-                                                <Eye size={16} />
-                                                معاينة
-                                            </button>
+                        {/* Subtabs for Human vs AI Review */}
+                        <div className="flex border-b border-gray-200 dark:border-gray-800 mb-6 mt-4">
+                            <button 
+                                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${guideSubTab === 'human' ? 'border-[#10b981] text-[#10b981]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                                onClick={() => setGuideSubTab('human')}
+                            >
+                                <User size={16} className="inline mr-2 align-text-bottom" />
+                                Human Review
+                            </button>
+                            <button 
+                                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${guideSubTab === 'ai' ? 'border-[#8b5cf6] text-[#8b5cf6]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                                onClick={() => setGuideSubTab('ai')}
+                            >
+                                <Bot size={16} className="inline mr-2 align-text-bottom" />
+                                AI Guide Review
+                            </button>
+                        </div>
 
-                                            <div className="approval-actions">
-                                                <button
-                                                    className="reject-btn"
-                                                    onClick={() => handleRejectGuide(guide)}
-                                                    disabled={processingGuideId === guide.id}
-                                                >
-                                                    {processingGuideId === guide.id ? <RefreshCw className="spin" size={16} /> : <XCircle size={16} />}
-                                                </button>
-                                                <button
-                                                    className="approve-btn"
-                                                    onClick={() => handleApproveGuide(guide)}
-                                                    disabled={processingGuideId === guide.id}
-                                                >
-                                                    {processingGuideId === guide.id ? <RefreshCw className="spin" size={16} /> : <CheckCircle size={16} />}
-                                                    موافقة
-                                                </button>
-                                            </div>
-                                        </div>
+                        {guideSubTab === 'human' ? (
+                            <>
+                                {loadingGuides ? (
+                                    <div className="loading-state">
+                                        <RefreshCw className="spin" size={24} />
+                                        <p>جاري التحميل...</p>
                                     </div>
-                                ))}
+                                ) : pendingGuides.length === 0 ? (
+                                    <div className="empty-state">
+                                        <BookOpen size={48} />
+                                        <p>لا توجد أدلة معلقة</p>
+                                    </div>
+                                ) : (
+                                    <div className="guides-grid">
+                                        {pendingGuides.map(guide => (
+                                            <div key={guide.id} className="guide-review-card">
+                                                <div className="guide-header">
+                                                    <h3>{guide.title}</h3>
+                                                    <span className="guide-date">{guide.created_at ? new Date(guide.created_at).toLocaleDateString() : ''}</span>
+                                                </div>
+                                                <div className="guide-meta">
+                                                    <div className="guide-author">
+                                                        <User size={14} />
+                                                        <span>{guide.author_name || guide.user_email}</span>
+                                                    </div>
+                                                    <span className="guide-type">{guide.content_type || 'markdown'}</span>
+                                                </div>
+                                                <p className="guide-preview text-sm text-gray-400 mt-2 mb-4 line-clamp-3">
+                                                    {guide.content?.substring(0, 150) || 'No content preview'}...
+                                                </p>
+                                                <div className="guide-actions">
+                                                    <button
+                                                        className="preview-btn"
+                                                        onClick={() => window.open(`/guide/${guide.slug}?preview=true`, '_blank')}
+                                                    >
+                                                        <Eye size={16} />
+                                                        معاينة
+                                                    </button>
+
+                                                    <div className="approval-actions">
+                                                        <button
+                                                            className="reject-btn"
+                                                            onClick={() => handleRejectGuide(guide)}
+                                                            disabled={processingGuideId === guide.id}
+                                                        >
+                                                            {processingGuideId === guide.id ? <RefreshCw className="spin" size={16} /> : <XCircle size={16} />}
+                                                        </button>
+                                                        <button
+                                                            className="approve-btn"
+                                                            onClick={() => handleApproveGuide(guide)}
+                                                            disabled={processingGuideId === guide.id}
+                                                        >
+                                                            {processingGuideId === guide.id ? <RefreshCw className="spin" size={16} /> : <CheckCircle size={16} />}
+                                                            موافقة
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div className="ai-review-dashboard bg-white dark:bg-[#0a0a0a] rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                                <div className="ai-review-header p-5 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#111]">
+                                    <div>
+                                        <h3 className="font-semibold text-lg text-gray-900 dark:text-white flex items-center gap-2">
+                                            <Bot className="text-[#8b5cf6]" size={20} />
+                                            AI Auto-Moderator
+                                        </h3>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                            Automatically reviews new guides using Gemini Flash for profanity and policy violations.
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className={`text-sm font-medium ${aiAutoReviewEnabled ? 'text-green-500' : 'text-gray-500'}`}>
+                                            {aiAutoReviewEnabled ? 'Active' : 'Paused'}
+                                        </span>
+                                        <button 
+                                            onClick={toggleAiAutoReview}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${aiAutoReviewEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'}`}
+                                        >
+                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${aiAutoReviewEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div className="ai-review-list overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="border-b border-gray-200 dark:border-gray-800 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                <th className="px-5 py-3 font-medium">Status</th>
+                                                <th className="px-5 py-3 font-medium">Guide</th>
+                                                <th className="px-5 py-3 font-medium">Details</th>
+                                                <th className="px-5 py-3 font-medium">Duration</th>
+                                                <th className="px-5 py-3 font-medium text-right">Time</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800/50">
+                                            {aiLogs.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={5} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                                                        <Activity className="mx-auto mb-2 opacity-50" size={24} />
+                                                        No AI reviews processed yet.
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                aiLogs.map(log => (
+                                                    <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
+                                                        <td className="px-5 py-4">
+                                                            <div className="flex items-center gap-2">
+                                                                {log.status === 'ready' ? (
+                                                                    <>
+                                                                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-200">Ready</span>
+                                                                    </>
+                                                                ) : log.status === 'error' ? (
+                                                                    <>
+                                                                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-200">Rejected</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+                                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-200">Processing</span>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-5 py-4">
+                                                            <div className="font-medium text-sm text-gray-900 dark:text-white max-w-[200px] truncate">{log.title}</div>
+                                                            <div className="text-xs text-gray-500 truncate mt-0.5">{log.author}</div>
+                                                        </td>
+                                                        <td className="px-5 py-4">
+                                                            <div className="text-sm text-gray-600 dark:text-gray-400 max-w-[300px] truncate flex items-center gap-1.5">
+                                                                {log.status === 'ready' ? <Check size={14} className="text-green-500 flex-shrink-0" /> : <X size={14} className="text-red-500 flex-shrink-0" />}
+                                                                <span className="truncate">{log.message}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-5 py-4 text-sm text-gray-500 font-mono">
+                                                            {log.duration}
+                                                        </td>
+                                                        <td className="px-5 py-4 text-sm text-gray-500 text-right">
+                                                            {new Date(log.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         )}
                     </section>

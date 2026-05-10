@@ -17,13 +17,18 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, memo } from "react";
+import dynamic from 'next/dynamic';
+import AddGuideSkeleton from "./AddGuideModal/AddGuideSkeleton";
 import { useAuth } from "../contexts/AuthContext";
 import { useLoading } from "../contexts/LoadingContext";
 import { getAvatarForUser } from "../lib/avatar";
 import { supabase } from "../lib/supabase";
 import AccountSetupModal from "./AccountSetupModal";
-import AddGuideModal from "./AddGuideModal";
+const AddGuideModal = dynamic(() => import("./AddGuideModal"), {
+  ssr: false,
+  loading: () => <AddGuideSkeleton onClose={() => {}} />
+});
 import ApprovedBugModal from "./ApprovedBugModal";
 import GlobalLoader from "./GlobalLoader";
 import ModernNav from "./ModernNav";
