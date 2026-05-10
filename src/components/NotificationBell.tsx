@@ -1,10 +1,9 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
-import { Bell, Check, Info, AlertCircle, MessageSquare, BookOpen, Star, Sparkles, User as UserIcon } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Bell, Star, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNotifications } from "../contexts/NotificationContext";
 import { ZetsuNotification } from "../lib/notificationsApi";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function NotificationBell() {
@@ -36,17 +35,7 @@ export default function NotificationBell() {
         return date.toLocaleDateString();
     };
 
-    const getNotificationIcon = (type: string) => {
-        switch (type) {
-            case "system": return <Sparkles size={18} className="text-blue-500" />;
-            case "approved": return <Check size={18} className="text-green-500" />;
-            case "rejected": return <AlertCircle size={18} className="text-red-500" />;
-            case "published": return <BookOpen size={18} className="text-purple-500" />;
-            case "message": return <MessageSquare size={18} className="text-yellow-500" />;
-            case "update": return <Info size={18} className="text-blue-400" />;
-            default: return <Bell size={18} className="text-gray-500" />;
-        }
-    };
+
 
     const getActorAvatar = (actorName: string, type: string) => {
         if (actorName.toLowerCase() === "system") {

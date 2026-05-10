@@ -59,8 +59,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                         table: 'zetsu_notifications',
                         filter: `user_id=eq.${user.id}`
                     },
-                    (payload) => {
-                        const newNotif = payload.new as ZetsuNotification;
+                    (payload: import('@supabase/supabase-js').RealtimePostgresInsertPayload<Record<string, unknown>>) => {
+                        const newNotif = payload.new as unknown as ZetsuNotification;
                         setNotifications((prev) => [newNotif, ...prev]);
                         setUnreadCount((prev) => prev + 1);
                     }
@@ -73,8 +73,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                         table: 'zetsu_notifications',
                         filter: `user_id=eq.${user.id}`
                     },
-                    (payload) => {
-                        const updatedNotif = payload.new as ZetsuNotification;
+                    (payload: import('@supabase/supabase-js').RealtimePostgresUpdatePayload<Record<string, unknown>>) => {
+                        const updatedNotif = payload.new as unknown as ZetsuNotification;
                         setNotifications((prev) => 
                             prev.map(n => n.id === updatedNotif.id ? updatedNotif : n)
                         );

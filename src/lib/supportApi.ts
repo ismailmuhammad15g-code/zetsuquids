@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { notificationsApi } from './notificationsApi';
 
 interface SupportMessage {
     id?: string | number;
@@ -183,6 +184,27 @@ export const supportApi = {
                 .single()
 
             if (error) throw error
+
+            // Send notification to user
+            const { data: convData } = await supabase
+                .from('support_messages')
+                .select('user_id')
+                .eq('conversation_id', conversationId)
+                .not('user_id', 'is', null)
+                .limit(1)
+                .maybeSingle();
+
+            if (convData && convData.user_id) {
+                await notificationsApi.createNotification({
+                    user_id: convData.user_id,
+                    actor_name: staffName,
+                    type: 'message',
+                    title: 'New Support Reply',
+                    message: `A staff member has replied to your support message.`,
+                    link: '/stats' // Support messages are typically in the dashboard
+                });
+            }
+
             return { success: true, data }
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error)

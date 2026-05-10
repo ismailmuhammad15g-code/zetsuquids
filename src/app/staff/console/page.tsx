@@ -25,6 +25,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Ad, adminGuidesApi, adsApi, Guide, supabase } from '../../../lib/api';
 import { ChangelogEntry, fetchChangelog, saveChangelog } from '../../../lib/changelog';
 import { supportApi } from '../../../lib/supportApi';
+import { notificationsApi } from '../../../lib/notificationsApi';
 
 type LottieAnimationData = object
 
@@ -467,6 +468,16 @@ export default function StaffConsole() {
                 // Remove from list
                 setPendingGuides(prev => prev.filter(g => g.id !== guide.id))
                 // Notify via toast/alert (optional)
+                if (guide.author_id) {
+                    await notificationsApi.createNotification({
+                        user_id: guide.author_id,
+                        actor_name: "Staff",
+                        type: "approved",
+                        title: "Guide Approved",
+                        message: `Your guide "${guide.title}" has been approved and is now live!`,
+                        link: `/guide/${guide.slug}`
+                    });
+                }
             } else {
                 alert('Failed to approve guide')
             }
@@ -484,6 +495,15 @@ export default function StaffConsole() {
             const success = await adminGuidesApi.rejectGuide(guide.id || 0)
             if (success) {
                 setPendingGuides(prev => prev.filter(g => g.id !== guide.id))
+                if (guide.author_id) {
+                    await notificationsApi.createNotification({
+                        user_id: guide.author_id,
+                        actor_name: "Staff",
+                        type: "rejected",
+                        title: "Guide Rejected",
+                        message: `Unfortunately, your guide "${guide.title}" was rejected by our staff.`
+                    });
+                }
             } else {
                 alert('Failed to reject guide')
             }

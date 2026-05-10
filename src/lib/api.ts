@@ -162,11 +162,31 @@ export const guidesApi = {
             });
 
             // Keep local pending/draft guides so they aren't deleted from creator's view
-            localGuides.forEach((lg) => {
-                if (lg.slug && lg.status === "pending") {
-                    syncedMap.set(lg.slug, lg);
+            // BUT verify them against Supabase to ensure they haven't been rejected
+            const localPendingSlugs = localGuides.filter(g => g.status === "pending" && g.slug).map(g => g.slug as string);
+            
+            if (localPendingSlugs.length > 0) {
+                try {
+                    const { data: verifiedPending } = await supabase
+                        .from('guides')
+                        .select('slug, status')
+                        .in('slug', localPendingSlugs)
+                        .eq('status', 'pending');
+                        
+                    const verifiedSlugs = new Set(verifiedPending?.map((g: any) => g.slug) || []);
+                    
+                    localGuides.forEach((lg) => {
+                        if (lg.slug && lg.status === "pending" && verifiedSlugs.has(lg.slug)) {
+                            syncedMap.set(lg.slug, lg);
+                        }
+                    });
+                } catch(e) {
+                    // Fallback to keep them if check fails
+                    localGuides.forEach((lg) => {
+                        if (lg.slug && lg.status === "pending") syncedMap.set(lg.slug, lg);
+                    });
                 }
-            });
+            }
 
             const syncedGuides = Array.from(syncedMap.values()).sort((a, b) => {
                 const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -209,12 +229,15 @@ export const guidesApi = {
                     // FETCH FROM GITHUB: Try to get full content from GitHub if metadata exists
                     if (guide && guide.slug && RAW_BASE) {
                         try {
-                            const contentUrl = `${RAW_BASE}/guides/content/${guide.slug}.json`;
-                            const res = await fetch(contentUrl);
+                            const contentUrl = `${RAW_BASE}/guides/content/${guide.slug}.json?t=${Date.now()}`;
+                            const res = await fetch(contentUrl, { cache: "no-store" });
                             if (res.ok) {
                                 const extra = await res.json();
-                                guide = { ...guide, ...extra };
-                                console.log("âœ… Fetched full guide content from GitHub");
+                                guide.content = extra.content || extra.markdown || "";
+                                guide.markdown = extra.markdown || extra.content || "";
+                                guide.html_content = extra.html_content || "";
+                                guide.css_content = extra.css_content || "";
+                                console.log("✅ Fetched full guide content from GitHub");
                             }
                         } catch (e) {
                             console.warn("Failed to fetch guide content from GitHub, using DB fallback");
@@ -252,7 +275,27 @@ export const guidesApi = {
                 if (error) {
                     console.log("Supabase getById error:", error.message);
                 } else if (data) {
-                    return mergeGuideWithLocalCover(data);
+                    let guide = mergeGuideWithLocalCover(data);
+                    
+                    // FETCH FROM GITHUB
+                    if (guide && guide.slug && RAW_BASE) {
+                        try {
+                            const contentUrl = `${RAW_BASE}/guides/content/${guide.slug}.json?t=${Date.now()}`;
+                            const res = await fetch(contentUrl, { cache: "no-store" });
+                            if (res.ok) {
+                                const extra = await res.json();
+                                guide.content = extra.content || extra.markdown || "";
+                                guide.markdown = extra.markdown || extra.content || "";
+                                guide.html_content = extra.html_content || "";
+                                guide.css_content = extra.css_content || "";
+                                console.log("✅ Fetched full guide content from GitHub by ID");
+                            }
+                        } catch (e) {
+                            console.warn("Failed to fetch guide content from GitHub");
+                        }
+                    }
+                    
+                    return guide;
                 }
             } catch (err) {
                 console.error("Supabase error:", err);
@@ -1045,7 +1088,31 @@ export const adminGuidesApi = {
             console.warn("Error fetching pending guides:", error);
             return [];
         }
-        return data || [];
+
+        let pendingGuides = data as PendingGuide[];
+        
+        // Fetch content from GitHub if missing
+        if (isGitHubConfigured() && RAW_BASE && pendingGuides.length > 0) {
+            await Promise.all(pendingGuides.map(async (guide) => {
+                if (!guide.content && guide.slug) {
+                    try {
+                        const contentUrl = `${RAW_BASE}/guides/content/${guide.slug}.json?t=${Date.now()}`;
+                        const res = await fetch(contentUrl, { cache: "no-store" });
+                        if (res.ok) {
+                            const extra = await res.json();
+                            guide.content = extra.content || extra.markdown || "";
+                            guide.markdown = extra.markdown || extra.content || "";
+                            guide.html_content = extra.html_content || "";
+                            guide.css_content = extra.css_content || "";
+                        }
+                    } catch (e) {
+                        console.warn(`Failed to fetch content from GitHub for ${guide.slug}`);
+                    }
+                }
+            }));
+        }
+
+        return pendingGuides;
     },
 
     async approveGuide(id: number | string): Promise<boolean> {

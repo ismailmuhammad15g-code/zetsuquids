@@ -326,17 +326,29 @@ export default function GuidePage() {
         try {
             const headingRegex = /^(#{1,2})\s+(.+)$/gm;
             const tocItems: TocItem[] = [];
+            const idMap = new Map<string, number>();
             let match;
 
             while ((match = headingRegex.exec(guideMarkdown)) !== null) {
                 const level = match[1].length as 1 | 2;
                 const text = match[2].trim().replace(/[*_`~\[\]]/g, "");
-                const id = text
+                let baseId = text
                     .toLowerCase()
                     .trim()
                     .replace(/[^\w\s-]/g, "")
                     .replace(/\s+/g, "-")
                     .replace(/-+/g, "-");
+                
+                let id = baseId;
+                if (idMap.has(baseId)) {
+                    const count = idMap.get(baseId)! + 1;
+                    idMap.set(baseId, count);
+                    id = `${baseId}-${count}`;
+                } else {
+                    idMap.set(baseId, 0); // first instance has no suffix usually, but rehype-slug uses -1 for the second instance. Wait, first is "id", second is "id-1" or "id-2"?
+                    // Rehype-slug: first is `id`, second is `id-1`, third is `id-2`.
+                }
+
                 tocItems.push({ id, text, level });
             }
 
