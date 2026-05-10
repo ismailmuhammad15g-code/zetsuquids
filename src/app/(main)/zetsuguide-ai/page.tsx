@@ -931,14 +931,24 @@ interface ReasoningBlockProps {
   duration?: number;
   isStreaming: boolean;
   isInitialOpen?: boolean;
+  readingGuideName?: string | null;
 }
 
-function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true }: ReasoningBlockProps) {
+function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true, readingGuideName }: ReasoningBlockProps) {
   const [isOpen, setIsOpen] = useState(isInitialOpen);
 
   useEffect(() => {
     if (isStreaming) setIsOpen(true);
   }, [isStreaming]);
+
+  let titleText = isStreaming ? "🧠 Thinking..." : "💭 Thought Process";
+  if (readingGuideName && isStreaming && !thought) {
+    titleText = `📖 Reading ${readingGuideName}...`;
+  } else if (readingGuideName && isStreaming && thought) {
+    titleText = `🧠 Thinking about ${readingGuideName}...`;
+  } else if (readingGuideName && !isStreaming) {
+    titleText = `💭 Thought Process (Read ${readingGuideName})`;
+  }
 
   return (
     <div className={`zg-reasoning ${isOpen ? "open" : ""} ${isStreaming ? "streaming" : ""}`} style={{ marginBottom: "16px", border: "1px solid #e5e7eb", borderRadius: "12px" }}>
@@ -956,7 +966,7 @@ function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true }
           )}
         </div>
         <span className="zg-reasoning-trigger-text" style={{ color: "#111", fontWeight: 600 }}>
-          {isStreaming ? "🧠 Thinking..." : "💭 Thought Process"}
+          {titleText}
         </span>
         {duration && !isStreaming && (
           <span className="zg-reasoning-duration">{duration}s</span>
@@ -1263,12 +1273,7 @@ function MessageContent({ text, isError, isThinking, userEmail, selectedGuideNam
   if (isThinking && !text) {
     return (
       <div className="zg-ai-content prose prose-sm max-w-none" dir="auto">
-        {selectedGuideName && (
-          <div className="flex items-center gap-2 text-sm text-blue-600 mb-3 font-medium bg-blue-50/50 p-2.5 rounded-lg border border-blue-100 shadow-sm animate-pulse">
-            <Loader2 size={16} className="animate-spin" /> Zetsu Guide is reading {selectedGuideName}...
-          </div>
-        )}
-        <ReasoningBlock thought="" duration={undefined} isStreaming={true} isInitialOpen={true} />
+        <ReasoningBlock thought="" duration={undefined} isStreaming={true} isInitialOpen={true} readingGuideName={selectedGuideName} />
       </div>
     );
   }
@@ -1302,18 +1307,13 @@ function MessageContent({ text, isError, isThinking, userEmail, selectedGuideNam
 
   return (
     <div className={`zg-ai-content prose prose-sm max-w-none ${isError ? "text-red-600" : ""}`} dir="auto">
-      {selectedGuideName && isStreaming && (
-        <div className="flex items-center gap-2 text-sm text-blue-600 mb-3 font-medium bg-blue-50/50 p-2.5 rounded-lg border border-blue-100 shadow-sm">
-          <Check size={16} className="text-blue-500" /> Finished reading {selectedGuideName}
-        </div>
-      )}
-      
       {showThought && (
         <ReasoningBlock
           thought={thought}
           duration={undefined}
           isStreaming={isStreaming}
           isInitialOpen={true}
+          readingGuideName={selectedGuideName}
         />
       )}
 
@@ -2181,14 +2181,21 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                   
                   {/* Selected Guide Pill */}
                   {selectedGuide && (
-                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 pl-1 pr-3 py-1 rounded-full shadow-sm max-w-[300px] animate-in fade-in zoom-in duration-200">
+                    <div className="flex items-center gap-2 bg-white border border-gray-200 pl-1.5 pr-3 py-1.5 rounded-full shadow-sm max-w-[350px] animate-in fade-in zoom-in duration-200">
                       {selectedGuide.cover_image ? (
-                        <div className="w-5 h-5 rounded-full bg-cover bg-center border border-blue-100" style={{ backgroundImage: `url(${selectedGuide.cover_image})` }}></div>
+                        <div className="w-5 h-5 rounded-full bg-cover bg-center border border-gray-100" style={{ backgroundImage: `url(${selectedGuide.cover_image})` }}></div>
                       ) : (
-                        <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-blue-500"><ImageIcon size={10} /></div>
+                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-gray-500"><ImageIcon size={10} /></div>
                       )}
-                      <span className="text-xs font-bold text-blue-700 truncate block">Resources: {selectedGuide.title}</span>
-                      <button type="button" onClick={() => setSelectedGuide(null)} className="text-blue-400 hover:text-blue-700 ml-1 transition-colors bg-white/50 rounded-full p-0.5">
+                      <span className="text-[13px] font-bold text-gray-800 truncate block">
+                        <span className="text-gray-400 font-semibold mr-1.5">Resource:</span>
+                        {selectedGuide.title}
+                      </span>
+                      <button 
+                        type="button" 
+                        onClick={() => { setSelectedGuide(null); setInput(""); }} 
+                        className="text-gray-400 hover:text-red-500 hover:bg-red-50 ml-1 transition-colors bg-gray-50 rounded-full p-0.5"
+                      >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
                       </button>
                     </div>
@@ -2233,7 +2240,20 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                               <button
                                 key={guide.id}
                                 type="button"
-                                onClick={() => { setSelectedGuide(guide); setIsGuideDropdownOpen(false); }}
+                                onClick={() => { 
+                                  setSelectedGuide(guide); 
+                                  setIsGuideDropdownOpen(false);
+                                  setInput(`Can you explain the main concepts of the guide: "${guide.title}" and provide a summary?`);
+                                  if (textareaRef.current) {
+                                    textareaRef.current.focus();
+                                    setTimeout(() => {
+                                      if (textareaRef.current) {
+                                        textareaRef.current.style.height = "auto";
+                                        textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 180) + "px";
+                                      }
+                                    }, 10);
+                                  }
+                                }}
                                 className="w-full text-left flex gap-3 items-center p-2 rounded-lg hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100"
                               >
                                 {guide.cover_image ? (
