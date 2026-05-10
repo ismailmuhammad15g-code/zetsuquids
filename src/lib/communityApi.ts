@@ -360,14 +360,13 @@ export const communityApi = {
 
         if (error) throw error;
 
-        // Increment views count asynchronously (don't block the response)
+        // Increment views count via RPC (safer and avoids RLS/400 issues)
         if (data?.id) {
-            (supabase
-                .from("posts")
-                .update({ views_count: (data.views_count || 0) + 1 })
-                .eq("id", data.id) as unknown as Promise<void>)
-                .then(() => console.log("📊 View count incremented"))
-                .catch((err: unknown) => console.error("Failed to increment view count:", err));
+            supabase.rpc('increment_post_view', { post_uuid: data.id })
+                .then(({ error: rpcError }: { error: any }) => {
+                    if (rpcError) console.error("📊 Failed to increment view count via RPC:", rpcError);
+                    else console.log("📊 View count incremented via RPC");
+                });
         }
 
         const { data: profile } = await supabase
@@ -877,32 +876,55 @@ export const communityApi = {
 
     async updateCommunity(id: string | number, updates: Partial<Community>): Promise<Community> {
         if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
+        console.log("Updating community:", id, updates);
+
         const { data, error } = await supabase
             .from("community_groups")
             .update(updates)
             .eq("id", id)
             .select();
         
-        if (error) throw error;
-        if (!data || data.length === 0) throw new Error("Community updated but no data returned");
+        if (error) {
+            console.error("Supabase error updating community:", error);
+            throw error;
+        }
+
+        if (!data || data.length === 0) {
+            // Check if the community exists first
+            const { data: exists } = await supabase.from("community_groups").select("id").eq("id", id).maybeSingle();
+            if (!exists) {
+                throw new Error(`Community with ID ${id} not found.`);
+            }
+            throw new Error("Community update returned no data. Check RLS policies.");
+        }
         return data[0];
     },
 
     async getCommunityMembers(groupId: string | number): Promise<UserProfile[]> {
         if (!isSupabaseConfigured()) return [];
-        const { data, error } = await supabase
+        
+        // Fetch member IDs first
+        const { data: members, error: membersError } = await supabase
             .from("community_members")
-            .select(`
-        user_id,
-        profiles:zetsuguide_user_profiles(*)
-      `)
+            .select("user_id")
             .eq("group_id", groupId);
 
-        if (error) return [];
-        return data.map((m: unknown) => {
-            const item = m as { profiles: unknown };
-            return item.profiles;
-        }).filter(Boolean) as UserProfile[];
+        if (membersError || !members || members.length === 0) return [];
+        
+        const userIds = (members as { user_id: string }[]).map(m => m.user_id);
+
+        // Fetch profiles for these users
+        const { data: profiles, error: profilesError } = await supabase
+            .from("zetsuguide_user_profiles")
+            .select("*")
+            .in("user_id", userIds);
+
+        if (profilesError) {
+            console.error("Error fetching member profiles:", profilesError);
+            return [];
+        }
+
+        return profiles || [];
     },
 
     async joinCommunity(groupId: string | number, userId: string): Promise<boolean> {
