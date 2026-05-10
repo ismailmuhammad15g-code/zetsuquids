@@ -1666,7 +1666,6 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
         userId: user?.id,
         isDeepReasoning,
         isSubAgentMode: isSubAgent,
-        skipCreditDeduction: true,
         stream: true,
         ...(customApiKey && { apiKey: customApiKey }),
       };
@@ -1783,16 +1782,10 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
         ? messages  // Use current messages state which already has the AI response
         : [...newMessages, { id: Date.now() + 2, role: "assistant", content: finalAiContent, timestamp: new Date().toISOString() } as ChatMessage];  // Fallback
 
-      // Deduct credit
+      // Update local state instantly (Backend handles secure DB deduction)
       const creditBalance = credits?.balance ?? 5;
       const newCredits = Math.max(0, creditBalance - 1);
       setCredits({ balance: newCredits });
-      if (user?.email) {
-        await supabase
-          .from("zetsuguide_credits")
-          .update({ credits: newCredits })
-          .eq("user_email", user.email.toLowerCase());
-      }
 
       // Save conversation
       await saveConversation(finalMessages);

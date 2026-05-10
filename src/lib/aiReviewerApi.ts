@@ -11,11 +11,11 @@ export interface AIReviewResult {
 export const aiReviewerApi = {
     async reviewGuide(guide: Guide): Promise<AIReviewResult> {
         const startTime = Date.now();
-        
+
         // Load inside the function to ensure Next.js environment variable replacement works correctly
-        const apiKey = 
-            process.env.NEXT_PUBLIC_AI_API_KEY || 
-            process.env.NEXT_PUBLIC_GEMINI_API_KEY || 
+        const apiKey =
+            process.env.NEXT_PUBLIC_AI_API_KEY ||
+            process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
             "";
 
         if (!apiKey) {
@@ -83,16 +83,16 @@ Format:
 
             const data = await response.json();
             const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            
+
             if (!textResponse) {
                 throw new Error("No text in response");
             }
 
             const parsed = JSON.parse(textResponse);
-            
+
             return {
                 approved: !!parsed.approved,
-                reason: parsed.reason || (parsed.approved ? "Approved by AI" : "Rejected by AI policy"),
+                reason: parsed.reason || (parsed.approved ? "Approved " : "Rejected  policy"),
                 durationMs: Date.now() - startTime
             };
         } catch (error) {

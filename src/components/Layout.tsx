@@ -725,8 +725,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           {children}
         </main>
 
-        {/* Footer - Hidden on Community Page */}
-        {!pathname.startsWith("/community") && (
+        {/* Footer - Hidden on Community Page and AI Chat */}
+        {!pathname.startsWith("/community") && !pathname.startsWith("/zetsuguide-ai") && (
           <footer className="border-t-2 border-black mt-16">
             <div className="max-w-7xl mx-auto px-4 py-8">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4">

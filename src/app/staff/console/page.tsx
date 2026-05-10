@@ -199,7 +199,7 @@ export default function StaffConsole() {
             loadPendingGuides() // Load guides on init
             loadAds() // Load ads on init
             loadChangelog()
-            
+
             // Load AI Review settings
             const aiEnabled = localStorage.getItem('zetsu_ai_auto_review') === 'true';
             setAiAutoReviewEnabled(aiEnabled);
@@ -207,7 +207,7 @@ export default function StaffConsole() {
             if (savedLogs) {
                 try {
                     setAiLogs(JSON.parse(savedLogs));
-                } catch(e) {}
+                } catch (e) { }
             }
         } else {
             sessionStorage.removeItem('staffAuthenticated')
@@ -395,19 +395,19 @@ export default function StaffConsole() {
     useEffect(() => {
         const processAiAutoReview = async () => {
             if (!aiAutoReviewEnabled || pendingGuides.length === 0 || isAiProcessingRef.current) return;
-            
+
             isAiProcessingRef.current = true;
             let changesMade = false;
-            
+
             for (const guide of pendingGuides) {
                 // Skip if already processed in logs recently
                 if (aiLogs.some(log => log.guide_id === guide.id && (Date.now() - new Date(log.time).getTime() < 60000))) continue;
-                
+
                 setProcessingGuideId(guide.id || null);
                 try {
                     const reviewResult = await aiReviewerApi.reviewGuide(guide);
                     let status: 'ready' | 'error' = 'error';
-                    
+
                     if (reviewResult.approved) {
                         const success = await adminGuidesApi.approveGuide(guide.id!);
                         if (success) {
@@ -419,7 +419,7 @@ export default function StaffConsole() {
                                 actor_name: "Zetsu AI Moderator",
                                 type: "approved",
                                 title: "Guide Auto-Approved",
-                                message: `Your guide "${guide.title}" was reviewed and approved by AI!`,
+                                message: `Your guide "${guide.title}" was reviewed and approved `,
                                 link: `/guide/${guide.slug}`
                             });
                         }
@@ -433,12 +433,12 @@ export default function StaffConsole() {
                                 user_id: guide.author_id!,
                                 actor_name: "Zetsu AI Moderator",
                                 type: "rejected",
-                                title: "Guide Rejected by AI",
-                                message: `Your guide "${guide.title}" was rejected by AI. Reason: ${reviewResult.reason}`
+                                title: "Guide Rejected ",
+                                message: `Your guide "${guide.title}" was rejected . Reason: ${reviewResult.reason}`
                             });
                         }
                     }
-                    
+
                     const newLog: AiReviewLog = {
                         id: Math.random().toString(36).substring(7),
                         guide_id: guide.id!,
@@ -449,21 +449,21 @@ export default function StaffConsole() {
                         time: new Date().toISOString(),
                         message: reviewResult.reason
                     };
-                    
+
                     setAiLogs(prev => {
                         const updated = [newLog, ...prev].slice(0, 50);
                         localStorage.setItem('zetsu_ai_review_logs', JSON.stringify(updated));
                         return updated;
                     });
-                    
+
                 } catch (err) {
                     console.error("AI Review failed for guide", guide.id, err);
                 }
             }
-            
+
             setProcessingGuideId(null);
             isAiProcessingRef.current = false;
-            
+
             if (changesMade) {
                 loadPendingGuides();
             }
@@ -480,7 +480,7 @@ export default function StaffConsole() {
 
     const handleRetryAiReview = async (logId: string, guideId: number | string) => {
         let guide = pendingGuides.find(g => String(g.id) === String(guideId));
-        
+
         if (!guide) {
             // Try fetching from DB directly
             const dbGuide = await adminGuidesApi.fetchGuideById(guideId);
@@ -496,12 +496,12 @@ export default function StaffConsole() {
 
         // Update log to processing
         setAiLogs(prev => prev.map(log => log.id === logId ? { ...log, status: 'processing', message: 'Retrying review...' } : log));
-        
+
         setProcessingGuideId(guide.id || null);
         try {
             const reviewResult = await aiReviewerApi.reviewGuide(guide);
             let status: 'ready' | 'error' = 'error';
-            
+
             if (reviewResult.approved) {
                 const success = await adminGuidesApi.approveGuide(guide.id!);
                 if (success) {
@@ -512,7 +512,7 @@ export default function StaffConsole() {
                         actor_name: "Zetsu AI Moderator",
                         type: "approved",
                         title: "Guide Auto-Approved",
-                        message: `Your guide "${guide.title}" was reviewed and approved by AI!`,
+                        message: `Your guide "${guide.title}" was reviewed and approved `,
                         link: `/guide/${guide.slug}`
                     });
                 }
@@ -525,12 +525,12 @@ export default function StaffConsole() {
                         user_id: guide.author_id!,
                         actor_name: "Zetsu AI Moderator",
                         type: "rejected",
-                        title: "Guide Rejected by AI",
-                        message: `Your guide "${guide.title}" was rejected by AI. Reason: ${reviewResult.reason}`
+                        title: "Guide Rejected ",
+                        message: `Your guide "${guide.title}" was rejected . Reason: ${reviewResult.reason}`
                     });
                 }
             }
-            
+
             const updatedLog: AiReviewLog = {
                 ...aiLogs.find(l => l.id === logId)!,
                 status: status,
@@ -538,13 +538,13 @@ export default function StaffConsole() {
                 time: new Date().toISOString(),
                 message: reviewResult.reason
             };
-            
+
             setAiLogs(prev => {
                 const updated = prev.map(log => log.id === logId ? updatedLog : log);
                 localStorage.setItem('zetsu_ai_review_logs', JSON.stringify(updated));
                 return updated;
             });
-            
+
             if (status === 'ready' || status === 'error') {
                 loadPendingGuides();
             }
@@ -1119,14 +1119,14 @@ export default function StaffConsole() {
 
                         {/* Subtabs for Human vs AI Review */}
                         <div className="flex border-b border-gray-200 dark:border-gray-800 mb-6 mt-4">
-                            <button 
+                            <button
                                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${guideSubTab === 'human' ? 'border-[#10b981] text-[#10b981]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                                 onClick={() => setGuideSubTab('human')}
                             >
                                 <User size={16} className="inline mr-2 align-text-bottom" />
                                 Human Review
                             </button>
-                            <button 
+                            <button
                                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${guideSubTab === 'ai' ? 'border-[#8b5cf6] text-[#8b5cf6]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                                 onClick={() => setGuideSubTab('ai')}
                             >
@@ -1213,7 +1213,7 @@ export default function StaffConsole() {
                                         <span className={`text-sm font-medium ${aiAutoReviewEnabled ? 'text-green-500' : 'text-gray-500'}`}>
                                             {aiAutoReviewEnabled ? 'Active' : 'Paused'}
                                         </span>
-                                        <button 
+                                        <button
                                             onClick={toggleAiAutoReview}
                                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${aiAutoReviewEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'}`}
                                         >
@@ -1221,7 +1221,7 @@ export default function StaffConsole() {
                                         </button>
                                     </div>
                                 </div>
-                                
+
                                 <div className="ai-review-list overflow-x-auto">
                                     <table className="w-full text-left border-collapse">
                                         <thead>
@@ -1279,9 +1279,9 @@ export default function StaffConsole() {
                                                         </td>
                                                         <td className="px-5 py-4 text-sm text-gray-500 text-right">
                                                             <div className="flex flex-col items-end gap-1">
-                                                                <span>{new Date(log.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                                <span>{new Date(log.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                                                 {log.status === 'error' && (
-                                                                    <button 
+                                                                    <button
                                                                         onClick={() => handleRetryAiReview(log.id, log.guide_id)}
                                                                         className="text-[10px] bg-gray-100 dark:bg-white/5 hover:bg-indigo-600 hover:text-white px-2 py-0.5 rounded transition-all flex items-center gap-1 font-bold"
                                                                     >
