@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Bold, Italic, Strikethrough, Heading1, Heading2, Hash, 
   List, ListOrdered, Table, Link as LinkIcon, Image as ImageIcon, 
@@ -38,6 +39,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   const [previewHtml, setPreviewHtml] = useState(() => getMarkdownHtml(formData.content));
   const [violations, setViolations] = useState<Violation[]>([]);
   const [currentViolationIndex, setCurrentViolationIndex] = useState(0);
+  const [isPreviewUpdating, setIsPreviewUpdating] = useState(false);
 
   useEffect(() => {
     // Debounce violations calculation to avoid infinite re-renders
@@ -66,9 +68,11 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   };
 
   useEffect(() => {
+    setIsPreviewUpdating(true);
     const timer = setTimeout(() => {
       setPreviewHtml(getMarkdownHtml(formData.content));
-    }, 300);
+      setIsPreviewUpdating(false);
+    }, 400); // Slightly longer for a more noticeable premium feel
     return () => clearTimeout(timer);
   }, [formData.content]);
 
@@ -257,10 +261,46 @@ export const EditorTab: React.FC<EditorTabProps> = ({
         </div>
 
         {viewMode === "split" && (
-          <div className="flex-1 flex flex-col overflow-hidden bg-white hidden lg:flex custom-scrollbar">
-            <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-white shrink-0">Preview</div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-              <div className="p-10 prose prose-lg prose-slate max-w-none" dir="auto">
+          <div className="flex-1 flex flex-col overflow-hidden bg-white hidden lg:flex custom-scrollbar relative">
+            <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-white shrink-0 flex justify-between items-center h-9">
+              <span>Preview</span>
+              {isPreviewUpdating && (
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+                  <span className="text-[9px] text-indigo-500 font-black">SYNCING</span>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+              <AnimatePresence>
+                {isPreviewUpdating && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-10 bg-white/40 backdrop-blur-[1px] p-10 pointer-events-none"
+                  >
+                    <div className="space-y-4 max-w-none">
+                      <div className="h-8 bg-gray-100 rounded-lg w-3/4 animate-pulse" />
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-50 rounded w-full animate-pulse" />
+                        <div className="h-4 bg-gray-50 rounded w-5/6 animate-pulse" />
+                        <div className="h-4 bg-gray-50 rounded w-4/6 animate-pulse" />
+                      </div>
+                      <div className="h-40 bg-gray-50 rounded-xl w-full animate-pulse" />
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-50 rounded w-full animate-pulse" />
+                        <div className="h-4 bg-gray-50 rounded w-2/3 animate-pulse" />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div 
+                className={`p-10 prose prose-lg prose-slate max-w-none transition-opacity duration-300 ${isPreviewUpdating ? 'opacity-30' : 'opacity-100'}`} 
+                dir="auto"
+              >
                 <div
                   dangerouslySetInnerHTML={{
                     __html: previewHtml,
