@@ -1,5 +1,5 @@
 "use client";
-import { Bell } from "lucide-react";
+import { Bell, Trash2, CheckCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNotifications } from "../contexts/NotificationContext";
 import { ZetsuNotification } from "../lib/notificationsApi";
@@ -97,19 +97,18 @@ export default function NotificationBell() {
                     <div className="p-4 border-b-2 border-black flex items-center justify-between bg-gray-50">
                         <h3 className="font-black text-black uppercase tracking-tight">Notifications</h3>
                         <div className="flex items-center gap-3">
-                            {unreadCount > 0 && !showDeleteAll && (
+                            {unreadCount > 0 ? (
                                 <button
                                     onClick={async () => {
                                         await markAllAsRead();
                                         setShowDeleteAll(true);
                                     }}
-                                    className="text-xs font-bold text-gray-500 hover:text-black transition-colors"
+                                    className="text-xs font-bold text-gray-500 hover:text-black transition-colors flex items-center gap-1"
                                 >
-                                    Mark all as read
+                                    <CheckCheck size={14} />
+                                    Mark all read
                                 </button>
-                            )}
-                            
-                            {showDeleteAll && notifications.length > 0 && (
+                            ) : notifications.length > 0 ? (
                                 <button
                                     onClick={async () => {
                                         if (window.confirm("ARE YOU SURE? This will permanently delete all your notifications!")) {
@@ -120,11 +119,12 @@ export default function NotificationBell() {
                                         }
                                     }}
                                     disabled={isDeletingAll}
-                                    className="text-xs font-black text-red-600 hover:text-red-700 transition-colors uppercase animate-in fade-in slide-in-from-right-2"
+                                    className="text-xs font-black text-red-600 hover:text-red-700 transition-colors uppercase flex items-center gap-1 animate-in fade-in slide-in-from-right-2"
                                 >
+                                    <Trash2 size={14} />
                                     {isDeletingAll ? "Deleting..." : "Delete all"}
                                 </button>
-                            )}
+                            ) : null}
                         </div>
                     </div>
 
