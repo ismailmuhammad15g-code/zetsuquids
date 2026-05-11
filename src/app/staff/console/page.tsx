@@ -63,6 +63,7 @@ interface SupportConversation {
     status?: string
     user_avatar?: string
     user_id?: string
+    last_seen?: string
 }
 
 interface SupportMessage {
@@ -135,6 +136,7 @@ export default function StaffConsole() {
     const [conversations, setConversations] = useState<SupportConversation[]>([])
     const [loadingConversations, setLoadingConversations] = useState<boolean>(false)
     const [expandedConversation, setExpandedConversation] = useState<string | null>(null)
+    const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
     const [conversationMessages, setConversationMessages] = useState<SupportMessage[]>([])
     const [loadingMessages, setLoadingMessages] = useState<boolean>(false)
     const [replyText, setReplyText] = useState<string>('')
@@ -352,7 +354,7 @@ export default function StaffConsole() {
                 const emails = result.data.map(c => c.user_email)
                 const { data: profiles } = await supabase
                     .from('zetsuguide_user_profiles')
-                    .select('user_email, avatar_url, display_name, user_id')
+                    .select('user_email, avatar_url, display_name, user_id, last_seen')
                     .in('user_email', emails)
 
                 const enriched = result.data.map(conv => {
@@ -361,7 +363,8 @@ export default function StaffConsole() {
                         ...conv,
                         user_avatar: profile?.avatar_url,
                         user_name: profile?.display_name || conv.user_name,
-                        user_id: profile?.user_id
+                        user_id: profile?.user_id,
+                        last_seen: profile?.last_seen
                     }
                 })
                 setConversations(enriched)
@@ -374,6 +377,28 @@ export default function StaffConsole() {
         }
         setLoadingConversations(false)
     }
+
+    // Subscribe to presence
+    useEffect(() => {
+        const channel = supabase.channel('support_presence');
+
+        channel
+            .on('presence', { event: 'sync' }, () => {
+                const state = channel.presenceState();
+                const online = new Set<string>();
+                Object.values(state).forEach((presences: any) => {
+                    presences.forEach((p: any) => {
+                        if (p.user_email) online.add(p.user_email);
+                    });
+                });
+                setOnlineUsers(online);
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []);
 
     // Load messages for a conversation
     const loadMessages = async (conversationId: string) => {
@@ -1129,7 +1154,16 @@ export default function StaffConsole() {
                                                         </div>
                                                         <div className="cursor-pointer group" onClick={() => currentConv?.user_id && window.open(`/staff/users/${currentConv.user_id}`, '_blank')}>
                                                             <h3 className="font-bold text-slate-900 leading-tight group-hover:text-blue-600 transition-colors">{currentConv?.user_name || currentConv?.user_email}</h3>
-                                                            <p className="text-xs text-green-500 font-medium">Online • View Profile</p>
+                                                            {onlineUsers.has(currentConv?.user_email || '') ? (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                                                    <p className="text-xs text-green-600 font-bold">Online Now</p>
+                                                                </div>
+                                                            ) : (
+                                                                <p className="text-xs text-slate-400 font-medium">
+                                                                    Last seen {currentConv?.last_seen ? formatTime(currentConv.last_seen) : 'unknown'}
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 );

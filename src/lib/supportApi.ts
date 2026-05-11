@@ -211,6 +211,16 @@ export const supportApi = {
 
             if (error) throw error
 
+            // Update conversation record with last message info
+            await supabase
+                .from('support_conversations')
+                .update({
+                    last_message: message,
+                    last_message_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', conversationId);
+
             // Send notification to user
             // Attempt to find the user_id for this conversation
             const { data: userData } = await supabase
