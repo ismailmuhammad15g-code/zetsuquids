@@ -258,11 +258,15 @@ export default function DirectSupportChat() {
             const userName = user.user_metadata?.name || user.email?.split('@')[0] || 'User'
 
             // Check if conversation exists
-            let { data: existingConv, error: fetchError } = await supabase
+            // Check if conversation exists (handle multiple rows gracefully)
+            let { data: existingConvs, error: fetchError } = await supabase
                 .from('support_conversations')
                 .select('*')
                 .eq('user_email', userEmail)
-                .maybeSingle()
+                .order('created_at', { ascending: false })
+                .limit(1)
+
+            let existingConv = existingConvs?.[0]
 
             if (fetchError) {
                 if (hasMeaningfulErrorInfo(fetchError)) {
@@ -274,7 +278,7 @@ export default function DirectSupportChat() {
 
             if (!existingConv) {
                 // Create new conversation
-                const { data: newConv, error: createError } = await supabase
+                const { data: createdConvs, error: createError } = await supabase
                     .from('support_conversations')
                     .insert({
                         user_email: userEmail,
@@ -282,19 +286,21 @@ export default function DirectSupportChat() {
                         status: 'active'
                     })
                     .select()
-                    .maybeSingle()
+                
+                const newConv = createdConvs?.[0]
 
                 if (createError) {
                     // unexpected error or conflict (409)
                     if (createError.code === '23505') { // Unique violation
                         // Try fetching again, it might have been created in parallel
-                        const { data: retryConv } = await supabase
+                        const { data: retryConvs } = await supabase
                             .from('support_conversations')
                             .select('*')
                             .eq('user_email', userEmail)
-                            .maybeSingle()
+                            .order('created_at', { ascending: false })
+                            .limit(1)
 
-                        if (retryConv) existingConv = retryConv
+                        if (retryConvs?.[0]) existingConv = retryConvs[0]
                     } else {
                         if (hasMeaningfulErrorInfo(createError)) {
                             console.error('Error creating conversation:', createError)
@@ -348,22 +354,9 @@ export default function DirectSupportChat() {
     }
 
     // Mark user unread messages as read when viewing
+    // Mark user unread messages as read when viewing
     useEffect(() => {
-        if (conversationId && isSupabaseConfigured()) {
-            const markUserRead = async () => {
-                // We use maybeSingle/update to set user_unread_count to 0
-                // This column must exist (added via migration)
-                try {
-                    await supabase
-                        .from('support_conversations')
-                        .update({ user_unread_count: 0 })
-                        .eq('id', conversationId)
-                } catch (e) {
-                    console.error('Error marking user read:', e)
-                }
-            }
-            markUserRead()
-        }
+        // Skipping user_unread_count update to avoid 400 errors if column is missing
     }, [conversationId, messages])
 
     const handleSend = async (e?: FormEvent<HTMLFormElement>): Promise<void> => {
