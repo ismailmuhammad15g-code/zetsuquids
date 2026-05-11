@@ -64,6 +64,7 @@ interface SupportConversation {
     user_avatar?: string
     user_id?: string
     last_seen?: string
+    username?: string
 }
 
 interface SupportMessage {
@@ -358,13 +359,19 @@ export default function StaffConsole() {
                     .in('user_email', emails)
 
                 const enriched = result.data.map(conv => {
-                    const profile = (profiles as any[])?.find((p: any) => p.user_email === conv.user_email)
+                    const profile = (profiles as any[])?.find((p: any) => 
+                        p.user_email?.toLowerCase() === conv.user_email?.toLowerCase()
+                    )
+                    const displayName = profile?.display_name || conv.user_name || conv.user_email.split('@')[0];
+                    const username = profile?.username || conv.user_email.split('@')[0];
+                    
                     return {
                         ...conv,
-                        user_avatar: profile?.avatar_url,
-                        user_name: profile?.display_name || conv.user_name,
+                        username: username,
+                        user_avatar: profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff`,
+                        user_name: displayName,
                         user_id: profile?.user_id,
-                        last_seen: profile?.last_seen
+                        last_seen: profile?.last_seen || conv.last_message_at
                     }
                 })
                 setConversations(enriched)
@@ -1144,16 +1151,19 @@ export default function StaffConsole() {
                                                     <div className="user-info">
                                                         <div 
                                                             className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 overflow-hidden cursor-pointer hover:ring-2 hover:ring-slate-900 transition-all"
-                                                            onClick={() => currentConv?.user_id && window.open(`/staff/users/${currentConv.user_id}`, '_blank')}
+                                                            onClick={() => window.open(`/${currentConv?.username}/workspace`, '_blank')}
                                                         >
-                                                            {currentConv?.user_avatar ? (
-                                                                <img src={currentConv.user_avatar} alt="" className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <User size={20} />
-                                                            )}
+                                                            <img 
+                                                                src={currentConv?.user_avatar} 
+                                                                alt="" 
+                                                                className="w-full h-full object-cover" 
+                                                                onError={(e) => {
+                                                                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentConv?.user_name || 'U')}&background=random`;
+                                                                }}
+                                                            />
                                                         </div>
-                                                        <div className="cursor-pointer group" onClick={() => currentConv?.user_id && window.open(`/staff/users/${currentConv.user_id}`, '_blank')}>
-                                                            <h3 className="font-bold text-slate-900 leading-tight group-hover:text-blue-600 transition-colors">{currentConv?.user_name || currentConv?.user_email}</h3>
+                                                        <div className="cursor-pointer group" onClick={() => window.open(`/${currentConv?.username}/workspace`, '_blank')}>
+                                                            <h3 className="font-bold text-slate-900 leading-tight group-hover:text-blue-600 transition-colors">{currentConv?.user_name}</h3>
                                                             {onlineUsers.has(currentConv?.user_email || '') ? (
                                                                 <div className="flex items-center gap-1.5">
                                                                     <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -1161,7 +1171,7 @@ export default function StaffConsole() {
                                                                 </div>
                                                             ) : (
                                                                 <p className="text-xs text-slate-400 font-medium">
-                                                                    Last seen {currentConv?.last_seen ? formatTime(currentConv.last_seen) : 'unknown'}
+                                                                    {currentConv?.last_seen ? `Last seen ${formatTime(currentConv.last_seen)}` : 'Offline'}
                                                                 </p>
                                                             )}
                                                         </div>
