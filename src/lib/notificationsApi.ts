@@ -188,5 +188,31 @@ export const notificationsApi = {
         }
 
         return data as ZetsuNotification;
+    },
+
+    async deleteAllNotifications(userId: string): Promise<boolean> {
+        if (!isSupabaseConfigured()) {
+            const all: ZetsuNotification[] = JSON.parse(localStorage.getItem("zetsu_notifications") || "[]");
+            const filtered = all.filter(n => n.user_id !== userId);
+            localStorage.setItem("zetsu_notifications", JSON.stringify(filtered));
+            return true;
+        }
+
+        const client = getSupabase() || supabase;
+        const { error } = await client
+            .from("zetsu_notifications")
+            .delete()
+            .eq("user_id", userId);
+
+        if (error) {
+            console.error("Error deleting all notifications:", error);
+            // Fallback
+            const all: ZetsuNotification[] = JSON.parse(localStorage.getItem("zetsu_notifications") || "[]");
+            const filtered = all.filter(n => n.user_id !== userId);
+            localStorage.setItem("zetsu_notifications", JSON.stringify(filtered));
+            return false;
+        }
+
+        return true;
     }
 };

@@ -8,8 +8,10 @@ import { useModal } from "../contexts/ModalContext";
 import { formatDistanceToNow } from "date-fns";
 
 export default function NotificationBell() {
-    const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+    const { notifications, unreadCount, markAsRead, markAllAsRead, deleteAllNotifications } = useNotifications();
     const [isOpen, setIsOpen] = useState(false);
+    const [showDeleteAll, setShowDeleteAll] = useState(false);
+    const [isDeletingAll, setIsDeletingAll] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
     const { setIsChatOpen, setChatTab } = useModal();
@@ -75,7 +77,10 @@ export default function NotificationBell() {
     return (
         <div className="relative" ref={dropdownRef}>
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => {
+                    setIsOpen(!isOpen);
+                    setShowDeleteAll(false);
+                }}
                 className="relative p-2 text-gray-400 hover:text-white transition-colors"
                 aria-label="Notifications"
             >
@@ -91,14 +96,36 @@ export default function NotificationBell() {
                 <div className="absolute right-0 mt-2 w-80 sm:w-96 origin-top-right rounded-2xl bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                     <div className="p-4 border-b-2 border-black flex items-center justify-between bg-gray-50">
                         <h3 className="font-black text-black uppercase tracking-tight">Notifications</h3>
-                        {unreadCount > 0 && (
-                            <button
-                                onClick={() => markAllAsRead()}
-                                className="text-xs font-bold text-gray-500 hover:text-black transition-colors"
-                            >
-                                Mark all as read
-                            </button>
-                        )}
+                        <div className="flex items-center gap-3">
+                            {unreadCount > 0 && !showDeleteAll && (
+                                <button
+                                    onClick={async () => {
+                                        await markAllAsRead();
+                                        setShowDeleteAll(true);
+                                    }}
+                                    className="text-xs font-bold text-gray-500 hover:text-black transition-colors"
+                                >
+                                    Mark all as read
+                                </button>
+                            )}
+                            
+                            {showDeleteAll && notifications.length > 0 && (
+                                <button
+                                    onClick={async () => {
+                                        if (window.confirm("ARE YOU SURE? This will permanently delete all your notifications!")) {
+                                            setIsDeletingAll(true);
+                                            await deleteAllNotifications();
+                                            setIsDeletingAll(false);
+                                            setShowDeleteAll(false);
+                                        }
+                                    }}
+                                    disabled={isDeletingAll}
+                                    className="text-xs font-black text-red-600 hover:text-red-700 transition-colors uppercase animate-in fade-in slide-in-from-right-2"
+                                >
+                                    {isDeletingAll ? "Deleting..." : "Delete all"}
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     <div className="max-h-[400px] overflow-y-auto custom-scrollbar">

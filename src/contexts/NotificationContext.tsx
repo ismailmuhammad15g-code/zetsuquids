@@ -10,6 +10,7 @@ interface NotificationContextType {
     loading: boolean;
     markAsRead: (id: string) => Promise<void>;
     markAllAsRead: () => Promise<void>;
+    deleteAllNotifications: () => Promise<void>;
     refreshNotifications: () => Promise<void>;
 }
 
@@ -129,6 +130,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
     };
 
+    const deleteAllNotifications = async () => {
+        if (!user?.id) return;
+        const success = await notificationsApi.deleteAllNotifications(user.id);
+        if (success) {
+            setNotifications([]);
+            setUnreadCount(0);
+        }
+    };
+
     return (
         <NotificationContext.Provider value={{
             notifications,
@@ -136,6 +146,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             loading,
             markAsRead,
             markAllAsRead,
+            deleteAllNotifications,
             refreshNotifications
         }}>
             {children}
