@@ -5,8 +5,6 @@ import {
     ArrowLeft,
     BookOpen,
     CheckCircle,
-    ChevronDown, ChevronUp,
-    Clock,
     Eye,
     FileText,
     LogOut,
@@ -136,7 +134,6 @@ export default function StaffConsole() {
     // Support Messages State
     const [conversations, setConversations] = useState<SupportConversation[]>([])
     const [loadingConversations, setLoadingConversations] = useState<boolean>(false)
-    const [supportError, setSupportError] = useState<string | null>(null)
     const [expandedConversation, setExpandedConversation] = useState<string | null>(null)
     const [conversationMessages, setConversationMessages] = useState<SupportMessage[]>([])
     const [loadingMessages, setLoadingMessages] = useState<boolean>(false)
@@ -345,18 +342,15 @@ export default function StaffConsole() {
     // Load support conversations
     const loadConversations = async () => {
         setLoadingConversations(true)
-        setSupportError(null)
         try {
             const result = await supportApi.getAllConversations()
             if (result.success && result.data) {
                 setConversations(result.data)
             } else {
                 setConversations([])
-                setSupportError(result.error || 'Failed to load conversations')
             }
         } catch (error: unknown) {
             const errorMsg = error instanceof Error ? error.message : JSON.stringify(error)
-            setSupportError(errorMsg || 'Failed to load conversations')
             console.warn('Error loading conversations:', errorMsg)
         }
         setLoadingConversations(false)
@@ -774,25 +768,6 @@ export default function StaffConsole() {
         if (!timestamp) return ''
         const date = new Date(timestamp)
         return date.toLocaleDateString('en-US') + ' ' + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-    }
-
-    // Get avatar for message
-    const getMessageAvatar = (msg: SupportMessage) => {
-        if (msg.sender_type === 'user') {
-            return null // User avatar handled separately
-        }
-
-        if (msg.sender_type === 'admin') {
-            return { type: 'image', src: adminProfileImg, name: 'Admin' }
-        }
-
-        // Staff message - find profile
-        const staffProfile = STAFF_PROFILES.find(p => p.id === msg.staff_profile_id)
-        if (staffProfile) {
-            return { type: 'lottie', animation: staffProfile.animation, name: staffProfile.name, color: staffProfile.color }
-        }
-
-        return { type: 'default', name: msg.sender_name || 'Staff' }
     }
 
     if (loading) {
