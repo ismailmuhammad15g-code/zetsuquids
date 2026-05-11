@@ -9,7 +9,7 @@ import {
   Users
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { AreaChart } from "../../../components/retroui/charts/AreaChart";
 import { GettingStartedWizard } from "../../../components/wizard/GettingStartedWizard";
 import { PublicationSettings } from "../../../components/wizard/PublicationSettings";
@@ -85,7 +85,7 @@ interface FollowersData {
   followers: FollowerItem[];
 }
 
-export default function UserStatsPage() {
+function StatsContent() {
   const { user } = useAuth();
   const [stats, setStats] = useState<GuideTimeLogRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -998,5 +998,20 @@ export default function UserStatsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function UserStatsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-black border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">Loading stats...</p>
+        </div>
+      </div>
+    }>
+      <StatsContent />
+    </Suspense>
   );
 }
