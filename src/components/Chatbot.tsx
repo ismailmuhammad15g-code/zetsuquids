@@ -226,6 +226,20 @@ export default function Chatbot() {
     setShowPopup(!dismissed);
   }, []);
 
+  // Deep-link: open chatbot on Direct Support tab when ?open_support=1 is in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('open_support') === '1') {
+      setIsOpen(true);
+      setActiveTab('direct-support');
+      setUnreadSupportCount(0);
+      // Clean up the query param without causing a navigation
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete('open_support');
+      window.history.replaceState({}, '', clean.toString());
+    }
+  }, []);
+
   // Pre-fill email when user is authenticated
   useEffect(() => {
     if (user?.email && !supportFormData.email) {
@@ -1246,41 +1260,43 @@ export default function Chatbot() {
               )}
 
               {/* Direct Support Tab Content */}
-              {activeTab === "direct-support" && (
-                <div className="flex-1 flex flex-col overflow-hidden relative">
-                  {/* Login Gate Overlay for Direct Support */}
-                  {!isAuthenticated() && (
-                    <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
-                      <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4 border border-white/10">
-                        <MessageSquare size={24} className="text-white" />
-                      </div>
-                      <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10 shadow-2xl max-w-xs w-full">
-                        <h3 className="text-xl font-bold text-white mb-2">
-                          Login Required
-                        </h3>
-                        <p className="text-gray-300 text-sm mb-4">
-                          You must be logged in to use Direct Support.
-                        </p>
-                        <div className="flex flex-col gap-2">
-                          <Link
-                            href="/auth"
-                            className="block w-full bg-white text-black font-bold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors text-sm"
-                          >
-                            Login
-                          </Link>
-                          <button
-                            onClick={() => setActiveTab("chat")}
-                            className="w-full text-white/80 hover:text-white text-xs transition-colors"
-                          >
-                            ? Back to Chat
-                          </button>
-                        </div>
+              {/* Always mounted (CSS hidden) so DirectSupportChat never re-initialises on tab switch */}
+              <div
+                className="flex-1 flex flex-col overflow-hidden relative"
+                style={{ display: activeTab === "direct-support" ? "flex" : "none" }}
+              >
+                {/* Login Gate Overlay for Direct Support */}
+                {!isAuthenticated() && activeTab === "direct-support" && (
+                  <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+                    <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4 border border-white/10">
+                      <MessageSquare size={24} className="text-white" />
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10 shadow-2xl max-w-xs w-full">
+                      <h3 className="text-xl font-bold text-white mb-2">
+                        Login Required
+                      </h3>
+                      <p className="text-gray-300 text-sm mb-4">
+                        You must be logged in to use Direct Support.
+                      </p>
+                      <div className="flex flex-col gap-2">
+                        <Link
+                          href="/auth"
+                          className="block w-full bg-white text-black font-bold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors text-sm"
+                        >
+                          Login
+                        </Link>
+                        <button
+                          onClick={() => setActiveTab("chat")}
+                          className="w-full text-white/80 hover:text-white text-xs transition-colors"
+                        >
+                          ? Back to Chat
+                        </button>
                       </div>
                     </div>
-                  )}
-                  <DirectSupportChat />
-                </div>
-              )}
+                  </div>
+                )}
+                <DirectSupportChat />
+              </div>
 
               {/* Support Form Tab Content */}
               {activeTab === "support-form" && (

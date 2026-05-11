@@ -169,7 +169,6 @@ export const supportApi = {
         staffName: string
     ): Promise<SupportResult> {
         try {
-            void staffId
             const { data, error } = await supabase
                 .from('support_messages')
                 .insert({
@@ -177,6 +176,7 @@ export const supportApi = {
                     user_email: userEmail,
                     sender_type: 'staff',
                     sender_name: staffName,
+                    staff_profile_id: staffId,
                     message: message,
                     created_at: new Date().toISOString()
                 })
@@ -202,7 +202,7 @@ export const supportApi = {
                     type: 'message',
                     title: 'New Support Reply',
                     message: message.length > 60 ? message.substring(0, 57) + "..." : message,
-                    link: '/stats' 
+                    link: '/?open_support=1'
                 });
             } else {
                 // Fallback: Try to find user_id by email if not in messages
@@ -211,7 +211,7 @@ export const supportApi = {
                     .select('user_id')
                     .eq('user_email', userEmail)
                     .maybeSingle();
-                
+
                 if (profileData && profileData.user_id) {
                     await notificationsApi.createNotification({
                         user_id: profileData.user_id,
@@ -219,7 +219,7 @@ export const supportApi = {
                         type: 'message',
                         title: 'New Support Reply',
                         message: message.length > 60 ? message.substring(0, 57) + "..." : message,
-                        link: '/stats'
+                        link: '/?open_support=1'
                     });
                 }
             }
