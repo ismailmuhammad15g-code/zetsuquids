@@ -595,13 +595,13 @@ export default function DirectSupportChat() {
         }
     }
 
-    // Subscribe to new admin/staff messages
+    // Subscribe to new admin/staff messages AND status changes
     useEffect(() => {
         if (!conversationId || !isSupabaseConfigured()) return
 
-        const subscription = supabase
-            .channel(`support_${conversationId}`)
-
+        const channel = supabase
+            .channel(`support_full_${conversationId}`)
+            // Listen for new messages
             .on(
                 'postgres_changes',
                 {
@@ -610,7 +610,7 @@ export default function DirectSupportChat() {
                     table: 'support_messages',
                     filter: `conversation_id=eq.${conversationId}`
                 },
-                (payload: import('@supabase/supabase-js').RealtimePostgresInsertPayload<{ id: string | number; message: string; created_at: string; sender_type: "user" | "staff" | "admin"; sender_name?: string; staff_profile_id?: string; image_url?: string }>) => {
+                (payload: any) => {
                     const newMsg = payload.new
                     if (newMsg.sender_type === 'admin' || newMsg.sender_type === 'staff') {
                         setMessages(prev => [...prev, {
@@ -623,17 +623,30 @@ export default function DirectSupportChat() {
                             staffProfileId: newMsg.staff_profile_id,
                             imageUrl: newMsg.image_url
                         }])
-                        // Stop typing indicator when message received
                         setIsStaffTyping(false)
                         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
-
-                        // Play sound
                         playNotificationSound()
-
-                        // Mark user messages as read when staff replies
                         setMessages(prev => prev.map(m =>
                             m.senderType === 'user' ? { ...m, readStatus: 'read' } : m
                         ))
+                    }
+                }
+            )
+            // Listen for conversation status updates
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'support_conversations',
+                    filter: `id=eq.${conversationId}`
+                },
+                (payload: any) => {
+                    const updated = payload.new
+                    if (updated.status === 'closed') {
+                        setIsClosed(true)
+                    } else if (updated.status === 'active') {
+                        setIsClosed(false)
                     }
                 }
             )
@@ -641,11 +654,8 @@ export default function DirectSupportChat() {
                 'broadcast',
                 { event: 'typing' },
                 (payload: { payload: { isSupport: boolean } }) => {
-                    // Only react if it comes from support side
                     if (payload.payload.isSupport) {
                         setIsStaffTyping(true)
-
-                        // Auto-clear typing status after 3 seconds of silence
                         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
                         typingTimeoutRef.current = setTimeout(() => {
                             setIsStaffTyping(false)
@@ -656,39 +666,10 @@ export default function DirectSupportChat() {
             .subscribe()
 
         return () => {
-            subscription.unsubscribe()
+            channel.unsubscribe()
         }
     }, [conversationId])
 
-    // Subscribe to conversation status changes (real-time end conversation)
-    useEffect(() => {
-        if (!conversationId) return
-
-        const statusSub = supabase
-            .channel(`conv_status_${conversationId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'support_conversations',
-                    filter: `id=eq.${conversationId}`
-                },
-                (payload: import('@supabase/supabase-js').RealtimePostgresUpdatePayload<{ status?: string }>) => {
-                    const updated = payload.new
-                    if (updated.status === 'closed') {
-                        setIsClosed(true)
-                    } else if (updated.status === 'active') {
-                        setIsClosed(false)
-                    }
-                }
-            )
-            .subscribe()
-
-        return () => {
-            statusSub.unsubscribe()
-        }
-    }, [conversationId])
 
     // Get avatar component for message
     const getMessageAvatar = (msg: any): string | JSX.Element => {
