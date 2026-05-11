@@ -178,6 +178,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
   });
 
   const [slugValue, setSlugValue] = useState("");
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'waiting'>('saved');
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [autoResize, setAutoResize] = useState(true);
   const [coverUrlInput, setCoverUrlInput] = useState("");
@@ -222,13 +223,18 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
   }, [formData.title]);
 
   useEffect(() => {
+    setSaveStatus('waiting');
     const handler = setTimeout(() => {
+      setSaveStatus('saving');
       try {
         localStorage.setItem("add_guide_draft_v1", JSON.stringify({ formData, slugValue, savedAt: Date.now() }));
+        // Brief delay to make the transition feel real and premium
+        setTimeout(() => setSaveStatus('saved'), 800);
       } catch (e) {
         console.warn("Failed to save draft", e);
+        setSaveStatus('waiting');
       }
-    }, 1000);
+    }, 1500);
     return () => clearTimeout(handler);
   }, [formData, slugValue]);
 
@@ -506,6 +512,20 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
           <div className="flex items-center gap-1.5 text-sm font-bold text-gray-400 min-w-0">
             <Plus size={14} className="flex-shrink-0" />
             <span className="text-gray-900 truncate max-w-[120px] sm:max-w-[200px] text-xs sm:text-sm">{formData.title || "New Guide"}</span>
+            
+            {/* Auto-save Status */}
+            <div className="flex items-center gap-1.5 ml-1 md:ml-3 px-2 py-0.5 rounded-full bg-gray-50 border border-gray-100 hidden xs:flex">
+              <div className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
+                saveStatus === 'saved' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' :
+                saveStatus === 'saving' ? 'bg-amber-500 animate-pulse' :
+                'bg-gray-300'
+              }`} />
+              <span className="text-[10px] font-bold uppercase tracking-tight text-gray-400 select-none">
+                {saveStatus === 'saved' ? 'Saved' :
+                 saveStatus === 'saving' ? 'Saving' :
+                 'Edited'}
+              </span>
+            </div>
           </div>
         </div>
 
