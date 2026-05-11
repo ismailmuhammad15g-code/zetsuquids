@@ -134,7 +134,6 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
   const [saving, setSaving] = useState(false);
   const [mainTab, setMainTab] = useState<MainTab>("editor");
   const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("laptop");
-  const [aiProcessing, setAiProcessing] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -184,7 +183,6 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
   const [coverUrlInput, setCoverUrlInput] = useState("");
   const [coverUrlError, setCoverUrlError] = useState("");
   const [isFetchingCoverUrl, setIsFetchingCoverUrl] = useState(false);
-  const [credits, setCredits] = useState(0);
   const draftRestoredRef = useRef(false);
 
   const invalidateGuides = useInvalidateGuides();
@@ -207,11 +205,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
     }
   }, []);
 
-  useEffect(() => {
-    if (user?.email) {
-      setCredits(0);
-    }
-  }, [user]);
+
 
   const readTime = Math.max(1, Math.ceil((formData.content?.split(/\s+/).length || 0) / 200));
 
@@ -439,53 +433,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
     finally { setIsFetchingCoverUrl(false); }
   };
 
-  async function callKimiAI(prompt: string, onChunk: (chunk: string) => void): Promise<string> {
-    const response = await fetch("/api/ai", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "kimi-k2-0905:free", messages: [{ role: "user", content: prompt }], userEmail: user?.email, skipCreditDeduction: false, stream: true }),
-    });
-    if (!response.ok) throw new Error("AI failed");
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder();
-    let result = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split("\n");
-      for (const line of lines) {
-        if (line.trim().startsWith("data: ")) {
-          try {
-            const json = JSON.parse(line.trim().slice(6));
-            const content = json.type === "token" ? json.content : json.choices?.[0]?.delta?.content || "";
-            if (content) { result += content; onChunk(content); }
-          } catch(e) {}
-        }
-      }
-    }
-    return result;
-  }
 
-  const handleAIAction = async (type: string): Promise<void> => {
-    const COST = type === "enhance" ? 2 : 5;
-    if (credits < COST && credits !== 0) { toast.error(`Insufficient credits!`); return; }
-    setAiProcessing(true);
-    const toastId = toast.loading(`AI is working...`);
-    try {
-      let prompt = type === "enhance" 
-        ? `Enhance this Markdown content to be more professional:\n\n${formData.content}`
-        : `Write a technical guide in Markdown about: "${formData.title}". Keywords: ${formData.keywords}`;
-      if (type === "generate") setFormData((p: FormData) => ({ ...p, content: "" }));
-      let acc = "";
-      const result = await callKimiAI(prompt, (chunk) => {
-        acc += chunk;
-        setFormData((p: FormData) => ({ ...p, content: acc }));
-      });
-      if (result) toast.success("Done!", { id: toastId });
-    } catch (err) { toast.error("AI failed", { id: toastId }); }
-    finally { setAiProcessing(false); }
-  };
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -580,7 +528,6 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
             handleToolbarAction={handleToolbarAction}
             setShowAdvancedImageModal={setShowAdvancedImageModal} setShowVideoModal={setShowVideoModal}
             setShowQuizBuilder={setShowQuizBuilder} setShowDownloadLinkModal={setShowDownloadLinkModal}
-            handleAIAction={handleAIAction} aiProcessing={aiProcessing}
             textareaRef={textareaRef}
           />
         )}

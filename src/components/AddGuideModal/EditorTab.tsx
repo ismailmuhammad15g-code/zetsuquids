@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { 
   Bold, Italic, Strikethrough, Heading1, Heading2, Hash, 
   List, ListOrdered, Table, Link as LinkIcon, Image as ImageIcon, 
-  Video, Wand2, Terminal, HelpCircle, MoreHorizontal, Sparkles, 
+  Video, Wand2, Terminal, HelpCircle, MoreHorizontal, 
   Columns, Maximize2, Code, ListChecks, Minus, Star, 
   FileText, BookOpen, FileImage, FileCode, MessageCircle, 
   LayoutTemplate, Zap, Activity, Clock, GitMerge, AlertTriangle, 
@@ -20,8 +20,6 @@ interface EditorTabProps {
   setShowVideoModal: (s: boolean) => void;
   setShowQuizBuilder: (s: boolean) => void;
   setShowDownloadLinkModal: (s: boolean) => void;
-  handleAIAction: (type: string) => Promise<void>;
-  aiProcessing: boolean;
   textareaRef: React.RefObject<HTMLTextAreaElement>;
 }
 
@@ -33,13 +31,9 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   setShowVideoModal,
   setShowQuizBuilder,
   setShowDownloadLinkModal,
-  handleAIAction,
-  aiProcessing,
-
   textareaRef,
 }) => {
   const [showMoreTools, setShowMoreTools] = useState(false);
-  const [showAIMenu, setShowAIMenu] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const [previewHtml, setPreviewHtml] = useState(() => getMarkdownHtml(formData.content));
   const [violations, setViolations] = useState<Violation[]>([]);
@@ -188,52 +182,6 @@ export const EditorTab: React.FC<EditorTabProps> = ({
             </button>
           </div>
 
-          <div className="relative">
-            <button
-              onClick={() => setShowAIMenu(!showAIMenu)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
-            >
-              <Sparkles size={14} />
-              <span className="hidden sm:inline">AI Writing</span>
-            </button>
-
-            {showAIMenu && (
-              <>
-                <div className="fixed inset-0 z-[1008]" onClick={() => setShowAIMenu(false)} />
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 z-[1010] animate-in slide-in-from-top-2 duration-200">
-                  <div className="px-3 py-2 border-b border-gray-50 mb-1">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">AI Assistants</p>
-                  </div>
-                  <button
-                    onClick={() => { handleAIAction("generate"); setShowAIMenu(false); }}
-                    disabled={aiProcessing}
-                    className="w-full flex items-center gap-3 p-3 hover:bg-indigo-50 rounded-xl transition-colors text-left group"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
-                      <Wand2 size={20} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-gray-900">Generate Guide</p>
-                      <p className="text-[10px] text-gray-500">From title & keywords (5c)</p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => { handleAIAction("enhance"); setShowAIMenu(false); }}
-                    disabled={aiProcessing}
-                    className="w-full flex items-center gap-3 p-3 hover:bg-emerald-50 rounded-xl transition-colors text-left group"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
-                      <Sparkles size={20} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-gray-900">Enhance Content</p>
-                      <p className="text-[10px] text-gray-500">Improve flow & tone (2c)</p>
-                    </div>
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
         </div>
       </div>
 
