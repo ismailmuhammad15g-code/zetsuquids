@@ -1,5 +1,5 @@
 import Lottie from 'lottie-react';
-import { Loader2, Send, Trash2 } from 'lucide-react';
+import { Loader2, Send, Trash2, CreditCard, Bot, Bug, Lightbulb, Paperclip, X, Check, CheckCheck } from 'lucide-react';
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured, supabase } from '../lib/api';
@@ -87,10 +87,10 @@ export default function DirectSupportChat() {
 
     // Quick reply suggestions
     const quickReplies = [
-        { text: 'I need help with credits', icon: '??' },
-        { text: 'How do I use the AI chat?', icon: '??' },
-        { text: 'Report a bug', icon: '??' },
-        { text: 'Feature request', icon: '?' }
+        { text: 'I need help with credits', icon: <CreditCard size={14} /> },
+        { text: 'How do I use the AI chat?', icon: <Bot size={14} /> },
+        { text: 'Report a bug', icon: <Bug size={14} /> },
+        { text: 'Feature request', icon: <Lightbulb size={14} /> }
     ]
 
     // Handle image selection with security checks
@@ -101,14 +101,14 @@ export default function DirectSupportChat() {
         // Security: Check file type
         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
         if (!allowedTypes.includes(file.type)) {
-            alert('?? Only images (JPG, PNG, GIF, WebP) are allowed')
+            alert('Only images (JPG, PNG, GIF, WebP) are allowed')
             return
         }
 
         // Security: Check file size (max 5MB)
         const maxSize = 5 * 1024 * 1024 // 5MB
         if (file.size > maxSize) {
-            alert('?? Image size must be less than 5MB')
+            alert('Image size must be less than 5MB')
             return
         }
 
@@ -137,7 +137,7 @@ export default function DirectSupportChat() {
 
             if (!IMGBB_API_KEY) {
                 console.error('ImgBB API key not found in .env')
-                alert('?? Image upload is not configured.')
+                alert('Image upload is not configured.')
                 setUploadProgress(0)
                 resolve(null)
                 return
@@ -197,7 +197,7 @@ export default function DirectSupportChat() {
                                 await new Promise(r => setTimeout(r, 1500))
                                 return attemptUpload(retryCount + 1)
                             } else {
-                                alert('?? Failed to upload image after 3 attempts. Please check your internet connection.')
+                                alert('Failed to upload image after 3 attempts. Please check your internet connection.')
                                 setUploadProgress(0)
                                 resolve(null)
                             }
@@ -209,7 +209,7 @@ export default function DirectSupportChat() {
 
                 } catch (error: unknown) {
                     console.error('Error processing image:', error)
-                    alert('?? Failed to process image.')
+                    alert('Failed to process image.')
                     setUploadProgress(0)
                     resolve(null)
                 }
@@ -217,7 +217,7 @@ export default function DirectSupportChat() {
 
             reader.onerror = () => {
                 console.error('Failed to read file')
-                alert('?? Failed to read file.')
+                alert('Failed to read file.')
                 setUploadProgress(0)
                 resolve(null)
             }
@@ -440,7 +440,7 @@ export default function DirectSupportChat() {
             }
         }
 
-        const messageContent = inputValue.trim() || (imageUrl ? '?? Image' : '')
+        const messageContent = inputValue.trim() || (imageUrl ? 'Image Attached' : '')
         const userMessage: ChatMessage = {
             id: Date.now(),
             role: 'user',
@@ -502,7 +502,7 @@ export default function DirectSupportChat() {
                         user_email: user.email,
                         sender_type: 'user',
                         sender_name: senderName,
-                        message: messageContent || '?? Image'
+                        message: messageContent || 'Image Attached'
                     }
 
                     // Add image_url if exists (will be auto-deleted after 24h by DB trigger)
@@ -737,45 +737,45 @@ export default function DirectSupportChat() {
 
     if (loading) {
         return (
-            <div className="flex flex-col h-full bg-[#0d0d0d] px-4 py-8 space-y-8 overflow-hidden">
+            <div className="flex flex-col h-full bg-slate-50 px-4 py-8 space-y-8 overflow-hidden">
                 {/* Skeleton Messages */}
                 {[1, 2, 3, 4].map((i) => (
                     <div key={i} className={`flex flex-col ${i % 2 === 0 ? 'items-end' : 'items-start'} space-y-2 animate-pulse`}>
                         {/* Avatar + Name Skeleton */}
                         <div className={`flex items-center gap-2 ${i % 2 === 0 ? 'flex-row-reverse' : 'flex-row'}`}>
-                            <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10" />
-                            <div className="w-16 h-2.5 bg-white/5 rounded-full" />
+                            <div className="w-8 h-8 rounded-full bg-slate-200" />
+                            <div className="w-16 h-2.5 bg-slate-200 rounded-full" />
                         </div>
                         
                         {/* Bubble Skeleton */}
                         <div className={`
-                            h-16 bg-gradient-to-br from-white/5 to-transparent border border-white/10 
-                            rounded-2xl shadow-xl
+                            h-16 bg-slate-200 border border-slate-100
+                            rounded-2xl
                             ${i % 2 === 0 ? 'w-[70%] rounded-br-none' : 'w-[60%] rounded-bl-none'}
                         `} />
                         
                         {/* Time Skeleton */}
-                        <div className="w-10 h-2 bg-white/5 rounded-full mt-1" />
+                        <div className="w-10 h-2 bg-slate-200 rounded-full mt-1" />
                     </div>
                 ))}
                 
                 {/* Input Area Skeleton */}
-                <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/40 backdrop-blur-xl border-t border-white/5">
-                    <div className="h-12 w-full bg-white/5 rounded-full border border-white/10 animate-pulse" />
+                <div className="absolute bottom-0 left-0 right-0 p-3 bg-white/80 backdrop-blur-xl border-t border-slate-200">
+                    <div className="h-12 w-full bg-slate-100 rounded-full border border-slate-200 animate-pulse" />
                 </div>
             </div>
         )
     }
 
     return (
-        <div className="flex flex-col h-full bg-gradient-to-b from-[#0d0d0d] to-[#111111] relative">
+        <div className="flex flex-col h-full bg-slate-50 relative">
             {/* Header Deletion Action */}
             {conversationId && messages.length > 1 && (
                 <div className="absolute top-2 left-2 z-10">
                     <button
                         onClick={handleDeleteClick}
                         disabled={isDeleting}
-                        className="p-2 text-white/50 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all"
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
                         title="Delete Conversation"
                     >
                         {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
@@ -785,19 +785,19 @@ export default function DirectSupportChat() {
 
             {/* Delete Confirmation Overlay */}
             {showDeleteConfirm && (
-                <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200">
-                    <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-                        <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mb-4 mx-auto">
+                <div className="absolute inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200">
+                    <div className="bg-white border border-slate-100 rounded-2xl p-6 max-w-sm w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+                        <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-4 mx-auto">
                             <Trash2 size={24} className="text-red-500" />
                         </div>
-                        <h3 className="text-white font-bold text-center text-lg mb-2">Delete Conversation?</h3>
-                        <p className="text-gray-400 text-center text-sm mb-6 leading-relaxed">
+                        <h3 className="text-slate-900 font-bold text-center text-lg mb-2">Delete Conversation?</h3>
+                        <p className="text-slate-500 text-center text-sm mb-6 leading-relaxed">
                             Are you sure you want to delete this conversation? This action cannot be undone and all messages will be lost.
                         </p>
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setShowDeleteConfirm(false)}
-                                className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 text-white font-medium rounded-lg transition-colors text-sm"
+                                className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors text-sm"
                             >
                                 Cancel
                             </button>
@@ -857,11 +857,11 @@ export default function DirectSupportChat() {
                             {/* Date Divider */}
                             {showDateDivider && (
                                 <div className="flex items-center justify-center my-6">
-                                    <div className="h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent flex-1 max-w-[100px]" />
-                                    <span className="mx-4 text-[10px] font-bold tracking-widest text-gray-500 uppercase">
+                                    <div className="h-[1px] bg-gradient-to-r from-transparent via-slate-200 to-transparent flex-1 max-w-[100px]" />
+                                    <span className="mx-4 text-[10px] font-bold tracking-widest text-slate-400 uppercase">
                                         {dateLabel}
                                     </span>
-                                    <div className="h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent flex-1 max-w-[100px]" />
+                                    <div className="h-[1px] bg-gradient-to-r from-transparent via-slate-200 to-transparent flex-1 max-w-[100px]" />
                                 </div>
                             )}
 
@@ -870,9 +870,9 @@ export default function DirectSupportChat() {
                                 {showHeader && (
                                     <div className={`flex items-center gap-2.5 mb-1.5 ${isUser ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
                                         {!isUser && getMessageAvatar(msg)}
-                                        <span className={`text-[11px] font-semibold tracking-wide ${isUser ? 'text-blue-400' :
-                                            msg.senderType === 'admin' ? 'text-purple-400' :
-                                                msg.senderType === 'staff' ? 'text-emerald-400' : 'text-gray-400'
+                                        <span className={`text-[11px] font-semibold tracking-wide ${isUser ? 'text-slate-500' :
+                                            msg.senderType === 'admin' ? 'text-slate-700' :
+                                                msg.senderType === 'staff' ? 'text-slate-600' : 'text-slate-500'
                                             }`}>
                                             {senderLabel}
                                         </span>
@@ -889,16 +889,12 @@ export default function DirectSupportChat() {
                                     >
                                         <div
                                             className={`
-                                            chat-bubble px-4 py-2.5 text-[14px] leading-relaxed shadow-lg transition-all duration-200 hover:shadow-xl
+                                            chat-bubble px-4 py-2.5 text-[14px] leading-relaxed shadow-sm transition-all duration-200 hover:shadow-md
                                             ${isUser
-                                                    ? `user-message bg-gradient-to-br from-blue-500 to-blue-600 text-white border border-blue-400/20
+                                                    ? `user-message bg-slate-900 text-white border border-slate-800
                                                        rounded-[18px] rounded-br-[4px]`
-                                                    : `support-message ${msg.senderType === 'admin'
-                                                        ? `bg-gradient-to-br from-purple-900/70 to-purple-800/50 text-white border border-purple-500/30`
-                                                        : msg.senderType === 'staff'
-                                                            ? `bg-gradient-to-br from-emerald-900/70 to-emerald-800/50 text-white border border-emerald-500/30`
-                                                            : `bg-[#1e1e1e] text-gray-200 border border-white/10`
-                                                    } rounded-[18px] rounded-bl-[4px]`
+                                                    : `support-message bg-white text-slate-800 border border-slate-200
+                                                       rounded-[18px] rounded-bl-[4px]`
                                                 }
                                             `}
                                         >
@@ -933,17 +929,17 @@ export default function DirectSupportChat() {
                                             {/* Read receipts for user messages - WhatsApp style */}
                                             {isUser && (
                                                 <div className="flex items-center justify-end gap-1 mt-1">
-                                                    <span className="text-[10px] text-white/60">
-                                                        {msg.readStatus === 'sent' && '?'}
-                                                        {msg.readStatus === 'delivered' && '??'}
-                                                        {msg.readStatus === 'read' && <span className="text-blue-300">??</span>}
+                                                    <span className="text-white/70 flex items-center">
+                                                        {msg.readStatus === 'sent' && <Check size={12} />}
+                                                        {msg.readStatus === 'delivered' && <CheckCheck size={12} />}
+                                                        {msg.readStatus === 'read' && <CheckCheck size={12} className="text-blue-400" />}
                                                     </span>
                                                 </div>
                                             )}
                                         </div>
                                         {/* Time stamp with improved styling */}
                                         {isLastInGroup && (
-                                            <div className={`text-[10px] text-gray-500 mt-1.5 px-1 ${isUser ? 'text-right' : 'text-left'}`}>
+                                            <div className={`text-[10px] text-slate-400 mt-1.5 px-1 ${isUser ? 'text-right' : 'text-left'}`}>
                                                 {msg.timestamp?.toLocaleTimeString('en-US', {
                                                     hour: '2-digit',
                                                     minute: '2-digit',
@@ -959,14 +955,14 @@ export default function DirectSupportChat() {
                 })}
                 {isSending && (
                     <div className="flex items-center gap-2.5 mt-4 pl-1">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+                        <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center shadow-sm">
                             <BotIcon size={16} className="text-white" />
                         </div>
-                        <div className="bg-[#1e1e1e] border border-white/5 px-5 py-3 rounded-[20px] rounded-tl-[6px] shadow-lg">
+                        <div className="bg-white border border-slate-200 px-5 py-3 rounded-[20px] rounded-tl-[6px] shadow-sm">
                             <div className="flex gap-1.5">
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                             </div>
                         </div>
                     </div>
@@ -975,16 +971,15 @@ export default function DirectSupportChat() {
                 {/* Staff Typing Indicator */}
                 {isStaffTyping && (
                     <div className="flex items-center gap-2.5 mt-4 pl-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border-2 border-indigo-500 bg-black">
-                            {/* Generic indicator icon or maybe specific if we knew who was typing, but keep it generic support */}
-                            <BotIcon size={18} className="text-white w-full h-full p-1" />
+                        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border-2 border-slate-200 bg-white">
+                            <BotIcon size={18} className="text-slate-800 w-full h-full p-1" />
                         </div>
-                        <div className="bg-[#1e1e1e]/50 border border-white/5 p-2 rounded-[20px] rounded-tl-[6px] shadow-lg backdrop-blur-sm">
+                        <div className="bg-white border border-slate-200 p-2 rounded-[20px] rounded-tl-[6px] shadow-sm">
                             <div className="w-16 h-8 flex items-center justify-center overflow-hidden">
                                 <Lottie
                                     animationData={staffTypingAnimation}
                                     loop={true}
-                                    style={{ width: '150%', height: '150%', marginTop: '5px' }} // Scale up as requested
+                                    style={{ width: '150%', height: '150%', marginTop: '5px' }} 
                                 />
                             </div>
                         </div>
@@ -994,11 +989,11 @@ export default function DirectSupportChat() {
                 {/* Empty State */}
                 {!loading && messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-in fade-in zoom-in-95 duration-500">
-                        <div className="w-64 h-64 mb-6">
+                        <div className="w-48 h-48 mb-6 opacity-80">
                             <Lottie animationData={directSupportBgAnimation} loop={true} />
                         </div>
-                        <h3 className="text-xl font-bold text-white mb-2">How can we help?</h3>
-                        <p className="text-gray-400 text-sm max-w-[250px]">
+                        <h3 className="text-xl font-bold text-slate-800 mb-2">How can we help?</h3>
+                        <p className="text-slate-500 text-sm max-w-[250px]">
                             Our support team is ready to assist you. Send us a message to get started!
                         </p>
                     </div>
@@ -1010,15 +1005,15 @@ export default function DirectSupportChat() {
             {/* Quick Replies - Show when no messages */}
             {showQuickReplies && messages.length === 0 && !loading && (
                 <div className="px-4 pb-2 space-y-2 animate-in slide-in-from-bottom-4 duration-300">
-                    <p className="text-xs text-gray-500 font-medium mb-2">Quick replies:</p>
+                    <p className="text-xs text-slate-500 font-medium mb-2">Quick replies:</p>
                     <div className="flex flex-wrap gap-2">
                         {quickReplies.map((reply, idx) => (
                             <button
                                 key={idx}
                                 onClick={() => handleQuickReply(reply.text)}
-                                className="px-3 py-1.5 bg-gradient-to-r from-purple-600/20 to-indigo-600/20 hover:from-purple-600/30 hover:to-indigo-600/30 border border-purple-500/30 rounded-full text-xs text-white/90 transition-all hover:scale-105 flex items-center gap-1.5"
+                                className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-full text-xs text-slate-700 font-medium transition-all hover:scale-105 flex items-center gap-1.5 shadow-sm"
                             >
-                                <span>{reply.icon}</span>
+                                <span className="text-slate-500">{reply.icon}</span>
                                 <span>{reply.text}</span>
                             </button>
                         ))}
@@ -1029,25 +1024,25 @@ export default function DirectSupportChat() {
             {/* Image Preview */}
             {imagePreview && (
                 <div className="px-4 pb-2 animate-in slide-in-from-bottom-2 duration-200">
-                    <div className="relative inline-block bg-[#1a1a1a] rounded-lg p-2 border border-white/10">
+                    <div className="relative inline-block bg-white rounded-lg p-2 border border-slate-200 shadow-sm">
                         <img src={imagePreview} alt="Preview" className="h-20 rounded" />
                         <button
                             onClick={clearImageSelection}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold transition-colors"
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold transition-colors shadow-sm"
                         >
-                            ?
+                            <X size={14} />
                         </button>
                         {uploadingImage && (
-                            <div className="absolute inset-0 bg-black/70 rounded-lg flex flex-col items-center justify-center gap-2">
-                                <Loader2 size={20} className="animate-spin text-white" />
+                            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center gap-2">
+                                <Loader2 size={20} className="animate-spin text-slate-900" />
                                 {/* Progress Bar */}
-                                <div className="w-[80%] bg-gray-700 rounded-full h-2 overflow-hidden">
+                                <div className="w-[80%] bg-slate-200 rounded-full h-2 overflow-hidden">
                                     <div
-                                        className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-300 ease-out"
+                                        className="h-full bg-slate-900 transition-all duration-300 ease-out"
                                         style={{ width: `${uploadProgress}%` }}
                                     />
                                 </div>
-                                <span className="text-white text-xs font-bold">{uploadProgress}%</span>
+                                <span className="text-slate-900 text-xs font-bold">{uploadProgress}%</span>
                             </div>
                         )}
                     </div>
@@ -1055,8 +1050,8 @@ export default function DirectSupportChat() {
             )}
 
             {/* Input Area - Modern floating design */}
-            <form onSubmit={handleSend} className="p-3 bg-[#0a0a0a]/80 backdrop-blur-xl border-t border-white/5">
-                <div className="flex items-center gap-2 bg-[#1a1a1a] rounded-full p-1.5 border border-white/10 focus-within:border-purple-500/40 transition-colors">
+            <form onSubmit={handleSend} className="p-3 bg-white/90 backdrop-blur-xl border-t border-slate-200">
+                <div className="flex items-center gap-2 bg-slate-50 rounded-full p-1.5 border border-slate-200 focus-within:border-slate-400 focus-within:bg-white transition-colors shadow-inner">
                     {/* Hidden file input */}
                     <input
                         ref={fileInputRef}
@@ -1071,10 +1066,10 @@ export default function DirectSupportChat() {
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isSending || uploadingImage}
-                        className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ml-1"
+                        className="w-9 h-9 rounded-full hover:bg-slate-200 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ml-1 text-slate-500"
                         title="Attach image"
                     >
-                        <span className="text-lg">??</span>
+                        <Paperclip size={18} />
                     </button>
 
                     <input
@@ -1082,12 +1077,12 @@ export default function DirectSupportChat() {
                         value={inputValue}
                         onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setInputValue(e.target.value)}
                         placeholder="Type your message..."
-                        className="flex-1 bg-transparent px-2 py-2 text-sm text-white placeholder-gray-500 focus:outline-none"
+                        className="flex-1 bg-transparent px-2 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
                     />
                     <button
                         type="submit"
                         disabled={(!inputValue.trim() && !selectedImage) || isSending}
-                        className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-105 hover:shadow-lg hover:shadow-purple-500/25 active:scale-95"
+                        className="w-10 h-10 rounded-full bg-slate-900 hover:bg-slate-800 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-105 shadow-md active:scale-95"
                     >
                         {isSending ? (
                             <Loader2 size={18} className="animate-spin text-white" />
