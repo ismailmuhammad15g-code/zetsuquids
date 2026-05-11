@@ -46,21 +46,27 @@ export default function NotificationBell() {
     const getActorAvatar = (actorName: string, type: string) => {
         const name = actorName?.toLowerCase() || "";
         const AvatarImage = ({ src, alt }: { src: string; alt: string }) => (
-            <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-white/10">
+            <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 border border-white/10 shadow-lg">
                 <img src={src} alt={alt} className="w-full h-full object-cover" />
             </div>
         );
 
-        if (name === "system" || name === "zetsu ai moderator") {
+        if (name === "zetsu ai moderator") {
+            return <AvatarImage src="/images/roles_for_notification_insider/ai-guide-reviewer.png" alt="AI Moderator" />;
+        }
+
+        if (name === "system") {
             return <AvatarImage src="/images/roles_for_notification_insider/system-notification.png" alt="System" />;
         }
 
-        if (name === "staff" || type === "approved" || type === "rejected" || type === "message") {
+        // Default staff/support images
+        if (name === "staff" || type === "approved" || type === "rejected" || type === "message" || 
+            name === "sarah" || name === "ahmed" || name === "layla" || name === "mohammed") {
             return <AvatarImage src="/images/roles_for_notification_insider/human-guide-reviewer.png" alt="Staff" />;
         }
 
         return (
-            <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold border border-indigo-500/30">
+            <div className="w-9 h-9 rounded-full bg-white/5 text-white flex items-center justify-center text-xs font-bold border border-white/10 shadow-inner">
                 {actorName ? actorName.charAt(0).toUpperCase() : "?"}
             </div>
         );
@@ -82,13 +88,13 @@ export default function NotificationBell() {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-96 origin-top-right rounded-2xl bg-[#1a1a1a] border border-white/10 shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                    <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
-                        <h3 className="font-bold text-white">Notifications</h3>
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 origin-top-right rounded-2xl bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <div className="p-4 border-b-2 border-black flex items-center justify-between bg-gray-50">
+                        <h3 className="font-black text-black uppercase tracking-tight">Notifications</h3>
                         {unreadCount > 0 && (
                             <button
                                 onClick={() => markAllAsRead()}
-                                className="text-xs text-gray-400 hover:text-white transition-colors"
+                                className="text-xs font-bold text-gray-500 hover:text-black transition-colors"
                             >
                                 Mark all as read
                             </button>
@@ -98,41 +104,41 @@ export default function NotificationBell() {
                     <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
                         {notifications.length === 0 ? (
                             <div className="p-8 text-center">
-                                <Bell className="mx-auto h-8 w-8 text-white/10 mb-2" />
-                                <p className="text-sm text-gray-500">No notifications yet</p>
+                                <Bell className="mx-auto h-8 w-8 text-gray-200 mb-2" />
+                                <p className="text-sm font-medium text-gray-400">No notifications yet</p>
                             </div>
                         ) : (
                             notifications.map((notif) => (
                                 <div
                                     key={notif.id}
                                     onClick={() => handleNotificationClick(notif)}
-                                    className={`p-4 border-b border-white/5 cursor-pointer transition-colors hover:bg-white/5 relative group ${!notif.is_read ? 'bg-white/[0.02]' : ''}`}
+                                    className={`p-4 border-b border-gray-100 cursor-pointer transition-colors hover:bg-gray-50 relative group ${!notif.is_read ? 'bg-indigo-50/30' : ''}`}
                                 >
                                     {!notif.is_read && (
-                                        <div className="absolute left-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-500 rounded-full" />
+                                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-black" />
                                     )}
                                     <div className="flex gap-3">
                                         {getActorAvatar(notif.actor_name || "", notif.type)}
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between gap-2 mb-0.5">
-                                                <span className="text-sm font-bold text-white truncate">
+                                                <span className="text-sm font-black text-black truncate leading-tight">
                                                     {notif.title}
                                                 </span>
-                                                <span className="text-[10px] text-gray-500 whitespace-nowrap">
+                                                <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap">
                                                     {notif.created_at ? formatDistanceToNow(new Date(notif.created_at), { addSuffix: true }) : ""}
                                                 </span>
                                             </div>
-                                            <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
-                                                <span className="font-semibold text-gray-300">{notif.actor_name}: </span>
+                                            <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed font-medium">
+                                                <span className="font-bold text-black">{notif.actor_name}: </span>
                                                 {notif.message}
                                             </p>
                                             <div className="mt-2 flex items-center justify-between">
-                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gray-500 uppercase tracking-wider font-bold">
+                                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-black text-white uppercase tracking-tighter font-black">
                                                     {notif.type}
                                                 </span>
                                                 {notif.link && (
-                                                    <span className="text-[10px] text-indigo-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        View Details →
+                                                    <span className="text-[10px] text-black font-black opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        VIEW DETAILS →
                                                     </span>
                                                 )}
                                             </div>
@@ -144,8 +150,8 @@ export default function NotificationBell() {
                     </div>
 
                     {notifications.length > 0 && (
-                        <div className="p-3 bg-black/20 text-center border-t border-white/5">
-                            <span className="text-[10px] text-gray-600 uppercase tracking-widest font-bold">
+                        <div className="p-3 bg-gray-50 text-center border-t-2 border-black">
+                            <span className="text-[10px] text-gray-400 uppercase tracking-widest font-black">
                                 End of notifications
                             </span>
                         </div>
