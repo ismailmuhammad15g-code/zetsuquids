@@ -677,8 +677,32 @@ export default function DirectSupportChat() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-full">
-                <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+            <div className="flex flex-col h-full bg-[#0d0d0d] px-4 py-8 space-y-8 overflow-hidden">
+                {/* Skeleton Messages */}
+                {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className={`flex flex-col ${i % 2 === 0 ? 'items-end' : 'items-start'} space-y-2 animate-pulse`}>
+                        {/* Avatar + Name Skeleton */}
+                        <div className={`flex items-center gap-2 ${i % 2 === 0 ? 'flex-row-reverse' : 'flex-row'}`}>
+                            <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10" />
+                            <div className="w-16 h-2.5 bg-white/5 rounded-full" />
+                        </div>
+                        
+                        {/* Bubble Skeleton */}
+                        <div className={`
+                            h-16 bg-gradient-to-br from-white/5 to-transparent border border-white/10 
+                            rounded-2xl shadow-xl
+                            ${i % 2 === 0 ? 'w-[70%] rounded-br-none' : 'w-[60%] rounded-bl-none'}
+                        `} />
+                        
+                        {/* Time Skeleton */}
+                        <div className="w-10 h-2 bg-white/5 rounded-full mt-1" />
+                    </div>
+                ))}
+                
+                {/* Input Area Skeleton */}
+                <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/40 backdrop-blur-xl border-t border-white/5">
+                    <div className="h-12 w-full bg-white/5 rounded-full border border-white/10 animate-pulse" />
+                </div>
             </div>
         )
     }

@@ -908,7 +908,8 @@ export default function StaffConsole() {
 
             {/* Main Content */}
             <main className="staff-content">
-                {activeTab === 'support' ? (
+                {/* Support Tab */}
+                <div style={{ display: activeTab === 'support' ? 'block' : 'none' }}>
                     <section className="support-section">
                         {/* ... existing support section content ... */}
                         <div className="section-header">
@@ -930,9 +931,22 @@ export default function StaffConsole() {
                         )}
 
                         {loadingConversations ? (
-                            <div className="loading-state">
-                                <RefreshCw className="spin" size={24} />
-                                <p>جاري التحميل...</p>
+                            <div className="space-y-4 px-4 py-6">
+                                {[1, 2, 3].map((i) => (
+                                    <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4 animate-pulse">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-white/5" />
+                                                <div className="space-y-2">
+                                                    <div className="h-3 w-32 bg-white/5 rounded-full" />
+                                                    <div className="h-2 w-20 bg-white/5 rounded-full" />
+                                                </div>
+                                            </div>
+                                            <div className="w-12 h-2 bg-white/5 rounded-full" />
+                                        </div>
+                                        <div className="h-4 w-full bg-white/5 rounded-lg" />
+                                    </div>
+                                ))}
                             </div>
                         ) : conversations.length === 0 ? (
                             <div className="empty-state">
@@ -972,8 +986,14 @@ export default function StaffConsole() {
                                         {expandedConversation === conv.id && (
                                             <div className="conversation-messages">
                                                 {loadingMessages ? (
-                                                    <div className="loading-messages">
-                                                        <RefreshCw className="spin" size={20} />
+                                                    <div className="p-6 space-y-6">
+                                                        {[1, 2].map((i) => (
+                                                            <div key={i} className={`flex flex-col ${i % 2 === 0 ? 'items-end' : 'items-start'} space-y-2 animate-pulse`}>
+                                                                <div className="h-2 w-16 bg-white/5 rounded-full mb-1" />
+                                                                <div className={`h-12 bg-white/5 border border-white/10 rounded-xl ${i % 2 === 0 ? 'w-2/3' : 'w-1/2'}`} />
+                                                                <div className="h-2 w-10 bg-white/5 rounded-full" />
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 ) : (
                                                     <>
@@ -1102,7 +1122,10 @@ export default function StaffConsole() {
                             </div>
                         )}
                     </section>
-                ) : activeTab === 'guides' ? (
+                </div>
+
+                {/* Guides Tab */}
+                <div style={{ display: activeTab === 'guides' ? 'block' : 'none' }}>
                     <section className="guides-section">
                         <div className="section-header">
                             <BookOpen size={20} />
@@ -1300,7 +1323,10 @@ export default function StaffConsole() {
                             </div>
                         )}
                     </section>
-                ) : activeTab === 'ads' ? (
+                </div>
+
+                {/* Ads Tab */}
+                <div style={{ display: activeTab === 'ads' ? 'block' : 'none' }}>
                     <section className="ads-section">
                         <div className="section-header">
                             <Megaphone size={20} />
@@ -1399,7 +1425,10 @@ export default function StaffConsole() {
                             </div>
                         )}
                     </section>
-                ) : (
+                </div>
+
+                {/* Changelog Tab */}
+                <div style={{ display: activeTab === 'changelog' ? 'block' : 'none' }}>
                     <section className="ads-section">
                         <div className="section-header">
                             <FileText size={20} />
@@ -1453,7 +1482,7 @@ export default function StaffConsole() {
                             </div>
                         )}
                     </section>
-                )}
+                </div>
             </main>
 
             {/* Create Ad Modal */}
