@@ -63,6 +63,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                         const newNotif = payload.new as unknown as ZetsuNotification;
                         setNotifications((prev) => [newNotif, ...prev]);
                         setUnreadCount((prev) => prev + 1);
+                        
+                        // Play notification sound
+                        try {
+                            const audio = new Audio("https://cdn.pixabay.com/audio/2021/08/04/audio_0625c15396.mp3");
+                            audio.volume = 0.5;
+                            audio.play().catch(e => console.warn("[NotificationSound] Play blocked by browser:", e));
+                        } catch (e) {
+                            console.error("[NotificationSound] Failed to play:", e);
+                        }
                     }
                 )
                 .on(
