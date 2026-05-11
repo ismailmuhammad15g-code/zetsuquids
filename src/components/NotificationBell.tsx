@@ -10,7 +10,6 @@ import { formatDistanceToNow } from "date-fns";
 export default function NotificationBell() {
     const { notifications, unreadCount, markAsRead, markAllAsRead, deleteAllNotifications } = useNotifications();
     const [isOpen, setIsOpen] = useState(false);
-    const [showDeleteAll, setShowDeleteAll] = useState(false);
     const [isDeletingAll, setIsDeletingAll] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
@@ -79,7 +78,6 @@ export default function NotificationBell() {
             <button
                 onClick={() => {
                     setIsOpen(!isOpen);
-                    setShowDeleteAll(false);
                 }}
                 className="relative p-2 text-gray-400 hover:text-white transition-colors"
                 aria-label="Notifications"
@@ -101,7 +99,6 @@ export default function NotificationBell() {
                                 <button
                                     onClick={async () => {
                                         await markAllAsRead();
-                                        setShowDeleteAll(true);
                                     }}
                                     className="text-xs font-bold text-gray-500 hover:text-black transition-colors flex items-center gap-1"
                                 >
@@ -115,7 +112,6 @@ export default function NotificationBell() {
                                             setIsDeletingAll(true);
                                             await deleteAllNotifications();
                                             setIsDeletingAll(false);
-                                            setShowDeleteAll(false);
                                         }
                                     }}
                                     disabled={isDeletingAll}
