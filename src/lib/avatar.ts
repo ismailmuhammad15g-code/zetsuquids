@@ -36,6 +36,12 @@ export function getAvatarForUser(email: string | null | undefined, savedAvatarUr
             const fileName = avatarToUse.split('/').pop() // e.g. "peep-10.svg"
             return `/avatars/${fileName}`
         }
+        
+        // Handle cases where only the filename is stored (e.g. "peep-40.svg")
+        if (!avatarToUse.startsWith('http') && !avatarToUse.startsWith('/') && avatarToUse.includes('peep-')) {
+            return `/avatars/${avatarToUse}`
+        }
+
         return avatarToUse
     }
 

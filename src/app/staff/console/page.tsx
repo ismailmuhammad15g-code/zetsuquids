@@ -24,6 +24,7 @@ import {
     X
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { Ad, adminGuidesApi, adsApi, Guide, supabase } from '../../../lib/api';
 import { ChangelogEntry, fetchChangelog, saveChangelog } from '../../../lib/changelog';
 import { supportApi } from '../../../lib/supportApi';
@@ -353,18 +354,30 @@ export default function StaffConsole() {
             const result = await supportApi.getAllConversations()
             if (result.success && result.data) {
                 // Fetch profiles to get avatars and names
-                const emails = result.data.map(c => c.user_email).filter(Boolean)
-                const orFilter = emails.map(e => `user_email.ilike.${e}`).join(',')
+                // Use multiple casing variants to ensure matching (Supabase IN is case-sensitive)
+                const emails = result.data.map(c => c.user_email?.trim()).filter(Boolean);
                 
-                const { data: profiles } = await supabase
-                    .from('zetsuguide_user_profiles')
-                    .select('user_email, avatar_url, display_name, user_id, last_seen, username')
-                    .or(orFilter)
+                let profiles: any[] = [];
+                if (emails.length > 0) {
+                    const allEmailVariants = [...new Set([
+                        ...emails,
+                        ...emails.map(e => e.toLowerCase()),
+                        ...emails.map(e => e.toUpperCase())
+                    ])];
+
+                    const { data: profileData } = await supabase
+                        .from('zetsuguide_user_profiles')
+                        .select('user_email, avatar_url, display_name, user_id, last_seen, username')
+                        .in('user_email', allEmailVariants);
+                    
+                    if (profileData) profiles = profileData;
+                }
 
                 const enriched = result.data.map(conv => {
-                    const profile = (profiles as any[])?.find((p: any) => 
-                        p.user_email?.toLowerCase() === conv.user_email?.toLowerCase()
-                    )
+                    // Try to find profile with case-insensitive and trimmed match
+                    const profile = profiles.find((p: any) =>
+                        p.user_email?.toLowerCase().trim() === conv.user_email?.toLowerCase().trim()
+                    );
                     const displayName = profile?.display_name || conv.user_name || conv.user_email.split('@')[0];
                     const username = profile?.username || conv.user_email.split('@')[0];
                     
@@ -1108,20 +1121,14 @@ export default function StaffConsole() {
                                                     onClick={() => toggleConversation(conv)}
                                                 >
                                                     <div className="card-avatar">
-                                                         {conv.user_avatar ? (
-                                                            <img 
-                                                                src={conv.user_avatar} 
-                                                                alt="" 
-                                                                className="w-12 h-12 rounded-full object-cover border border-slate-100" 
-                                                                onError={(e) => {
-                                                                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(conv.user_name || 'U')}&background=random&color=fff`;
-                                                                }}
-                                                            />
-                                                        ) : (
-                                                            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                                                                <User size={24} />
-                                                            </div>
-                                                        )}
+                                                        <img 
+                                                            src={conv.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(conv.user_name || 'U')}&background=random`} 
+                                                            alt="" 
+                                                            className="w-12 h-12 rounded-full object-cover border border-slate-100" 
+                                                            onError={(e) => {
+                                                                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(conv.user_name || 'U')}&background=random`;
+                                                            }}
+                                                        />
                                                         {(conv.unread_count || 0) > 0 && <span className="unread-dot" />}
                                                     </div>
                                                     <div className="card-content">
@@ -1160,11 +1167,11 @@ export default function StaffConsole() {
                                                 return (
                                                     <div className="user-info">
                                                         <div 
-                                                            className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 overflow-hidden cursor-pointer hover:ring-2 hover:ring-slate-900 transition-all"
-                                                            onClick={() => window.open(`/${currentConv?.username}/workspace`, '_blank')}
+                                                            className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 overflow-hidden cursor-pointer hover:ring-2 hover:ring-slate-900 transition-all shadow-sm"
+                                                            onClick={() => currentConv?.username ? window.open(`/${currentConv.username}/workspace`, '_blank') : toast.error("User profile incomplete")}
                                                         >
                                                             <img 
-                                                                src={currentConv?.user_avatar} 
+                                                                src={currentConv?.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentConv?.user_name || 'U')}&background=random`} 
                                                                 alt="" 
                                                                 className="w-full h-full object-cover" 
                                                                 onError={(e) => {
@@ -1172,7 +1179,7 @@ export default function StaffConsole() {
                                                                 }}
                                                             />
                                                         </div>
-                                                        <div className="cursor-pointer group" onClick={() => window.open(`/${currentConv?.username}/workspace`, '_blank')}>
+                                                        <div className="cursor-pointer group" onClick={() => currentConv?.username ? window.open(`/${currentConv.username}/workspace`, '_blank') : toast.error("User profile incomplete")}>
                                                             <h3 className="font-bold text-slate-900 leading-tight group-hover:text-blue-600 transition-colors">{currentConv?.user_name}</h3>
                                                             {onlineUsers.has(currentConv?.user_email || '') ? (
                                                                 <div className="flex items-center gap-1.5">

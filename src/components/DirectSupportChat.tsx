@@ -60,7 +60,7 @@ function hasMeaningfulErrorInfo(error: unknown): boolean {
 }
 
 export default function DirectSupportChat() {
-    const { user } = useAuth()
+    const { user, profileAvatar } = useAuth()
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [inputValue, setInputValue] = useState('')
     const [isSending, setIsSending] = useState(false)
@@ -686,8 +686,12 @@ export default function DirectSupportChat() {
     const getMessageAvatar = (msg: any): string | JSX.Element => {
         if (msg.senderType === 'user') {
             return (
-                <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-bold">ME</span>
+                <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-200">
+                    {profileAvatar ? (
+                        <img src={profileAvatar} className="w-full h-full object-cover" alt="ME" />
+                    ) : (
+                        <span className="text-xs font-bold">ME</span>
+                    )}
                 </div>
             )
         }
