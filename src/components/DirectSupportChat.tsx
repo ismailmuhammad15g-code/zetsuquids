@@ -15,7 +15,7 @@ import profile4Animation from '../assets/customarserviceprofiles/profile4.json';
 import directSupportBgAnimation from '../assets/Directsupportbg.json';
 import staffTypingAnimation from '../assets/stufftyping....json';
 
-const adminProfileImg = "https://ui-avatars.com/api/?name=Admin&background=111111&color=ffffff&size=128";
+const adminProfileImg = "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=200&auto=format&fit=crop";
 
 // Message interface
 interface ChatMessage {
@@ -730,8 +730,8 @@ export default function DirectSupportChat() {
 
         // Default support avatar
         return (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                <BotIcon size={18} className="text-white" />
+            <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-slate-200 shadow-sm bg-white">
+                <img src={adminProfileImg} alt="Support" className="w-full h-full object-cover" />
             </div>
         )
     }

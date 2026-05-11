@@ -1217,6 +1217,15 @@ export default function StaffConsole() {
                                                 ) : (
                                                     conversationMessages.map(msg => (
                                                         <div key={msg.id} className={`msg-row ${msg.sender_type === 'user' ? 'received' : 'sent'}`}>
+                                                            {msg.sender_type !== 'user' && (
+                                                                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-auto mb-1 mr-2 border border-slate-200 shadow-sm">
+                                                                    <img 
+                                                                        src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=200&auto=format&fit=crop" 
+                                                                        alt="Staff" 
+                                                                        className="w-full h-full object-cover" 
+                                                                    />
+                                                                </div>
+                                                            )}
                                                             <div className="msg-bubble shadow-sm">
                                                                 {msg.sender_type !== 'user' && (
                                                                     <span className="staff-tag">{msg.sender_name}</span>
