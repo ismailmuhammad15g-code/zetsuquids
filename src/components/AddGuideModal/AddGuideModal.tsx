@@ -511,17 +511,17 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
           <div className="h-5 w-px bg-gray-200 hidden sm:block" />
           <div className="flex items-center gap-1.5 text-sm font-bold text-gray-400 min-w-0">
             <Plus size={14} className="flex-shrink-0" />
-            <span className="text-gray-900 truncate max-w-[120px] sm:max-w-[200px] text-xs sm:text-sm">{formData.title || "New Guide"}</span>
+            <span className="text-gray-900 truncate max-w-[100px] sm:max-w-[200px] text-xs sm:text-sm font-black">{formData.title || "New Guide"}</span>
             
-            {/* Auto-save Status */}
-            <div className="flex items-center gap-1.5 ml-1 md:ml-3 px-2 py-0.5 rounded-full bg-gray-50 border border-gray-100 hidden xs:flex">
-              <div className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
-                saveStatus === 'saved' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' :
-                saveStatus === 'saving' ? 'bg-amber-500 animate-pulse' :
+            {/* Auto-save Status - Refined Monochrome Version */}
+            <div className="flex items-center gap-1.5 ml-2 px-1.5 py-0.5 rounded-md bg-gray-50/50 border border-gray-100/50">
+              <div className={`w-1 h-1 rounded-full transition-all duration-500 ${
+                saveStatus === 'saved' ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.3)]' :
+                saveStatus === 'saving' ? 'bg-black animate-pulse' :
                 'bg-gray-300'
               }`} />
-              <span className="text-[10px] font-bold uppercase tracking-tight text-gray-400 select-none">
-                {saveStatus === 'saved' ? 'Saved' :
+              <span className="text-[8px] font-black uppercase tracking-widest text-gray-400 select-none">
+                {saveStatus === 'saved' ? 'Synced' :
                  saveStatus === 'saving' ? 'Saving' :
                  'Edited'}
               </span>
