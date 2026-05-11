@@ -14,11 +14,13 @@ import {
   Users,
   Layers,
   X,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { lazy, Suspense, useEffect, useState } from "react";
 import dynamic from 'next/dynamic';
+import Chatbot from "./Chatbot";
 import AddGuideSkeleton from "./AddGuideModal/AddGuideSkeleton";
 import { useAuth } from "../contexts/AuthContext";
 import { useLoading } from "../contexts/LoadingContext";
@@ -917,6 +919,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
         {/* Tour Cursor */}
         <TourCursor />
+
+        {/* Global Chatbot */}
+        <Chatbot />
       </div>
     </ClickSpark>
   );

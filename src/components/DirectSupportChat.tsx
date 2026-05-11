@@ -257,11 +257,13 @@ export default function DirectSupportChat() {
             const userEmail = user.email
             const userName = user.user_metadata?.name || user.email?.split('@')[0] || 'User'
 
-            // Check if conversation exists
+            // Check if conversation exists (prefer user_id, fallback to user_email)
             let { data: existingConv, error: fetchError } = await supabase
                 .from('support_conversations')
                 .select('*')
-                .eq('user_email', userEmail)
+                .or(`user_id.eq.${user.id},user_email.eq.${userEmail}`)
+                .order('created_at', { ascending: false })
+                .limit(1)
                 .maybeSingle()
 
             if (fetchError) {
@@ -277,6 +279,7 @@ export default function DirectSupportChat() {
                 const { data: newConv, error: createError } = await supabase
                     .from('support_conversations')
                     .insert({
+                        user_id: user.id,
                         user_email: userEmail,
                         user_name: userName,
                         status: 'active'
@@ -413,6 +416,7 @@ export default function DirectSupportChat() {
                     const { data: newConv, error: createError } = await supabase
                         .from('support_conversations')
                         .insert({
+                            user_id: user.id,
                             user_email: user.email,
                             user_name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'User',
                             status: 'active'
@@ -445,6 +449,7 @@ export default function DirectSupportChat() {
                     // Save message to database with image URL
                     const messageData: Record<string, string | number> = {
                         conversation_id: convId,
+                        user_id: user.id, // Critical for tracking and visibility
                         user_email: user.email,
                         sender_type: 'user',
                         sender_name: senderName,

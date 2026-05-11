@@ -25,6 +25,7 @@ import BotIcon from "./BotIcon";
 import DirectSupportChat from "./DirectSupportChat";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useModal } from "../contexts/ModalContext";
 
 type ChatRole = "user" | "bot" | "assistant" | "system";
 type ChatMessageType = "text" | "error" | "limit_reached";
@@ -185,11 +186,11 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
 }
 
 export default function Chatbot() {
-  const [isOpen, setIsOpen] = useState(false);
+  const { isChatOpen: isOpen, setIsChatOpen: setIsOpen, chatTab: activeTab, setChatTab: setActiveTab } = useModal();
   const [isMinimized, setIsMinimized] = useState(false);
   // Keep initial render deterministic for SSR; hydrate popup preference after mount.
   const [showPopup, setShowPopup] = useState(false);
-  const [activeTab, setActiveTab] = useState("chat"); // 'chat', 'support-form', or 'direct-support'
+  // const [activeTab, setActiveTab] = useState("chat"); // 'chat', 'support-form', or 'direct-support'
   const [unreadSupportCount, setUnreadSupportCount] = useState(0);
   const [showSupportForm, setShowSupportForm] = useState(false);
   const [awaitingSupportConfirmation, setAwaitingSupportConfirmation] =

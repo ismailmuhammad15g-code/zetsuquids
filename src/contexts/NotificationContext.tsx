@@ -66,9 +66,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                         
                         // Play notification sound
                         try {
-                            const audio = new Audio("https://cdn.pixabay.com/audio/2021/08/04/audio_0625c15396.mp3");
-                            audio.volume = 0.5;
-                            audio.play().catch(e => console.warn("[NotificationSound] Play blocked by browser:", e));
+                            // Use a more reliable, standard notification sound
+                            const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
+                            audio.volume = 0.6;
+                            
+                            // Play only after a short delay to ensure DOM state is ready
+                            setTimeout(() => {
+                                audio.play().catch(e => {
+                                    console.warn("[NotificationSound] Play blocked. User must interact with the page first.");
+                                });
+                            }, 100);
                         } catch (e) {
                             console.error("[NotificationSound] Failed to play:", e);
                         }
