@@ -11,7 +11,6 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import Chatbot from "../../components/Chatbot";
 import ProgrammingMarquee from "../../components/ProgrammingMarquee";
 import CommunityReviews from "../../components/CommunityReviews";
 import { AICard } from "../../components/ui/ai-card";

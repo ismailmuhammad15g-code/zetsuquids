@@ -190,7 +190,6 @@ export default function Chatbot() {
   const [isMinimized, setIsMinimized] = useState(false);
   // Keep initial render deterministic for SSR; hydrate popup preference after mount.
   const [showPopup, setShowPopup] = useState(false);
-  // const [activeTab, setActiveTab] = useState("chat"); // 'chat', 'support-form', or 'direct-support'
   const [unreadSupportCount, setUnreadSupportCount] = useState(0);
   const [showSupportForm, setShowSupportForm] = useState(false);
   const [awaitingSupportConfirmation, setAwaitingSupportConfirmation] =
