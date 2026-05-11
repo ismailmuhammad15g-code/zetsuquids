@@ -33,7 +33,6 @@ import { notificationsApi } from '../../../lib/notificationsApi';
 import { aiReviewerApi } from '../../../lib/aiReviewerApi';
 
 type LottieAnimationData = object
-
 type CssVarStyle = React.CSSProperties & {
     '--profile-color': string
 }
@@ -158,6 +157,7 @@ export default function StaffConsole() {
     const [savingChangelog, setSavingChangelog] = useState<boolean>(false)
     const [editingEntry, setEditingEntry] = useState<ChangelogEntry | null>(null)
     const [newEntry, setNewEntry] = useState<Omit<ChangelogEntry, 'id'>>({ title: '', description: '', date: new Date().toISOString().split('T')[0], tag: 'feature', version: '' })
+
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const activeChannelRef = useRef<RealtimeChannel | null>(null)
     const lastTypingTimeRef = useRef<number>(0)
@@ -228,7 +228,6 @@ export default function StaffConsole() {
         if (!isAuthenticated) return
 
         console.log('🔔 Setting up real-time subscription for Staff Console')
-
         const subscription = supabase
             .channel('staff_console_messages')
             .on(
@@ -343,7 +342,6 @@ export default function StaffConsole() {
         }
     }
 
-
     // Load support conversations
     const loadConversations = async () => {
         setLoadingConversations(true)
@@ -404,10 +402,11 @@ export default function StaffConsole() {
                 if (aiLogs.some(log => log.guide_id === guide.id && (Date.now() - new Date(log.time).getTime() < 60000))) continue;
 
                 setProcessingGuideId(guide.id || null);
+
                 try {
                     const reviewResult = await aiReviewerApi.reviewGuide(guide);
-                    let status: 'ready' | 'error' = 'error';
 
+                    let status: 'ready' | 'error' = 'error';
                     if (reviewResult.approved) {
                         const success = await adminGuidesApi.approveGuide(guide.id!);
                         if (success) {
@@ -496,12 +495,12 @@ export default function StaffConsole() {
 
         // Update log to processing
         setAiLogs(prev => prev.map(log => log.id === logId ? { ...log, status: 'processing', message: 'Retrying review...' } : log));
-
         setProcessingGuideId(guide.id || null);
+
         try {
             const reviewResult = await aiReviewerApi.reviewGuide(guide);
-            let status: 'ready' | 'error' = 'error';
 
+            let status: 'ready' | 'error' = 'error';
             if (reviewResult.approved) {
                 const success = await adminGuidesApi.approveGuide(guide.id!);
                 if (success) {
@@ -548,10 +547,12 @@ export default function StaffConsole() {
             if (status === 'ready' || status === 'error') {
                 loadPendingGuides();
             }
+
         } catch (err) {
             console.error("Retry AI Review failed", err);
             setAiLogs(prev => prev.map(log => log.id === logId ? { ...log, status: 'error', message: 'Retry failed: ' + String(err) } : log));
         }
+
         setProcessingGuideId(null);
     }
 
@@ -657,12 +658,14 @@ export default function StaffConsole() {
     // Approve guide
     const handleApproveGuide = async (guide: Guide) => {
         if (!guide || !selectedProfile) return
+
         setProcessingGuideId(guide.id || null)
         try {
             const success = await adminGuidesApi.approveGuide(guide.id || 0)
             if (success) {
                 // Remove from list
                 setPendingGuides(prev => prev.filter(g => g.id !== guide.id))
+
                 // Notify via toast/alert (optional)
                 if (guide.author_id) {
                     await notificationsApi.createNotification({
@@ -686,11 +689,13 @@ export default function StaffConsole() {
     // Reject guide
     const handleRejectGuide = async (guide: Guide) => {
         if (!confirm('Are you sure you want to reject and delete this guide?')) return
+
         setProcessingGuideId(guide.id || null)
         try {
             const success = await adminGuidesApi.rejectGuide(guide.id || 0)
             if (success) {
                 setPendingGuides(prev => prev.filter(g => g.id !== guide.id))
+
                 if (guide.author_id) {
                     await notificationsApi.createNotification({
                         user_id: guide.author_id,
@@ -837,7 +842,7 @@ export default function StaffConsole() {
 
             {/* Header */}
             <header className="staff-header">
-                <div className="staff-header-left">
+                <div className="staff-header-left" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <Link href="/" className="staff-back-link">
                         <ArrowLeft size={18} />
                     </Link>
@@ -846,6 +851,7 @@ export default function StaffConsole() {
                         <h1>Staff Console</h1>
                     </div>
                 </div>
+
                 <div className="staff-header-right">
                     {selectedProfile && (
                         <button
@@ -867,8 +873,6 @@ export default function StaffConsole() {
                     </button>
                 </div>
             </header>
-
-
 
             {/* Tabs Navigation */}
             <div className="staff-tabs">
@@ -911,7 +915,6 @@ export default function StaffConsole() {
                 {/* Support Tab */}
                 <div style={{ display: activeTab === 'support' ? 'block' : 'none' }}>
                     <section className="support-section">
-                        {/* ... existing support section content ... */}
                         <div className="section-header">
                             <MessageSquare size={20} className="text-slate-500" />
                             <h2 className="text-slate-800 font-bold">Customer Messages</h2>
@@ -924,6 +927,7 @@ export default function StaffConsole() {
                                 <RefreshCw size={16} className={loadingConversations ? 'spin' : ''} />
                             </button>
                         </div>
+
                         {supportError && (
                             <div className="support-error-banner bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-4">
                                 <strong>Error:</strong> {supportError}
@@ -1198,7 +1202,6 @@ export default function StaffConsole() {
                                                         <Eye size={16} />
                                                         Preview
                                                     </button>
-
                                                     <div className="approval-actions">
                                                         <button
                                                             className="reject-btn bg-red-50 text-red-500 hover:bg-red-100 border border-red-100"
@@ -1312,8 +1315,7 @@ export default function StaffConsole() {
                                                                     >
                                                                         <RefreshCw size={10} />
                                                                         RETRY
-                                                                    </button>
-                                                                )}
+                                                                    </button>                                                                )}
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -1461,8 +1463,7 @@ export default function StaffConsole() {
                                     const tagColors: Record<string, string> = { feature: '#8b5cf6', improvement: '#3b82f6', fix: '#10b981', announcement: '#f59e0b' }
                                     const tagLabels: Record<string, string> = { feature: 'New Feature', improvement: 'Improvement', fix: 'Fix', announcement: 'Announcement' }
                                     const color = tagColors[entry.tag] || '#8b5cf6'
-                                    return (
-                                        <div key={entry.id} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    return (                                        <div key={entry.id} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                                     <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '9999px', backgroundColor: `${color}20`, color, border: `1px solid ${color}40`, fontWeight: 600 }}>
@@ -1493,7 +1494,6 @@ export default function StaffConsole() {
                     <div className="profile-selector-modal bg-white shadow-2xl border border-slate-200" style={{ maxWidth: '500px', textAlign: 'left' }}>
                         <h2 className="text-slate-900 font-bold text-xl mb-2">Create Advertisement</h2>
                         <p className="text-slate-500 mb-6">Configure the banner message that will appear globally to users.</p>
-
                         <form onSubmit={handleCreateAd} className="flex flex-col gap-5">
                             <div className="flex flex-col gap-2">
                                 <label className="text-sm font-semibold text-slate-700">Display Title</label>
@@ -1550,7 +1550,6 @@ export default function StaffConsole() {
                                     className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900"
                                 />
                             </div>
-
                             <div className="flex gap-4 mt-4">
                                 <button
                                     type="button"
@@ -1578,38 +1577,35 @@ export default function StaffConsole() {
                     <div className="profile-selector-modal bg-white shadow-2xl border border-slate-200" style={{ maxWidth: '500px', textAlign: 'left' }}>
                         <h2 className="text-slate-900 font-bold text-xl mb-2">{editingEntry ? 'Edit System Update' : 'Post New Update'}</h2>
                         <p className="text-slate-500 mb-6">Details of this update will be shown on the public Changelog page.</p>
-
                         <div className="flex flex-col gap-5">
                             <div className="flex flex-col gap-2">
                                 <label className="text-sm font-semibold text-slate-700">Update Title</label>
-                                <input 
-                                    type="text" 
-                                    value={newEntry.title} 
-                                    onChange={e => setNewEntry({ ...newEntry, title: e.target.value })} 
-                                    placeholder="e.g. Added Real-time Notifications" 
-                                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900"
-                                    dir="ltr" 
-                                />
+                                <input
+                                     type="text"
+                                     value={newEntry.title}
+                                     onChange={e => setNewEntry({ ...newEntry, title: e.target.value })}
+                                     placeholder="e.g. Added Real-time Notifications"
+                                     className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900"
+                                    dir="ltr"
+                                 />
                             </div>
-
                             <div className="flex flex-col gap-2">
                                 <label className="text-sm font-semibold text-slate-700">Detailed Description</label>
-                                <textarea 
-                                    value={newEntry.description} 
-                                    onChange={e => setNewEntry({ ...newEntry, description: e.target.value })} 
-                                    placeholder="What's new in this version?" 
-                                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 h-32"
-                                    dir="ltr" 
-                                />
+                                <textarea
+                                     value={newEntry.description}
+                                     onChange={e => setNewEntry({ ...newEntry, description: e.target.value })}
+                                     placeholder="What's new in this version?"
+                                     className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 h-32"
+                                    dir="ltr"
+                                 />
                             </div>
-
                             <div className="flex gap-4">
                                 <div className="flex-1 flex flex-col gap-2">
                                     <label className="text-sm font-semibold text-slate-700">Tag Type</label>
-                                    <select 
-                                        value={newEntry.tag} 
-                                        onChange={e => setNewEntry({ ...newEntry, tag: e.target.value as ChangelogEntry['tag'] })} 
-                                        className="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900"
+                                    <select
+                                         value={newEntry.tag}
+                                         onChange={e => setNewEntry({ ...newEntry, tag: e.target.value as ChangelogEntry['tag'] })}
+                                         className="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900"
                                     >
                                         <option value="feature">New Feature</option>
                                         <option value="improvement">Improvement</option>
@@ -1619,37 +1615,35 @@ export default function StaffConsole() {
                                 </div>
                                 <div className="flex-1 flex flex-col gap-2">
                                     <label className="text-sm font-semibold text-slate-700">Publication Date</label>
-                                    <input 
-                                        type="date" 
-                                        value={newEntry.date} 
-                                        onChange={e => setNewEntry({ ...newEntry, date: e.target.value })} 
-                                        className="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900"
+                                    <input
+                                         type="date"
+                                         value={newEntry.date}
+                                         onChange={e => setNewEntry({ ...newEntry, date: e.target.value })}
+                                         className="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900"
                                     />
                                 </div>
                             </div>
-
                             <div className="flex flex-col gap-2">
                                 <label className="text-sm font-semibold text-slate-700">Version Number (Optional)</label>
-                                <input 
-                                    type="text" 
-                                    value={newEntry.version || ''} 
-                                    onChange={e => setNewEntry({ ...newEntry, version: e.target.value })} 
-                                    placeholder="e.g. 1.0.5" 
-                                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900"
+                                <input
+                                     type="text"
+                                     value={newEntry.version || ''}
+                                     onChange={e => setNewEntry({ ...newEntry, version: e.target.value })}
+                                     placeholder="e.g. 1.0.5"
+                                     className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900"
                                 />
                             </div>
-
                             <div className="flex gap-4 mt-4">
-                                <button 
-                                    onClick={() => { setShowChangelogModal(false); setEditingEntry(null) }} 
-                                    className="flex-1 p-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-all"
+                                <button
+                                     onClick={() => { setShowChangelogModal(false); setEditingEntry(null) }}
+                                     className="flex-1 p-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-all"
                                 >
                                     Discard
                                 </button>
-                                <button 
-                                    onClick={handleSaveEntry} 
-                                    disabled={savingChangelog || !newEntry.title || !newEntry.description} 
-                                    className="flex-1 p-3 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all disabled:opacity-50 flex justify-center items-center"
+                                <button
+                                     onClick={handleSaveEntry}
+                                     disabled={savingChangelog || !newEntry.title || !newEntry.description}
+                                     className="flex-1 p-3 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all disabled:opacity-50 flex justify-center items-center"
                                 >
                                     {savingChangelog ? <RefreshCw className="spin" size={20} /> : editingEntry ? 'Save Changes' : 'Post Update'}
                                 </button>
@@ -1702,9 +1696,344 @@ export default function StaffConsole() {
                     background: #f1f5f9;
                     border-radius: 9999px;
                     border: 1px solid #e2e8f0;
+                    color: #475569;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.2s;
                 }
 
                 .current-profile:hover { background: #e2e8f0; }
+
+                .staff-logout-btn {
+                    padding: 10px;
+                    color: #64748b;
+                    border-radius: 12px;
+                    transition: all 0.2s;
+                    border: none;
+                    background: transparent;
+                    cursor: pointer;
+                }
+
+                .staff-logout-btn:hover { background: #fee2e2; color: #ef4444; }
+
+                /* Tabs */
+                .staff-tabs {
+                    display: flex;
+                    justify-content: center;
+                    gap: 12px;
+                    margin: 24px 0 32px;
+                    background: white;
+                    padding: 8px;
+                    border-radius: 20px;
+                    border: 1px solid #e2e8f0;
+                    width: fit-content;
+                    margin-left: auto;
+                    margin-right: auto;
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+                }
+
+                .tab-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    background: transparent;
+                    border: none;
+                    border-radius: 14px;
+                    padding: 10px 20px;
+                    color: #64748b;
+                    font-weight: 600;
+                    font-size: 0.9rem;
+                    transition: all 0.2s;
+                    cursor: pointer;
+                    position: relative;
+                }
+
+                .tab-btn:hover { background: #f8fafc; color: #0f172a; }
+                .tab-btn.active {
+                    background: #0f172a;
+                    color: white;
+                    box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.2);
+                }
+
+                .tab-badge {
+                    width: 8px;
+                    height: 8px;
+                    background: #ef4444;
+                    border-radius: 50%;
+                    position: absolute;
+                    top: 8px;
+                    right: 12px;
+                }
+
+                .count-badge {
+                    font-size: 0.7rem;
+                    background: #ef4444;
+                    color: white;
+                    padding: 2px 6px;
+                    border-radius: 9999px;
+                    font-weight: 800;
+                }
+
+                /* Main Content */
+                .staff-content {
+                    max-width: 1100px;
+                    margin: 0 auto;
+                    padding: 0 24px 32px;
+                }
+
+                .support-section, .guides-section, .ads-section {
+                    background: white;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 24px;
+                    padding: 32px;
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+                }
+
+                .section-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    margin-bottom: 32px;
+                    padding-bottom: 20px;
+                    border-bottom: 1px solid #f1f5f9;
+                }
+
+                .section-header h2 {
+                    font-size: 1.25rem;
+                    font-weight: 700;
+                    color: #0f172a;
+                    margin: 0;
+                }
+
+                .conv-count {
+                    padding: 2px 10px;
+                    border-radius: 9999px;
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                }
+
+                .refresh-btn {
+                    margin-left: auto;
+                    background: #f1f5f9;
+                    padding: 10px;
+                    border-radius: 12px;
+                    color: #64748b;
+                    transition: all 0.2s;
+                    border: 1px solid transparent;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .refresh-btn:hover { background: white; border-color: #e2e8f0; color: #0f172a; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+                .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+                .empty-state {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    padding: 80px 40px;
+                    gap: 16px;
+                    text-align: center;
+                }
+
+                /* Conversations */
+                .conversations-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 16px;
+                }
+
+                .conversation-item {
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 20px;
+                    overflow: hidden;
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+
+                .conversation-item:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-color: #cbd5e1; }
+
+                .conversation-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 24px;
+                    cursor: pointer;
+                }
+
+                .conversation-info { display: flex; flex-direction: column; gap: 8px; }
+
+                .conversation-user {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    color: #0f172a;
+                }
+
+                .user-email { font-weight: 700; font-size: 1rem; }
+
+                .unread-badge {
+                    background: #ef4444;
+                    color: white;
+                    font-size: 0.7rem;
+                    padding: 2px 8px;
+                    border-radius: 9999px;
+                    font-weight: 800;
+                    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+                }
+
+                .conversation-meta {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 0.8rem;
+                    color: #64748b;
+                }
+
+                .expand-icon { color: #94a3b8; }
+
+                .conversation-messages {
+                    border-top: 1px solid #e2e8f0;
+                    padding: 24px;
+                    background: white;
+                }
+
+                .messages-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 20px;
+                    max-height: 500px;
+                    overflow-y: auto;
+                    margin-bottom: 24px;
+                    padding-right: 12px;
+                }
+
+                .messages-list::-webkit-scrollbar { width: 6px; }
+                .messages-list::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
+                .message-bubble {
+                    display: flex;
+                    gap: 12px;
+                    max-width: 80%;
+                }
+
+                .message-bubble.user {
+                    margin-left: auto;
+                    flex-direction: row-reverse;
+                }
+
+                .message-bubble .message-body {
+                    padding: 16px 20px;
+                    border-radius: 20px;
+                    position: relative;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                }
+
+                .message-bubble.user .message-body {
+                    background: #0f172a;
+                    color: white;
+                    border-bottom-right-radius: 4px;
+                }
+
+                .message-bubble.admin .message-body,
+                .message-bubble.staff .message-body {
+                    background: white;
+                    border: 1px solid #e2e8f0;
+                    color: #1e293b;
+                    border-bottom-left-radius: 4px;
+                }
+
+                .message-avatar {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    background: #f1f5f9;
+                    border: 1px solid #e2e8f0;
+                    flex-shrink: 0;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .message-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+                .message-sender {
+                    font-size: 0.7rem;
+                    font-weight: 800;
+                    margin-bottom: 6px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                }
+
+                .message-content { font-size: 0.935rem; line-height: 1.6; }
+
+                .message-time {
+                    font-size: 0.65rem;
+                    opacity: 0.6;
+                    margin-top: 10px;
+                    display: block;
+                }
+
+                .reply-section {
+                    display: flex;
+                    gap: 12px;
+                    align-items: center;
+                    padding-top: 20px;
+                    border-top: 1px solid #f1f5f9;
+                }
+
+                .reply-profile {
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 14px;
+                    overflow: hidden;
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    flex-shrink: 0;
+                }
+
+                .reply-section input {
+                    flex: 1;
+                    padding: 14px 20px;
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 16px;
+                    color: #0f172a;
+                    font-size: 0.95rem;
+                    transition: all 0.2s;
+                    outline: none;
+                }
+
+                .reply-section input:focus { background: white; border-color: #0f172a; box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.05); }
+
+                .reply-section button {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 16px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    border: none;
+                }
+
+                .select-profile-btn {
+                    flex: 1;
+                    padding: 16px;
+                    background: #f8fafc;
+                    border: 2px dashed #cbd5e1;
+                    border-radius: 16px;
+                    color: #64748b;
+                    font-weight: 600;
+                    transition: all 0.2s;
+                    cursor: pointer;
+                }
+
+                .select-profile-btn:hover { background: #f1f5f9; border-color: #94a3b8; color: #0f172a; }
 
                 /* Profile Selection Overlay */
                 .profile-selector-overlay {
@@ -1726,6 +2055,7 @@ export default function StaffConsole() {
                     width: 100%;
                     max-width: 800px;
                     box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+                    text-align: center;
                 }
 
                 .profiles-grid {
@@ -1745,6 +2075,8 @@ export default function StaffConsole() {
                     border: 2px solid transparent;
                     border-radius: 24px;
                     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    cursor: pointer;
+                    border: none;
                 }
 
                 .profile-card:hover { transform: translateY(-8px); border-color: var(--profile-color); background: white; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
@@ -1771,8 +2103,27 @@ export default function StaffConsole() {
                     gap: 24px;
                 }
 
-                .guide-date { color: #94a3b8; }
-                .guide-meta { color: #64748b; }
+                .guide-review-card {
+                    background: white;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 24px;
+                    padding: 24px;
+                    transition: all 0.3s ease;
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .guide-review-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+
+                .guide-header h3 { margin: 0; font-size: 1.15rem; color: #0f172a; font-weight: 800; }
+                .guide-date { color: #94a3b8; font-size: 0.8rem; }
+                .guide-meta { display: flex; align-items: center; gap: 12px; margin-top: 8px; color: #64748b; font-size: 0.85rem; }
+                .guide-author { display: flex; align-items: center; gap: 4px; }
+                .guide-type { background: #f1f5f9; padding: 2px 8px; border-radius: 6px; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; }
+
+                .guide-preview { margin: 12px 0; color: #64748b; font-size: 0.9rem; line-height: 1.5; }
+
+                .guide-actions { display: flex; justify-content: space-between; align-items: center; }
 
                 .preview-btn {
                     padding: 8px 16px;
@@ -1784,6 +2135,8 @@ export default function StaffConsole() {
                     gap: 8px;
                     font-size: 0.9rem;
                     font-weight: 600;
+                    border: none;
+                    cursor: pointer;
                 }
 
                 .approval-actions { display: flex; gap: 8px; }
@@ -1806,6 +2159,7 @@ export default function StaffConsole() {
                 .reject-btn { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
                 .reject-btn:hover { background: #fee2e2; }
 
+                /* Loading & Utilities */
                 .staff-loading {
                     display: flex;
                     flex-direction: column;
@@ -1819,7 +2173,14 @@ export default function StaffConsole() {
 
                 .spin { animation: spin 1s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+                .line-clamp-3 {
+                    display: -webkit-box;
+                    -webkit-line-clamp: 3;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                }
             `}</style>
-        </div >
+        </div>
     )
 }
