@@ -24,6 +24,7 @@ interface GuideRecommendationsProps {
   currentGuideKeywords?: string[] | null;
   currentGuideAuthor?: string | null;
   limit?: number;
+  strictMode?: boolean;
 }
 
 export default function GuideRecommendations({
@@ -31,6 +32,7 @@ export default function GuideRecommendations({
   currentGuideKeywords = null,
   currentGuideAuthor = null,
   limit = 6,
+  strictMode = true,
 }: GuideRecommendationsProps) {
   const { user } = useAuth();
   const [recommendations, setRecommendations] = useState<ScoredGuide[]>([]);
@@ -59,12 +61,12 @@ export default function GuideRecommendations({
         ? { slug: currentGuideSlug, keywords: currentGuideKeywords, user_email: currentGuideAuthor }
         : null;
 
-      const scored = getRecommendations(currentGuide, allGuides, limit);
+      const scored = getRecommendations(currentGuide, allGuides, limit, strictMode);
       setRecommendations(scored);
 
       // Check if history exists → show "Personalized" badge
       const history = getReadingHistory();
-      setIsPersonalized(history.length > 1);
+      setIsPersonalized(history.length > 0);
 
       // Fetch avatars for unique authors
       const uniqueEmails = [...new Set(scored.map((g) => g.user_email).filter(Boolean) as string[])];

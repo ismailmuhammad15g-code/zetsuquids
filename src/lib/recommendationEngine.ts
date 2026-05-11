@@ -128,7 +128,8 @@ export function getRecommendations(
     user_email?: string | null;
   } | null,
   allGuides: any[],
-  limit = 6
+  limit = 6,
+  strictMode = false
 ): ScoredGuide[] {
   const history = getReadingHistory();
   const { keywords: userKeywords, authors: userAuthors } = buildUserProfile(history);
@@ -150,7 +151,7 @@ export function getRecommendations(
   const now = Date.now();
   const maxAge = 365 * 24 * 60 * 60 * 1000; // 1 year in ms
 
-  const scored: ScoredGuide[] = candidates.map((guide) => {
+  let scored: ScoredGuide[] = candidates.map((guide) => {
     const guideKeywords = (guide.keywords || []).map((k: string) =>
       k.toLowerCase().trim()
     );
@@ -158,8 +159,9 @@ export function getRecommendations(
     const reasons: string[] = [];
 
     // ── Layer 1: Keyword similarity with CURRENT guide ───────────────────────
+    let similarity = 0;
     if (currentKeywords.length > 0 && guideKeywords.length > 0) {
-      const similarity = jaccardSimilarity(currentKeywords, guideKeywords);
+      similarity = jaccardSimilarity(currentKeywords, guideKeywords);
       if (similarity > 0) {
         score += similarity * 50; // max 50 pts
         reasons.push("Similar content");
@@ -167,8 +169,8 @@ export function getRecommendations(
     }
 
     // ── Layer 2: Match with USER's interest profile ──────────────────────────
+    let interestScore = 0;
     if (userKeywords.size > 0 && guideKeywords.length > 0) {
-      let interestScore = 0;
       guideKeywords.forEach((kw: string) => {
         interestScore += userKeywords.get(kw) || 0;
       });
@@ -181,8 +183,9 @@ export function getRecommendations(
     }
 
     // ── Layer 3: Author affinity ─────────────────────────────────────────────
+    let authorScore = 0;
     if (guide.user_email && userAuthors.size > 0) {
-      const authorScore = userAuthors.get(guide.user_email.toLowerCase()) || 0;
+      authorScore = userAuthors.get(guide.user_email.toLowerCase()) || 0;
       if (authorScore > 0) {
         const maxAuthor = Math.max(...Array.from(userAuthors.values()));
         score += (authorScore / maxAuthor) * 20; // max 20 pts
@@ -194,7 +197,13 @@ export function getRecommendations(
     const viewScore = ((guide.views_count || 0) / maxViews) * 10; // max 10 pts
     const ageMs = now - new Date(guide.created_at || now).getTime();
     const recencyScore = Math.max(0, 1 - ageMs / maxAge) * 5; // max 5 pts
-    score += viewScore + recencyScore;
+    
+    // If strict mode, don't use layer 4 as a base score, just as a tie-breaker
+    if (!strictMode) {
+      score += viewScore + recencyScore;
+    } else {
+      score += (viewScore + recencyScore) * 0.1; // Minimal impact in strict mode
+    }
 
     // Slight boost for guides not yet read (discovery)
     if (!readSlugs.has(guide.slug)) {
@@ -205,12 +214,12 @@ export function getRecommendations(
     let recommendation_reason = "Recommended";
     const isNew = ageMs < 7 * 24 * 60 * 60 * 1000; // 7 days
 
-    if (reasons.includes("Matches your interests")) {
+    if (reasons.includes("Similar content") && similarity > 0) {
+      recommendation_reason = "Similar content";
+    } else if (reasons.includes("Matches your interests")) {
       recommendation_reason = "Matches your interests";
     } else if (reasons.includes("From authors you like")) {
       recommendation_reason = "Author you follow";
-    } else if (reasons.includes("Similar content")) {
-      recommendation_reason = "Similar content";
     } else if ((guide.views_count || 0) > 50) {
       recommendation_reason = "Popular";
     } else if (isNew) {
@@ -218,6 +227,11 @@ export function getRecommendations(
     } else if (score > 15) {
       recommendation_reason = "Top Pick";
     }
+
+    // In Strict Mode, we must have a valid reason from Layers 1-3
+    const hasValidStrictReason = 
+      (currentGuide && similarity > 0) || 
+      (!currentGuide && (interestScore > 0 || authorScore > 0));
 
     return {
       slug: guide.slug,
@@ -228,10 +242,15 @@ export function getRecommendations(
       cover_image: guide.cover_image || null,
       created_at: guide.created_at,
       views_count: guide.views_count || 0,
-      score,
+      score: hasValidStrictReason || !strictMode ? score : -1, // Mark for filter if strict
       recommendation_reason,
     };
   });
+
+  // If strict mode, filter out non-matching guides
+  if (strictMode) {
+    scored = scored.filter(g => g.score >= 0);
+  }
 
   // Sort by score descending, take top N
   return scored
