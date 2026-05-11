@@ -445,128 +445,138 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                   </kbd>
                 </button>
 
-                {/* Add Guide Button - Only for authenticated users */}
-                {isAuthenticated() && (
-                  <button
-                    onClick={openAddModal}
-                    className="flex items-center gap-2 px-2.5 sm:px-3 2xl:px-4 py-2 bg-black text-white dark:bg-white dark:text-black font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
-                  >
-                    <Plus size={18} />
-                    <span className="hidden 2xl:inline">Add Guide</span>
-                  </button>
-                )}
-
-                {/* Notifications Bell */}
-                {isAuthenticated() && (
-                  <NotificationBell />
-                )}
-
-                {/* Auth Section */}
+                {/* Auth & Actions Section */}
                 {loading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 h-9 bg-gray-100 dark:bg-white/10 animate-pulse border border-gray-200 dark:border-white/10 rounded-lg" />
+                  <div className="flex items-center gap-3">
+                    {/* Skeleton for Add Guide */}
+                    <div className="hidden 2xl:block w-32 h-10 bg-gray-100 dark:bg-white/10 animate-pulse border border-gray-200 dark:border-white/10 rounded-sm" />
+                    <div className="2xl:hidden w-10 h-10 bg-gray-100 dark:bg-white/10 animate-pulse border border-gray-200 dark:border-white/10 rounded-sm" />
+                    
+                    {/* Skeleton for Notification Bell */}
+                    <div className="w-10 h-10 bg-gray-100 dark:bg-white/10 animate-pulse border border-gray-200 dark:border-white/10 rounded-full" />
+                    
+                    {/* Skeleton for User Profile */}
+                    <div className="flex items-center gap-2 px-3 py-2 border border-gray-100 dark:border-white/10 rounded-lg">
+                      <div className="w-7 h-7 bg-gray-100 dark:bg-white/10 animate-pulse border border-gray-200 dark:border-white/10 rounded-full" />
+                      <div className="hidden 2xl:block w-20 h-4 bg-gray-100 dark:bg-white/10 animate-pulse rounded" />
+                    </div>
                   </div>
                 ) : isAuthenticated() ? (
-                  <div className="relative">
+                  <>
+                    {/* Add Guide Button */}
                     <button
-                      onClick={() => setShowUserMenu(!showUserMenu)}
-                      className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-white/20 hover:border-black dark:hover:border-white transition-colors rounded-lg group"
+                      onClick={openAddModal}
+                      className="flex items-center gap-2 px-2.5 sm:px-3 2xl:px-4 py-2 bg-black text-white dark:bg-white dark:text-black font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
                     >
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center overflow-hidden border border-black dark:border-white group-hover:scale-105 transition-transform">
-                        <img
-                          src={getAvatarForUser(
-                            user?.email,
-                            userProfile?.avatar_url,
-                          )}
-                          alt="User"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <span className="hidden 2xl:inline text-sm font-medium">
-                        {getUserDisplayName()}
-                      </span>
+                      <Plus size={18} />
+                      <span className="hidden 2xl:inline">Add Guide</span>
                     </button>
 
-                    {showUserMenu && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-[998]"
-                          onClick={() => setShowUserMenu(false)}
-                        />
-                        <div className="absolute right-0 mt-2 w-72 bg-white border-2 border-black rounded-xl shadow-2xl z-[999] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                          <div className="px-4 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-black shadow-md">
-                                <img
-                                  src={getAvatarForUser(
-                                    user?.email,
-                                    userProfile?.avatar_url,
-                                  )}
-                                  alt="User"
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-bold text-gray-900 truncate">
-                                  {getUserDisplayName()}
-                                </p>
-                                <p className="text-xs text-gray-500 truncate">
-                                  {user?.email}
-                                </p>
+                    {/* Notifications Bell */}
+                    <NotificationBell />
+
+                    {/* Profile Dropdown */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowUserMenu(!showUserMenu)}
+                        className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-white/20 hover:border-black dark:hover:border-white transition-colors rounded-lg group"
+                      >
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center overflow-hidden border border-black dark:border-white group-hover:scale-105 transition-transform">
+                          <img
+                            src={getAvatarForUser(
+                              user?.email,
+                              userProfile?.avatar_url,
+                            )}
+                            alt="User"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <span className="hidden 2xl:inline text-sm font-medium">
+                          {getUserDisplayName()}
+                        </span>
+                      </button>
+
+                      {showUserMenu && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-[998]"
+                            onClick={() => setShowUserMenu(false)}
+                          />
+                          <div className="absolute right-0 mt-2 w-72 bg-white border-2 border-black rounded-xl shadow-2xl z-[999] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="px-4 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-black shadow-md">
+                                  <img
+                                    src={getAvatarForUser(
+                                      user?.email,
+                                      userProfile?.avatar_url,
+                                    )}
+                                    alt="User"
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-bold text-gray-900 truncate">
+                                    {getUserDisplayName()}
+                                  </p>
+                                  <p className="text-xs text-gray-500 truncate">
+                                    {user?.email}
+                                  </p>
+                                </div>
                               </div>
                             </div>
+                            <div className="py-2 border-b border-gray-200">
+                              <Link
+                                href={`/@${getWorkspaceSlug()}/workspace`}
+                                onClick={() => setShowUserMenu(false)}
+                                className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                              >
+                                <BookOpen size={18} />
+                                <span>My Workspace</span>
+                              </Link>
+                              <Link
+                                href="/stats"
+                                onClick={() => setShowUserMenu(false)}
+                                className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                              >
+                                <BarChart3 size={18} />
+                                <span>My Stats</span>
+                              </Link>
+                              <Link
+                                href="/zetsuguide-ai"
+                                onClick={() => setShowUserMenu(false)}
+                                className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                              >
+                                <Bot size={18} />
+                                <div className="flex-1 flex items-center justify-between">
+                                  <span>ZetsuGuide AI</span>
+                                </div>
+                              </Link>
+                              <Link
+                                href="/pricing"
+                                onClick={() => setShowUserMenu(false)}
+                                className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                              >
+                                <Sparkles size={18} className="text-yellow-500" />
+                                <span>Upgrade to Pro</span>
+                              </Link>
+                            </div>
+                            <button
+                              onClick={() => {
+                                logout();
+                                setShowUserMenu(false);
+                                router.push("/");
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors font-medium"
+                            >
+                              <LogOut size={18} />
+                              <span>Logout</span>
+                            </button>
                           </div>
-                          <div className="py-2 border-b border-gray-200">
-                            <Link
-                              href={`/@${getWorkspaceSlug()}/workspace`}
-                              onClick={() => setShowUserMenu(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                              <BookOpen size={18} />
-                              <span>My Workspace</span>
-                            </Link>
-                            <Link
-                              href="/stats"
-                              onClick={() => setShowUserMenu(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                              <BarChart3 size={18} />
-                              <span>My Stats</span>
-                            </Link>
-                            <Link
-                              href="/zetsuguide-ai"
-                              onClick={() => setShowUserMenu(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                              <Bot size={18} />
-                              <div className="flex-1 flex items-center justify-between">
-                                <span>ZetsuGuide AI</span>
-                              </div>
-                            </Link>
-                            <Link
-                              href="/pricing"
-                              onClick={() => setShowUserMenu(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                              <Sparkles size={18} className="text-yellow-500" />
-                              <span>Upgrade to Pro</span>
-                            </Link>
-                          </div>
-                          <button
-                            onClick={() => {
-                              logout();
-                              setShowUserMenu(false);
-                              router.push("/");
-                            }}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors font-medium"
-                          >
-                            <LogOut size={18} />
-                            <span>Logout</span>
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                        </>
+                      )}
+                    </div>
+                  </>
                 ) : (
                   <Link
                     href="/auth"
