@@ -281,23 +281,53 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         if (mermaidBlocks.length) {
           import("mermaid").then(mod => {
             const mermaid = mod.default || mod;
-            try { mermaid.initialize({ startOnLoad: false }); } catch (e) {}
+            try { 
+              mermaid.initialize({ 
+                startOnLoad: false,
+                theme: 'neutral',
+                securityLevel: 'loose'
+              }); 
+            } catch (e) {}
+
             mermaidBlocks.forEach((codeEl: any) => {
               const pre = codeEl.closest("pre");
               if (!pre || pre.getAttribute("data-mermaid-hydrated") === "true") return;
+              
+              // Mark immediately to prevent duplicate processing
+              pre.setAttribute("data-mermaid-hydrated", "true");
+              
               const diagramCode = codeEl.textContent || "";
+              if (!diagramCode.trim()) return;
+
               try {
-                const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
-                if (mermaid.mermaidAPI && (mermaid.mermaidAPI as any).render) {
-                  (mermaid.mermaidAPI as any).render(id, diagramCode, (svgCode: string) => {
-                    const wrapper = document.createElement("div");
-                    wrapper.className = "mermaid-render";
-                    wrapper.innerHTML = svgCode;
-                    pre.replaceWith(wrapper);
+                // Mermaid IDs must start with a letter
+                const id = `mermaid_diag_${Math.random().toString(36).slice(2, 11)}`;
+                
+                // Use the newer async render if available, or fallback
+                const renderFn = (mermaid as any).render || (mermaid.mermaidAPI && (mermaid.mermaidAPI as any).render);
+                
+                if (typeof renderFn === 'function') {
+                  Promise.resolve(renderFn(id, diagramCode)).then((res) => {
+                    // Modern mermaid returns { svg, bindFunctions }
+                    const svgCode = typeof res === 'string' ? res : res.svg;
+                    
+                    if (svgCode && pre.parentNode) {
+                      const wrapper = document.createElement("div");
+                      wrapper.className = "mermaid-render my-6 flex justify-center overflow-hidden rounded-xl border border-gray-100 bg-gray-50/30 p-4";
+                      wrapper.innerHTML = svgCode;
+                      pre.replaceWith(wrapper);
+                      
+                      // If there are bind functions, call them
+                      if (res.bindFunctions) res.bindFunctions(wrapper);
+                    }
+                  }).catch(err => {
+                    console.error("Mermaid async render failed:", err);
+                    pre.classList.add("mermaid-error");
                   });
                 }
-                pre.setAttribute("data-mermaid-hydrated", "true");
-              } catch (e) { console.error(e); }
+              } catch (e) { 
+                console.error("Mermaid initialization failed for block:", e);
+              }
             });
           });
         }
