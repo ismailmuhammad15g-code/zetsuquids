@@ -21,6 +21,7 @@ import { aiAgentSearch, isAIConfigured } from "../lib/ai";
 import { Guide, guidesApi } from "../lib/api";
 import { supabase } from "../lib/supabase";
 import { supportApi } from "../lib/supportApi";
+import { getAvatarForUser } from "../lib/avatar";
 import BotIcon from "./BotIcon";
 import DirectSupportChat from "./DirectSupportChat";
 import { useRouter } from "next/navigation";
@@ -217,7 +218,7 @@ export default function Chatbot() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Auth & Usage States
-  const { user, isAuthenticated } = useAuth();
+  const { user, profileAvatar, isAuthenticated } = useAuth();
   const router = useRouter();
   const [tokensLeft, setTokensLeft] = useState(30);
 
@@ -1240,10 +1241,12 @@ export default function Chatbot() {
                           )}
                         </div>
                         {msg.role === "user" && (
-                          <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0 order-2 border border-slate-300">
-                            <span className="text-slate-600 text-xs font-bold">
-                              U
-                            </span>
+                          <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 order-2 border border-slate-300 shadow-sm">
+                            <img 
+                              src={getAvatarForUser(user?.email, profileAvatar)} 
+                              className="w-full h-full object-cover" 
+                              alt="Me" 
+                            />
                           </div>
                         )}
                       </div>

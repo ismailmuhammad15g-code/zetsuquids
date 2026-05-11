@@ -4,6 +4,7 @@ import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured, supabase } from '../lib/api';
 import { supportApi } from '../lib/supportApi'; // Import the unified api
+import { getAvatarForUser } from '../lib/avatar';
 import BotIcon from './BotIcon';
 
 // Import staff profile animations
@@ -685,13 +686,10 @@ export default function DirectSupportChat() {
     // Get avatar component for message
     const getMessageAvatar = (msg: any): string | JSX.Element => {
         if (msg.senderType === 'user') {
+            const avatarSrc = getAvatarForUser(user?.email, profileAvatar)
             return (
                 <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-200">
-                    {profileAvatar ? (
-                        <img src={profileAvatar} className="w-full h-full object-cover" alt="ME" />
-                    ) : (
-                        <span className="text-xs font-bold">ME</span>
-                    )}
+                    <img src={avatarSrc} className="w-full h-full object-cover" alt="ME" />
                 </div>
             )
         }
