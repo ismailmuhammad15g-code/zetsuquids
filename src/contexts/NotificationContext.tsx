@@ -72,7 +72,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                             
                             // Play only after a short delay to ensure DOM state is ready
                             setTimeout(() => {
-                                audio.play().catch(e => {
+                                audio.play().catch(_ => {
                                     console.warn("[NotificationSound] Play blocked. User must interact with the page first.");
                                 });
                             }, 100);
