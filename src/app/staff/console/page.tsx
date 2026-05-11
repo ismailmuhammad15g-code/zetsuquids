@@ -137,6 +137,7 @@ export default function StaffConsole() {
     const [loadingMessages, setLoadingMessages] = useState<boolean>(false)
     const [replyText, setReplyText] = useState<string>('')
     const [sendingReply, setSendingReply] = useState<boolean>(false)
+    const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null)
 
     // Ads Management State
     const [ads, setAds] = useState<StaffAd[]>([])
@@ -153,7 +154,9 @@ export default function StaffConsole() {
     const [editingEntry, setEditingEntry] = useState<ChangelogEntry | null>(null)
     const [newEntry, setNewEntry] = useState<Omit<ChangelogEntry, 'id'>>({ title: '', description: '', date: new Date().toISOString().split('T')[0], tag: 'feature', version: '' })
 
+    // Refs
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const chatImageInputRef = useRef<HTMLInputElement>(null)
     const activeChannelRef = useRef<RealtimeChannel | null>(null)
     const lastTypingTimeRef = useRef<number>(0)
 
@@ -468,6 +471,83 @@ export default function StaffConsole() {
         setAiAutoReviewEnabled(newState);
         localStorage.setItem('zetsu_ai_auto_review', String(newState));
     }
+
+
+    const handleDeleteConversation = async (e: React.MouseEvent, convId: string) => {
+        e.stopPropagation()
+        if (!confirm('Are you sure you want to delete this conversation? This will permanently remove all messages.')) return
+
+        setDeletingConversationId(convId)
+        try {
+            const success = await supportApi.deleteConversation(convId)
+            if (success) {
+                setConversations(prev => prev.filter(c => c.id !== convId))
+                if (expandedConversation === convId) {
+                    setExpandedConversation(null)
+                    setConversationMessages([])
+                }
+            }
+        } catch (error) {
+            console.error('Delete error:', error)
+        } finally {
+            setDeletingConversationId(null)
+        }
+    }
+
+    const handleChatImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file || !expandedConversation || !selectedProfile) return
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert('File too large (max 5MB)')
+            return
+        }
+
+        setSendingReply(true)
+        try {
+            const fileExt = file.name.split('.').pop()
+            const fileName = `support/${expandedConversation}/${Date.now()}.${fileExt}`
+            
+            const { error: uploadError } = await supabase.storage
+                .from('support-attachments')
+                .upload(fileName, file)
+
+            if (uploadError) throw uploadError
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('support-attachments')
+                .getPublicUrl(fileName)
+
+            const conv = conversations.find(c => c.id === expandedConversation)
+            if (conv) {
+                // We send a staff reply but manually include the image_url
+                const { data, error } = await supabase
+                    .from('support_messages')
+                    .insert({
+                        conversation_id: expandedConversation,
+                        user_email: conv.user_email,
+                        sender_type: 'staff',
+                        sender_name: selectedProfile.name,
+                        staff_profile_id: selectedProfile.id,
+                        message: "📷 Image Attachment",
+                        image_url: publicUrl,
+                        created_at: new Date().toISOString()
+                    })
+                    .select()
+                    .single()
+
+                if (error) throw error
+                if (data) setConversationMessages(prev => [...prev, data as SupportMessage])
+            }
+        } catch (error) {
+            console.error('Upload error:', error)
+            alert('Failed to upload image')
+        } finally {
+            setSendingReply(false)
+            if (chatImageInputRef.current) chatImageInputRef.current.value = ''
+        }
+    }
+
 
     const handleRetryAiReview = async (logId: string, guideId: number | string) => {
         let guide = pendingGuides.find(g => String(g.id) === String(guideId));
@@ -938,7 +1018,7 @@ export default function StaffConsole() {
                                             return (
                                                 <div 
                                                     key={conv.id} 
-                                                    className={`conversation-card ${isActive ? 'active' : ''}`}
+                                                    className={`conversation-card group ${isActive ? 'active' : ''}`}
                                                     onClick={() => toggleConversation(conv)}
                                                 >
                                                     <div className="card-avatar">
@@ -950,7 +1030,16 @@ export default function StaffConsole() {
                                                     <div className="card-content">
                                                         <div className="card-header">
                                                             <span className="user-name">{conv.user_name || conv.user_email.split('@')[0]}</span>
-                                                            <span className="last-time">{conv.last_message_at ? formatTime(conv.last_message_at).split(' ')[1] : ''}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="last-time">{conv.last_message_at ? formatTime(conv.last_message_at).split(' ')[1] : ''}</span>
+                                                                <button 
+                                                                    className="delete-conv-btn p-1 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                                                    onClick={(e) => handleDeleteConversation(e, conv.id)}
+                                                                    disabled={deletingConversationId === conv.id}
+                                                                >
+                                                                    {deletingConversationId === conv.id ? <RefreshCw size={12} className="spin" /> : <Trash2 size={12} />}
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                         <div className="card-footer">
                                                             <p className="last-msg">{conv.last_message || 'No messages yet'}</p>
@@ -979,8 +1068,8 @@ export default function StaffConsole() {
                                                 </div>
                                             </div>
                                             <div className="header-actions">
-                                                <button className="p-2 hover:bg-slate-100 rounded-full"><Plus size={20} /></button>
-                                                <button className="p-2 hover:bg-slate-100 rounded-full"><BookOpen size={20} /></button>
+                                                <button className="p-2 hover:bg-slate-100 rounded-full" onClick={() => chatImageInputRef.current?.click()}><Plus size={20} /></button>
+                                                <button className="p-2 hover:bg-slate-100 rounded-full" onClick={() => setActiveTab('guides')} title="View Guides"><BookOpen size={20} /></button>
                                             </div>
                                         </header>
 
@@ -1016,9 +1105,21 @@ export default function StaffConsole() {
                                         </div>
 
                                         <footer className="chat-footer">
+                                            <input 
+                                                type="file" 
+                                                ref={chatImageInputRef} 
+                                                onChange={handleChatImageUpload} 
+                                                accept="image/*" 
+                                                style={{ display: 'none' }} 
+                                            />
                                             {selectedProfile ? (
                                                 <div className="footer-container">
-                                                    <button className="p-2 text-slate-500 hover:text-slate-900"><Plus size={20} /></button>
+                                                    <button 
+                                                        className="p-2 text-slate-500 hover:text-slate-900 transition-colors"
+                                                        onClick={() => chatImageInputRef.current?.click()}
+                                                    >
+                                                        <Plus size={20} />
+                                                    </button>
                                                     <input 
                                                         type="text" 
                                                         placeholder="Type a message..." 
