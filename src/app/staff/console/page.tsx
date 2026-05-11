@@ -102,8 +102,6 @@ import profile2Animation from '../../../assets/customarserviceprofiles/profile2.
 import profile3Animation from '../../../assets/customarserviceprofiles/profile3.json';
 import profile4Animation from '../../../assets/customarserviceprofiles/profile4.json';
 
-const adminProfileImg = "https://ui-avatars.com/api/?name=Admin&background=111111&color=ffffff&size=128";
-
 // Staff profiles configuration
 const STAFF_PROFILES: StaffProfile[] = [
     { id: '11111111-1111-4111-8111-111111111111', name: 'سارة', nameEn: 'Sarah', animation: profile1Animation, color: '#4f46e5' },
