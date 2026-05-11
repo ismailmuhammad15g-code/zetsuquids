@@ -385,13 +385,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     return getUserDisplayName().toLowerCase();
   };
 
-  if (isInitialLoading) {
-    return (
-      <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
-        <GlobalLoader forceShow={true} />
-      </div>
-    );
-  }
+  // We no longer return early with GlobalLoader to allow the Navbar skeleton to show up immediately
+  // while the rest of the application initializes.
 
   return (
     <ClickSpark
@@ -446,7 +441,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 </button>
 
                 {/* Auth & Actions Section */}
-                {loading ? (
+                {(loading || isInitialLoading) ? (
                   <div className="flex items-center gap-3">
                     {/* Skeleton for Add Guide */}
                     <div className="hidden 2xl:block w-32 h-10 bg-gray-100 dark:bg-white/10 animate-pulse border border-gray-200 dark:border-white/10 rounded-sm" />
@@ -675,7 +670,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
                   {/* Mobile Profile / Auth */}
                   <div>
-                    {loading ? (
+                    {(loading || isInitialLoading) ? (
                       <div className="space-y-3">
                         <div className="w-full h-12 bg-gray-100 dark:bg-white/10 animate-pulse border border-gray-200 dark:border-white/10 rounded-xl" />
                       </div>
