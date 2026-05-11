@@ -70,6 +70,7 @@ export default function DirectSupportChat() {
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [isStaffTyping, setIsStaffTyping] = useState(false)
+    const [isClosed, setIsClosed] = useState(false)
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -377,6 +378,7 @@ export default function DirectSupportChat() {
             }
 
             setConversationId(existingConv.id)
+            setIsClosed(existingConv.status === 'closed')
 
             // Load existing messages
             const { data: existingMessages } = await supabase
@@ -655,6 +657,36 @@ export default function DirectSupportChat() {
 
         return () => {
             subscription.unsubscribe()
+        }
+    }, [conversationId])
+
+    // Subscribe to conversation status changes (real-time end conversation)
+    useEffect(() => {
+        if (!conversationId) return
+
+        const statusSub = supabase
+            .channel(`conv_status_${conversationId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'support_conversations',
+                    filter: `id=eq.${conversationId}`
+                },
+                (payload: import('@supabase/supabase-js').RealtimePostgresUpdatePayload<{ status?: string }>) => {
+                    const updated = payload.new
+                    if (updated.status === 'closed') {
+                        setIsClosed(true)
+                    } else if (updated.status === 'active') {
+                        setIsClosed(false)
+                    }
+                }
+            )
+            .subscribe()
+
+        return () => {
+            statusSub.unsubscribe()
         }
     }, [conversationId])
 
@@ -1050,48 +1082,71 @@ export default function DirectSupportChat() {
             )}
 
             {/* Input Area - Modern floating design */}
-            <form onSubmit={handleSend} className="p-3 bg-white/90 backdrop-blur-xl border-t border-slate-200">
-                <div className="flex items-center gap-2 bg-slate-50 rounded-full p-1.5 border border-slate-200 focus-within:border-slate-400 focus-within:bg-white transition-colors shadow-inner">
-                    {/* Hidden file input */}
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                        onChange={handleImageSelect}
-                        className="hidden"
-                    />
-
-                    {/* Image attachment button */}
-                    <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isSending || uploadingImage}
-                        className="w-9 h-9 rounded-full hover:bg-slate-200 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ml-1 text-slate-500"
-                        title="Attach image"
+            {isClosed ? (
+                <div className="p-6 bg-white/95 backdrop-blur-xl border-t border-slate-200 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400">
+                        <X size={24} />
+                    </div>
+                    <h4 className="text-slate-900 font-bold text-sm mb-1">Conversation Ended</h4>
+                    <p className="text-slate-500 text-xs leading-relaxed max-w-[240px] mx-auto">
+                        The staff has finished this conversation. You can start a new one if you need further assistance.
+                    </p>
+                    <button 
+                        onClick={() => {
+                            setMessages([])
+                            setConversationId(null)
+                            setIsClosed(false)
+                            initConversation()
+                        }}
+                        className="mt-4 px-6 py-2 bg-slate-900 text-white text-xs font-bold rounded-full hover:bg-slate-800 transition-all active:scale-95 shadow-lg"
                     >
-                        <Paperclip size={18} />
-                    </button>
-
-                    <input
-                        type="text"
-                        value={inputValue}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setInputValue(e.target.value)}
-                        placeholder="Type your message..."
-                        className="flex-1 bg-transparent px-2 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
-                    />
-                    <button
-                        type="submit"
-                        disabled={(!inputValue.trim() && !selectedImage) || isSending}
-                        className="w-10 h-10 rounded-full bg-slate-900 hover:bg-slate-800 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-105 shadow-md active:scale-95"
-                    >
-                        {isSending ? (
-                            <Loader2 size={18} className="animate-spin text-white" />
-                        ) : (
-                            <Send size={16} className="text-white -rotate-45 -translate-x-0.5" />
-                        )}
+                        Start New Conversation
                     </button>
                 </div>
-            </form>
+            ) : (
+                <form onSubmit={handleSend} className="p-3 bg-white/90 backdrop-blur-xl border-t border-slate-200">
+                    <div className="flex items-center gap-2 bg-slate-50 rounded-full p-1.5 border border-slate-200 focus-within:border-slate-400 focus-within:bg-white transition-colors shadow-inner">
+                        {/* Hidden file input */}
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                            onChange={handleImageSelect}
+                            className="hidden"
+                        />
+
+                        {/* Image attachment button */}
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isSending || uploadingImage}
+                            className="w-9 h-9 rounded-full hover:bg-slate-200 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ml-1 text-slate-500"
+                            title="Attach image"
+                        >
+                            <Paperclip size={18} />
+                        </button>
+
+                        <input
+                            type="text"
+                            value={inputValue}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setInputValue(e.target.value)}
+                            placeholder="Type your message..."
+                            className="flex-1 bg-transparent px-2 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
+                        />
+                        <button
+                            type="submit"
+                            disabled={(!inputValue.trim() && !selectedImage) || isSending}
+                            className="w-10 h-10 rounded-full bg-slate-900 hover:bg-slate-800 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-105 shadow-md active:scale-95"
+                        >
+                            {isSending ? (
+                                <Loader2 size={18} className="animate-spin text-white" />
+                            ) : (
+                                <Send size={16} className="text-white -rotate-45 -translate-x-0.5" />
+                            )}
+                        </button>
+                    </div>
+                </form>
+            )}
         </div >
     )
 }

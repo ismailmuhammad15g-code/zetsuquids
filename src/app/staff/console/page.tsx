@@ -472,6 +472,39 @@ export default function StaffConsole() {
         localStorage.setItem('zetsu_ai_auto_review', String(newState));
     }
 
+    const handleEndConversation = async () => {
+        if (!expandedConversation) return
+        if (!confirm('End this conversation? The user will no longer be able to send messages here.')) return
+
+        try {
+            const { error } = await supabase
+                .from('support_conversations')
+                .update({ status: 'closed' })
+                .eq('id', expandedConversation)
+
+            if (error) throw error
+
+            // Update local state
+            setConversations(prev => prev.map(c => 
+                c.id === expandedConversation ? { ...c, status: 'closed' } : c
+            ))
+            
+            // Send a system message
+            if (selectedProfile) {
+                await supportApi.sendStaffReply(
+                    expandedConversation,
+                    "--- Conversation Closed by Staff ---",
+                    conversations.find(c => c.id === expandedConversation)?.user_email || '',
+                    selectedProfile.id,
+                    selectedProfile.name
+                )
+            }
+        } catch (error) {
+            console.error('Error ending conversation:', error)
+            alert('Failed to end conversation')
+        }
+    }
+
 
     const handleDeleteConversation = async (e: React.MouseEvent, convId: string) => {
         e.stopPropagation()
@@ -1068,8 +1101,15 @@ export default function StaffConsole() {
                                                 </div>
                                             </div>
                                             <div className="header-actions">
-                                                <button className="p-2 hover:bg-slate-100 rounded-full" onClick={() => chatImageInputRef.current?.click()}><Plus size={20} /></button>
+                                                <button className="p-2 hover:bg-slate-100 rounded-full" onClick={() => chatImageInputRef.current?.click()} title="Upload Image"><Plus size={20} /></button>
                                                 <button className="p-2 hover:bg-slate-100 rounded-full" onClick={() => setActiveTab('guides')} title="View Guides"><BookOpen size={20} /></button>
+                                                <button 
+                                                    className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-colors" 
+                                                    onClick={handleEndConversation}
+                                                    title="End Conversation"
+                                                >
+                                                    <XCircle size={20} />
+                                                </button>
                                             </div>
                                         </header>
 
