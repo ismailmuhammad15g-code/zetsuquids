@@ -529,19 +529,8 @@ export default function Chatbot() {
     if (!user?.email) return;
 
     const loadUnreadCount = async () => {
-      try {
-        const { data: conv } = await supabase
-          .from("support_conversations")
-          .select("unread_count")
-          .eq("user_email", user.email)
-          .maybeSingle();
-
-        if (conv && conv.unread_count > 0) {
-          setUnreadSupportCount(conv.unread_count);
-        }
-      } catch (error: unknown) {
-        // Ignore errors
-      }
+      const count = await supportApi.getUnreadCount(user.email);
+      setUnreadSupportCount(count);
     };
 
     loadUnreadCount();
@@ -564,7 +553,8 @@ export default function Chatbot() {
     if (!user?.email) return;
 
     async function checkUnread() {
-      const count = await supportApi.getUnreadCount();
+      if (!user?.email) return;
+      const count = await supportApi.getUnreadCount(user.email);
       setUnreadSupportCount(count);
     }
 
@@ -573,7 +563,20 @@ export default function Chatbot() {
     // Check every 30 seconds
     const interval = setInterval(checkUnread, 30000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user?.email]);
+
+  // Mark as read when entering support tab
+  useEffect(() => {
+    if (isOpen && activeTab === 'direct-support' && user?.email && unreadSupportCount > 0) {
+      const clearUnread = async () => {
+        const success = await supportApi.markAllUserMessagesAsRead(user.email);
+        if (success) {
+          setUnreadSupportCount(0);
+        }
+      };
+      clearUnread();
+    }
+  }, [isOpen, activeTab, user?.email, unreadSupportCount]);
 
   async function handleSend(e: React.FormEvent<HTMLFormElement>) {
     e?.preventDefault();
@@ -970,14 +973,14 @@ export default function Chatbot() {
                   setActiveTab("direct-support");
                   setShowSupportForm(false);
                 }}
-                className={`px-4 py-2 rounded-t-lg font-semibold transition-all relative border border-b-0 ${activeTab === "direct-support"
+                className={`px-4 py-2 rounded-t-lg font-semibold transition-all relative border border-b-0 flex items-center gap-2 ${activeTab === "direct-support"
                   ? "bg-white text-slate-800 border-slate-200"
                   : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50"
                   }`}
               >
                 Direct Support
                 {unreadSupportCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold shadow-sm">
+                  <span className="w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold shadow-sm animate-pulse">
                     {unreadSupportCount}
                   </span>
                 )}

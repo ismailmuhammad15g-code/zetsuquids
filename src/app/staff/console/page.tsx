@@ -61,6 +61,8 @@ interface SupportConversation {
     last_message_at?: string
     unread_count?: number
     status?: string
+    user_avatar?: string
+    user_id?: string
 }
 
 interface SupportMessage {
@@ -346,7 +348,23 @@ export default function StaffConsole() {
         try {
             const result = await supportApi.getAllConversations()
             if (result.success && result.data) {
-                setConversations(result.data)
+                // Fetch profiles to get avatars and names
+                const emails = result.data.map(c => c.user_email)
+                const { data: profiles } = await supabase
+                    .from('zetsuguide_user_profiles')
+                    .select('user_email, avatar_url, display_name, user_id')
+                    .in('user_email', emails)
+
+                const enriched = result.data.map(conv => {
+                    const profile = (profiles as any[])?.find((p: any) => p.user_email === conv.user_email)
+                    return {
+                        ...conv,
+                        user_avatar: profile?.avatar_url,
+                        user_name: profile?.display_name || conv.user_name,
+                        user_id: profile?.user_id
+                    }
+                })
+                setConversations(enriched)
             } else {
                 setConversations([])
             }
@@ -1055,9 +1073,13 @@ export default function StaffConsole() {
                                                     onClick={() => toggleConversation(conv)}
                                                 >
                                                     <div className="card-avatar">
-                                                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                                                            <User size={24} />
-                                                        </div>
+                                                        {conv.user_avatar ? (
+                                                            <img src={conv.user_avatar} alt="" className="w-12 h-12 rounded-full object-cover border border-slate-100" />
+                                                        ) : (
+                                                            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                                                                <User size={24} />
+                                                            </div>
+                                                        )}
                                                         {(conv.unread_count || 0) > 0 && <span className="unread-dot" />}
                                                     </div>
                                                     <div className="card-content">
@@ -1091,15 +1113,27 @@ export default function StaffConsole() {
                                 {expandedConversation ? (
                                     <>
                                         <header className="chat-header">
-                                            <div className="user-info">
-                                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 overflow-hidden">
-                                                    <User size={20} />
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-bold text-slate-900 leading-tight">{conversations.find(c => c.id === expandedConversation)?.user_email}</h3>
-                                                    <p className="text-xs text-green-500 font-medium">Online</p>
-                                                </div>
-                                            </div>
+                                            {(() => {
+                                                const currentConv = conversations.find(c => c.id === expandedConversation);
+                                                return (
+                                                    <div className="user-info">
+                                                        <div 
+                                                            className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 overflow-hidden cursor-pointer hover:ring-2 hover:ring-slate-900 transition-all"
+                                                            onClick={() => currentConv?.user_id && window.open(`/staff/users/${currentConv.user_id}`, '_blank')}
+                                                        >
+                                                            {currentConv?.user_avatar ? (
+                                                                <img src={currentConv.user_avatar} alt="" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <User size={20} />
+                                                            )}
+                                                        </div>
+                                                        <div className="cursor-pointer group" onClick={() => currentConv?.user_id && window.open(`/staff/users/${currentConv.user_id}`, '_blank')}>
+                                                            <h3 className="font-bold text-slate-900 leading-tight group-hover:text-blue-600 transition-colors">{currentConv?.user_name || currentConv?.user_email}</h3>
+                                                            <p className="text-xs text-green-500 font-medium">Online • View Profile</p>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                             <div className="header-actions">
                                                 <button className="p-2 hover:bg-slate-100 rounded-full" onClick={() => chatImageInputRef.current?.click()} title="Upload Image"><Plus size={20} /></button>
                                                 <button className="p-2 hover:bg-slate-100 rounded-full" onClick={() => setActiveTab('guides')} title="View Guides"><BookOpen size={20} /></button>

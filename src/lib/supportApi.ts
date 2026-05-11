@@ -52,12 +52,19 @@ function formatSupportError(error: unknown): string {
 }
 
 export const supportApi = {
-    // Get unread message count for a user
-    async getUnreadCount(): Promise<number> {
+    // Get unread message count for a user (messages from staff)
+    async getUnreadCount(userEmail?: string): Promise<number> {
+        if (!userEmail) return 0
         try {
-            // For now, return 0 as we don't have unread tracking set up
-            // This can be enhanced later when support chat is fully implemented
-            return 0
+            const { count, error } = await supabase
+                .from('support_messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_email', userEmail)
+                .in('sender_type', ['staff', 'admin'])
+                .neq('read_status', 'read')
+
+            if (error) throw error
+            return count || 0
         } catch (error) {
             console.warn('Error getting unread count:', error)
             return 0
@@ -144,7 +151,7 @@ export const supportApi = {
         }
     },
 
-    // Mark conversation as read
+    // Mark conversation as read (staff side)
     async markAsRead(conversationId: string): Promise<boolean> {
         try {
             const { error } = await supabase
@@ -156,6 +163,25 @@ export const supportApi = {
             return true
         } catch (error) {
             console.warn('Error marking as read:', error)
+            return false
+        }
+    },
+
+    // Mark all staff messages as read for a specific user (user side)
+    async markAllUserMessagesAsRead(userEmail: string): Promise<boolean> {
+        if (!userEmail) return false
+        try {
+            const { error } = await supabase
+                .from('support_messages')
+                .update({ read_status: 'read' })
+                .eq('user_email', userEmail)
+                .in('sender_type', ['staff', 'admin'])
+                .neq('read_status', 'read')
+
+            if (error) throw error
+            return true
+        } catch (error) {
+            console.warn('Error marking all as read for user:', error)
             return false
         }
     },

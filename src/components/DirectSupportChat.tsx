@@ -595,6 +595,17 @@ export default function DirectSupportChat() {
         }
     }
 
+    const handleMarkAllAsRead = async () => {
+        if (!user?.email) return
+        const success = await supportApi.markAllUserMessagesAsRead(user.email)
+        if (success) {
+            // Local state update for messages if needed
+            setMessages(prev => prev.map(m => 
+                m.senderType !== 'user' ? { ...m, readStatus: 'read' } : m
+            ))
+        }
+    }
+
     // Subscribe to new admin/staff messages AND status changes
     useEffect(() => {
         if (!conversationId || !isSupabaseConfigured()) return
@@ -782,9 +793,9 @@ export default function DirectSupportChat() {
 
     return (
         <div className="flex flex-col h-full bg-slate-50 relative">
-            {/* Header Deletion Action */}
-            {conversationId && messages.length > 1 && (
-                <div className="absolute top-2 left-2 z-10">
+            {/* Header Actions */}
+            <div className="absolute top-2 left-2 right-2 z-10 flex justify-between items-center px-1">
+                {conversationId && messages.length > 1 && (
                     <button
                         onClick={handleDeleteClick}
                         disabled={isDeleting}
@@ -793,8 +804,18 @@ export default function DirectSupportChat() {
                     >
                         {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                     </button>
-                </div>
-            )}
+                )}
+                
+                {user?.email && (
+                    <button
+                        onClick={handleMarkAllAsRead}
+                        className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-all ml-auto"
+                        title="Mark all as read"
+                    >
+                        <CheckCheck size={18} />
+                    </button>
+                )}
+            </div>
 
             {/* Delete Confirmation Overlay */}
             {showDeleteConfirm && (
