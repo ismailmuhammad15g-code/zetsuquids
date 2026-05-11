@@ -241,6 +241,66 @@ export default function DirectSupportChat() {
         initConversation()
     }, [user])
 
+    // Inject Arabic support styles
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+
+        const styles = `
+            /* Arabic Text Support - Enhanced */
+            [dir="rtl"] {
+                unicode-bidi: plaintext;
+            }
+
+            /* Improve Arabic text rendering */
+            .arabic-text {
+                font-family: 'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif;
+                line-height: 1.6;
+                text-rendering: optimizeLegibility;
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+                letter-spacing: 0.02em;
+                word-spacing: 0.1em;
+            }
+
+            /* Better message bubble alignment */
+            .message-container {
+                position: relative;
+                width: 100%;
+            }
+
+            /* Enhanced chat bubble animations */
+            .chat-bubble {
+                transform: scale(1);
+                transition: all 0.2s ease-in-out;
+                display: inline-block;
+            }
+
+            .chat-bubble:hover {
+                transform: scale(1.02);
+                box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            }
+
+            /* Ensure proper text rendering */
+            .user-message,
+            .support-message {
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                hyphens: auto;
+            }
+        `;
+
+        // Remove existing styles to avoid duplicates
+        const existingStyle = document.getElementById('direct-support-styles');
+        if (existingStyle) {
+            existingStyle.remove();
+        }
+
+        const styleElement = document.createElement('style');
+        styleElement.id = 'direct-support-styles';
+        styleElement.textContent = styles;
+        document.head.appendChild(styleElement);
+    }, []);
+
     const initConversation = async () => {
         setLoading(true)
 
@@ -1041,61 +1101,3 @@ export default function DirectSupportChat() {
     )
 }
 
-// Add CSS styles for improved Arabic text support
-const styles = `
-    /* Arabic Text Support - Enhanced */
-    [dir="rtl"] {
-        unicode-bidi: plaintext;
-    }
-
-    /* Improve Arabic text rendering */
-    .arabic-text {
-        font-family: 'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif;
-        line-height: 1.6;
-        text-rendering: optimizeLegibility;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        letter-spacing: 0.02em;
-        word-spacing: 0.1em;
-    }
-
-    /* Better message bubble alignment */
-    .message-container {
-        position: relative;
-        width: 100%;
-    }
-
-    /* Enhanced chat bubble animations */
-    .chat-bubble {
-        transform: scale(1);
-        transition: all 0.2s ease-in-out;
-        display: inline-block;
-    }
-
-    .chat-bubble:hover {
-        transform: scale(1.02);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    }
-
-    /* Ensure proper text rendering */
-    .user-message,
-    .support-message {
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-        hyphens: auto;
-    }
-`
-
-// Inject styles into document head
-if (typeof document !== 'undefined') {
-    // Remove existing styles to avoid duplicates
-    const existingStyle = document.getElementById('direct-support-styles')
-    if (existingStyle) {
-        existingStyle.remove()
-    }
-
-    const styleElement = document.createElement('style')
-    styleElement.id = 'direct-support-styles'
-    styleElement.textContent = styles
-    document.head.appendChild(styleElement)
-}

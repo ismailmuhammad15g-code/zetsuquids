@@ -323,6 +323,50 @@ export default function Chatbot() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isOpen, isTyping, isLongLoading]);
 
+  // Inject Arabic support styles
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const styles = `
+        /* Arabic Text Support */
+        .arabic-text {
+            font-family: 'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            letter-spacing: 0.02em;
+            word-spacing: 0.1em;
+        }
+
+        [dir="rtl"] {
+            unicode-bidi: plaintext;
+        }
+
+        /* Better message alignment for Arabic text */
+        .arabic-message-container {
+            direction: rtl;
+        }
+
+        .arabic-message-container .flex {
+            flex-direction: row-reverse;
+        }
+
+        /* Enhanced bubble styles for Arabic */
+        .arabic-bubble {
+            text-align: right;
+            direction: rtl;
+        }
+    `;
+
+    if (!document.getElementById("arabic-support-styles-chatbot")) {
+      const styleElement = document.createElement("style");
+      styleElement.id = "arabic-support-styles-chatbot";
+      styleElement.textContent = styles;
+      document.head.appendChild(styleElement);
+    }
+  }, []);
+
   // Notification sound function
   const playNotificationSound = () => {
     try {
@@ -1456,54 +1500,11 @@ export default function Chatbot() {
                     </form>
                   </div>
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </>
-  );
-}
-
-// Add CSS styles for improved Arabic text support
-if (typeof document !== "undefined") {
-  const styles = `
-        /* Arabic Text Support */
-        .arabic-text {
-            font-family: 'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif;
-            line-height: 1.6;
-            text-rendering: optimizeLegibility;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            letter-spacing: 0.02em;
-            word-spacing: 0.1em;
-        }
-
-        [dir="rtl"] {
-            unicode-bidi: plaintext;
-        }
-
-        /* Better message alignment for Arabic text */
-        .arabic-message-container {
-            direction: rtl;
-        }
-
-        .arabic-message-container .flex {
-            flex-direction: row-reverse;
-        }
-
-        /* Enhanced bubble styles for Arabic */
-        .arabic-bubble {
-            text-align: right;
-            direction: rtl;
-        }
-    `;
-
-  // Check if styles already added
-  if (!document.getElementById("arabic-support-styles-chatbot")) {
-    const styleElement = document.createElement("style");
-    styleElement.id = "arabic-support-styles-chatbot";
-    styleElement.textContent = styles;
-    document.head.appendChild(styleElement);
+              </>
+            )}
+          </div>
+        )}
+      </>
+    );
   }
-}
+
