@@ -424,7 +424,7 @@ export default function DirectSupportChat() {
     const handleSend = async (e?: FormEvent<HTMLFormElement>): Promise<void> => {
         if (!e) return
         e.preventDefault()
-        if ((!inputValue.trim() && !selectedImage) || isSending) return
+        if ((!inputValue.trim() && !selectedImage) || isSending || isClosed) return
 
         setIsSending(true)
         setUploadingImage(!!selectedImage)
@@ -1092,14 +1092,21 @@ export default function DirectSupportChat() {
                         The staff has finished this conversation. You can start a new one if you need further assistance.
                     </p>
                     <button 
-                        onClick={() => {
+                        onClick={async () => {
+                            setIsSending(true)
+                            if (conversationId) {
+                                await supportApi.deleteConversation(conversationId)
+                            }
                             setMessages([])
                             setConversationId(null)
                             setIsClosed(false)
-                            initConversation()
+                            await initConversation()
+                            setIsSending(false)
                         }}
-                        className="mt-4 px-6 py-2 bg-slate-900 text-white text-xs font-bold rounded-full hover:bg-slate-800 transition-all active:scale-95 shadow-lg"
+                        disabled={isSending}
+                        className="mt-4 px-6 py-2 bg-slate-900 text-white text-xs font-bold rounded-full hover:bg-slate-800 transition-all active:scale-95 shadow-lg disabled:opacity-50"
                     >
+                        {isSending ? <Loader2 size={14} className="animate-spin inline mr-2" /> : null}
                         Start New Conversation
                     </button>
                 </div>
