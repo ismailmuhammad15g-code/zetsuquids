@@ -68,7 +68,7 @@ export default function NotificationBell() {
             return <AvatarImage src="/images/roles_for_notification_insider/system-notification.png" alt="System" />;
         }
 
-        if (name === "staff" || type === "approved" || type === "rejected") {
+        if (name === "staff" || type === "approved" || type === "rejected" || type === "message") {
             return <AvatarImage src="/images/roles_for_notification_insider/human-guide-reviewer.png" alt="Staff" />;
         }
 

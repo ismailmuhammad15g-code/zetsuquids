@@ -186,7 +186,8 @@ export const supportApi = {
             if (error) throw error
 
             // Send notification to user
-            const { data: convData } = await supabase
+            // Attempt to find the user_id for this conversation
+            const { data: userData } = await supabase
                 .from('support_messages')
                 .select('user_id')
                 .eq('conversation_id', conversationId)
@@ -194,15 +195,33 @@ export const supportApi = {
                 .limit(1)
                 .maybeSingle();
 
-            if (convData && convData.user_id) {
+            if (userData && userData.user_id) {
                 await notificationsApi.createNotification({
-                    user_id: convData.user_id,
+                    user_id: userData.user_id,
                     actor_name: staffName,
                     type: 'message',
                     title: 'New Support Reply',
-                    message: `A staff member has replied to your support message.`,
-                    link: '/stats' // Support messages are typically in the dashboard
+                    message: message.length > 60 ? message.substring(0, 57) + "..." : message,
+                    link: '/stats' 
                 });
+            } else {
+                // Fallback: Try to find user_id by email if not in messages
+                const { data: profileData } = await supabase
+                    .from('zetsuguide_user_profiles')
+                    .select('user_id')
+                    .eq('user_email', userEmail)
+                    .maybeSingle();
+                
+                if (profileData && profileData.user_id) {
+                    await notificationsApi.createNotification({
+                        user_id: profileData.user_id,
+                        actor_name: staffName,
+                        type: 'message',
+                        title: 'New Support Reply',
+                        message: message.length > 60 ? message.substring(0, 57) + "..." : message,
+                        link: '/stats'
+                    });
+                }
             }
 
             return { success: true, data }
