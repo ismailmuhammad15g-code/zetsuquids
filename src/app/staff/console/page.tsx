@@ -808,9 +808,9 @@ export default function StaffConsole() {
             {/* Profile Selector Modal */}
             {showProfileSelector && (
                 <div className="profile-selector-overlay">
-                    <div className="profile-selector-modal">
-                        <h2>Choose Your Profile</h2>
-                        <p>Select the character that will appear to customers when you reply</p>
+                    <div className="profile-selector-modal bg-white shadow-2xl border border-slate-200">
+                        <h2 className="text-slate-900 font-bold">Choose Your Representative Profile</h2>
+                        <p className="text-slate-500">Select the character identity that will be shown to customers during support interactions</p>
                         <div className="profiles-grid">
                             {STAFF_PROFILES.map(profile => (
                                 <button
@@ -859,10 +859,10 @@ export default function StaffConsole() {
                                     style={{ width: 32, height: 32 }}
                                 />
                             </div>
-                            <span>{selectedProfile.name}</span>
+                            <span>{selectedProfile.nameEn}</span>
                         </button>
                     )}
-                    <button className="staff-logout-btn" onClick={handleLogout}>
+                    <button className="staff-logout-btn hover:bg-red-50" onClick={handleLogout}>
                         <LogOut size={18} />
                     </button>
                 </div>
@@ -893,7 +893,7 @@ export default function StaffConsole() {
                     onClick={() => setActiveTab('ads')}
                 >
                     <Megaphone size={18} />
-                    <span>الاعلانات</span>
+                    <span>Ads Manager</span>
                     {ads.some(a => a.is_active) && <span className="tab-badge" style={{ backgroundColor: '#10b981' }} />}
                 </button>
                 <button
@@ -901,7 +901,7 @@ export default function StaffConsole() {
                     onClick={() => setActiveTab('changelog')}
                 >
                     <FileText size={18} />
-                    <span>سجل التحديثات</span>
+                    <span>Changelog</span>
                     {changelogEntries.length > 0 && <span className="count-badge" style={{ backgroundColor: '#8b5cf6' }}>{changelogEntries.length}</span>}
                 </button>
             </div>
@@ -913,11 +913,11 @@ export default function StaffConsole() {
                     <section className="support-section">
                         {/* ... existing support section content ... */}
                         <div className="section-header">
-                            <MessageSquare size={20} />
-                            <h2>رسائل العملاء</h2>
-                            <span className="conv-count">{conversations.length}</span>
+                            <MessageSquare size={20} className="text-slate-500" />
+                            <h2 className="text-slate-800 font-bold">Customer Messages</h2>
+                            <span className="conv-count bg-slate-900 text-white">{conversations.length}</span>
                             <button
-                                className="refresh-btn"
+                                className="refresh-btn text-slate-500 hover:text-slate-800"
                                 onClick={loadConversations}
                                 disabled={loadingConversations}
                             >
@@ -925,8 +925,8 @@ export default function StaffConsole() {
                             </button>
                         </div>
                         {supportError && (
-                            <div className="support-error-banner bg-red-50 border border-red-200 text-red-700 p-4 rounded mb-4">
-                                <strong>خطأ:</strong> {supportError}
+                            <div className="support-error-banner bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-4">
+                                <strong>Error:</strong> {supportError}
                             </div>
                         )}
 
@@ -950,8 +950,8 @@ export default function StaffConsole() {
                             </div>
                         ) : conversations.length === 0 ? (
                             <div className="empty-state">
-                                <Mail size={48} />
-                                <p>لا توجد رسائل بعد</p>
+                                <Mail size={48} className="text-slate-300" />
+                                <p className="text-slate-500">No messages found yet</p>
                             </div>
                         ) : (
                             <div className="conversations-list">
@@ -986,20 +986,20 @@ export default function StaffConsole() {
                                         {expandedConversation === conv.id && (
                                             <div className="conversation-messages">
                                                 {loadingMessages ? (
-                                                    <div className="p-6 space-y-6">
+                                                    <div className="p-6 space-y-6 bg-slate-50/50">
                                                         {[1, 2].map((i) => (
                                                             <div key={i} className={`flex flex-col ${i % 2 === 0 ? 'items-end' : 'items-start'} space-y-2 animate-pulse`}>
-                                                                <div className="h-2 w-16 bg-white/5 rounded-full mb-1" />
-                                                                <div className={`h-12 bg-white/5 border border-white/10 rounded-xl ${i % 2 === 0 ? 'w-2/3' : 'w-1/2'}`} />
-                                                                <div className="h-2 w-10 bg-white/5 rounded-full" />
+                                                                <div className="h-2 w-16 bg-slate-200 rounded-full mb-1" />
+                                                                <div className={`h-12 bg-white border border-slate-200 rounded-xl ${i % 2 === 0 ? 'w-2/3' : 'w-1/2'}`} />
+                                                                <div className="h-2 w-10 bg-slate-200 rounded-full" />
                                                             </div>
                                                         ))}
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        <div className="messages-list">
+                                                        <div className="messages-list bg-slate-50/50 p-4 border border-slate-200/50 rounded-xl">
                                                             {conversationMessages.length === 0 ? (
-                                                                <p className="no-messages">لا توجد رسائل</p>
+                                                                <p className="no-messages text-slate-400">No messages in this thread</p>
                                                             ) : (
                                                                 conversationMessages.map(msg => {
                                                                     const avatar = getMessageAvatar(msg)
@@ -1024,10 +1024,10 @@ export default function StaffConsole() {
                                                                                 </div>
                                                                             )}
                                                                             <div className="message-body">
-                                                                                <div className="message-sender">
-                                                                                    {msg.sender_type === 'user' ? '👤 العميل' :
+                                                                                <div className="message-sender text-slate-500 uppercase tracking-tighter">
+                                                                                    {msg.sender_type === 'user' ? '👤 Customer' :
                                                                                         msg.sender_type === 'admin' ? '👨‍💻 Admin' :
-                                                                                            `${avatar?.name || 'Staff'}`}
+                                                                                            `${avatar?.name || 'Support Agent'}`}
                                                                                 </div>
                                                                                 <div className="message-content">
                                                                                     {/* Show image if exists */}
@@ -1060,7 +1060,7 @@ export default function StaffConsole() {
                                                                                     )}
                                                                                     {/* If only image, show indicator */}
                                                                                     {!msg.message && msg.image_url && (
-                                                                                        <span style={{ fontSize: '12px', color: '#888' }}>📷 Image attached</span>
+                                                                                        <span style={{ fontSize: '12px', color: '#64748b' }}>📷 Image attached</span>
                                                                                     )}
                                                                                 </div>
                                                                                 <div className="message-time">
@@ -1086,16 +1086,18 @@ export default function StaffConsole() {
                                                                     </div>
                                                                     <input
                                                                         type="text"
-                                                                        placeholder="اكتب ردك..."
+                                                                        placeholder="Type your reply here..."
                                                                         value={replyText}
                                                                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleTyping(e.target.value)}
                                                                         onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleSendReply()}
                                                                         disabled={sendingReply}
-                                                                        dir="rtl"
+                                                                        dir="ltr"
+                                                                        className="bg-white border-slate-200 text-slate-800 placeholder:text-slate-400"
                                                                     />
                                                                     <button
                                                                         onClick={handleSendReply}
                                                                         disabled={sendingReply || !replyText.trim()}
+                                                                        className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-lg transition-all"
                                                                     >
                                                                         {sendingReply ? (
                                                                             <RefreshCw className="spin" size={18} />
@@ -1106,10 +1108,10 @@ export default function StaffConsole() {
                                                                 </>
                                                             ) : (
                                                                 <button
-                                                                    className="select-profile-btn"
+                                                                    className="select-profile-btn border-slate-300 text-slate-500 hover:text-slate-800 hover:bg-slate-50"
                                                                     onClick={() => setShowProfileSelector(true)}
                                                                 >
-                                                                    اختر شخصيتك للرد
+                                                                    Select your profile to reply
                                                                 </button>
                                                             )}
                                                         </div>
@@ -1128,11 +1130,11 @@ export default function StaffConsole() {
                 <div style={{ display: activeTab === 'guides' ? 'block' : 'none' }}>
                     <section className="guides-section">
                         <div className="section-header">
-                            <BookOpen size={20} />
-                            <h2>أدلة بانتظار المراجعة</h2>
-                            <span className="conv-count">{pendingGuides.length}</span>
+                            <BookOpen size={20} className="text-slate-500" />
+                            <h2 className="text-slate-800 font-bold">Guides Pending Review</h2>
+                            <span className="conv-count bg-slate-900 text-white">{pendingGuides.length}</span>
                             <button
-                                className="refresh-btn"
+                                className="refresh-btn text-slate-500 hover:text-slate-800"
                                 onClick={loadPendingGuides}
                                 disabled={loadingGuides}
                             >
@@ -1162,13 +1164,13 @@ export default function StaffConsole() {
                             <>
                                 {loadingGuides ? (
                                     <div className="loading-state">
-                                        <RefreshCw className="spin" size={24} />
-                                        <p>جاري التحميل...</p>
+                                        <RefreshCw className="spin text-slate-400" size={24} />
+                                        <p className="text-slate-500">Loading guides...</p>
                                     </div>
                                 ) : pendingGuides.length === 0 ? (
                                     <div className="empty-state">
-                                        <BookOpen size={48} />
-                                        <p>لا توجد أدلة معلقة</p>
+                                        <BookOpen size={48} className="text-slate-200" />
+                                        <p className="text-slate-500">No guides pending review</p>
                                     </div>
                                 ) : (
                                     <div className="guides-grid">
@@ -1188,30 +1190,30 @@ export default function StaffConsole() {
                                                 <p className="guide-preview text-sm text-gray-400 mt-2 mb-4 line-clamp-3">
                                                     {guide.content?.substring(0, 150) || 'No content preview'}...
                                                 </p>
-                                                <div className="guide-actions">
+                                                <div className="guide-actions mt-4 border-t border-slate-100 pt-4">
                                                     <button
-                                                        className="preview-btn"
+                                                        className="preview-btn bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
                                                         onClick={() => window.open(`/guide/${guide.slug}?preview=true`, '_blank')}
                                                     >
                                                         <Eye size={16} />
-                                                        معاينة
+                                                        Preview
                                                     </button>
 
                                                     <div className="approval-actions">
                                                         <button
-                                                            className="reject-btn"
+                                                            className="reject-btn bg-red-50 text-red-500 hover:bg-red-100 border border-red-100"
                                                             onClick={() => handleRejectGuide(guide)}
                                                             disabled={processingGuideId === guide.id}
                                                         >
                                                             {processingGuideId === guide.id ? <RefreshCw className="spin" size={16} /> : <XCircle size={16} />}
                                                         </button>
                                                         <button
-                                                            className="approve-btn"
+                                                            className="approve-btn bg-slate-900 text-white hover:bg-slate-800"
                                                             onClick={() => handleApproveGuide(guide)}
                                                             disabled={processingGuideId === guide.id}
                                                         >
                                                             {processingGuideId === guide.id ? <RefreshCw className="spin" size={16} /> : <CheckCircle size={16} />}
-                                                            موافقة
+                                                            Approve
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1329,24 +1331,24 @@ export default function StaffConsole() {
                 <div style={{ display: activeTab === 'ads' ? 'block' : 'none' }}>
                     <section className="ads-section">
                         <div className="section-header">
-                            <Megaphone size={20} />
-                            <h2>نظام الإعلانات</h2>
-                            <span className="conv-count">{ads.length}</span>
+                            <Megaphone size={20} className="text-slate-500" />
+                            <h2 className="text-slate-800 font-bold">Ads Management</h2>
+                            <span className="conv-count bg-slate-900 text-white">{ads.length}</span>
                             <div className="header-actions" style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
                                 <button
                                     className="add-ad-btn"
                                     onClick={() => setShowAdModal(true)}
                                     style={{
                                         display: 'flex', alignItems: 'center', gap: '6px',
-                                        backgroundColor: '#10b981', color: 'white',
+                                        backgroundColor: '#0f172a', color: 'white',
                                         padding: '6px 14px', borderRadius: '8px', fontWeight: 'bold'
                                     }}
                                 >
                                     <Plus size={16} />
-                                    إعلان جديد
+                                    New Advertisement
                                 </button>
                                 <button
-                                    className="refresh-btn"
+                                    className="refresh-btn text-slate-500 hover:text-slate-800"
                                     onClick={loadAds}
                                     disabled={loadingAds}
                                 >
@@ -1357,13 +1359,13 @@ export default function StaffConsole() {
 
                         {loadingAds ? (
                             <div className="loading-state">
-                                <RefreshCw className="spin" size={24} />
-                                <p>جاري التحميل...</p>
+                                <RefreshCw className="spin text-slate-400" size={24} />
+                                <p className="text-slate-500">Loading ads...</p>
                             </div>
                         ) : ads.length === 0 ? (
                             <div className="empty-state">
-                                <Megaphone size={48} />
-                                <p>لا توجد إعلانات بعد. ابدأ بإضافة إعلانك الأول!</p>
+                                <Megaphone size={48} className="text-slate-200" />
+                                <p className="text-slate-500">No advertisements yet. Start by adding one!</p>
                             </div>
                         ) : (
                             <div className="ads-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', padding: '20px' }}>
@@ -1380,12 +1382,12 @@ export default function StaffConsole() {
                                                 <span
                                                     style={{
                                                         fontSize: '10px', padding: '2px 8px', borderRadius: '9999px',
-                                                        backgroundColor: ad.is_active ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.1)',
-                                                        color: ad.is_active ? '#10b981' : '#888',
-                                                        border: `1px solid ${ad.is_active ? '#10b981' : '#444'}`
+                                                        backgroundColor: ad.is_active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(0,0,0,0.05)',
+                                                        color: ad.is_active ? '#10b981' : '#64748b',
+                                                        border: `1px solid ${ad.is_active ? '#10b981' : '#cbd5e1'}`
                                                     }}
                                                 >
-                                                    {ad.is_active ? 'نشط' : 'غير نشط'}
+                                                    {ad.is_active ? 'Active' : 'Inactive'}
                                                 </span>
                                             </div>
                                             <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', marginBottom: '16px', lineClamp: '3', display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -1403,10 +1405,10 @@ export default function StaffConsole() {
                                                             handleToggleAd(ad.id, !!ad.is_active)
                                                         }
                                                     }}
-                                                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)' }}
+                                                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', padding: '8px', borderRadius: '8px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', color: '#334155' }}
                                                 >
                                                     {ad.is_active ? <ToggleRight size={18} className="text-[#10b981]" /> : <ToggleLeft size={18} />}
-                                                    {ad.is_active ? 'تعطيل' : 'تفعيل'}
+                                                    {ad.is_active ? 'Disable' : 'Enable'}
                                                 </button>
                                                 <button
                                                     onClick={() => {
@@ -1431,33 +1433,33 @@ export default function StaffConsole() {
                 <div style={{ display: activeTab === 'changelog' ? 'block' : 'none' }}>
                     <section className="ads-section">
                         <div className="section-header">
-                            <FileText size={20} />
-                            <h2>سجل التحديثات</h2>
-                            <span className="conv-count">{changelogEntries.length}</span>
+                            <FileText size={20} className="text-slate-500" />
+                            <h2 className="text-slate-800 font-bold">System Changelog</h2>
+                            <span className="conv-count bg-slate-900 text-white">{changelogEntries.length}</span>
                             <div className="header-actions" style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
                                 <button
                                     className="add-ad-btn"
                                     onClick={() => { setEditingEntry(null); setNewEntry({ title: '', description: '', date: new Date().toISOString().split('T')[0], tag: 'feature', version: '' }); setShowChangelogModal(true) }}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#8b5cf6', color: 'white', padding: '6px 14px', borderRadius: '8px', fontWeight: 'bold' }}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#475569', color: 'white', padding: '6px 14px', borderRadius: '8px', fontWeight: 'bold' }}
                                 >
                                     <Plus size={16} />
-                                    تحديث جديد
+                                    New Update
                                 </button>
-                                <button className="refresh-btn" onClick={loadChangelog} disabled={loadingChangelog}>
+                                <button className="refresh-btn text-slate-500 hover:text-slate-800" onClick={loadChangelog} disabled={loadingChangelog}>
                                     <RefreshCw size={16} className={loadingChangelog ? 'spin' : ''} />
                                 </button>
                             </div>
                         </div>
 
                         {loadingChangelog ? (
-                            <div className="loading-state"><RefreshCw className="spin" size={24} /><p>جاري التحميل...</p></div>
+                            <div className="loading-state"><RefreshCw className="spin text-slate-400" size={24} /><p className="text-slate-500">Loading changelog...</p></div>
                         ) : changelogEntries.length === 0 ? (
-                            <div className="empty-state"><FileText size={48} /><p>لا توجد تحديثات بعد. ابدأ بإضافة أول تحديث!</p></div>
+                            <div className="empty-state"><FileText size={48} className="text-slate-200" /><p className="text-slate-500">No updates found yet. Start by adding one!</p></div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '20px' }}>
                                 {changelogEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(entry => {
                                     const tagColors: Record<string, string> = { feature: '#8b5cf6', improvement: '#3b82f6', fix: '#10b981', announcement: '#f59e0b' }
-                                    const tagLabels: Record<string, string> = { feature: 'ميزة جديدة', improvement: 'تحسين', fix: 'إصلاح', announcement: 'إعلان' }
+                                    const tagLabels: Record<string, string> = { feature: 'New Feature', improvement: 'Improvement', fix: 'Fix', announcement: 'Announcement' }
                                     const color = tagColors[entry.tag] || '#8b5cf6'
                                     return (
                                         <div key={entry.id} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1467,10 +1469,10 @@ export default function StaffConsole() {
                                                         {tagLabels[entry.tag] || entry.tag}
                                                     </span>
                                                     {entry.version && <span style={{ fontSize: '11px', color: '#888', fontFamily: 'monospace' }}>v{entry.version}</span>}
-                                                    <span style={{ fontSize: '11px', color: '#666' }}>{new Date(entry.date).toLocaleDateString('ar-EG')}</span>
+                                                    <span style={{ fontSize: '11px', color: '#666' }}>{new Date(entry.date).toLocaleDateString('en-US')}</span>
                                                 </div>
                                                 <div style={{ display: 'flex', gap: '6px' }}>
-                                                    <button onClick={() => handleEditEntry(entry)} style={{ padding: '6px 10px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', fontSize: '12px' }}>تعديل</button>
+                                                    <button onClick={() => handleEditEntry(entry)} style={{ padding: '6px 10px', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.05)', fontSize: '12px', color: '#475569' }}>Edit</button>
                                                     <button onClick={() => handleDeleteEntry(entry.id)} style={{ padding: '6px', borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}><Trash2 size={14} /></button>
                                                 </div>
                                             </div>
@@ -1488,84 +1490,81 @@ export default function StaffConsole() {
             {/* Create Ad Modal */}
             {showAdModal && (
                 <div className="profile-selector-overlay" style={{ zIndex: 200 }}>
-                    <div className="profile-selector-modal" style={{ maxWidth: '500px', textAlign: 'right' }}>
-                        <h2 style={{ marginBottom: '10px' }}>إنشاء إعلان جديد</h2>
-                        <p style={{ marginBottom: '20px' }}>أدخل تفاصيل الإعلان ليظهر في الشريط العلوي للموقع</p>
+                    <div className="profile-selector-modal bg-white shadow-2xl border border-slate-200" style={{ maxWidth: '500px', textAlign: 'left' }}>
+                        <h2 className="text-slate-900 font-bold text-xl mb-2">Create Advertisement</h2>
+                        <p className="text-slate-500 mb-6">Configure the banner message that will appear globally to users.</p>
 
-                        <form onSubmit={handleCreateAd} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                <label style={{ fontSize: '14px', color: '#888' }}>عنوان الإعلان (مثلاً: New!)</label>
+                        <form onSubmit={handleCreateAd} className="flex flex-col gap-5">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-semibold text-slate-700">Display Title</label>
                                 <input
                                     type="text"
                                     value={newAd.title}
-                                    onChange={e => setNewAd({ ...newAd, title: e.target.value })}
-                                    placeholder="مثلاً: جديد!"
-                                    style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}
-                                    dir="rtl"
+                                    onChange={(e) => setNewAd({ ...newAd, title: e.target.value })}
+                                    dir="ltr"
+                                    placeholder="e.g. LIMITED OFFER"
+                                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900"
                                     required
                                 />
                             </div>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                <label style={{ fontSize: '14px', color: '#888' }}>نص الإعلان</label>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-semibold text-slate-700">Content Description</label>
                                 <textarea
                                     value={newAd.text}
-                                    onChange={e => setNewAd({ ...newAd, text: e.target.value })}
-                                    placeholder="اكتب وصف الإعلان هنا..."
-                                    style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white', minHeight: '80px' }}
-                                    dir="rtl"
+                                    onChange={(e) => setNewAd({ ...newAd, text: e.target.value })}
+                                    dir="ltr"
+                                    placeholder="Write the ad details here..."
+                                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 h-24"
                                     required
                                 />
                             </div>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                <label style={{ fontSize: '14px', color: '#888' }}>الرابط (اختياري)</label>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-semibold text-slate-700">Destination URL</label>
                                 <input
                                     type="text"
                                     value={newAd.link_url}
-                                    onChange={e => setNewAd({ ...newAd, link_url: e.target.value })}
-                                    placeholder="مثلاً: /community"
-                                    style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}
+                                    onChange={(e) => setNewAd({ ...newAd, link_url: e.target.value })}
+                                    dir="ltr"
+                                    placeholder="https://zetsuquids.com/promo"
+                                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900"
                                 />
                             </div>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                <label style={{ fontSize: '14px', color: '#888' }}>رابط الصورة (اختياري)</label>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-semibold text-slate-700">Cover Image URL (Optional)</label>
                                 <input
                                     type="text"
                                     value={newAd.image_url}
-                                    onChange={e => setNewAd({ ...newAd, image_url: e.target.value })}
-                                    placeholder="https://..."
-                                    style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}
+                                    onChange={(e) => setNewAd({ ...newAd, image_url: e.target.value })}
+                                    dir="ltr"
+                                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900"
                                 />
                             </div>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                <label style={{ fontSize: '14px', color: '#888' }}>نص الزر (اختياري)</label>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-semibold text-slate-700">Call-to-Action Button Text</label>
                                 <input
                                     type="text"
-                                    value={newAd.button_text || ''}
-                                    onChange={e => setNewAd({ ...newAd, button_text: e.target.value })}
-                                    placeholder="مثلاً: اكتشف المزيد"
-                                    style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}
-                                    dir="rtl"
+                                    value={newAd.button_text}
+                                    onChange={(e) => setNewAd({ ...newAd, button_text: e.target.value })}
+                                    dir="ltr"
+                                    placeholder="Explore Now"
+                                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900"
                                 />
                             </div>
 
-                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                                <button
-                                    type="submit"
-                                    disabled={creatingAd}
-                                    style={{ flex: 1, backgroundColor: '#1d9bf0', color: 'white', padding: '12px', borderRadius: '12px', fontWeight: 'bold' }}
-                                >
-                                    {creatingAd ? <RefreshCw className="spin" size={20} /> : 'نشر الإعلان'}
-                                </button>
+                            <div className="flex gap-4 mt-4">
                                 <button
                                     type="button"
                                     onClick={() => setShowAdModal(false)}
-                                    style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', padding: '12px', borderRadius: '12px' }}
+                                    className="flex-1 p-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-all"
                                 >
-                                    إلغاء
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={creatingAd}
+                                    className="flex-1 p-3 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all disabled:opacity-50 flex justify-center items-center"
+                                >
+                                    {creatingAd ? <RefreshCw className="spin" size={20} /> : 'Publish Ad'}
                                 </button>
                             </div>
                         </form>
@@ -1576,48 +1575,83 @@ export default function StaffConsole() {
             {/* Changelog Entry Modal */}
             {showChangelogModal && (
                 <div className="profile-selector-overlay" style={{ zIndex: 200 }}>
-                    <div className="profile-selector-modal" style={{ maxWidth: '500px', textAlign: 'right' }}>
-                        <h2 style={{ marginBottom: '10px' }}>{editingEntry ? 'تعديل التحديث' : 'إضافة تحديث جديد'}</h2>
-                        <p style={{ marginBottom: '20px' }}>أدخل تفاصيل التحديث ليظهر في صفحة سجل التحديثات</p>
+                    <div className="profile-selector-modal bg-white shadow-2xl border border-slate-200" style={{ maxWidth: '500px', textAlign: 'left' }}>
+                        <h2 className="text-slate-900 font-bold text-xl mb-2">{editingEntry ? 'Edit System Update' : 'Post New Update'}</h2>
+                        <p className="text-slate-500 mb-6">Details of this update will be shown on the public Changelog page.</p>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                <label style={{ fontSize: '14px', color: '#888' }}>عنوان التحديث</label>
-                                <input type="text" value={newEntry.title} onChange={e => setNewEntry({ ...newEntry, title: e.target.value })} placeholder="مثلاً: إضافة صفحة سجل التحديثات" style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }} dir="rtl" />
+                        <div className="flex flex-col gap-5">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-semibold text-slate-700">Update Title</label>
+                                <input 
+                                    type="text" 
+                                    value={newEntry.title} 
+                                    onChange={e => setNewEntry({ ...newEntry, title: e.target.value })} 
+                                    placeholder="e.g. Added Real-time Notifications" 
+                                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900"
+                                    dir="ltr" 
+                                />
                             </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                <label style={{ fontSize: '14px', color: '#888' }}>الوصف</label>
-                                <textarea value={newEntry.description} onChange={e => setNewEntry({ ...newEntry, description: e.target.value })} placeholder="اكتب وصف التحديث هنا..." style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white', minHeight: '100px' }} dir="rtl" />
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-semibold text-slate-700">Detailed Description</label>
+                                <textarea 
+                                    value={newEntry.description} 
+                                    onChange={e => setNewEntry({ ...newEntry, description: e.target.value })} 
+                                    placeholder="What's new in this version?" 
+                                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 h-32"
+                                    dir="ltr" 
+                                />
                             </div>
 
-                            <div style={{ display: 'flex', gap: '12px' }}>
-                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    <label style={{ fontSize: '14px', color: '#888' }}>النوع</label>
-                                    <select value={newEntry.tag} onChange={e => setNewEntry({ ...newEntry, tag: e.target.value as ChangelogEntry['tag'] })} style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }}>
-                                        <option value="feature">ميزة جديدة</option>
-                                        <option value="improvement">تحسين</option>
-                                        <option value="fix">إصلاح</option>
-                                        <option value="announcement">إعلان</option>
+                            <div className="flex gap-4">
+                                <div className="flex-1 flex flex-col gap-2">
+                                    <label className="text-sm font-semibold text-slate-700">Tag Type</label>
+                                    <select 
+                                        value={newEntry.tag} 
+                                        onChange={e => setNewEntry({ ...newEntry, tag: e.target.value as ChangelogEntry['tag'] })} 
+                                        className="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900"
+                                    >
+                                        <option value="feature">New Feature</option>
+                                        <option value="improvement">Improvement</option>
+                                        <option value="fix">Security Fix</option>
+                                        <option value="announcement">Announcement</option>
                                     </select>
                                 </div>
-                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    <label style={{ fontSize: '14px', color: '#888' }}>التاريخ</label>
-                                    <input type="date" value={newEntry.date} onChange={e => setNewEntry({ ...newEntry, date: e.target.value })} style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }} />
+                                <div className="flex-1 flex flex-col gap-2">
+                                    <label className="text-sm font-semibold text-slate-700">Publication Date</label>
+                                    <input 
+                                        type="date" 
+                                        value={newEntry.date} 
+                                        onChange={e => setNewEntry({ ...newEntry, date: e.target.value })} 
+                                        className="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900"
+                                    />
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                <label style={{ fontSize: '14px', color: '#888' }}>رقم الإصدار (اختياري)</label>
-                                <input type="text" value={newEntry.version || ''} onChange={e => setNewEntry({ ...newEntry, version: e.target.value })} placeholder="مثلاً: 2.1.0" style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: 'white' }} />
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-semibold text-slate-700">Version Number (Optional)</label>
+                                <input 
+                                    type="text" 
+                                    value={newEntry.version || ''} 
+                                    onChange={e => setNewEntry({ ...newEntry, version: e.target.value })} 
+                                    placeholder="e.g. 1.0.5" 
+                                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none text-slate-900"
+                                />
                             </div>
 
-                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                                <button onClick={handleSaveEntry} disabled={savingChangelog || !newEntry.title || !newEntry.description} style={{ flex: 1, backgroundColor: '#8b5cf6', color: 'white', padding: '12px', borderRadius: '12px', fontWeight: 'bold', opacity: savingChangelog || !newEntry.title || !newEntry.description ? 0.5 : 1 }}>
-                                    {savingChangelog ? <RefreshCw className="spin" size={20} /> : editingEntry ? 'حفظ التعديل' : 'نشر التحديث'}
+                            <div className="flex gap-4 mt-4">
+                                <button 
+                                    onClick={() => { setShowChangelogModal(false); setEditingEntry(null) }} 
+                                    className="flex-1 p-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-all"
+                                >
+                                    Discard
                                 </button>
-                                <button onClick={() => { setShowChangelogModal(false); setEditingEntry(null) }} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', padding: '12px', borderRadius: '12px' }}>
-                                    إلغاء
+                                <button 
+                                    onClick={handleSaveEntry} 
+                                    disabled={savingChangelog || !newEntry.title || !newEntry.description} 
+                                    className="flex-1 p-3 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all disabled:opacity-50 flex justify-center items-center"
+                                >
+                                    {savingChangelog ? <RefreshCw className="spin" size={20} /> : editingEntry ? 'Save Changes' : 'Post Update'}
                                 </button>
                             </div>
                         </div>
@@ -1626,574 +1660,165 @@ export default function StaffConsole() {
             )}
 
             <style>{`
+                /* Base Colors & Layout */
                 .staff-console {
+                    background: #f8fafc;
                     min-height: 100vh;
-                    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
-                    color: white;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    color: #1e293b;
+                    font-family: 'Inter', system-ui, -apple-system, sans-serif;
                 }
 
-                .staff-loading {
-                    min-height: 100vh;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 16px;
-                    background: #0a0a0a;
-                    color: white;
-                }
-
-                .spin { animation: spin 1s linear infinite; }
-                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-                /* Profile Selector Modal */
-                .profile-selector-overlay {
-                    position: fixed;
-                    inset: 0;
-                    background: rgba(0,0,0,0.9);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    z-index: 100;
-                }
-
-                .profile-selector-modal {
-                    background: linear-gradient(135deg, #1a1a2e, #16213e);
-                    border: 1px solid rgba(255,255,255,0.1);
-                    border-radius: 24px;
-                    padding: 32px;
-                    text-align: center;
-                    max-width: 500px;
-                    width: 90%;
-                }
-
-                .profile-selector-modal h2 {
-                    font-size: 1.5rem;
-                    margin-bottom: 8px;
-                }
-
-                .profile-selector-modal p {
-                    color: rgba(255,255,255,0.6);
-                    margin-bottom: 24px;
-                }
-
-                .profiles-grid {
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 16px;
-                }
-
-                .profile-card {
-                    background: rgba(255,255,255,0.05);
-                    border: 2px solid rgba(255,255,255,0.1);
-                    border-radius: 16px;
-                    padding: 20px;
-                    cursor: pointer;
-                    transition: all 0.3s;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 8px;
-                }
-
-                .profile-card:hover {
-                    border-color: var(--profile-color);
-                    background: rgba(255,255,255,0.1);
-                    transform: translateY(-4px);
-                }
-
-                .profile-avatar {
-                    width: 80px;
-                    height: 80px;
-                    border-radius: 50%;
-                    overflow: hidden;
-                    background: white;
-                }
-
-                .profile-name {
-                    font-size: 1.1rem;
-                    font-weight: 600;
-                }
-
-                .profile-name-en {
-                    font-size: 0.8rem;
-                    color: rgba(255,255,255,0.5);
-                }
-
-                /* Header */
                 .staff-header {
+                    background: white;
+                    border-bottom: 1px solid #e2e8f0;
+                    padding: 16px 32px;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    padding: 16px 24px;
-                    background: rgba(0,0,0,0.4);
-                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                    position: sticky;
+                    top: 0;
+                    z-index: 100;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
                 }
-
-                .staff-header-left, .staff-header-right {
-                    display: flex;
-                    align-items: center;
-                    gap: 16px;
-                }
-
-                .staff-back-link {
-                    color: rgba(255,255,255,0.6);
-                    transition: color 0.2s;
-                }
-
-                .staff-back-link:hover { color: white; }
 
                 .staff-brand {
                     display: flex;
                     align-items: center;
                     gap: 12px;
-                    color: #10b981;
+                    color: #0f172a;
                 }
 
                 .staff-brand h1 {
                     font-size: 1.25rem;
-                    font-weight: 700;
-                    margin: 0;
-                    color: white;
+                    font-weight: 800;
+                    letter-spacing: -0.025em;
                 }
 
                 .current-profile {
                     display: flex;
                     align-items: center;
-                    gap: 8px;
-                    padding: 6px 12px;
-                    background: rgba(255,255,255,0.1);
-                    border: 1px solid rgba(255,255,255,0.2);
-                    border-radius: 20px;
-                    color: white;
-                    cursor: pointer;
-                    transition: all 0.2s;
+                    gap: 10px;
+                    padding: 6px 14px;
+                    background: #f1f5f9;
+                    border-radius: 9999px;
+                    border: 1px solid #e2e8f0;
                 }
 
-                .current-profile:hover {
-                    background: rgba(255,255,255,0.15);
+                .current-profile:hover { background: #e2e8f0; }
+
+                /* Profile Selection Overlay */
+                .profile-selector-overlay {
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(15, 23, 42, 0.6);
+                    backdrop-filter: blur(8px);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 1000;
+                    padding: 20px;
                 }
 
-                .profile-mini-avatar {
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 50%;
-                    overflow: hidden;
+                .profile-selector-modal {
                     background: white;
-                }
-
-                .staff-logout-btn {
-                    padding: 10px;
-                    background: rgba(239,68,68,0.2);
-                    border: 1px solid rgba(239,68,68,0.4);
-                    border-radius: 10px;
-                    color: #fca5a5;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-
-                .staff-logout-btn:hover {
-                    background: rgba(239,68,68,0.3);
-                }
-
-                /* Main Content */
-                .staff-content {
-                    max-width: 900px;
-                    margin: 0 auto;
-                    padding: 24px;
-                }
-
-                .support-section {
-                    background: rgba(255,255,255,0.05);
-                    border: 1px solid rgba(255,255,255,0.1);
-                    border-radius: 20px;
-                    padding: 24px;
-                }
-
-                .section-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    margin-bottom: 20px;
-                    color: rgba(255,255,255,0.7);
-                }
-
-                .section-header h2 {
-                    font-size: 1.1rem;
-                    margin: 0;
-                    color: white;
-                }
-
-                .conv-count {
-                    background: #10b981;
-                    color: white;
-                    padding: 2px 10px;
-                    border-radius: 12px;
-                    font-size: 0.8rem;
-                    font-weight: 600;
-                }
-
-                .refresh-btn {
-                    margin-left: auto;
-                    background: rgba(255,255,255,0.1);
-                    border: none;
-                    padding: 8px;
-                    border-radius: 8px;
-                    color: white;
-                    cursor: pointer;
-                }
-
-                .refresh-btn:hover { background: rgba(255,255,255,0.2); }
-
-                .loading-state, .empty-state {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
                     padding: 40px;
-                    gap: 12px;
-                    color: rgba(255,255,255,0.5);
-                }
-
-                .conversations-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 12px;
-                }
-
-                .conversation-item {
-                    background: rgba(0,0,0,0.2);
-                    border: 1px solid rgba(255,255,255,0.1);
-                    border-radius: 12px;
-                    overflow: hidden;
-                }
-
-                .conversation-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 16px;
-                    cursor: pointer;
-                    transition: background 0.2s;
-                }
-
-                .conversation-header:hover { background: rgba(255,255,255,0.05); }
-
-                .conversation-info { display: flex; flex-direction: column; gap: 6px; }
-
-                .conversation-user {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                }
-
-                .user-email { font-weight: 600; }
-
-                .unread-badge {
-                    background: #ef4444;
-                    color: white;
-                    font-size: 0.7rem;
-                    padding: 2px 8px;
-                    border-radius: 10px;
-                    font-weight: 600;
-                }
-
-                .conversation-meta {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 0.8rem;
-                    color: rgba(255,255,255,0.5);
-                }
-
-                .expand-icon { color: rgba(255,255,255,0.5); }
-
-                .conversation-messages {
-                    border-top: 1px solid rgba(255,255,255,0.1);
-                    padding: 16px;
-                    background: rgba(0,0,0,0.1);
-                }
-
-                .loading-messages {
-                    display: flex;
-                    justify-content: center;
-                    padding: 20px;
-                }
-
-                .messages-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 12px;
-                    max-height: 400px;
-                    overflow-y: auto;
-                    margin-bottom: 16px;
-                    padding-right: 8px;
-                }
-
-                .no-messages {
-                    text-align: center;
-                    color: rgba(255,255,255,0.4);
-                    padding: 20px;
-                }
-
-                .message-bubble {
-                    display: flex;
-                    gap: 10px;
-                    max-width: 85%;
-                }
-
-                .message-bubble.user {
-                    margin-left: auto;
-                    flex-direction: row-reverse;
-                }
-
-                .message-bubble.user .message-body {
-                    background: rgba(59,130,246,0.2);
-                    border: 1px solid rgba(59,130,246,0.3);
-                    border-radius: 12px 12px 4px 12px;
-                }
-
-                .message-bubble.admin .message-body,
-                .message-bubble.staff .message-body {
-                    background: rgba(16,185,129,0.2);
-                    border: 1px solid rgba(16,185,129,0.3);
-                    border-radius: 12px 12px 12px 4px;
-                }
-
-                .message-avatar {
-                    width: 36px;
-                    height: 36px;
-                    border-radius: 50%;
-                    overflow: hidden;
-                    background: white;
-                    border: 2px solid;
-                    flex-shrink: 0;
-                }
-
-                .message-avatar img {
+                    border-radius: 32px;
                     width: 100%;
-                    height: 100%;
-                    object-fit: cover;
+                    max-width: 800px;
+                    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
                 }
 
-                .message-body {
-                    padding: 10px 14px;
+                .profiles-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+                    gap: 20px;
+                    margin-top: 32px;
                 }
 
-                .message-sender {
-                    font-size: 0.75rem;
-                    font-weight: 600;
-                    margin-bottom: 4px;
-                    opacity: 0.7;
-                }
-
-                .message-content {
-                    font-size: 0.9rem;
-                    line-height: 1.4;
-                }
-
-                .message-time {
-                    font-size: 0.7rem;
-                    opacity: 0.5;
-                    margin-top: 6px;
-                }
-
-                .reply-section {
+                .profile-card {
                     display: flex;
-                    gap: 10px;
+                    flex-direction: column;
                     align-items: center;
+                    gap: 12px;
+                    padding: 24px;
+                    background: #f8fafc;
+                    border: 2px solid transparent;
+                    border-radius: 24px;
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                 }
 
-                .reply-profile {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 50%;
+                .profile-card:hover { transform: translateY(-8px); border-color: var(--profile-color); background: white; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+
+                .profile-avatar {
+                    width: 80px;
+                    height: 80px;
+                    border-radius: 20px;
                     overflow: hidden;
                     background: white;
-                    flex-shrink: 0;
-                }
-
-                .reply-section input {
-                    flex: 1;
-                    padding: 12px 16px;
-                    background: rgba(0,0,0,0.3);
-                    border: 1px solid rgba(255,255,255,0.15);
-                    border-radius: 12px;
-                    color: white;
-                    font-size: 0.9rem;
-                    outline: none;
-                }
-
-                .reply-section input:focus { border-color: #10b981; }
-                .reply-section input::placeholder { color: rgba(255,255,255,0.3); }
-
-                .reply-section button {
-                    padding: 12px 20px;
-                    background: linear-gradient(135deg, #10b981, #059669);
-                    border: none;
-                    border-radius: 12px;
-                    color: white;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-
-                .reply-section button:hover:not(:disabled) {
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(16,185,129,0.3);
-                }
-
-                .reply-section button:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
-
-                .select-profile-btn {
-                    flex: 1;
-                    padding: 14px;
-                    background: rgba(255,255,255,0.1);
-                    border: 1px dashed rgba(255,255,255,0.3);
-                    border-radius: 12px;
-                    color: white;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-
-                .select-profile-btn:hover {
-                    background: rgba(255,255,255,0.15);
-                }
-
-                /* Tabs */
-                .staff-tabs {
-                    display: flex;
-                    justify-content: center;
-                    gap: 16px;
-                    margin-top: 16px;
-                }
-
-                .tab-btn {
-                    background: rgba(255,255,255,0.05);
-                    border: 1px solid rgba(255,255,255,0.1);
-                    border-radius: 12px;
-                    padding: 8px 16px;
-                    color: rgba(255,255,255,0.6);
-                    cursor: pointer;
+                    border: 1px solid #e2e8f0;
                     display: flex;
                     align-items: center;
-                    gap: 8px;
-                    transition: all 0.2s;
-                    position: relative;
+                    justify-content: center;
                 }
 
-                .tab-btn:hover { background: rgba(255,255,255,0.1); }
-                .tab-btn.active {
-                    background: #10b981;
-                    color: white;
-                    border-color: #10b981;
-                }
-
-                .count-badge {
-                    background: #ef4444;
-                    color: white;
-                    font-size: 0.7rem;
-                    padding: 2px 6px;
-                    border-radius: 8px;
-                    min-width: 20px;
-                }
+                .profile-name { font-weight: 700; color: #0f172a; font-size: 1rem; }
+                .profile-name-en { font-size: 0.8rem; color: #64748b; font-weight: 500; }
 
                 /* Guide Cards */
                 .guides-grid {
                     display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-                    gap: 16px;
+                    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                    gap: 24px;
                 }
 
-                .guide-review-card {
-                    background: rgba(255,255,255,0.05);
-                    border: 1px solid rgba(255,255,255,0.1);
+                .guide-date { color: #94a3b8; }
+                .guide-meta { color: #64748b; }
+
+                .preview-btn {
+                    padding: 8px 16px;
+                    background: #f1f5f9;
                     border-radius: 12px;
-                    padding: 16px;
+                    color: #475569;
                     display: flex;
-                    flex-direction: column;
-                }
-
-                .guide-header {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 8px;
-                }
-
-                .guide-header h3 {
-                    margin: 0;
-                    font-size: 1.1rem;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 0.9rem;
                     font-weight: 600;
                 }
 
-                .guide-date {
-                    font-size: 0.8rem;
-                    color: rgba(255,255,255,0.4);
-                }
-
-                .guide-meta {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 12px;
-                    font-size: 0.85rem;
-                    color: rgba(255,255,255,0.6);
-                }
-
-                .guide-author {
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                }
-
-                .guide-actions {
-                    margin-top: auto;
-                    display: flex;
-                    justify-content: space-between;
-                    gap: 12px;
-                }
-
-                .preview-btn {
-                    padding: 6px 12px;
-                    background: rgba(255,255,255,0.1);
-                    border-radius: 8px;
-                    color: white;
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                    font-size: 0.9rem;
-                }
-
-                .approval-actions {
-                    display: flex;
-                    gap: 8px;
-                }
+                .approval-actions { display: flex; gap: 8px; }
 
                 .approve-btn, .reject-btn {
-                    padding: 6px 12px;
-                    border-radius: 8px;
+                    padding: 8px 16px;
+                    border-radius: 12px;
                     display: flex;
                     align-items: center;
-                    gap: 6px;
+                    gap: 8px;
                     font-size: 0.9rem;
                     cursor: pointer;
                     transition: all 0.2s;
                     border: none;
                 }
 
-                .approve-btn {
-                    background: #10b981;
-                    color: white;
-                }
-                .approve-btn:hover { background: #059669; }
+                .approve-btn { background: #0f172a; color: white; font-weight: 700; }
+                .approve-btn:hover { background: #334155; }
 
-                .reject-btn {
-                    background: rgba(239,68,68,0.2);
-                    color: #fca5a5;
-                }
-                .reject-btn:hover { background: rgba(239,68,68,0.3); }
+                .reject-btn { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
+                .reject-btn:hover { background: #fee2e2; }
 
+                .staff-loading {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    background: #f8fafc;
+                    color: #64748b;
+                    gap: 16px;
+                }
+
+                .spin { animation: spin 1s linear infinite; }
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
             `}</style>
         </div >
     )
