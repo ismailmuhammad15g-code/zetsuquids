@@ -517,52 +517,52 @@ export default function Chatbot() {
     subscribeToMessages();
 
 
-    // Real-time Presence for Direct Support
-    useEffect(() => {
-        if (!user?.email || !isOpen || activeTab !== 'direct-support') return;
-
-        const channel = supabase.channel('support_presence', {
-            config: {
-                presence: {
-                    key: user.email,
-                },
-            },
-        });
-
-        const trackPresence = async () => {
-            await channel.subscribe(async (status: string) => {
-                if (status === 'SUBSCRIBED') {
-                    await channel.track({
-                        online_at: new Date().toISOString(),
-                        user_email: user.email,
-                        status: 'online'
-                    });
-                }
-            });
-        };
-
-        trackPresence();
-
-        // Update last_seen in profile when leaving
-        const updateLastSeen = async () => {
-            await supabase
-                .from('zetsuguide_user_profiles')
-                .update({ last_seen: new Date().toISOString() })
-                .eq('user_email', user.email);
-        };
-
-        return () => {
-            updateLastSeen();
-            supabase.removeChannel(channel);
-        };
-    }, [user?.email, isOpen, activeTab]);
-
     return () => {
       if (subscription) {
         supabase.removeChannel(subscription);
       }
     };
   }, [user?.email]);
+
+  // Real-time Presence for Direct Support
+  useEffect(() => {
+    if (!user?.email || !isOpen || activeTab !== 'direct-support') return;
+
+    const channel = supabase.channel('support_presence', {
+        config: {
+            presence: {
+                key: user.email,
+            },
+        },
+    });
+
+    const trackPresence = async () => {
+        await channel.subscribe(async (status: string) => {
+            if (status === 'SUBSCRIBED') {
+                await channel.track({
+                    online_at: new Date().toISOString(),
+                    user_email: user.email,
+                    status: 'online'
+                });
+            }
+        });
+    };
+
+    trackPresence();
+
+    // Update last_seen in profile when leaving
+    const updateLastSeen = async () => {
+        await supabase
+            .from('zetsuguide_user_profiles')
+            .update({ last_seen: new Date().toISOString() })
+            .eq('user_email', user.email);
+    };
+
+    return () => {
+        updateLastSeen();
+        supabase.removeChannel(channel);
+    };
+  }, [user?.email, isOpen, activeTab]);
 
   // Load unread count on mount
   useEffect(() => {

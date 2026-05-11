@@ -28,6 +28,7 @@ import { Ad, adminGuidesApi, adsApi, Guide, supabase } from '../../../lib/api';
 import { ChangelogEntry, fetchChangelog, saveChangelog } from '../../../lib/changelog';
 import { supportApi } from '../../../lib/supportApi';
 import { notificationsApi } from '../../../lib/notificationsApi';
+import { getAvatarForUser } from '../../../lib/avatar';
 import { aiReviewerApi } from '../../../lib/aiReviewerApi';
 
 type LottieAnimationData = object
@@ -352,11 +353,13 @@ export default function StaffConsole() {
             const result = await supportApi.getAllConversations()
             if (result.success && result.data) {
                 // Fetch profiles to get avatars and names
-                const emails = result.data.map(c => c.user_email)
+                const emails = result.data.map(c => c.user_email).filter(Boolean)
+                const orFilter = emails.map(e => `user_email.ilike.${e}`).join(',')
+                
                 const { data: profiles } = await supabase
                     .from('zetsuguide_user_profiles')
-                    .select('user_email, avatar_url, display_name, user_id, last_seen')
-                    .in('user_email', emails)
+                    .select('user_email, avatar_url, display_name, user_id, last_seen, username')
+                    .or(orFilter)
 
                 const enriched = result.data.map(conv => {
                     const profile = (profiles as any[])?.find((p: any) => 
@@ -368,7 +371,7 @@ export default function StaffConsole() {
                     return {
                         ...conv,
                         username: username,
-                        user_avatar: profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff`,
+                        user_avatar: getAvatarForUser(conv.user_email, profile?.avatar_url),
                         user_name: displayName,
                         user_id: profile?.user_id,
                         last_seen: profile?.last_seen || conv.last_message_at
@@ -1105,8 +1108,15 @@ export default function StaffConsole() {
                                                     onClick={() => toggleConversation(conv)}
                                                 >
                                                     <div className="card-avatar">
-                                                        {conv.user_avatar ? (
-                                                            <img src={conv.user_avatar} alt="" className="w-12 h-12 rounded-full object-cover border border-slate-100" />
+                                                         {conv.user_avatar ? (
+                                                            <img 
+                                                                src={conv.user_avatar} 
+                                                                alt="" 
+                                                                className="w-12 h-12 rounded-full object-cover border border-slate-100" 
+                                                                onError={(e) => {
+                                                                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(conv.user_name || 'U')}&background=random&color=fff`;
+                                                                }}
+                                                            />
                                                         ) : (
                                                             <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
                                                                 <User size={24} />
