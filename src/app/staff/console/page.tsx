@@ -1372,42 +1372,43 @@ export default function StaffConsole() {
                         ) : (
                             <div className="ads-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', padding: '20px' }}>
                                 {ads.map(ad => (
-                                    <div key={ad.id} className="ad-card" style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                                    <div key={ad.id} className="ad-card" style={{ backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)', transition: 'all 0.3s ease' }}>
                                         {ad.image_url && (
-                                            <div className="ad-image" style={{ height: '140px', overflow: 'hidden' }}>
+                                            <div className="ad-image" style={{ height: '160px', overflow: 'hidden' }}>
                                                 <img src={ad.image_url} alt={ad.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                             </div>
                                         )}
-                                        <div className="ad-body" style={{ padding: '16px', flex: 1 }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
-                                                <h3 style={{ fontSize: '18px', fontWeight: 'bold' }}>{ad.title}</h3>
+                                        <div className="ad-body" style={{ padding: '20px', flex: 1 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                                                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>{ad.title}</h3>
                                                 <span
                                                     style={{
-                                                        fontSize: '10px', padding: '2px 8px', borderRadius: '9999px',
-                                                        backgroundColor: ad.is_active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(0,0,0,0.05)',
+                                                        fontSize: '10px', padding: '2px 10px', borderRadius: '9999px',
+                                                        backgroundColor: ad.is_active ? '#ecfdf5' : '#f1f5f9',
                                                         color: ad.is_active ? '#10b981' : '#64748b',
-                                                        border: `1px solid ${ad.is_active ? '#10b981' : '#cbd5e1'}`
+                                                        border: `1px solid ${ad.is_active ? '#10b981' : '#cbd5e1'}`,
+                                                        fontWeight: '700'
                                                     }}
                                                 >
-                                                    {ad.is_active ? 'Active' : 'Inactive'}
+                                                    {ad.is_active ? 'ACTIVE' : 'INACTIVE'}
                                                 </span>
                                             </div>
-                                            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', marginBottom: '16px', lineClamp: '3', display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                            <p style={{ color: '#475569', fontSize: '14px', marginBottom: '20px', lineClamp: '3', display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: '1.6' }}>
                                                 {ad.text}
                                             </p>
                                             {ad.link_url && (
-                                                <div style={{ fontSize: '12px', color: '#1d9bf0', marginBottom: '16px', wordBreak: 'break-all' }}>
+                                                <div style={{ fontSize: '12px', color: '#2563eb', marginBottom: '20px', wordBreak: 'break-all', fontWeight: '500' }}>
                                                     🔗 {ad.link_url}
                                                 </div>
                                             )}
-                                            <div className="ad-actions" style={{ marginTop: 'auto', display: 'flex', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
+                                            <div className="ad-actions" style={{ marginTop: 'auto', display: 'flex', gap: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
                                                 <button
                                                     onClick={() => {
                                                         if (ad.id !== undefined) {
                                                             handleToggleAd(ad.id, !!ad.is_active)
                                                         }
                                                     }}
-                                                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', padding: '8px', borderRadius: '8px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', color: '#334155' }}
+                                                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', padding: '10px', borderRadius: '12px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', color: '#334155', fontWeight: '600' }}
                                                 >
                                                     {ad.is_active ? <ToggleRight size={18} className="text-[#10b981]" /> : <ToggleLeft size={18} />}
                                                     {ad.is_active ? 'Disable' : 'Enable'}
@@ -1418,13 +1419,14 @@ export default function StaffConsole() {
                                                             handleDeleteAd(ad.id)
                                                         }
                                                     }}
-                                                    style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}
+                                                    style={{ padding: '10px', borderRadius: '12px', backgroundColor: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2' }}
                                                 >
                                                     <Trash2 size={18} />
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
+
                                 ))}
                             </div>
                         )}
@@ -1463,23 +1465,24 @@ export default function StaffConsole() {
                                     const tagColors: Record<string, string> = { feature: '#8b5cf6', improvement: '#3b82f6', fix: '#10b981', announcement: '#f59e0b' }
                                     const tagLabels: Record<string, string> = { feature: 'New Feature', improvement: 'Improvement', fix: 'Fix', announcement: 'Announcement' }
                                     const color = tagColors[entry.tag] || '#8b5cf6'
-                                    return (                                        <div key={entry.id} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                                    <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '9999px', backgroundColor: `${color}20`, color, border: `1px solid ${color}40`, fontWeight: 600 }}>
-                                                        {tagLabels[entry.tag] || entry.tag}
+                                    return (                                        <div key={entry.id} style={{ backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', transition: 'all 0.3s ease' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                                    <span style={{ fontSize: '10px', padding: '3px 12px', borderRadius: '9999px', backgroundColor: `${color}15`, color, border: `1px solid ${color}30`, fontWeight: '800', letterSpacing: '0.05em' }}>
+                                                        {tagLabels[entry.tag] || entry.tag.toUpperCase()}
                                                     </span>
-                                                    {entry.version && <span style={{ fontSize: '11px', color: '#888', fontFamily: 'monospace' }}>v{entry.version}</span>}
-                                                    <span style={{ fontSize: '11px', color: '#666' }}>{new Date(entry.date).toLocaleDateString('en-US')}</span>
+                                                    {entry.version && <span style={{ fontSize: '12px', color: '#94a3b8', fontFamily: 'monospace', fontWeight: '600' }}>v{entry.version}</span>}
+                                                    <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>{new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                                                 </div>
-                                                <div style={{ display: 'flex', gap: '6px' }}>
-                                                    <button onClick={() => handleEditEntry(entry)} style={{ padding: '6px 10px', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.05)', fontSize: '12px', color: '#475569' }}>Edit</button>
-                                                    <button onClick={() => handleDeleteEntry(entry.id)} style={{ padding: '6px', borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}><Trash2 size={14} /></button>
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <button onClick={() => handleEditEntry(entry)} style={{ padding: '6px 12px', borderRadius: '10px', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', fontSize: '12px', color: '#475569', fontWeight: '600', transition: 'all 0.2s' }}>Edit</button>
+                                                    <button onClick={() => handleDeleteEntry(entry.id)} style={{ padding: '6px', borderRadius: '10px', backgroundColor: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2', transition: 'all 0.2s' }}><Trash2 size={14} /></button>
                                                 </div>
                                             </div>
-                                            <h3 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0 }}>{entry.title}</h3>
-                                            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: 0, whiteSpace: 'pre-line' }}>{entry.description}</p>
+                                            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>{entry.title}</h3>
+                                            <p style={{ color: '#334155', fontSize: '14px', margin: 0, whiteSpace: 'pre-line', lineHeight: '1.6', letterSpacing: '-0.01em' }}>{entry.description}</p>
                                         </div>
+
                                     )
                                 })}
                             </div>
