@@ -914,221 +914,177 @@ export default function StaffConsole() {
             <main className="staff-content">
                 {/* Support Tab */}
                 <div style={{ display: activeTab === 'support' ? 'block' : 'none' }}>
-                    <section className="support-section">
-                        <div className="section-header">
-                            <MessageSquare size={20} className="text-slate-500" />
-                            <h2 className="text-slate-800 font-bold">Customer Messages</h2>
-                            <span className="conv-count bg-slate-900 text-white">{conversations.length}</span>
-                            <button
-                                className="refresh-btn text-slate-500 hover:text-slate-800"
-                                onClick={loadConversations}
-                                disabled={loadingConversations}
-                            >
-                                <RefreshCw size={16} className={loadingConversations ? 'spin' : ''} />
-                            </button>
-                        </div>
-
-                        {supportError && (
-                            <div className="support-error-banner bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-4">
-                                <strong>Error:</strong> {supportError}
-                            </div>
-                        )}
-
-                        {loadingConversations ? (
-                            <div className="space-y-4 px-4 py-6">
-                                {[1, 2, 3].map((i) => (
-                                    <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4 animate-pulse">
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-white/5" />
-                                                <div className="space-y-2">
-                                                    <div className="h-3 w-32 bg-white/5 rounded-full" />
-                                                    <div className="h-2 w-20 bg-white/5 rounded-full" />
-                                                </div>
-                                            </div>
-                                            <div className="w-12 h-2 bg-white/5 rounded-full" />
+                    <section className="support-section whatsapp-theme">
+                        <div className="whatsapp-container">
+                            {/* Sidebar */}
+                            <div className="chat-sidebar">
+                                <div className="sidebar-header">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center text-white">
+                                            <MessageSquare size={20} />
                                         </div>
-                                        <div className="h-4 w-full bg-white/5 rounded-lg" />
+                                        <h2 className="text-lg font-bold text-slate-900">Chats</h2>
                                     </div>
-                                ))}
-                            </div>
-                        ) : conversations.length === 0 ? (
-                            <div className="empty-state">
-                                <Mail size={48} className="text-slate-300" />
-                                <p className="text-slate-500">No messages found yet</p>
-                            </div>
-                        ) : (
-                            <div className="conversations-list">
-                                {conversations.map(conv => (
-                                    <div key={conv.id} className="conversation-item">
-                                        <div
-                                            className="conversation-header"
-                                            onClick={() => toggleConversation(conv)}
-                                        >
-                                            <div className="conversation-info">
-                                                <div className="conversation-user">
-                                                    <User size={16} />
-                                                    <span className="user-email">{conv.user_email}</span>
-                                                    {(conv.unread_count || 0) > 0 && (
-                                                        <span className="unread-badge">{conv.unread_count}</span>
-                                                    )}
-                                                </div>
-                                                <div className="conversation-meta">
-                                                    <Clock size={12} />
-                                                    <span>{formatTime(conv.last_message_at || conv.updated_at)}</span>
-                                                </div>
-                                            </div>
-                                            <div className="expand-icon">
-                                                {expandedConversation === conv.id ? (
-                                                    <ChevronUp size={20} />
-                                                ) : (
-                                                    <ChevronDown size={20} />
-                                                )}
-                                            </div>
-                                        </div>
+                                    <button 
+                                        className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                                        onClick={loadConversations}
+                                        disabled={loadingConversations}
+                                    >
+                                        <RefreshCw size={18} className={loadingConversations ? 'spin' : ''} />
+                                    </button>
+                                </div>
+                                
+                                <div className="sidebar-search">
+                                    <div className="search-box">
+                                        <Plus size={16} className="text-slate-400" />
+                                        <input type="text" placeholder="Search conversations..." className="bg-transparent border-none outline-none w-full text-sm" />
+                                    </div>
+                                </div>
 
-                                        {expandedConversation === conv.id && (
-                                            <div className="conversation-messages">
+                                <div className="sidebar-list">
+                                    {loadingConversations ? (
+                                        <div className="p-4 space-y-4">
+                                            {[1,2,3,4].map(i => (
+                                                <div key={i} className="flex gap-3 animate-pulse">
+                                                    <div className="w-12 h-12 rounded-full bg-slate-100" />
+                                                    <div className="flex-1 space-y-2 py-1">
+                                                        <div className="h-2 bg-slate-100 rounded w-1/2" />
+                                                        <div className="h-2 bg-slate-100 rounded w-3/4" />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : conversations.length === 0 ? (
+                                        <div className="p-8 text-center text-slate-400">
+                                            <Mail size={40} className="mx-auto mb-3 opacity-20" />
+                                            <p className="text-sm">No conversations found</p>
+                                        </div>
+                                    ) : (
+                                        conversations.map(conv => {
+                                            const isActive = expandedConversation === conv.id;
+                                            return (
+                                                <div 
+                                                    key={conv.id} 
+                                                    className={`conversation-card ${isActive ? 'active' : ''}`}
+                                                    onClick={() => toggleConversation(conv)}
+                                                >
+                                                    <div className="card-avatar">
+                                                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                                                            <User size={24} />
+                                                        </div>
+                                                        {(conv.unread_count || 0) > 0 && <span className="unread-dot" />}
+                                                    </div>
+                                                    <div className="card-content">
+                                                        <div className="card-header">
+                                                            <span className="user-name">{conv.user_name || conv.user_email.split('@')[0]}</span>
+                                                            <span className="last-time">{conv.last_message_at ? formatTime(conv.last_message_at).split(' ')[1] : ''}</span>
+                                                        </div>
+                                                        <div className="card-footer">
+                                                            <p className="last-msg">{conv.last_message || 'No messages yet'}</p>
+                                                            {(conv.unread_count || 0) > 0 && <span className="unread-count">{conv.unread_count}</span>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Chat Window */}
+                            <div className="chat-window">
+                                {expandedConversation ? (
+                                    <>
+                                        <header className="chat-header">
+                                            <div className="user-info">
+                                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 overflow-hidden">
+                                                    <User size={20} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-slate-900 leading-tight">{conversations.find(c => c.id === expandedConversation)?.user_email}</h3>
+                                                    <p className="text-xs text-green-500 font-medium">Online</p>
+                                                </div>
+                                            </div>
+                                            <div className="header-actions">
+                                                <button className="p-2 hover:bg-slate-100 rounded-full"><Plus size={20} /></button>
+                                                <button className="p-2 hover:bg-slate-100 rounded-full"><BookOpen size={20} /></button>
+                                            </div>
+                                        </header>
+
+                                        <div className="chat-body">
+                                            <div className="messages-container">
                                                 {loadingMessages ? (
-                                                    <div className="p-6 space-y-6 bg-slate-50/50">
-                                                        {[1, 2].map((i) => (
-                                                            <div key={i} className={`flex flex-col ${i % 2 === 0 ? 'items-end' : 'items-start'} space-y-2 animate-pulse`}>
-                                                                <div className="h-2 w-16 bg-slate-200 rounded-full mb-1" />
-                                                                <div className={`h-12 bg-white border border-slate-200 rounded-xl ${i % 2 === 0 ? 'w-2/3' : 'w-1/2'}`} />
-                                                                <div className="h-2 w-10 bg-slate-200 rounded-full" />
-                                                            </div>
-                                                        ))}
+                                                    <div className="flex items-center justify-center h-full">
+                                                        <RefreshCw className="spin text-slate-400" />
                                                     </div>
                                                 ) : (
-                                                    <>
-                                                        <div className="messages-list bg-slate-50/50 p-4 border border-slate-200/50 rounded-xl">
-                                                            {conversationMessages.length === 0 ? (
-                                                                <p className="no-messages text-slate-400">No messages in this thread</p>
-                                                            ) : (
-                                                                conversationMessages.map(msg => {
-                                                                    const avatar = getMessageAvatar(msg)
-                                                                    return (
-                                                                        <div
-                                                                            key={msg.id}
-                                                                            className={`message-bubble ${msg.sender_type}`}
-                                                                        >
-                                                                            {msg.sender_type !== 'user' && avatar && (
-                                                                                <div className="message-avatar" style={{ borderColor: avatar.color }}>
-                                                                                    {avatar.type === 'lottie' ? (
-                                                                                        <Lottie
-                                                                                            animationData={avatar.animation}
-                                                                                            loop={true}
-                                                                                            style={{ width: 32, height: 32 }}
-                                                                                        />
-                                                                                    ) : avatar.type === 'image' ? (
-                                                                                        <img src={avatar.src} alt={avatar.name} />
-                                                                                    ) : (
-                                                                                        <User size={16} />
-                                                                                    )}
-                                                                                </div>
-                                                                            )}
-                                                                            <div className="message-body">
-                                                                                <div className="message-sender text-slate-500 uppercase tracking-tighter">
-                                                                                    {msg.sender_type === 'user' ? '👤 Customer' :
-                                                                                        msg.sender_type === 'admin' ? '👨‍💻 Admin' :
-                                                                                            `${avatar?.name || 'Support Agent'}`}
-                                                                                </div>
-                                                                                <div className="message-content">
-                                                                                    {/* Show image if exists */}
-                                                                                    {msg.image_url && (
-                                                                                        <div className="message-image-container" style={{ marginBottom: '8px' }}>
-                                                                                            <img
-                                                                                                src={msg.image_url}
-                                                                                                alt="Attachment"
-                                                                                                style={{
-                                                                                                    maxWidth: '250px',
-                                                                                                    maxHeight: '250px',
-                                                                                                    borderRadius: '8px',
-                                                                                                    cursor: 'pointer',
-                                                                                                    display: 'block'
-                                                                                                }}
-                                                                                                onClick={() => window.open(msg.image_url, '_blank')}
-                                                                                                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                                                                                                    const target = e.currentTarget
-                                                                                                    target.style.display = 'none'
-                                                                                                    if (target.parentElement) {
-                                                                                                        target.parentElement.innerHTML = '<span style="color: #ff6b6b; font-size: 12px;">📷 Image expired (24h)</span>'
-                                                                                                    }
-                                                                                                }}
-                                                                                            />
-                                                                                        </div>
-                                                                                    )}
-                                                                                    {/* Show text message */}
-                                                                                    {msg.message && msg.message !== '📷 Image' && (
-                                                                                        <div>{msg.message}</div>
-                                                                                    )}
-                                                                                    {/* If only image, show indicator */}
-                                                                                    {!msg.message && msg.image_url && (
-                                                                                        <span style={{ fontSize: '12px', color: '#64748b' }}>📷 Image attached</span>
-                                                                                    )}
-                                                                                </div>
-                                                                                <div className="message-time">
-                                                                                    {formatTime(msg.created_at)}
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    )
-                                                                })
-                                                            )}
-                                                            <div ref={messagesEndRef} />
-                                                        </div>
-
-                                                        <div className="reply-section">
-                                                            {selectedProfile ? (
-                                                                <>
-                                                                    <div className="reply-profile">
-                                                                        <Lottie
-                                                                            animationData={selectedProfile.animation}
-                                                                            loop={true}
-                                                                            style={{ width: 36, height: 36 }}
-                                                                        />
+                                                    conversationMessages.map(msg => (
+                                                        <div key={msg.id} className={`msg-row ${msg.sender_type === 'user' ? 'received' : 'sent'}`}>
+                                                            <div className="msg-bubble shadow-sm">
+                                                                {msg.sender_type !== 'user' && (
+                                                                    <span className="staff-tag">{msg.sender_name}</span>
+                                                                )}
+                                                                {msg.image_url && (
+                                                                    <div className="msg-image mb-2">
+                                                                        <img src={msg.image_url} alt="Attachment" className="rounded-lg max-w-full cursor-pointer" onClick={() => window.open(msg.image_url, '_blank')} />
                                                                     </div>
-                                                                    <input
-                                                                        type="text"
-                                                                        placeholder="Type your reply here..."
-                                                                        value={replyText}
-                                                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleTyping(e.target.value)}
-                                                                        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleSendReply()}
-                                                                        disabled={sendingReply}
-                                                                        dir="ltr"
-                                                                        className="bg-white border-slate-200 text-slate-800 placeholder:text-slate-400"
-                                                                    />
-                                                                    <button
-                                                                        onClick={handleSendReply}
-                                                                        disabled={sendingReply || !replyText.trim()}
-                                                                        className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-lg transition-all"
-                                                                    >
-                                                                        {sendingReply ? (
-                                                                            <RefreshCw className="spin" size={18} />
-                                                                        ) : (
-                                                                            <Send size={18} />
-                                                                        )}
-                                                                    </button>
-                                                                </>
-                                                            ) : (
-                                                                <button
-                                                                    className="select-profile-btn border-slate-300 text-slate-500 hover:text-slate-800 hover:bg-slate-50"
-                                                                    onClick={() => setShowProfileSelector(true)}
-                                                                >
-                                                                    Select your profile to reply
-                                                                </button>
-                                                            )}
+                                                                )}
+                                                                <p className="text-sm">{msg.message}</p>
+                                                                <div className="msg-info">
+                                                                    <span>{msg.created_at ? formatTime(msg.created_at).split(' ')[1] : ''}</span>
+                                                                    {msg.sender_type !== 'user' && <Check size={12} className="text-blue-500" />}
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                    </>
+                                                    ))
                                                 )}
+                                                <div ref={messagesEndRef} />
                                             </div>
-                                        )}
+                                        </div>
+
+                                        <footer className="chat-footer">
+                                            {selectedProfile ? (
+                                                <div className="footer-container">
+                                                    <button className="p-2 text-slate-500 hover:text-slate-900"><Plus size={20} /></button>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Type a message..." 
+                                                        value={replyText}
+                                                        onChange={(e) => handleTyping(e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
+                                                        className="flex-1 bg-white border border-slate-200 rounded-full px-5 py-2.5 outline-none text-sm focus:border-slate-900 transition-all"
+                                                    />
+                                                    <button 
+                                                        className={`p-3 rounded-full transition-all ${replyText.trim() ? 'bg-slate-900 text-white scale-110 shadow-lg' : 'bg-slate-100 text-slate-400'}`}
+                                                        onClick={handleSendReply}
+                                                        disabled={!replyText.trim() || sendingReply}
+                                                    >
+                                                        {sendingReply ? <RefreshCw size={20} className="spin" /> : <Send size={20} />}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button className="w-full py-3 bg-slate-100 rounded-xl text-slate-500 font-bold text-sm hover:bg-slate-200" onClick={() => setShowProfileSelector(true)}>
+                                                    Select a profile to start chatting
+                                                </button>
+                                            )}
+                                        </footer>
+                                    </>
+                                ) : (
+                                    <div className="empty-chat">
+                                        <div className="text-center max-w-xs">
+                                            <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
+                                                <MessageSquare size={48} />
+                                            </div>
+                                            <h3 className="text-xl font-bold text-slate-900 mb-2">Zetsu Support</h3>
+                                            <p className="text-sm text-slate-500 leading-relaxed">Select a conversation from the sidebar to start responding to customers in real-time.</p>
+                                        </div>
                                     </div>
-                                ))}
+                                )}
                             </div>
-                        )}
+                        </div>
                     </section>
                 </div>
+
 
                 {/* Guides Tab */}
                 <div style={{ display: activeTab === 'guides' ? 'block' : 'none' }}>
@@ -1784,60 +1740,193 @@ export default function StaffConsole() {
                     padding: 0 24px 32px;
                 }
 
-                .support-section, .guides-section, .ads-section {
-                    background: white;
-                    border: 1px solid #e2e8f0;
-                    border-radius: 24px;
-                    padding: 32px;
-                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+                .whatsapp-theme {
+                    padding: 0 !important;
+                    background: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
                 }
 
-                .section-header {
+                .whatsapp-container {
+                    display: flex;
+                    height: 750px;
+                    background: white;
+                    border-radius: 24px;
+                    overflow: hidden;
+                    border: 1px solid #e2e8f0;
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                }
+
+                .chat-sidebar {
+                    width: 350px;
+                    border-right: 1px solid #f1f5f9;
+                    display: flex;
+                    flex-direction: column;
+                    background: white;
+                }
+
+                .sidebar-header {
+                    padding: 24px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 1px solid #f8fafc;
+                }
+
+                .sidebar-search {
+                    padding: 12px 20px;
+                }
+
+                .search-box {
+                    background: #f1f5f9;
+                    border-radius: 12px;
+                    padding: 10px 16px;
                     display: flex;
                     align-items: center;
                     gap: 12px;
-                    margin-bottom: 32px;
-                    padding-bottom: 20px;
-                    border-bottom: 1px solid #f1f5f9;
                 }
 
-                .section-header h2 {
-                    font-size: 1.25rem;
-                    font-weight: 700;
-                    color: #0f172a;
-                    margin: 0;
+                .sidebar-list {
+                    flex: 1;
+                    overflow-y: auto;
                 }
 
-                .conv-count {
-                    padding: 2px 10px;
-                    border-radius: 9999px;
-                    font-size: 0.75rem;
-                    font-weight: 700;
-                }
-
-                .refresh-btn {
-                    margin-left: auto;
-                    background: #f1f5f9;
-                    padding: 10px;
-                    border-radius: 12px;
-                    color: #64748b;
-                    transition: all 0.2s;
-                    border: 1px solid transparent;
+                .conversation-card {
+                    padding: 16px 20px;
+                    display: flex;
+                    gap: 12px;
                     cursor: pointer;
+                    transition: all 0.2s;
+                    border-bottom: 1px solid #f8fafc;
+                    position: relative;
+                }
+
+                .conversation-card:hover { background: #f8fafc; }
+                .conversation-card.active { background: #f1f5f9; border-left: 4px solid #0f172a; padding-left: 16px; }
+
+                .card-avatar { position: relative; flex-shrink: 0; }
+                .unread-dot {
+                    position: absolute;
+                    bottom: 0;
+                    right: 0;
+                    width: 12px;
+                    height: 12px;
+                    background: #22c55e;
+                    border: 2px solid white;
+                    border-radius: 50%;
+                }
+
+                .card-content { flex: 1; min-width: 0; }
+                .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+                .user-name { font-weight: 700; color: #0f172a; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .last-time { font-size: 0.7rem; color: #94a3b8; }
+
+                .card-footer { display: flex; justify-content: space-between; align-items: center; }
+                .last-msg { font-size: 0.8rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .unread-count {
+                    background: #0f172a;
+                    color: white;
+                    font-size: 0.65rem;
+                    padding: 2px 6px;
+                    border-radius: 9999px;
+                    font-weight: 800;
+                }
+
+                .chat-window {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    background: #f8fafc;
+                }
+
+                .chat-header {
+                    padding: 16px 24px;
+                    background: white;
+                    border-bottom: 1px solid #f1f5f9;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    z-index: 10;
+                }
+
+                .user-info { display: flex; align-items: center; gap: 12px; }
+                .header-actions { display: flex; gap: 8px; color: #94a3b8; }
+
+                .chat-body {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 24px;
+                    background-color: #e5ddd5;
+                    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+                    background-repeat: repeat;
+                    background-size: 400px;
+                    position: relative;
+                }
+
+                .messages-container {
+                    position: relative;
+                    z-index: 1;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                }
+
+                .msg-row { display: flex; width: 100%; margin-bottom: 2px; }
+                .msg-row.received { justify-content: flex-start; }
+                .msg-row.sent { justify-content: flex-end; }
+
+                .msg-bubble {
+                    max-width: 80%;
+                    padding: 6px 10px 4px;
+                    border-radius: 8px;
+                    position: relative;
+                    box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+                }
+
+                .received .msg-bubble {
+                    background: white;
+                    color: #0f172a;
+                    border-top-left-radius: 0;
+                }
+
+                .sent .msg-bubble {
+                    background: #dcf8c6;
+                    color: #0f172a;
+                    border-top-right-radius: 0;
+                }
+
+                .staff-tag {
+                    display: block;
+                    font-size: 0.6rem;
+                    font-weight: 800;
+                    color: #10b981;
+                    margin-bottom: 2px;
+                    text-transform: uppercase;
+                }
+
+                .msg-info {
+                    display: flex;
+                    justify-content: flex-end;
+                    align-items: center;
+                    gap: 3px;
+                    margin-top: 2px;
+                    font-size: 0.6rem;
+                    color: rgba(0,0,0,0.45);
+                }
+
+                .chat-footer {
+                    padding: 10px 16px;
+                    background: #f0f2f5;
+                }
+
+                .footer-container { display: flex; align-items: center; gap: 8px; }
+
+                .empty-chat {
+                    flex: 1;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                }
-
-                .refresh-btn:hover { background: white; border-color: #e2e8f0; color: #0f172a; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-                .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-                .empty-state {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    padding: 80px 40px;
-                    gap: 16px;
+                    background: #f8fafc;
                     text-align: center;
                 }
 
