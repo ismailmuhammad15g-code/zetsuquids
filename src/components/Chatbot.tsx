@@ -247,6 +247,8 @@ export default function Chatbot() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [pendingRedirect, setPendingRedirect] = useState<{ path: string; countdown: number } | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(false);
+  const [showSoundModal, setShowSoundModal] = useState<boolean>(false);
 
   // Auth & Usage States
   const { user, profileAvatar, isAuthenticated } = useAuth();
@@ -257,6 +259,37 @@ export default function Chatbot() {
     const dismissed = localStorage.getItem("zetsu_chatbot_popup_dismissed");
     setShowPopup(!dismissed);
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+       const pref = localStorage.getItem("zetsu_chatbot_sound_enabled");
+       if (pref === "true") {
+          setSoundEnabled(true);
+       } else if (pref === null && isOpen) {
+          setShowSoundModal(true);
+       }
+    }
+  }, [isOpen]);
+
+  const handleSoundPermission = (allow: boolean) => {
+     setSoundEnabled(allow);
+     localStorage.setItem("zetsu_chatbot_sound_enabled", allow ? "true" : "false");
+     setShowSoundModal(false);
+     
+     if (allow) {
+        const audio = new Audio("/sound-effect/ai-finished-notification.mp3");
+        audio.volume = 0.5;
+        audio.play().catch(console.error);
+     }
+  };
+
+  const playFinishedSound = () => {
+     if (soundEnabled) {
+        const audio = new Audio("/sound-effect/ai-finished-notification.mp3");
+        audio.volume = 0.5;
+        audio.play().catch(console.error);
+     }
+  };
 
   // Deep-link: open chatbot on Direct Support tab when ?open_support=1 is in URL
   useEffect(() => {
@@ -823,6 +856,9 @@ export default function Chatbot() {
           setIsTyping(false);
           setIsLongLoading(false);
           clearTimeout(loadingTimeout);
+          
+          playFinishedSound();
+
           if (doneData?.needsSupport) {
             setAwaitingSupportConfirmation(true);
             setPendingSupportCategory(doneData.supportCategory || "other");
@@ -1147,6 +1183,36 @@ export default function Chatbot() {
                 style={{ display: activeTab === "chat" ? "flex" : "none" }}
               >
                 <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent relative bg-slate-50">
+                  
+                  {/* Sound Permission Modal Overlay */}
+                  {showSoundModal && activeTab === "chat" && (
+                    <div className="absolute inset-0 z-30 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+                      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 border border-slate-200 shadow-sm">
+                        <Zap size={32} className="text-indigo-500 animate-pulse" />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-800 mb-2">
+                        Enable Sound Notifications?
+                      </h3>
+                      <p className="text-sm text-slate-500 mb-6 max-w-[220px]">
+                        We can play a sound when ZetsuGuide AI finishes typing its response.
+                      </p>
+                      <div className="flex gap-3 w-full max-w-[220px]">
+                        <button
+                          onClick={() => handleSoundPermission(false)}
+                          className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 font-bold text-sm rounded-lg hover:bg-slate-200 transition-colors"
+                        >
+                          Later
+                        </button>
+                        <button
+                          onClick={() => handleSoundPermission(true)}
+                          className="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-lg hover:bg-indigo-500 transition-colors shadow-sm"
+                        >
+                          Allow
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Login Gate Overlay */}
                   {!isAuthenticated() && activeTab === "chat" && (
                     <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">

@@ -141,11 +141,24 @@ User: "Can you take me to the AI draft page?"
 ZetsuGuide AI: "Certainly! I am redirecting you to the ZetsuGuide AI page now.
 [ACTION:REDIRECT:/ai-drafts]"`;
 
+        // Pre-compute user stats
+        const userGuides = (guides as any[]).filter(g => g.user_email === userEmail || g.author_email === userEmail);
+        const totalGuides = userGuides.length;
+        const totalViews = userGuides.reduce((acc, g) => acc + (g.views_count || g.views || 0), 0);
+        const totalLikes = userGuides.reduce((acc, g) => acc + (g.likes_count || g.likes || 0), 0);
+        
+        const userDataContext = `
+### Real-Time User Data
+You are currently talking to user: ${userEmail}
+The user has published ${totalGuides} guides on the platform.
+The user's guides have a total of ${totalViews} lifetime views and ${totalLikes} total likes.
+Use this context to accurately answer any questions the user has about their own stats, guides, or progress.`;
+
         const requestBody = {
             contents: [
                 {
                     role: 'user',
-                    parts: [{ text: `${systemPrompt}\n\nUser question: ${query}` }]
+                    parts: [{ text: `${systemPrompt}\n\n${userDataContext}\n\nUser question: ${query}` }]
                 }
             ],
             generationConfig: {
@@ -204,11 +217,23 @@ async function _fallbackToApiRoute(
 ): Promise<{ needsSupport: boolean; supportCategory?: string; results?: unknown[] }> {
     const doneData = { needsSupport, supportCategory: needsSupport ? 'technical_issue' : undefined };
     try {
+        // Pre-compute user stats for fallback
+        const userGuides = (_guides as any[]).filter(g => g.user_email === userEmail || g.author_email === userEmail);
+        const totalGuides = userGuides.length;
+        const totalViews = userGuides.reduce((acc, g) => acc + (g.views_count || g.views || 0), 0);
+        const totalLikes = userGuides.reduce((acc, g) => acc + (g.likes_count || g.likes || 0), 0);
+        
+        const userDataContext = `
+### Real-Time User Data
+You are currently talking to user: ${userEmail}
+The user has published ${totalGuides} guides on the platform.
+The user's guides have a total of ${totalViews} lifetime views and ${totalLikes} total likes.`;
+
         const response = await fetch('/api/ai', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                messages: [{ role: 'user', content: query }],
+                messages: [{ role: 'user', content: `${userDataContext}\n\nUser query: ${query}` }],
                 model: 'gemini-1.5-flash',
                 userEmail,
                 isDeepReasoning: false,
