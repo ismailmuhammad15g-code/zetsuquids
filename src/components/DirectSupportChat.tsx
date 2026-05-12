@@ -699,8 +699,8 @@ export default function DirectSupportChat() {
 
         if (msg.senderType === 'bot') {
             return (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    <BotIcon size={18} className="text-white" />
+                <div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <BotIcon size={20} className="text-white" />
                 </div>
             )
         }

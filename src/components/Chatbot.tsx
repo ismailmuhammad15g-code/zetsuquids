@@ -862,8 +862,8 @@ export default function Chatbot() {
                 <X size={14} />
               </button>
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
-                  <Sparkles size={16} />
+                <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-700">
+                  <BotIcon size={20} className="text-white" />
                 </div>
                 <div>
                   <h4 className="font-bold text-sm mb-1 text-slate-900">
@@ -1191,8 +1191,8 @@ export default function Chatbot() {
                         className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}
                       >
                         {msg.role === "assistant" && (
-                          <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-sm">
-                            <Sparkles size={16} className="text-white" />
+                          <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-700">
+                            <BotIcon size={20} className="text-white" />
                           </div>
                         )}
                         <div
@@ -1257,8 +1257,8 @@ export default function Chatbot() {
                   {isTyping &&
                     messages[messages.length - 1]?.role === "user" && (
                       <div className="flex gap-3 animate-in slide-in-from-bottom-2 duration-300">
-                        <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-sm">
-                          <Sparkles size={16} className="text-white" />
+                        <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-700">
+                          <BotIcon size={20} className="text-white" />
                         </div>
                         <div className="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none shadow-sm">
                           <div className="flex gap-1">

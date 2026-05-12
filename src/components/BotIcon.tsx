@@ -7,8 +7,12 @@ interface BotIconProps {
 
 export default function BotIcon({ className, size = 40 }: BotIconProps) {
     return (
-        <div className={`relative flex items-center justify-center ${className}`} style={{ width: size, height: size }}>
-            <Bot size={size} className="text-black" strokeWidth={1.5} />
+        <div className={`relative flex items-center justify-center overflow-hidden ${className}`} style={{ width: size, height: size }}>
+            <img 
+                src="/avatars/chatbot.svg" 
+                alt="Bot" 
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
         </div>
     )
 }
