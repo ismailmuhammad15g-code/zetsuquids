@@ -1040,11 +1040,15 @@ function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true, 
 // ─── AI Action Parser ───
 function parseAIAction(text: string) {
   if (!text) return null;
-  const match = text.match(/```json\s*(\{[\s\S]*?"action":\s*"(create_guide|redirect)"[\s\S]*?\})\s*```/);
+  // More robust regex to handle various whitespace and quote styles
+  const match = text.match(/```json\s*(\{[\s\S]*?"action"\s*:\s*"(create_guide|redirect)"[\s\S]*?\})\s*```/);
   if (match) {
     try {
-      return JSON.parse(match[1]);
+      // Clean up potential markdown artifacts inside the captured group
+      const jsonStr = match[1].trim();
+      return JSON.parse(jsonStr);
     } catch (e) {
+      console.warn("Action JSON parse error:", e);
       return null;
     }
   }
@@ -1393,10 +1397,10 @@ function MessageContent({ text, isError, isThinking, userEmail, userId, selected
 
   if (aiAction) {
     // Remove the JSON block from text so it doesn't render as markdown
-    displayText = text.replace(/```json\s*(\{[\s\S]*?"action":\s*"(create_guide|redirect)"[\s\S]*?\})\s*```/, "").trim();
+    displayText = text.replace(/```json\s*(\{[\s\S]*?"action"\s*:\s*"(create_guide|redirect)"[\s\S]*?\})\s*```/, "").trim();
   } else {
     // Detect if AI is currently streaming an action json block
-    const partialMatch = text.match(/```json\s*(\{[\s\S]*?"action":\s*"(create_guide|redirect)"[\s\S]*)/);
+    const partialMatch = text.match(/```json\s*(\{[\s\S]*?"action"\s*:\s*"(create_guide|redirect)"[\s\S]*)/);
     if (partialMatch) {
       isActionStreaming = true;
       displayText = text.substring(0, partialMatch.index).trim();
@@ -1427,11 +1431,11 @@ function MessageContent({ text, isError, isThinking, userEmail, userId, selected
         <FilteredMarkdown content={response} />
       )}
 
-      {aiAction && aiAction.action === 'create_guide' && !isThinking && (
+      {aiAction && aiAction.action === 'create_guide' && (
         <GuideCreatorAction data={aiAction} userEmail={userEmail} userId={userId} />
       )}
 
-      {aiAction && aiAction.action === 'redirect' && !isThinking && (
+      {aiAction && aiAction.action === 'redirect' && (
         <RedirectAction data={aiAction} />
       )}
 
