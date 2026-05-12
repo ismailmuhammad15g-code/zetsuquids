@@ -13,6 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import Lottie from "lottie-react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
@@ -250,6 +251,7 @@ export default function Chatbot() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [pendingRedirect, setPendingRedirect] = useState<{ path: string; countdown: number } | null>(null);
+  const [catAnimation, setCatAnimation] = useState<any>(null);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(false);
   const [showSoundModal, setShowSoundModal] = useState<boolean>(false);
 
@@ -314,6 +316,14 @@ export default function Chatbot() {
       setSupportFormData((prev) => ({ ...prev, email: user.email }));
     }
   }, [user]);
+
+  // Load cat animation
+  useEffect(() => {
+    fetch('/lottie/cat-sleeping-for-chat-bot.json')
+      .then(res => res.json())
+      .then(data => setCatAnimation(data))
+      .catch(err => console.error("Failed to load cat animation:", err));
+  }, []);
   const [loadingUsage, setLoadingUsage] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [isLongLoading, setIsLongLoading] = useState(false);
@@ -1552,6 +1562,19 @@ export default function Chatbot() {
                   onSubmit={handleSend}
                   className="p-4 bg-white border-t border-slate-200 relative z-10"
                 >
+                  {/* Sleeping Cat Animation Overlay */}
+                  {catAnimation && (
+                    <div className="absolute -top-10 left-6 flex items-center gap-2 bg-white/60 backdrop-blur-md border border-slate-200/50 px-3 py-1 rounded-t-xl shadow-[0_-4px_12px_rgba(0,0,0,0.03)] z-0 animate-in slide-in-from-bottom-2 duration-500">
+                      <div className="w-12 h-12 -mt-4 -ml-2 drop-shadow-sm">
+                        <Lottie animationData={catAnimation} loop={true} />
+                      </div>
+                      <div className="flex flex-col -mt-0.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-0.5">Zetsu Assistant</span>
+                        <span className="text-[11px] font-bold text-slate-600 leading-none">Ready when you are...</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="relative flex items-center gap-2">
                     <input
                       type="text"
