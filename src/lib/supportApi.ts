@@ -56,6 +56,7 @@ export const supportApi = {
     async getUnreadCount(userEmail?: string): Promise<number> {
         if (!userEmail) return 0
         try {
+            // First try with read_status
             const { data, error } = await supabase
                 .from('support_messages')
                 .select('id')
@@ -63,7 +64,21 @@ export const supportApi = {
                 .in('sender_type', ['staff', 'admin'])
                 .neq('read_status', 'read')
 
-            if (error) throw error
+            if (error) {
+                // If read_status doesn't exist (42703), try is_read (boolean)
+                if (error.code === '42703') {
+                    const { data: data2, error: error2 } = await supabase
+                        .from('support_messages')
+                        .select('id')
+                        .eq('user_email', userEmail)
+                        .in('sender_type', ['staff', 'admin'])
+                        .eq('is_read', false)
+                    
+                    if (error2) return 0
+                    return data2?.length || 0
+                }
+                throw error
+            }
             return data?.length || 0
         } catch (error) {
             console.warn('Error getting unread count:', error)
@@ -178,7 +193,19 @@ export const supportApi = {
                 .in('sender_type', ['staff', 'admin'])
                 .neq('read_status', 'read')
 
-            if (error) throw error
+            if (error) {
+                // Try is_read fallback
+                if (error.code === '42703') {
+                    await supabase
+                        .from('support_messages')
+                        .update({ is_read: true })
+                        .eq('user_email', userEmail)
+                        .in('sender_type', ['staff', 'admin'])
+                        .eq('is_read', false)
+                    return true
+                }
+                throw error
+            }
             return true
         } catch (error) {
             console.warn('Error marking all as read for user:', error)

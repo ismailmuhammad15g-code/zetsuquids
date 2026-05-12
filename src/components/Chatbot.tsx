@@ -468,6 +468,7 @@ export default function Chatbot() {
                       isDeepReasoning: false,
                       isSubAgentMode: false,
                       skipCreditDeduction: true,
+                      stream: false,
                   }),
                 }).then(async (res) => {
                    const data = await res.json();
