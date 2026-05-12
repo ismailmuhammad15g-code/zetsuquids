@@ -94,26 +94,50 @@ export function basicSearch(query: string, guides: unknown[]): unknown[] {
     return scored.filter((g) => g.score > 0).sort((a, b) => b.score - a.score)
 }
 
-// AI Agent search - integrates with Vercel serverless API
 export async function aiAgentSearch(
     query: string,
     guides: unknown[],
     userEmail: string
-): Promise<{ needsSupport: boolean; supportCategory?: string }> {
+): Promise<{ needsSupport: boolean; supportCategory?: string; aiInsight?: string; results?: unknown[] }> {
     try {
-        // First, try to find relevant guides using basic search
-        const relevantGuides = basicSearch(query, guides)
-        void userEmail
-        void relevantGuides
+        // Basic search for context
+        const relevantGuides = basicSearch(query, guides);
 
-        // Check if the query seems to need support
-        const supportKeywords = ['help', 'error', 'problem', 'not working', 'bug', 'issue', 'crash', 'failed']
-        const queryLower = query.toLowerCase()
-        const needsSupport = supportKeywords.some(keyword => queryLower.includes(keyword))
+        const supportKeywords = ['help', 'error', 'problem', 'not working', 'bug', 'issue', 'crash', 'failed'];
+        const queryLower = query.toLowerCase();
+        const needsSupport = supportKeywords.some(keyword => queryLower.includes(keyword));
+
+        // Call the real AI API
+        const response = await fetch('/api/ai', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                messages: [{ role: 'user', content: query }],
+                model: 'gemini-1.5-flash',
+                userEmail,
+                isDeepReasoning: false,
+                isSubAgentMode: false,
+            }),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return {
+                needsSupport,
+                supportCategory: needsSupport ? 'technical_issue' : undefined,
+                aiInsight: data.content,
+                results: relevantGuides,
+            };
+        } else {
+            console.error('AI API returned error:', await response.text());
+        }
 
         return {
             needsSupport,
-            supportCategory: needsSupport ? 'technical_issue' : undefined
+            supportCategory: needsSupport ? 'technical_issue' : undefined,
+            results: relevantGuides,
         }
     } catch (error) {
         console.error('Error in AI agent search:', error)
