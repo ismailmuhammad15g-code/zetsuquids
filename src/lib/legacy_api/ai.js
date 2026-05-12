@@ -532,16 +532,18 @@ async function executeDeepReasoning(query, apiKey, apiUrl, model) {
   2. EXTERNAL RESEARCH:
   ${externalData}
 
-  TASK: Synthesize this into a comprehensive answer.
-  Use Headers, Bullet Points, and Code Blocks.
+  TASK: Synthesize this into a comprehensive answer in purely Markdown format.
+  Use Headers, Bullet Points, and Code Blocks (including Mermaid diagrams if needed).
 
-  CRITICAL: RESPONSE FORMAT
-  Return a valid JSON object:
-  {
-    "content": "markdown string...",
-    "publishable": true,
-    "suggested_followups": ["string"]
-  }`;
+  CRITICAL: You MUST begin your response with a <think> block that shows your internal reasoning.
+  Start the think block with "Reading documentation...".
+  Example format:
+  <think>
+  Reading documentation about the topic...
+  Analyzing external research data...
+  Synthesizing insights...
+  </think>
+  [Your Markdown response here]`;
 
   return { systemPrompt };
 }

@@ -120,89 +120,56 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
         </Reasoning>
       )}
       {displayedContent && (
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeHighlight]}
-          components={{
-            // Custom renderers for better styling
-            h1: ({ node, ...props }) => (
-              <h1 className="text-xl font-bold mb-3 text-white" {...props} />
-            ),
-            h2: ({ node, ...props }) => (
-              <h2 className="text-lg font-bold mb-2 text-white" {...props} />
-            ),
-            h3: ({ node, ...props }) => (
-              <h3 className="text-base font-bold mb-2 text-white" {...props} />
-            ),
-            p: ({ node, ...props }) => (
-              <p className="mb-2 leading-relaxed" {...props} />
-            ),
-            ul: ({ node, ...props }) => (
-              <ul className="list-disc list-inside mb-2 space-y-1" {...props} />
-            ),
-            ol: ({ node, ...props }) => (
-              <ol
-                className="list-decimal list-inside mb-2 space-y-1"
-                {...props}
-              />
-            ),
-            li: ({ node, ...props }) => <li className="ml-2" {...props} />,
-            code: ({ node, className, children, ...props }) => {
-              const isBlock = Boolean(className);
-              return isBlock ? (
-                <pre className="bg-black/50 rounded-lg p-3 my-2 overflow-x-auto border border-white/10">
-                  <code className={className} {...props}>
+        <div className="prose prose-sm max-w-none prose-slate prose-headings:font-bold prose-a:text-indigo-600 prose-code:text-indigo-700 prose-pre:bg-slate-900 prose-pre:text-slate-50 prose-blockquote:border-indigo-400 prose-strong:text-slate-800 prose-li:marker:text-slate-400">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeHighlight]}
+            components={{
+              code: ({ node, className, children, ...props }) => {
+                const isBlock = Boolean(className);
+                const isMermaid = className === "language-mermaid" || className === "mermaid";
+
+                if (isMermaid) {
+                  return (
+                    <div className="not-prose bg-slate-50 border border-slate-200 rounded-lg p-4 my-4 overflow-x-auto">
+                      <span className="text-slate-400 text-xs font-bold mb-2 block uppercase tracking-wide">📊 Mermaid Diagram</span>
+                      <pre className="bg-transparent p-0 m-0 text-slate-800 text-xs">
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      </pre>
+                    </div>
+                  );
+                }
+
+                return isBlock ? (
+                  <pre className="not-prose bg-slate-900 rounded-lg p-3 my-2 overflow-x-auto border border-slate-700">
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  </pre>
+                ) : (
+                  <code
+                    className="not-prose bg-slate-100 px-1.5 py-0.5 rounded text-indigo-600 text-xs font-mono border border-slate-200"
+                    {...props}
+                  >
                     {children}
                   </code>
-                </pre>
-              ) : (
-                <code
-                  className="bg-black/30 px-1.5 py-0.5 rounded text-indigo-300 text-xs font-mono"
+                );
+              },
+              a: ({ node, ...props }) => (
+                <a
+                  className="text-indigo-600 hover:text-indigo-800 underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   {...props}
-                >
-                  {children}
-                </code>
-              );
-            },
-            blockquote: ({ node, ...props }) => (
-              <blockquote
-                className="border-l-4 border-indigo-500 pl-4 italic my-2 text-gray-300"
-                {...props}
-              />
-            ),
-            a: ({ node, ...props }) => (
-              <a
-                className="text-indigo-400 hover:text-indigo-300 underline"
-                target="_blank"
-                rel="noopener noreferrer"
-                {...props}
-              />
-            ),
-            strong: ({ node, ...props }) => (
-              <strong className="font-bold text-white" {...props} />
-            ),
-          em: ({ node, ...props }) => <em className="italic" {...props} />,
-          hr: ({ node, ...props }) => (
-            <hr className="border-white/10 my-3" {...props} />
-          ),
-          table: ({ node, ...props }) => (
-            <div className="overflow-x-auto my-2">
-              <table className="min-w-full border border-white/10" {...props} />
-            </div>
-          ),
-          th: ({ node, ...props }) => (
-            <th
-              className="border border-white/10 px-3 py-2 bg-white/5 font-bold text-left"
-              {...props}
-            />
-          ),
-          td: ({ node, ...props }) => (
-            <td className="border border-white/10 px-3 py-2" {...props} />
-          ),
-        }}
-      >
-        {displayedContent}
-      </ReactMarkdown>
+                />
+              ),
+            }}
+          >
+            {displayedContent}
+          </ReactMarkdown>
+        </div>
       )}
       {isTyping && !isComplete && (
         <span className="inline-block w-1 h-4 bg-indigo-400 ml-0.5 animate-pulse" />
