@@ -109,13 +109,11 @@ export async function streamAIResponse(
     const doneData = { needsSupport, supportCategory: needsSupport ? 'technical_issue' : undefined };
 
     try {
-        // Use Gemini directly — the env var stores a Gemini key and URL
         const apiKey = process.env.NEXT_PUBLIC_AI_API_KEY;
         const baseUrl = process.env.NEXT_PUBLIC_AI_API_URL ||
             'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+        const isCloudflare = baseUrl.includes("cloudflare");
 
-        // Build Gemini-native request
-        const geminiUrl = `${baseUrl}?key=${apiKey}`;
         const systemPrompt = `You are ZetsuGuide AI, an elite intelligent agent for the ZetsuGuide platform.
 Answer the user's question with high quality markdown formatting.
 
@@ -154,34 +152,53 @@ The user has published ${totalGuides} guides on the platform.
 The user's guides have a total of ${totalViews} lifetime views and ${totalLikes} total likes.
 Use this context to accurately answer any questions the user has about their own stats, guides, or progress.`;
 
-        const requestBody = {
-            contents: [
-                {
-                    role: 'user',
-                    parts: [{ text: `${systemPrompt}\n\n${userDataContext}\n\nUser question: ${query}` }]
-                }
-            ],
-            generationConfig: {
-                maxOutputTokens: 2048,
-                temperature: 0.7,
-            }
-        };
-
-        const response = await fetch(geminiUrl, {
+        let fetchUrl = baseUrl;
+        let fetchOptions: RequestInit = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
-        });
+            body: ''
+        };
+
+        if (isCloudflare) {
+            fetchOptions.headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            };
+            fetchOptions.body = JSON.stringify({
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: `${userDataContext}\n\nUser question: ${query}` }
+                ]
+            });
+        } else {
+            fetchUrl = `${baseUrl}?key=${apiKey}`;
+            fetchOptions.body = JSON.stringify({
+                contents: [
+                    {
+                        role: 'user',
+                        parts: [{ text: `${systemPrompt}\n\n${userDataContext}\n\nUser question: ${query}` }]
+                    }
+                ],
+                generationConfig: {
+                    maxOutputTokens: 2048,
+                    temperature: 0.7,
+                }
+            });
+        }
+
+        const response = await fetch(fetchUrl, fetchOptions);
 
         if (!response.ok) {
             const errText = await response.text();
-            console.error('Gemini API error:', response.status, errText);
+            console.error('AI API error:', response.status, errText);
             // Fallback to /api/ai route
             return await _fallbackToApiRoute(query, guides, userEmail, onToken, onDone, onError, needsSupport, relevantGuides);
         }
 
         const data = await response.json();
-        const content: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+        const content: string = isCloudflare 
+            ? (data.result?.response || '')
+            : (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '');
 
         if (!content) {
             onError('The AI returned an empty response. Please try again.');
