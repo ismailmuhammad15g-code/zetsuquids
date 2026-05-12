@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
+import mermaid from "mermaid";
 import { useAuth } from "../contexts/AuthContext";
 import { streamAIResponse, isAIConfigured } from "../lib/ai";
 import { Guide, guidesApi } from "../lib/api";
@@ -67,7 +68,39 @@ function isArabicText(text: string) {
   return arabicMatches > latinMatches * 0.3;
 }
 
-// Markdown Message Component with Typing Animation
+const MermaidDiagram = ({ chart }: { chart: string }) => {
+  const [svg, setSvg] = useState<string>('');
+  const [error, setError] = useState(false);
+  const id = useRef(`mermaid-${Date.now()}-${Math.floor(Math.random() * 10000)}`);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && chart) {
+      mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+      mermaid.render(id.current, chart)
+        .then(result => {
+          setSvg(result.svg);
+          setError(false);
+        })
+        .catch(err => {
+          console.error("Mermaid render error:", err);
+          setError(true);
+        });
+    }
+  }, [chart]);
+
+  if (error) {
+    return <div className="text-red-500 text-xs">Error rendering diagram. It might be incomplete.</div>;
+  }
+
+  return svg ? (
+    <div dangerouslySetInnerHTML={{ __html: svg }} className="mermaid-diagram flex justify-center bg-white p-4 rounded-lg" />
+  ) : (
+    <div className="flex items-center gap-2 text-xs text-slate-500">
+      <Loader2 className="animate-spin" size={12} /> Rendering diagram...
+    </div>
+  );
+};
+
 function MarkdownMessage({ content, isTyping = false }: { content: string; isTyping?: boolean }) {
   let thinkContent: string | null = null;
   let mainContent = content;
@@ -129,11 +162,7 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
                   return (
                     <div className="not-prose bg-slate-50 border border-slate-200 rounded-lg p-4 my-4 overflow-x-auto">
                       <span className="text-slate-400 text-xs font-bold mb-2 block uppercase tracking-wide">📊 Mermaid Diagram</span>
-                      <pre className="bg-transparent p-0 m-0 text-slate-800 text-xs">
-                        <code className={className} {...props}>
-                          {children}
-                        </code>
-                      </pre>
+                      <MermaidDiagram chart={String(children).replace(/\n$/, '')} />
                     </div>
                   );
                 }
@@ -207,6 +236,7 @@ export default function Chatbot() {
   const [streamingMsgId, setStreamingMsgId] = useState<number | null>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Auth & Usage States
   const { user, profileAvatar, isAuthenticated } = useAuth();
@@ -310,9 +340,21 @@ export default function Chatbot() {
     loadContext();
   }, []);
 
-  // Scroll to bottom
+  // Scroll to bottom (Smart Sticky Scroll)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!scrollContainerRef.current) return;
+    
+    const container = scrollContainerRef.current;
+    
+    // Check if user is near the bottom (within 150px)
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+    
+    // Check if the last message was from the user (to force scroll down after sending)
+    const lastMsgIsUser = messages[messages.length - 1]?.role === "user";
+    
+    if (isNearBottom || lastMsgIsUser) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, isOpen, isTyping, isLongLoading]);
 
   // Inject Arabic support styles
@@ -1059,7 +1101,7 @@ export default function Chatbot() {
                 className="flex-1 flex flex-col overflow-hidden relative"
                 style={{ display: activeTab === "chat" ? "flex" : "none" }}
               >
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent relative bg-slate-50">
+                <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent relative bg-slate-50">
                   {/* Login Gate Overlay */}
                   {!isAuthenticated() && activeTab === "chat" && (
                     <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
