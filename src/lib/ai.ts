@@ -94,25 +94,103 @@ export function basicSearch(query: string, guides: unknown[]): unknown[] {
     return scored.filter((g) => g.score > 0).sort((a, b) => b.score - a.score)
 }
 
+export async function streamAIResponse(
+    query: string,
+    guides: unknown[],
+    userEmail: string,
+    onToken: (token: string) => void,
+    onDone: () => void,
+    onError: (err: string) => void
+): Promise<{ needsSupport: boolean; supportCategory?: string; results?: unknown[] }> {
+    // Basic search for context
+    const relevantGuides = basicSearch(query, guides);
+    const supportKeywords = ['help', 'error', 'problem', 'not working', 'bug', 'issue', 'crash', 'failed'];
+    const queryLower = query.toLowerCase();
+    const needsSupport = supportKeywords.some(keyword => queryLower.includes(keyword));
+
+    try {
+        const response = await fetch('/api/ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages: [{ role: 'user', content: query }],
+                model: 'gemini-1.5-flash',
+                userEmail,
+                isDeepReasoning: true,
+                isSubAgentMode: false,
+            }),
+        });
+
+        if (!response.ok) {
+            const err = await response.text();
+            onError(`AI error: ${err}`);
+            return { needsSupport, results: relevantGuides };
+        }
+
+        const contentType = response.headers.get('content-type') || '';
+
+        // SSE streaming path
+        if (contentType.includes('text/event-stream') && response.body) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() ?? '';
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6).trim();
+                        if (data === '[DONE]') { onDone(); return { needsSupport, results: relevantGuides }; }
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.content) onToken(parsed.content);
+                        } catch { /* ignore parse errors */ }
+                    }
+                }
+            }
+            onDone();
+            return { needsSupport, results: relevantGuides };
+        }
+
+        // Fallback: non-streaming JSON response
+        const data = await response.json();
+        const content: string = data.content ?? '';
+        // Simulate streaming by firing tokens word-by-word
+        const words = content.split(/(\s+)/);
+        for (const word of words) {
+            onToken(word);
+            await new Promise(r => setTimeout(r, 18));
+        }
+        onDone();
+        return { needsSupport, results: relevantGuides };
+
+    } catch (error) {
+        console.error('Error in stream AI response:', error);
+        onError('Connection error. Please try again.');
+        return { needsSupport: false };
+    }
+}
+
 export async function aiAgentSearch(
     query: string,
     guides: unknown[],
     userEmail: string
 ): Promise<{ needsSupport: boolean; supportCategory?: string; aiInsight?: string; results?: unknown[] }> {
     try {
-        // Basic search for context
         const relevantGuides = basicSearch(query, guides);
-
         const supportKeywords = ['help', 'error', 'problem', 'not working', 'bug', 'issue', 'crash', 'failed'];
         const queryLower = query.toLowerCase();
         const needsSupport = supportKeywords.some(keyword => queryLower.includes(keyword));
 
-        // Call the real AI API
         const response = await fetch('/api/ai', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 messages: [{ role: 'user', content: query }],
                 model: 'gemini-1.5-flash',
@@ -124,24 +202,14 @@ export async function aiAgentSearch(
 
         if (response.ok) {
             const data = await response.json();
-            return {
-                needsSupport,
-                supportCategory: needsSupport ? 'technical_issue' : undefined,
-                aiInsight: data.content,
-                results: relevantGuides,
-            };
+            return { needsSupport, supportCategory: needsSupport ? 'technical_issue' : undefined, aiInsight: data.content, results: relevantGuides };
         } else {
             console.error('AI API returned error:', await response.text());
         }
-
-        return {
-            needsSupport,
-            supportCategory: needsSupport ? 'technical_issue' : undefined,
-            results: relevantGuides,
-        }
+        return { needsSupport, supportCategory: needsSupport ? 'technical_issue' : undefined, results: relevantGuides };
     } catch (error) {
-        console.error('Error in AI agent search:', error)
-        return { needsSupport: false }
+        console.error('Error in AI agent search:', error);
+        return { needsSupport: false };
     }
 }
 

@@ -17,7 +17,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "../contexts/AuthContext";
-import { aiAgentSearch, isAIConfigured } from "../lib/ai";
+import { streamAIResponse, isAIConfigured } from "../lib/ai";
 import { Guide, guidesApi } from "../lib/api";
 import { supabase } from "../lib/supabase";
 import { supportApi } from "../lib/supportApi";
@@ -52,10 +52,6 @@ type WindowWithWebkitAudio = Window & typeof globalThis & {
   webkitAudioContext?: typeof AudioContext;
 };
 
-type AiResponseWithOptionalData = Awaited<ReturnType<typeof aiAgentSearch>> & {
-  aiInsight?: string;
-  results?: unknown[];
-};
 
 // Detect if text contains Arabic characters
 function isArabicText(text: string) {
@@ -206,6 +202,9 @@ export default function Chatbot() {
   ]);
   const [userInput, setUserInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isReadingDocs, setIsReadingDocs] = useState(false);
+  // Tracks which message is currently being streamed (used to show live cursor)
+  const [streamingMsgId, setStreamingMsgId] = useState<number | null>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -698,47 +697,64 @@ export default function Chatbot() {
       // Check if AI is configured
       if (!isAIConfigured()) {
         clearTimeout(loadingTimeout);
-        setTimeout(() => {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now() + 1,
-              role: "bot",
-              content:
-                "AI is not configured. Please add your API key in settings.",
-              type: "error",
-            },
-          ]);
-          setIsTyping(false);
-        }, 1000);
+        setMessages((prev) => [
+          ...prev,
+          { id: Date.now() + 1, role: "bot", content: "AI is not configured. Please add your API key in settings.", type: "error" },
+        ]);
+        setIsTyping(false);
         return;
       }
 
-      // Call AI Agent
-      const response = await aiAgentSearch(
+      // Phase 1: Show "Reading documentation..." shimmer
+      setIsReadingDocs(true);
+
+      // Create a placeholder streaming message
+      const botMsgId = Date.now() + 1;
+      setStreamingMsgId(botMsgId);
+      setMessages((prev) => [
+        ...prev,
+        { id: botMsgId, role: "bot", content: "", type: "text" },
+      ] as ChatMessage[]);
+
+      // Stream AI response
+      const result = await streamAIResponse(
         text,
         guides,
         user?.email || "chatbot-user",
-      ) as AiResponseWithOptionalData;
+        // onToken: append each chunk to the streaming message
+        (token: string) => {
+          setIsReadingDocs(false);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === botMsgId ? { ...m, content: m.content + token } : m
+            ) as ChatMessage[]
+          );
+        },
+        // onDone
+        () => {
+          setStreamingMsgId(null);
+          setIsTyping(false);
+          setIsLongLoading(false);
+          clearTimeout(loadingTimeout);
+          if (result?.needsSupport) {
+            setAwaitingSupportConfirmation(true);
+            setPendingSupportCategory(result.supportCategory || "other");
+          }
+        },
+        // onError
+        (errMsg: string) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === botMsgId ? { ...m, content: errMsg, type: "error" } : m
+            ) as ChatMessage[]
+          );
+          setStreamingMsgId(null);
+          setIsTyping(false);
+          setIsLongLoading(false);
+          clearTimeout(loadingTimeout);
+        },
+      );
 
-      // Check if AI detected support need
-      if (response.needsSupport) {
-        setAwaitingSupportConfirmation(true);
-        setPendingSupportCategory(response.supportCategory || "other");
-      }
-
-      // Format response
-      const botMsg: ChatMessage = {
-        id: Date.now() + 1,
-        role: "bot",
-        content:
-          response.aiInsight ||
-          "I couldn't find a specific answer in the documentation, but I can help you search broadly.",
-        relatedGuides: response.results || [],
-        type: "text",
-      };
-
-      setMessages((prev) => [...prev, botMsg] as ChatMessage[]);
     } catch (error: unknown) {
       console.error("Chat error:", error);
       setMessages((prev) => [
@@ -1199,11 +1215,7 @@ export default function Chatbot() {
                             {msg.role === "assistant" || msg.role === "bot" ? (
                               <MarkdownMessage
                                 content={msg.content}
-                                isTyping={
-                                  msg.id ===
-                                  messages[messages.length - 1]?.id &&
-                                  isTyping
-                                }
+                                isTyping={msg.id === streamingMsgId}
                               />
                             ) : (
                               <p
@@ -1245,42 +1257,20 @@ export default function Chatbot() {
                     );
                   })}
 
-                  {/* Typing indicator */}
-                  {isTyping &&
-                    messages[messages.length - 1]?.role === "user" && (
-                      <div className="flex gap-3 animate-in slide-in-from-bottom-2 duration-300">
-                        <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-700">
-                          <BotIcon size={20} className="text-white" />
-                        </div>
-                        <div className="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none shadow-sm">
-                          <div className="flex gap-1">
-                            <span
-                              className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"
-                              style={{ animationDelay: "0ms" }}
-                            />
-                            <span
-                              className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"
-                              style={{ animationDelay: "150ms" }}
-                            />
-                            <span
-                              className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"
-                              style={{ animationDelay: "300ms" }}
-                            />
-                          </div>
-                        </div>
-                        {isLongLoading && (
-                          <div className="ml-11 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 w-fit animate-in fade-in slide-in-from-bottom-2 duration-500">
-                            <Loader2
-                              size={10}
-                              className="text-slate-500 animate-spin"
-                            />
-                            <p className="text-[10px] font-medium text-slate-500">
-                              Thinking... (taking longer than usual)
-                            </p>
-                          </div>
-                        )}
+                  {/* Typing indicator — only shown before first streaming token arrives */}
+                  {isTyping && isReadingDocs && (
+                    <div className="flex gap-3 animate-in slide-in-from-bottom-2 duration-300">
+                      <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-700">
+                        <BotIcon size={20} className="text-white" />
                       </div>
-                    )}
+                      <div className="bg-white border border-slate-200 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-2">
+                        <Loader2 size={13} className="text-indigo-500 animate-spin flex-shrink-0" />
+                        <span className="text-sm text-slate-500 animate-pulse font-medium">
+                          Reading documentation...
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   <div ref={messagesEndRef} />
                 </div>
 
