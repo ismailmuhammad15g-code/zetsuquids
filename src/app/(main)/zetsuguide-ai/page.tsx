@@ -2451,18 +2451,82 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                             <span style={{ fontSize: "11px", color: "#6b7280" }}>{new Date(job.created_at).toLocaleString()}</span>
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                               {job.status === "running" && (
-                                <Loader2 size={13} className="animate-spin" style={{ color: "#38bdf8" }} />
+                                <div style={{ 
+                                  display: "flex", 
+                                  alignItems: "center", 
+                                  gap: "6px", 
+                                  background: "rgba(56, 189, 248, 0.1)", 
+                                  padding: "4px 10px", 
+                                  borderRadius: "20px",
+                                  border: "1px solid rgba(56, 189, 248, 0.2)"
+                                }}>
+                                  <div style={{
+                                    width: "8px",
+                                    height: "8px",
+                                    backgroundColor: "#38bdf8",
+                                    borderRadius: "50%",
+                                    animation: "pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite"
+                                  }} />
+                                  <span style={{ fontSize: "11px", fontWeight: "bold", color: "#0369a1", letterSpacing: "0.5px" }}>WORKING...</span>
+                                </div>
                               )}
-                              <span style={{
-                                fontSize: "11px", fontWeight: "bold", padding: "3px 9px", borderRadius: "20px",
-                                background: job.status === "completed" ? "#d1fae5" : job.status === "failed" ? "#fee2e2" : job.status === "running" ? "#e0f2fe" : "#fef3c7",
-                                color: job.status === "completed" ? "#065f46" : job.status === "failed" ? "#991b1b" : job.status === "running" ? "#0369a1" : "#92400e"
-                              }}>
-                                {job.status === "running" ? "⚡ RUNNING" : job.status.toUpperCase()}
-                              </span>
+                              {job.status !== "running" && (
+                                <span style={{
+                                  fontSize: "11px", fontWeight: "bold", padding: "3px 9px", borderRadius: "20px",
+                                  background: job.status === "completed" ? "#d1fae5" : job.status === "failed" ? "#fee2e2" : "#fef3c7",
+                                  color: job.status === "completed" ? "#065f46" : job.status === "failed" ? "#991b1b" : "#92400e"
+                                }}>
+                                  {job.status.toUpperCase()}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <h4 style={{ fontSize: "14px", fontWeight: "600", marginBottom: "10px", color: "#111", lineHeight: 1.4 }}>📋 "{job.prompt}"</h4>
+                          
+                          {job.status === "running" && (
+                            <div style={{
+                              marginTop: "12px",
+                              marginBottom: "8px",
+                              padding: "16px",
+                              borderRadius: "12px",
+                              background: "linear-gradient(145deg, #f8fafc, #f1f5f9)",
+                              border: "1px solid rgba(255, 255, 255, 0.8)",
+                              boxShadow: "inset 0 2px 4px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.03)",
+                              position: "relative",
+                              overflow: "hidden"
+                            }}>
+                              {/* Apple-style shimmer effect */}
+                              <div style={{
+                                position: "absolute",
+                                top: 0, left: "-100%", width: "50%", height: "100%",
+                                background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)",
+                                animation: "shimmer 2s infinite"
+                              }} />
+                              
+                              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                                <div style={{
+                                  width: "32px", height: "32px", 
+                                  borderRadius: "10px", 
+                                  background: "#fff", 
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                  boxShadow: "0 2px 5px rgba(0,0,0,0.05)"
+                                }}>
+                                  <Sparkles size={16} className="animate-spin text-blue-500" style={{ animationDuration: '3s' }} />
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: "13px", fontWeight: "600", color: "#1e293b" }}>AI is processing...</div>
+                                  <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>This might take a moment based on complexity</div>
+                                </div>
+                              </div>
+                              
+                              {/* Skeleton Lines */}
+                              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                <div style={{ height: "6px", background: "#e2e8f0", borderRadius: "3px", width: "100%", animation: "pulse 1.5s infinite" }} />
+                                <div style={{ height: "6px", background: "#e2e8f0", borderRadius: "3px", width: "85%", animation: "pulse 1.5s infinite 0.2s" }} />
+                                <div style={{ height: "6px", background: "#e2e8f0", borderRadius: "3px", width: "60%", animation: "pulse 1.5s infinite 0.4s" }} />
+                              </div>
+                            </div>
+                          )}
                           {job.run_at && job.status === "scheduled" && (
                             <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "10px", display: "flex", alignItems: "center", gap: "5px" }}>
                               <span>⏰ Runs at: <strong>{new Date(job.run_at).toLocaleString()}</strong></span>
