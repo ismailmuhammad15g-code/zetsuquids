@@ -13,7 +13,6 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import Lottie from "lottie-react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
@@ -109,7 +108,7 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
   if (content.includes("<think>")) {
     const thinkStart = content.indexOf("<think>") + 7;
     const thinkEnd = content.indexOf("</think>");
-    
+
     if (thinkEnd !== -1) {
       thinkContent = content.substring(thinkStart, thinkEnd).trim();
       mainContent = content.substring(thinkEnd + 8).trim();
@@ -121,13 +120,13 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
 
   // Pre-process unclosed mermaid blocks while typing so they show as skeletons instead of raw text
   let displayedContent = mainContent;
-  
+
   // Hide agentic action tags entirely from the user's view
   displayedContent = displayedContent.replace(/\[ACTION:REDIRECT:[^\]]*\]?/g, "");
   displayedContent = displayedContent.replace(/```json\s*\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}\s*```/g, "");
   // Fallback for raw JSON if backticks are missing
   displayedContent = displayedContent.replace(/\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}/g, "");
-  
+
   if (isTyping) {
     // If the string ends with an unclosed mermaid block, convert it to a loading block
     displayedContent = displayedContent.replace(/```mermaid\n([^`]*)$/g, "```mermaid-loading\n$1\n```");
@@ -251,7 +250,6 @@ export default function Chatbot() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [pendingRedirect, setPendingRedirect] = useState<{ path: string; countdown: number } | null>(null);
-  const [catAnimation, setCatAnimation] = useState<any>(null);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(false);
   const [showSoundModal, setShowSoundModal] = useState<boolean>(false);
 
@@ -267,33 +265,33 @@ export default function Chatbot() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-       const pref = localStorage.getItem("zetsu_chatbot_sound_enabled");
-       if (pref === "true") {
-          setSoundEnabled(true);
-       } else if (pref === null && isOpen) {
-          setShowSoundModal(true);
-       }
+      const pref = localStorage.getItem("zetsu_chatbot_sound_enabled");
+      if (pref === "true") {
+        setSoundEnabled(true);
+      } else if (pref === null && isOpen) {
+        setShowSoundModal(true);
+      }
     }
   }, [isOpen]);
 
   const handleSoundPermission = (allow: boolean) => {
-     setSoundEnabled(allow);
-     localStorage.setItem("zetsu_chatbot_sound_enabled", allow ? "true" : "false");
-     setShowSoundModal(false);
-     
-     if (allow) {
-        const audio = new Audio("/sound-effect/ai-finished-notification.mp3");
-        audio.volume = 0.5;
-        audio.play().catch(console.error);
-     }
+    setSoundEnabled(allow);
+    localStorage.setItem("zetsu_chatbot_sound_enabled", allow ? "true" : "false");
+    setShowSoundModal(false);
+
+    if (allow) {
+      const audio = new Audio("/sound-effect/ai-finished-notification.mp3");
+      audio.volume = 0.5;
+      audio.play().catch(console.error);
+    }
   };
 
   const playFinishedSound = () => {
-     if (soundEnabled) {
-        const audio = new Audio("/sound-effect/ai-finished-notification.mp3");
-        audio.volume = 0.5;
-        audio.play().catch(console.error);
-     }
+    if (soundEnabled) {
+      const audio = new Audio("/sound-effect/ai-finished-notification.mp3");
+      audio.volume = 0.5;
+      audio.play().catch(console.error);
+    }
   };
 
   // Deep-link: open chatbot on Direct Support tab when ?open_support=1 is in URL
@@ -316,14 +314,6 @@ export default function Chatbot() {
       setSupportFormData((prev) => ({ ...prev, email: user.email }));
     }
   }, [user]);
-
-  // Load cat animation
-  useEffect(() => {
-    fetch('/lottie/cat-sleeping-for-chat-bot.json')
-      .then(res => res.json())
-      .then(data => setCatAnimation(data))
-      .catch(err => console.error("Failed to load cat animation:", err));
-  }, []);
   const [loadingUsage, setLoadingUsage] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [isLongLoading, setIsLongLoading] = useState(false);
@@ -399,15 +389,15 @@ export default function Chatbot() {
   // Scroll to bottom (Smart Sticky Scroll)
   useEffect(() => {
     if (!scrollContainerRef.current) return;
-    
+
     const container = scrollContainerRef.current;
-    
+
     // Check if user is near the bottom (within 150px)
     const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
-    
+
     // Check if the last message was from the user (to force scroll down after sending)
     const lastMsgIsUser = messages[messages.length - 1]?.role === "user";
-    
+
     if (isNearBottom || lastMsgIsUser) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
@@ -419,10 +409,10 @@ export default function Chatbot() {
     if (lastMsg && lastMsg.role === "bot" && !isTyping) {
       // 1. Try legacy bracket tag
       const tagMatch = lastMsg.content.match(/\[ACTION:REDIRECT:(.+?)\]/);
-      
+
       // 2. Try modern JSON action (matches markdown block or raw JSON)
-      const jsonMatch = lastMsg.content.match(/```json\s*(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})\s*```/) 
-                     || lastMsg.content.match(/(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})/);
+      const jsonMatch = lastMsg.content.match(/```json\s*(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})\s*```/)
+        || lastMsg.content.match(/(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})/);
 
       if (tagMatch) {
         const path = tagMatch[1];
@@ -474,68 +464,68 @@ export default function Chatbot() {
   // ZetsuClaw Background Worker (Simulates Vercel Cron/Queue)
   useEffect(() => {
     if (!user) return;
-    
+
     const interval = setInterval(async () => {
-       const rawJobs = localStorage.getItem('zetsuclaw_jobs');
-       if (!rawJobs) return;
-       
-       let jobs = [];
-       try { jobs = JSON.parse(rawJobs); } catch(e) {}
-       
-       const pendingJobs = jobs.filter((j: any) => j.status === 'scheduled' && j.run_at <= Date.now());
-       
-       if (pendingJobs.length > 0) {
-          for (const job of pendingJobs) {
-             // Mark as processing
-             jobs = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
-             jobs = jobs.map((j: any) => j.id === job.id ? { ...j, status: 'processing' } : j);
-             localStorage.setItem('zetsuclaw_jobs', JSON.stringify(jobs));
-             
-             try {
-                let resultText = "";
-                // Use fallback/direct call since we don't have onToken UI updates
-                await fetch('/api/ai', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                      messages: [{ role: 'user', content: `[ZETSUCLAW BACKGROUND TASK] Execute this instruction and return the result: ${job.prompt}` }],
-                      userEmail: user.email,
-                      isDeepReasoning: false,
-                      isSubAgentMode: false,
-                      skipCreditDeduction: true,
-                      stream: false,
-                  }),
-                }).then(async (res) => {
-                   const data = await res.json();
-                   resultText = data.content || "Completed with no output.";
-                });
-                
-                // Update job as completed
-                jobs = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
-                jobs = jobs.map((j: any) => j.id === job.id ? { ...j, status: 'completed', result: resultText, completed_at: new Date().toISOString() } : j);
-                localStorage.setItem('zetsuclaw_jobs', JSON.stringify(jobs));
-                
-                // Notify user
-                import('../lib/notificationsApi').then(({ notificationsApi }) => {
-                    notificationsApi.createNotification({
-                        user_id: user.id,
-                        actor_name: "ZetsuClaw",
-                        type: "system",
-                        title: "ZetsuClaw Task Completed",
-                        message: `Task: "${job.prompt.substring(0, 30)}..." has finished running in the background.`,
-                        link: "/zetsuguide-ai"
-                    });
-                });
-             } catch (e) {
-                // Mark as failed
-                jobs = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
-                jobs = jobs.map((j: any) => j.id === job.id ? { ...j, status: 'failed', result: String(e) } : j);
-                localStorage.setItem('zetsuclaw_jobs', JSON.stringify(jobs));
-             }
+      const rawJobs = localStorage.getItem('zetsuclaw_jobs');
+      if (!rawJobs) return;
+
+      let jobs = [];
+      try { jobs = JSON.parse(rawJobs); } catch (e) { }
+
+      const pendingJobs = jobs.filter((j: any) => j.status === 'scheduled' && j.run_at <= Date.now());
+
+      if (pendingJobs.length > 0) {
+        for (const job of pendingJobs) {
+          // Mark as processing
+          jobs = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+          jobs = jobs.map((j: any) => j.id === job.id ? { ...j, status: 'processing' } : j);
+          localStorage.setItem('zetsuclaw_jobs', JSON.stringify(jobs));
+
+          try {
+            let resultText = "";
+            // Use fallback/direct call since we don't have onToken UI updates
+            await fetch('/api/ai', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messages: [{ role: 'user', content: `[ZETSUCLAW BACKGROUND TASK] Execute this instruction and return the result: ${job.prompt}` }],
+                userEmail: user.email,
+                isDeepReasoning: false,
+                isSubAgentMode: false,
+                skipCreditDeduction: true,
+                stream: false,
+              }),
+            }).then(async (res) => {
+              const data = await res.json();
+              resultText = data.content || "Completed with no output.";
+            });
+
+            // Update job as completed
+            jobs = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+            jobs = jobs.map((j: any) => j.id === job.id ? { ...j, status: 'completed', result: resultText, completed_at: new Date().toISOString() } : j);
+            localStorage.setItem('zetsuclaw_jobs', JSON.stringify(jobs));
+
+            // Notify user
+            import('../lib/notificationsApi').then(({ notificationsApi }) => {
+              notificationsApi.createNotification({
+                user_id: user.id,
+                actor_name: "ZetsuClaw",
+                type: "system",
+                title: "ZetsuClaw Task Completed",
+                message: `Task: "${job.prompt.substring(0, 30)}..." has finished running in the background.`,
+                link: "/zetsuguide-ai"
+              });
+            });
+          } catch (e) {
+            // Mark as failed
+            jobs = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+            jobs = jobs.map((j: any) => j.id === job.id ? { ...j, status: 'failed', result: String(e) } : j);
+            localStorage.setItem('zetsuclaw_jobs', JSON.stringify(jobs));
           }
-       }
+        }
+      }
     }, 5000);
-    
+
     return () => clearInterval(interval);
   }, [user]);
 
@@ -745,38 +735,38 @@ export default function Chatbot() {
     if (!user?.email || !isOpen || activeTab !== 'direct-support') return;
 
     const channel = supabase.channel('support_presence', {
-        config: {
-            presence: {
-                key: user.email,
-            },
+      config: {
+        presence: {
+          key: user.email,
         },
+      },
     });
 
     const trackPresence = async () => {
-        await channel.subscribe(async (status: string) => {
-            if (status === 'SUBSCRIBED') {
-                await channel.track({
-                    online_at: new Date().toISOString(),
-                    user_email: user.email,
-                    status: 'online'
-                });
-            }
-        });
+      await channel.subscribe(async (status: string) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            online_at: new Date().toISOString(),
+            user_email: user.email,
+            status: 'online'
+          });
+        }
+      });
     };
 
     trackPresence();
 
     // Update last_seen in profile when leaving
     const updateLastSeen = async () => {
-        await supabase
-            .from('zetsuguide_user_profiles')
-            .update({ last_seen: new Date().toISOString() })
-            .eq('user_email', user.email);
+      await supabase
+        .from('zetsuguide_user_profiles')
+        .update({ last_seen: new Date().toISOString() })
+        .eq('user_email', user.email);
     };
 
     return () => {
-        updateLastSeen();
-        supabase.removeChannel(channel);
+      updateLastSeen();
+      supabase.removeChannel(channel);
     };
   }, [user?.email, isOpen, activeTab]);
 
@@ -960,7 +950,7 @@ export default function Chatbot() {
           setIsTyping(false);
           setIsLongLoading(false);
           clearTimeout(loadingTimeout);
-          
+
           playFinishedSound();
 
           if (doneData?.needsSupport) {
@@ -1287,7 +1277,7 @@ export default function Chatbot() {
                 style={{ display: activeTab === "chat" ? "flex" : "none" }}
               >
                 <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent relative bg-slate-50">
-                  
+
                   {/* Sound Permission Modal Overlay */}
                   {showSoundModal && activeTab === "chat" && (
                     <div className="absolute inset-0 z-30 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
@@ -1504,10 +1494,10 @@ export default function Chatbot() {
                         </div>
                         {msg.role === "user" && (
                           <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 order-2 border border-slate-300 shadow-sm">
-                            <img 
-                              src={getAvatarForUser(user?.email, profileAvatar)} 
-                              className="w-full h-full object-cover" 
-                              alt="Me" 
+                            <img
+                              src={getAvatarForUser(user?.email, profileAvatar)}
+                              className="w-full h-full object-cover"
+                              alt="Me"
                             />
                           </div>
                         )}
@@ -1524,13 +1514,13 @@ export default function Chatbot() {
                       <div className="bg-white border border-slate-100 shadow-sm rounded-2xl rounded-tl-none px-4 py-4 w-48 relative overflow-hidden">
                         {/* Shimmer Effect Line */}
                         <div className="absolute top-0 left-0 h-[2px] bg-indigo-500/20 w-full overflow-hidden">
-                           <div className="h-full w-1/3 bg-indigo-500 rounded-full animate-[shimmer_1.5s_infinite] relative -translate-x-full"></div>
+                          <div className="h-full w-1/3 bg-indigo-500 rounded-full animate-[shimmer_1.5s_infinite] relative -translate-x-full"></div>
                         </div>
                         {/* Skeleton Lines */}
                         <div className="flex flex-col gap-2.5 w-full mt-1 opacity-70">
-                           <div className="h-2 bg-slate-200 rounded-full w-5/12 animate-pulse"></div>
-                           <div className="h-2 bg-slate-200 rounded-full w-10/12 animate-pulse" style={{ animationDelay: '150ms' }}></div>
-                           <div className="h-2 bg-slate-200 rounded-full w-7/12 animate-pulse" style={{ animationDelay: '300ms' }}></div>
+                          <div className="h-2 bg-slate-200 rounded-full w-5/12 animate-pulse"></div>
+                          <div className="h-2 bg-slate-200 rounded-full w-10/12 animate-pulse" style={{ animationDelay: '150ms' }}></div>
+                          <div className="h-2 bg-slate-200 rounded-full w-7/12 animate-pulse" style={{ animationDelay: '300ms' }}></div>
                         </div>
                       </div>
                     </div>
@@ -1548,8 +1538,8 @@ export default function Chatbot() {
                         <span className="text-xs text-slate-400">Redirecting to {pendingRedirect.path} in {pendingRedirect.countdown}s...</span>
                       </div>
                     </div>
-                    <button 
-                      onClick={() => setPendingRedirect(null)} 
+                    <button
+                      onClick={() => setPendingRedirect(null)}
                       className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors shadow-sm"
                     >
                       Cancel
@@ -1562,19 +1552,6 @@ export default function Chatbot() {
                   onSubmit={handleSend}
                   className="p-4 bg-white border-t border-slate-200 relative z-10"
                 >
-                  {/* Sleeping Cat Animation Overlay */}
-                  {catAnimation && (
-                    <div className="absolute -top-10 left-6 flex items-center gap-2 bg-white/60 backdrop-blur-md border border-slate-200/50 px-3 py-1 rounded-t-xl shadow-[0_-4px_12px_rgba(0,0,0,0.03)] z-0 animate-in slide-in-from-bottom-2 duration-500">
-                      <div className="w-12 h-12 -mt-4 -ml-2 drop-shadow-sm">
-                        <Lottie animationData={catAnimation} loop={true} />
-                      </div>
-                      <div className="flex flex-col -mt-0.5">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-0.5">Zetsu Assistant</span>
-                        <span className="text-[11px] font-bold text-slate-600 leading-none">Ready when you are...</span>
-                      </div>
-                    </div>
-                  )}
-
                   <div className="relative flex items-center gap-2">
                     <input
                       type="text"
@@ -1699,126 +1676,126 @@ export default function Chatbot() {
                     </div>
                   </div>
                 )}
-                  <div className="max-w-md mx-auto">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center shadow-md">
-                        <Sparkles size={24} className="text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-slate-800">
-                          Customer Support
-                        </h3>
-                        <p className="text-sm text-slate-500">
-                          We'll get back to you within 24 hours
-                        </p>
-                      </div>
+                <div className="max-w-md mx-auto">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center shadow-md">
+                      <Sparkles size={24} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-800">
+                        Customer Support
+                      </h3>
+                      <p className="text-sm text-slate-500">
+                        We'll get back to you within 24 hours
+                      </p>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleSupportSubmit} className="space-y-4">
+                    {/* Email */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
+                        Email Address *
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={supportFormData.email}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setSupportFormData((prev) => ({
+                            ...prev,
+                            email: e.target.value,
+                          }))
+                        }
+                        className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all shadow-sm"
+                        placeholder="your@email.com"
+                      />
                     </div>
 
-                    <form onSubmit={handleSupportSubmit} className="space-y-4">
-                      {/* Email */}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
-                          Email Address *
-                        </label>
-                        <input
-                          type="email"
-                          required
-                          value={supportFormData.email}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            setSupportFormData((prev) => ({
-                              ...prev,
-                              email: e.target.value,
-                            }))
-                          }
-                          className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all shadow-sm"
-                          placeholder="your@email.com"
-                        />
-                      </div>
+                    {/* Phone */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
+                        Phone Number (Optional)
+                      </label>
+                      <input
+                        type="tel"
+                        value={supportFormData.phone}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setSupportFormData((prev) => ({
+                            ...prev,
+                            phone: e.target.value,
+                          }))
+                        }
+                        className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all shadow-sm"
+                        placeholder="+20 123 456 7890"
+                      />
+                    </div>
 
-                      {/* Phone */}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
-                          Phone Number (Optional)
-                        </label>
-                        <input
-                          type="tel"
-                          value={supportFormData.phone}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            setSupportFormData((prev) => ({
-                              ...prev,
-                              phone: e.target.value,
-                            }))
-                          }
-                          className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all shadow-sm"
-                          placeholder="+20 123 456 7890"
-                        />
-                      </div>
-
-                      {/* Category */}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
-                          Issue Category *
-                        </label>
-                        <select
-                          required
-                          value={supportFormData.category}
-                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                            setSupportFormData((prev) => ({
-                              ...prev,
-                              category: e.target.value,
-                            }))
-                          }
-                          className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all shadow-sm"
-                        >
-                          <option value="account">Account Issues</option>
-                          <option value="payment">Payment & Billing</option>
-                          <option value="technical">
-                            Technical Problems
-                          </option>
-                          <option value="other">Other</option>
-                        </select>
-                      </div>
-
-                      {/* Message */}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
-                          Describe Your Issue *
-                        </label>
-                        <textarea
-                          required
-                          value={supportFormData.message}
-                          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                            setSupportFormData((prev) => ({
-                              ...prev,
-                              message: e.target.value,
-                            }))
-                          }
-                          rows={5}
-                          className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all resize-none shadow-sm"
-                          placeholder="Please provide as much detail as possible..."
-                        />
-                      </div>
-
-                      {/* Submit Button */}
-                      <button
-                        type="submit"
-                        disabled={supportSubmitting}
-                        className="w-full px-6 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl hover:scale-[1.02] hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
+                    {/* Category */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
+                        Issue Category *
+                      </label>
+                      <select
+                        required
+                        value={supportFormData.category}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                          setSupportFormData((prev) => ({
+                            ...prev,
+                            category: e.target.value,
+                          }))
+                        }
+                        className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all shadow-sm"
                       >
-                        {supportSubmitting ? (
-                          <>
-                            <Loader2 size={16} className="animate-spin" />
-                            Sending...
-                          </>
-                        ) : (
-                          <>
-                            <Send size={16} />
-                            Submit Ticket
-                          </>
-                        )}
-                      </button>
-                    </form>
-                  </div>
+                        <option value="account">Account Issues</option>
+                        <option value="payment">Payment & Billing</option>
+                        <option value="technical">
+                          Technical Problems
+                        </option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+
+                    {/* Message */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
+                        Describe Your Issue *
+                      </label>
+                      <textarea
+                        required
+                        value={supportFormData.message}
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                          setSupportFormData((prev) => ({
+                            ...prev,
+                            message: e.target.value,
+                          }))
+                        }
+                        rows={5}
+                        className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all resize-none shadow-sm"
+                        placeholder="Please provide as much detail as possible..."
+                      />
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                      type="submit"
+                      disabled={supportSubmitting}
+                      className="w-full px-6 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl hover:scale-[1.02] hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
+                    >
+                      {supportSubmitting ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send size={16} />
+                          Submit Ticket
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </div>
               </div>
             </div>
           )}
