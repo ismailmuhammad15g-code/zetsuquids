@@ -117,7 +117,7 @@ export async function aiAgentSearch(
                 messages: [{ role: 'user', content: query }],
                 model: 'gemini-1.5-flash',
                 userEmail,
-                isDeepReasoning: false,
+                isDeepReasoning: true,
                 isSubAgentMode: false,
             }),
         });

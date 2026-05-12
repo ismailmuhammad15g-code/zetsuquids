@@ -27,6 +27,7 @@ import DirectSupportChat from "./DirectSupportChat";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useModal } from "../contexts/ModalContext";
+import { Reasoning, ReasoningTrigger, ReasoningContent } from "./ui/reasoning";
 
 type ChatRole = "user" | "bot" | "assistant" | "system";
 type ChatMessageType = "text" | "error" | "limit_reached";
@@ -72,19 +73,35 @@ function isArabicText(text: string) {
 
 // Markdown Message Component with Typing Animation
 function MarkdownMessage({ content, isTyping = false }: { content: string; isTyping?: boolean }) {
+  let thinkContent: string | null = null;
+  let mainContent = content;
+
+  if (content.includes("<think>")) {
+    const thinkStart = content.indexOf("<think>") + 7;
+    const thinkEnd = content.indexOf("</think>");
+    
+    if (thinkEnd !== -1) {
+      thinkContent = content.substring(thinkStart, thinkEnd).trim();
+      mainContent = content.substring(thinkEnd + 8).trim();
+    } else {
+      thinkContent = content.substring(thinkStart).trim();
+      mainContent = ""; // Still thinking
+    }
+  }
+
   const [displayedContent, setDisplayedContent] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
     if (!isTyping || isComplete) {
-      setDisplayedContent(content);
+      setDisplayedContent(mainContent);
       return;
     }
 
-    if (currentIndex < content.length) {
+    if (currentIndex < mainContent.length) {
       const timeout = setTimeout(() => {
-        setDisplayedContent(content.slice(0, currentIndex + 1));
+        setDisplayedContent(mainContent.slice(0, currentIndex + 1));
         setCurrentIndex(currentIndex + 1);
       }, 15); // 15ms per character for smooth typing
 
@@ -92,71 +109,78 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
     } else {
       setIsComplete(true);
     }
-  }, [currentIndex, content, isTyping, isComplete]);
+  }, [currentIndex, mainContent, isTyping, isComplete]);
 
   return (
     <div className="markdown-content">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
-        components={{
-          // Custom renderers for better styling
-          h1: ({ node, ...props }) => (
-            <h1 className="text-xl font-bold mb-3 text-white" {...props} />
-          ),
-          h2: ({ node, ...props }) => (
-            <h2 className="text-lg font-bold mb-2 text-white" {...props} />
-          ),
-          h3: ({ node, ...props }) => (
-            <h3 className="text-base font-bold mb-2 text-white" {...props} />
-          ),
-          p: ({ node, ...props }) => (
-            <p className="mb-2 leading-relaxed" {...props} />
-          ),
-          ul: ({ node, ...props }) => (
-            <ul className="list-disc list-inside mb-2 space-y-1" {...props} />
-          ),
-          ol: ({ node, ...props }) => (
-            <ol
-              className="list-decimal list-inside mb-2 space-y-1"
-              {...props}
-            />
-          ),
-          li: ({ node, ...props }) => <li className="ml-2" {...props} />,
-          code: ({ node, className, children, ...props }) => {
-            const isBlock = Boolean(className);
-            return isBlock ? (
-              <pre className="bg-black/50 rounded-lg p-3 my-2 overflow-x-auto border border-white/10">
-                <code className={className} {...props}>
+      {thinkContent && (
+        <Reasoning defaultOpen={false}>
+          <ReasoningTrigger />
+          <ReasoningContent>{thinkContent}</ReasoningContent>
+        </Reasoning>
+      )}
+      {displayedContent && (
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeHighlight]}
+          components={{
+            // Custom renderers for better styling
+            h1: ({ node, ...props }) => (
+              <h1 className="text-xl font-bold mb-3 text-white" {...props} />
+            ),
+            h2: ({ node, ...props }) => (
+              <h2 className="text-lg font-bold mb-2 text-white" {...props} />
+            ),
+            h3: ({ node, ...props }) => (
+              <h3 className="text-base font-bold mb-2 text-white" {...props} />
+            ),
+            p: ({ node, ...props }) => (
+              <p className="mb-2 leading-relaxed" {...props} />
+            ),
+            ul: ({ node, ...props }) => (
+              <ul className="list-disc list-inside mb-2 space-y-1" {...props} />
+            ),
+            ol: ({ node, ...props }) => (
+              <ol
+                className="list-decimal list-inside mb-2 space-y-1"
+                {...props}
+              />
+            ),
+            li: ({ node, ...props }) => <li className="ml-2" {...props} />,
+            code: ({ node, className, children, ...props }) => {
+              const isBlock = Boolean(className);
+              return isBlock ? (
+                <pre className="bg-black/50 rounded-lg p-3 my-2 overflow-x-auto border border-white/10">
+                  <code className={className} {...props}>
+                    {children}
+                  </code>
+                </pre>
+              ) : (
+                <code
+                  className="bg-black/30 px-1.5 py-0.5 rounded text-indigo-300 text-xs font-mono"
+                  {...props}
+                >
                   {children}
                 </code>
-              </pre>
-            ) : (
-              <code
-                className="bg-black/30 px-1.5 py-0.5 rounded text-indigo-300 text-xs font-mono"
+              );
+            },
+            blockquote: ({ node, ...props }) => (
+              <blockquote
+                className="border-l-4 border-indigo-500 pl-4 italic my-2 text-gray-300"
                 {...props}
-              >
-                {children}
-              </code>
-            );
-          },
-          blockquote: ({ node, ...props }) => (
-            <blockquote
-              className="border-l-4 border-indigo-500 pl-4 italic my-2 text-gray-300"
-              {...props}
-            />
-          ),
-          a: ({ node, ...props }) => (
-            <a
-              className="text-indigo-400 hover:text-indigo-300 underline"
-              target="_blank"
-              rel="noopener noreferrer"
-              {...props}
-            />
-          ),
-          strong: ({ node, ...props }) => (
-            <strong className="font-bold text-white" {...props} />
-          ),
+              />
+            ),
+            a: ({ node, ...props }) => (
+              <a
+                className="text-indigo-400 hover:text-indigo-300 underline"
+                target="_blank"
+                rel="noopener noreferrer"
+                {...props}
+              />
+            ),
+            strong: ({ node, ...props }) => (
+              <strong className="font-bold text-white" {...props} />
+            ),
           em: ({ node, ...props }) => <em className="italic" {...props} />,
           hr: ({ node, ...props }) => (
             <hr className="border-white/10 my-3" {...props} />
@@ -179,6 +203,7 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
       >
         {displayedContent}
       </ReactMarkdown>
+      )}
       {isTyping && !isComplete && (
         <span className="inline-block w-1 h-4 bg-indigo-400 ml-0.5 animate-pulse" />
       )}
@@ -1190,7 +1215,7 @@ export default function Chatbot() {
                         key={msg.id}
                         className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}
                       >
-                        {msg.role === "assistant" && (
+                        {(msg.role === "assistant" || msg.role === "bot") && (
                           <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-700">
                             <BotIcon size={20} className="text-white" />
                           </div>
@@ -1204,7 +1229,7 @@ export default function Chatbot() {
                               : `bg-white text-slate-800 border-slate-200 rounded-tl-none`
                               }`}
                           >
-                            {msg.role === "assistant" ? (
+                            {msg.role === "assistant" || msg.role === "bot" ? (
                               <MarkdownMessage
                                 content={msg.content}
                                 isTyping={
