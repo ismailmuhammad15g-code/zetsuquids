@@ -26,7 +26,7 @@ async function generateSearchQueries(query, aiApiKey, aiUrl) {
       }),
     };
 
-    if (isCloudflare) {
+    if (isCloudflare || aiUrl.includes("routeway.ai")) {
       fetchOptions.headers["Authorization"] = `Bearer ${aiApiKey}`;
     }
 
@@ -1223,6 +1223,7 @@ Here is the explanation...
     const isCloudflare = apiUrl.includes("cloudflare");
     
     let requestPayload = { 
+      model: validatedModel,
       messages: messagesWithSearch, 
       stream: wantsStream,
       max_tokens: 4000,
@@ -1360,7 +1361,7 @@ Here is the explanation...
         },
         body: JSON.stringify(requestPayload),
       };
-      if (isCloudflare) {
+      if (isCloudflare || apiUrl.includes("routeway.ai")) {
           fetchOptions.headers["Authorization"] = `Bearer ${apiKey}`;
       }
 
