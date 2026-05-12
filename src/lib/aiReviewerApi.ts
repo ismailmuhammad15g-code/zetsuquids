@@ -12,23 +12,6 @@ export const aiReviewerApi = {
     async reviewGuide(guide: Guide): Promise<AIReviewResult> {
         const startTime = Date.now();
 
-        // Load inside the function to ensure Next.js environment variable replacement works correctly
-        const apiKey =
-            process.env.NEXT_PUBLIC_AI_API_KEY ||
-            process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
-            "";
-
-        if (!apiKey) {
-            return {
-                approved: false,
-                reason: "Error: Gemini API Key is missing. Please check .env.local",
-                durationMs: Date.now() - startTime
-            };
-        }
-
-        const modelName = process.env.NEXT_PUBLIC_AI_MODEL || "gemini-1.5-flash";
-        const apiUrl = process.env.NEXT_PUBLIC_AI_API_URL || `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
-
         const prompt = `
 You are an expert AI content moderator for "ZetsuGuide", a premium developer community.
 Your job is to review the following guide and decide whether to APPROVE or REJECT it based on our strict policies.
@@ -60,20 +43,14 @@ Format:
 `;
 
         try {
-            const finalUrl = apiUrl.includes('?') ? `${apiUrl}&key=${apiKey}` : `${apiUrl}?key=${apiKey}`;
-            const response = await fetch(finalUrl, {
+            const response = await fetch("/api/ai", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    contents: [{
-                        parts: [{ text: prompt }]
-                    }],
-                    generationConfig: {
-                        temperature: 0.1,
-                        responseMimeType: "application/json"
-                    }
+                    messages: [{ role: "user", content: prompt }],
+                    skipCreditDeduction: true, // Internal review doesn't cost credits
                 })
             });
 
@@ -82,17 +59,20 @@ Format:
             }
 
             const data = await response.json();
-            const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            const textResponse = data.content || data.choices?.[0]?.message?.content;
 
             if (!textResponse) {
                 throw new Error("No text in response");
             }
 
-            const parsed = JSON.parse(textResponse);
+            // Extract JSON from response (handling potential markdown blocks)
+            const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+            const cleanJson = jsonMatch ? jsonMatch[0] : textResponse;
+            const parsed = JSON.parse(cleanJson);
 
             return {
                 approved: !!parsed.approved,
-                reason: parsed.reason || (parsed.approved ? "Approved " : "Rejected  policy"),
+                reason: parsed.reason || (parsed.approved ? "Approved" : "Rejected by policy"),
                 durationMs: Date.now() - startTime
             };
         } catch (error) {

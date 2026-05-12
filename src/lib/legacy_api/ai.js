@@ -7,36 +7,41 @@ async function generateSearchQueries(query, aiApiKey, aiUrl) {
   try {
     console.log("🧠 Generating research queries for:", query);
 
-    // Convert to Gemini format
-    const contents = [
-      {
-        role: "user",
-        parts: [{ text: `You are a research planner. Generate 3 distinct search queries to gather comprehensive information about the user's request. Return ONLY a JSON array of strings. Example: ["react hooks tutorial", "react useeffect best practices", "react custom hooks examples"]` }]
-      },
-      {
-        role: "user",
-        parts: [{ text: query }]
-      }
-    ];
-
-    const response = await fetch(`${aiUrl}?key=${aiApiKey}`, {
+    const isCloudflare = aiUrl.includes("cloudflare");
+    const fetchOptions = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        contents,
-        generationConfig: {
-          maxOutputTokens: 200,
-          temperature: 0.5,
-        }
+        messages: [
+          {
+            role: "system",
+            content: "You are a research planner. Generate 3 distinct search queries to gather comprehensive information about the user's request. Return ONLY a JSON array of strings. Example: [\"react hooks tutorial\", \"react useeffect best practices\", \"react custom hooks examples\"]"
+          },
+          { role: "user", content: query }
+        ],
+        max_tokens: 200,
+        temperature: 0.5,
       }),
-    });
+    };
+
+    if (isCloudflare) {
+      fetchOptions.headers["Authorization"] = `Bearer ${aiApiKey}`;
+    }
+
+    const response = await fetch(aiUrl, fetchOptions);
 
     if (!response.ok) return [query];
 
     const data = await response.json();
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    let content = "";
+    
+    if (isCloudflare) {
+      content = data.result?.response || data.result?.choices?.[0]?.message?.content || "";
+    } else {
+      content = data.choices?.[0]?.message?.content || "";
+    }
 
     try {
       // Try to parse JSON array
@@ -618,48 +623,7 @@ async function fetchWithExponentialBackoff(url, options, maxRetries = 4) {
   throw lastError || new Error("API call failed after retries");
 }
 
-// ============ GEMINI HELPERS ============
 
-/**
- * Converts OpenAI-style messages to Google Gemini format.
- * Gemini uses roles "user" and "model". "system" is moved to a prepended instruction.
- */
-function toGeminiRequest(messages, model) {
-  const contents = [];
-  let systemInstruction = "";
-
-  for (const m of messages) {
-    if (m.role === "system") {
-      systemInstruction += (systemInstruction ? "\n" : "") + m.content;
-    } else {
-      contents.push({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }]
-      });
-    }
-  }
-
-  const payload = { contents };
-
-  if (systemInstruction) {
-    payload.system_instruction = {
-      parts: [{ text: systemInstruction }]
-    };
-  }
-
-  return payload;
-}
-
-/**
- * Safely parses a Gemini response or stream chunk.
- */
-function extractGeminiText(data) {
-  if (Array.isArray(data)) {
-    // Some stream formats return an array of candidates
-    return data.map(chunk => extractGeminiText(chunk)).join("");
-  }
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-}
 
 export default async function handler(req, res) {
   // CORS Configuration
@@ -696,7 +660,7 @@ export default async function handler(req, res) {
       body || {};
 
     // Validate and set default model
-    const validatedModel = model || "gemini-1.5-flash";
+    const validatedModel = model || "@cf/moonshotai/kimi-k2.6";
 
     // Get the last user message for intelligent fetch
     const userMessage = messages?.find((m) => m.role === "user")?.content || "";
@@ -1258,20 +1222,12 @@ Here is the explanation...
 
     const isCloudflare = apiUrl.includes("cloudflare");
     
-    const endpoint = wantsStream && !isCloudflare
-      ? apiUrl.replace(":generateContent", ":streamGenerateContent")
-      : apiUrl;
-
-    let requestPayload;
-    if (isCloudflare) {
-        requestPayload = { messages: messagesWithSearch, stream: wantsStream };
-    } else {
-        requestPayload = toGeminiRequest(messagesWithSearch, validatedModel);
-        requestPayload.generationConfig = {
-          maxOutputTokens: 4000,
-          temperature: 0.7,
-        };
-    }
+    let requestPayload = { 
+      messages: messagesWithSearch, 
+      stream: wantsStream,
+      max_tokens: 4000,
+      temperature: 0.7,
+    };
 
     // Normal flow with credit deduction handled conditionally below
     if (!skipCreditDeduction && !userId && !userEmail) {
@@ -1283,7 +1239,7 @@ Here is the explanation...
     console.log("AI Request:", {
       userId,
       userEmail,
-      model: model || "google/gemini-2.0-flash-exp:free",
+      model: model || "@cf/moonshotai/kimi-k2.6",
       messageLength: userMessage.length,
       isSubAgent: isSubAgentMode,
       isDeepReasoning: isDeepReasoning,
@@ -1382,41 +1338,18 @@ Here is the explanation...
     let response;
     try {
       // Determine request parameters based on whether we want streaming
-      let fetchUrl = endpoint;
+      let fetchUrl = apiUrl;
 
       if (!isCloudflare) {
-        // Always add API key to URL for Gemini
-        // But first check if endpoint already has query params
-        const hasQueryParams = endpoint.includes("?");
-        if (!endpoint.includes("key=")) {
-          fetchUrl = hasQueryParams
-            ? `${endpoint}&key=${apiKey}`
-            : `${endpoint}?key=${apiKey}`;
-        }
-
-        // For streaming, add the alt=sse parameter
-        if (wantsStream && endpoint.includes("generateContent")) {
-          const hasParams = fetchUrl.includes("?");
-          fetchUrl = hasParams
-            ? `${fetchUrl}&alt=sse`
-            : `${fetchUrl}?alt=sse`;
-          console.log("🚀 Sending request to Gemini STREAMING API:", {
-            model: validatedModel,
-            messageCount: messagesWithSearch.length,
-            streaming: true,
-          });
-        } else {
-          console.log("🚀 Sending request to AI API (non-streaming):", {
-            model: validatedModel,
-            messageCount: messagesWithSearch.length,
-            streaming: false,
-          });
-        }
+        console.log("🚀 Sending request to AI API:", {
+          model: validatedModel,
+          streaming: wantsStream,
+        });
       } else {
-          console.log("🚀 Sending request to Cloudflare AI API:", {
-            model: validatedModel,
-            streaming: wantsStream,
-          });
+        console.log("🚀 Sending request to Cloudflare AI API:", {
+          model: validatedModel,
+          streaming: wantsStream,
+        });
       }
 
 
@@ -1639,7 +1572,7 @@ Here is the explanation...
                     );
 
                     if (totalTokensSent === 1) {
-                      console.log("✅ First token extracted successfully from Gemini!");
+                      console.log("✅ First token extracted successfully!");
                       console.log("   Content:", content.substring(0, 50));
                     }
                   } else if (chunkCount <= 3) {

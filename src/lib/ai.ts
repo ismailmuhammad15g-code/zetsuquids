@@ -196,7 +196,6 @@ export async function aiAgentSearch(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 messages: [{ role: 'user', content: query }],
-                model: 'gemini-1.5-flash',
                 userEmail,
                 isDeepReasoning: true,
                 isSubAgentMode: false,

@@ -1500,7 +1500,7 @@ export default function ZetsuGuideAIPage() {
   const [zetsuJobs, setZetsuJobs] = useState<any[]>([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState<boolean>(false);
   const [customApiKey, setCustomApiKey] = useState<string>("");
-  const [customModel, setCustomModel] = useState<string>("google/gemini-2.0-flash-exp:free");
+  const [customModel, setCustomModel] = useState<string>("@cf/moonshotai/kimi-k2.6");
   const [apiKeyError, setApiKeyError] = useState<string>("");
   const [apiKeySuccess, setApiKeySuccess] = useState<boolean>(false);
 
@@ -1658,7 +1658,7 @@ export default function ZetsuGuideAIPage() {
           prompt: query,
           status: 'scheduled',
           run_at: runAt.toISOString(),
-          model: customModel || "google/gemini-2.0-flash-exp:free",
+          model: customModel || "@cf/moonshotai/kimi-k2.6",
         }).then(({ error }: { error: any }) => {
           if (error) console.warn("[ZetsuClaw] DB insert failed (table may not exist):", error.message);
         });
@@ -1699,7 +1699,7 @@ export default function ZetsuGuideAIPage() {
               prompt: query,
               userId: user?.id,
               userEmail: user?.email,
-              model: customModel || "google/gemini-2.0-flash-exp:free",
+              model: customModel || "@cf/moonshotai/kimi-k2.6",
               apiKey: customApiKey || undefined,
             }),
           });
@@ -1846,7 +1846,7 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
         ...newMessages.slice(-8).filter(m => m.content.trim() !== "")
       ];
 
-      const modelToUse = customModel || "google/gemini-2.0-flash-exp:free";
+      const modelToUse = customModel || "@cf/moonshotai/kimi-k2.6";
       const bodyPayload = {
         model: modelToUse,
         messages: messagesPayload,
@@ -2380,9 +2380,7 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                       minWidth: "180px"
                     }}
                   >
-                    <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
-                    <option value="google/gemini-1.5-flash">Gemini 1.5 Flash</option>
-                    <option value="google/gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    <option value="@cf/moonshotai/kimi-k2.6">ZetsuGuide Kimi (Cloudflare)</option>
                     <option value="openai/gpt-4o">GPT-4o</option>
                     <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
                     <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>

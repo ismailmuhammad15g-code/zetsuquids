@@ -31,7 +31,6 @@ export const AIThinkingDemo = () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: 'google/gemini-2.0-flash-exp:free',
                     messages: [{ role: 'user', content: message }],
                     stream: true,
                     // System prompt ?????? - ???? ??? ???? ???????

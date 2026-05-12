@@ -64,7 +64,7 @@ export async function GET(request: Request) {
                         prompt: job.prompt,
                         userId: job.user_id,
                         userEmail: job.user_email,
-                        model: job.model || "gemini-1.5-flash",
+                        model: job.model || "@cf/moonshotai/kimi-k2.6",
                     }),
                 });
                 

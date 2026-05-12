@@ -463,7 +463,6 @@ export default function Chatbot() {
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                       messages: [{ role: 'user', content: `[ZETSUCLAW BACKGROUND TASK] Execute this instruction and return the result: ${job.prompt}` }],
-                      model: 'gemini-1.5-flash',
                       userEmail: user.email,
                       isDeepReasoning: false,
                       isSubAgentMode: false,

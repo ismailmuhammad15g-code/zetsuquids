@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS public.zetsuclaw_jobs (
     prompt TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'running', 'completed', 'failed')),
     result TEXT,
-    model TEXT DEFAULT 'google/gemini-2.0-flash-exp:free',
+    model TEXT DEFAULT '@cf/moonshotai/kimi-k2.6',
     run_at TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     completed_at TIMESTAMP WITH TIME ZONE,

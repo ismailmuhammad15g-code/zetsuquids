@@ -1414,7 +1414,7 @@ export default function StaffConsole() {
                                             AI Auto-Moderator
                                         </h3>
                                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                            Automatically reviews new guides using Gemini Flash for profanity and policy violations.
+                                            Automatically reviews new guides using high-performance AI models for profanity and policy violations.
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-3">

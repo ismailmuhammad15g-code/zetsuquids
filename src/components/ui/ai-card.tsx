@@ -50,9 +50,6 @@ const Skeleton = () => {
                 <Container className="h-12 w-12 circle-4">
                     <MetaIconOutline className="h-6 w-6" />
                 </Container>
-                <Container className="h-8 w-8 circle-5">
-                    <GeminiLogo className="h-4 w-4" />
-                </Container>
             </div>
             <div className="h-40 w-px absolute top-20 m-auto z-40 bg-gradient-to-b from-transparent via-white to-transparent animate-move">
                 <div className="w-10 h-32 top-1/2 -translate-y-1/2 absolute -left-10">
@@ -128,6 +125,3 @@ const MetaIconOutline: React.FC<{ className?: string }> = ({ className }) => (
     <svg className={className} viewBox="0 0 100 100" />
 );
 
-const GeminiLogo: React.FC<{ className?: string }> = ({ className }) => (
-    <svg className={className} viewBox="0 0 100 100" />
-);
