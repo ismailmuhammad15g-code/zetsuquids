@@ -32,6 +32,12 @@ import { notificationsApi } from '../../../lib/notificationsApi';
 import { getAvatarForUser } from '../../../lib/avatar';
 import { aiReviewerApi } from '../../../lib/aiReviewerApi';
 
+// Import staff profile animations
+import profile1Animation from '../../../assets/customarserviceprofiles/profile1.json';
+import profile2Animation from '../../../assets/customarserviceprofiles/profile2.json';
+import profile3Animation from '../../../assets/customarserviceprofiles/profile3.json';
+import profile4Animation from '../../../assets/customarserviceprofiles/profile4.json';
+
 type LottieAnimationData = object
 type CssVarStyle = React.CSSProperties & {
     '--profile-color': string
@@ -100,13 +106,8 @@ export interface AiReviewLog {
     message: string;
 }
 
-// Import staff profile animations
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import profile1Animation from '../../../assets/customarserviceprofiles/profile1.json';
-import profile2Animation from '../../../assets/customarserviceprofiles/profile2.json';
-import profile3Animation from '../../../assets/customarserviceprofiles/profile3.json';
-import profile4Animation from '../../../assets/customarserviceprofiles/profile4.json';
 
 // Staff profiles configuration
 const STAFF_PROFILES: StaffProfile[] = [
@@ -1218,11 +1219,16 @@ export default function StaffConsole() {
                                                     conversationMessages.map(msg => (
                                                         <div key={msg.id} className={`msg-row ${msg.sender_type === 'user' ? 'received' : 'sent'}`}>
                                                             {msg.sender_type !== 'user' && (
-                                                                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-auto mb-1 mr-2 border border-slate-200 shadow-sm">
-                                                                    <img 
-                                                                        src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=200&auto=format&fit=crop" 
-                                                                        alt="Staff" 
-                                                                        className="w-full h-full object-cover" 
+                                                                <div 
+                                                                    className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-auto mb-1 mr-2 border-2 shadow-sm"
+                                                                    style={{ 
+                                                                        borderColor: (STAFF_PROFILES.find(p => p.id === msg.staff_profile_id) || selectedProfile || STAFF_PROFILES[0]).color 
+                                                                    }}
+                                                                >
+                                                                    <Lottie 
+                                                                        animationData={(STAFF_PROFILES.find(p => p.id === msg.staff_profile_id) || selectedProfile || STAFF_PROFILES[0]).animation} 
+                                                                        loop={true} 
+                                                                        className="w-full h-full" 
                                                                     />
                                                                 </div>
                                                             )}

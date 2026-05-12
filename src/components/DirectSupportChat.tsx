@@ -15,7 +15,6 @@ import profile4Animation from '../assets/customarserviceprofiles/profile4.json';
 import directSupportBgAnimation from '../assets/Directsupportbg.json';
 import staffTypingAnimation from '../assets/stufftyping....json';
 
-const adminProfileImg = "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=200&auto=format&fit=crop";
 
 // Message interface
 interface ChatMessage {
@@ -41,12 +40,16 @@ function isArabicText(text: string | null): boolean {
 }
 
 // Staff profiles map
-const STAFF_PROFILES = {
+const STAFF_PROFILES: Record<string, { name: string, animation: any, color: string }> = {
+    '11111111-1111-4111-8111-111111111111': { name: 'Sarah', animation: profile1Animation, color: '#4f46e5' },
+    '22222222-2222-4222-8222-222222222222': { name: 'Ahmed', animation: profile2Animation, color: '#10b981' },
+    '33333333-3333-4333-8333-333333333333': { name: 'Layla', animation: profile3Animation, color: '#f59e0b' },
+    '44444444-4444-4444-8444-444444444444': { name: 'Mohammed', animation: profile4Animation, color: '#ef4444' },
     'staff1': { name: 'Sarah', animation: profile1Animation, color: '#4f46e5' },
     'staff2': { name: 'Ahmed', animation: profile2Animation, color: '#10b981' },
     'staff3': { name: 'Layla', animation: profile3Animation, color: '#f59e0b' },
     'staff4': { name: 'Mohammed', animation: profile4Animation, color: '#ef4444' },
-} as const;
+};
 
 function hasMeaningfulErrorInfo(error: unknown): boolean {
     if (!error || typeof error !== 'object') {
@@ -703,14 +706,15 @@ export default function DirectSupportChat() {
         }
 
         if (msg.senderType === 'admin') {
+            const profile = STAFF_PROFILES['11111111-1111-4111-8111-111111111111']; // Default Sarah for admin
             return (
-                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border-2 border-purple-500">
-                    <img src={adminProfileImg} alt="Admin" className="w-full h-full object-cover" />
+                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border-2 border-purple-500 bg-white">
+                    <Lottie animationData={profile.animation} loop={true} className="w-full h-full" />
                 </div>
             )
         }
 
-        if (msg.senderType === 'staff' && msg.staffProfileId) {
+        if ((msg.senderType === 'staff' || msg.senderType === 'support') && msg.staffProfileId) {
             const profile = STAFF_PROFILES[msg.staffProfileId as keyof typeof STAFF_PROFILES]
             if (profile) {
                 return (
@@ -729,9 +733,10 @@ export default function DirectSupportChat() {
         }
 
         // Default support avatar
+        const defaultProfile = STAFF_PROFILES['11111111-1111-4111-8111-111111111111'];
         return (
             <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-slate-200 shadow-sm bg-white">
-                <img src={adminProfileImg} alt="Support" className="w-full h-full object-cover" />
+                <Lottie animationData={defaultProfile.animation} loop={true} className="w-full h-full" />
             </div>
         )
     }
