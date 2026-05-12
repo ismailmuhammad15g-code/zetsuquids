@@ -139,30 +139,37 @@ The user's guides have a total of ${totalViews} lifetime views and ${totalLikes}
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 messages: [{ role: 'user', content: `${userDataContext}\n\nUser query: ${query}` }],
-                model: 'gemini-1.5-flash',
                 userEmail,
                 isDeepReasoning: false,
                 isSubAgentMode: false,
                 skipCreditDeduction: true,
+                stream: false,
             }),
         });
 
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('AI API error:', response.status, errorText);
             onError('AI service is temporarily unavailable. Please try again in a moment.');
             onDone(doneData);
             return { needsSupport, results: relevantGuides };
         }
 
         const data = await response.json();
-        const content: string = data.content ?? '';
-        if (content) {
-            const chunks = content.match(/[\s\S]{1,15}/g) || [content];
+        
+        // Extract content - the server now returns a standard structure
+        const content: string = data.content || (data.choices?.[0]?.message?.content) || '';
+        
+        if (content && content.trim()) {
+            // Pseudo-streaming for better UX
+            const chunks = content.match(/[\s\S]{1,10}/g) || [content];
             for (const chunk of chunks) {
                 onToken(chunk);
-                await new Promise(r => setTimeout(r, 2));
+                await new Promise(r => setTimeout(r, 5)); // Slightly slower for readability
             }
         } else {
-            onError('No response received from AI.');
+            console.error('Empty content from AI API:', data);
+            onError('The AI returned an empty response. Please try rephrasing your question.');
         }
         onDone(doneData);
         return { needsSupport, results: relevantGuides };

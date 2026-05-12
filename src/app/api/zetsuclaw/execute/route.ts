@@ -53,9 +53,32 @@ Be comprehensive but concise. Current time: ${new Date().toISOString()}`;
 
                 if (cfResponse.ok) {
                     const cfData = await cfResponse.json();
-                    aiResult = cfData.result?.response || "Task completed with no output.";
-                    isSuccess = true;
-                    console.log("[ZetsuClaw] Cloudflare API success.");
+                    
+                    let content = "";
+                    let reasoning = "";
+
+                    if (cfData.result) {
+                        if (cfData.result.response) {
+                            content = cfData.result.response;
+                        } else if (cfData.result.choices?.[0]?.message) {
+                            content = cfData.result.choices[0].message.content || "";
+                            reasoning = cfData.result.choices[0].message.reasoning_content || "";
+                        } else if (typeof cfData.result === 'string') {
+                            content = cfData.result;
+                        }
+                    }
+
+                    if (content) {
+                        if (reasoning) {
+                            aiResult = `<think>\n${reasoning}\n</think>\n\n${content}`;
+                        } else {
+                            aiResult = content;
+                        }
+                        isSuccess = true;
+                        console.log("[ZetsuClaw] Cloudflare API success.");
+                    } else {
+                        console.warn("[ZetsuClaw] Cloudflare API returned empty content, falling back to Gemini.");
+                    }
                 } else {
                     console.warn("[ZetsuClaw] Cloudflare API failed, falling back to Gemini:", await cfResponse.text());
                 }

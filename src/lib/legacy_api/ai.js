@@ -1613,20 +1613,23 @@ Here is the explanation...
                   // Extract text from Gemini format
                   let content = null;
 
-                  // Gemini format: candidates[0].content.parts[0].text
-                  if (jsonObj.response) { // Cloudflare Stream format
+                  // Cloudflare Stream format or OpenAI/Gemini
+                  if (jsonObj.response) { 
                     content = jsonObj.response;
+                  } else if (jsonObj.choices?.[0]?.delta?.content) {
+                    content = jsonObj.choices[0].delta.content;
+                  } else if (jsonObj.choices?.[0]?.message?.content) {
+                    content = jsonObj.choices[0].message.content;
                   } else if (jsonObj.candidates?.[0]?.content?.parts?.[0]?.text) {
                     content = jsonObj.candidates[0].content.parts[0].text;
                   } else if (jsonObj.text) {
                     content = jsonObj.text;
-                  }else if (jsonObj.choices?.[0]?.delta?.content) {
-                    content = jsonObj.choices[0].delta.content;
-                  } else if (jsonObj.choices?.[0]?.message?.content) {
-                    content = jsonObj.choices[0].message.content;
                   } else if (jsonObj.content) {
                     content = jsonObj.content;
-                    content = jsonObj.text;
+                  } else if (jsonObj.result?.response) {
+                    content = jsonObj.result.response;
+                  } else if (jsonObj.result?.choices?.[0]?.message?.content) {
+                    content = jsonObj.result.choices[0].message.content;
                   }
 
                   if (content) {
@@ -1673,18 +1676,39 @@ Here is the explanation...
         // Read the full response from upstream
         const json = await response.json();
 
-        // Extract content based on standard OpenAI format
+        // Extract content based on various possible formats
         let content = "";
+        let reasoning = "";
         let sources = fetchedSources || [];
 
-        if (json.result?.response) {
-          content = json.result.response;
-        } else if (json.choices?.[0]?.message?.content) {
-          content = json.choices[0].message.content;
-        } else if (json.candidates?.[0]?.content?.parts?.[0]?.text) {
-          content = json.candidates[0].content.parts[0].text;
-        } else if (json.content) {
-          content = json.content;
+        // Check for Cloudflare specific result structure first
+        if (json.result) {
+          if (json.result.response) {
+            content = json.result.response;
+          } else if (json.result.choices?.[0]?.message) {
+            content = json.result.choices[0].message.content || "";
+            reasoning = json.result.choices[0].message.reasoning_content || "";
+          } else if (typeof json.result === 'string') {
+            content = json.result;
+          }
+        } 
+        
+        // Fallback to other formats if content still empty
+        if (!content) {
+          if (json.choices?.[0]?.message?.content) {
+            content = json.choices[0].message.content;
+          } else if (json.candidates?.[0]?.content?.parts?.[0]?.text) {
+            content = json.candidates[0].content.parts[0].text;
+          } else if (json.content) {
+            content = json.content;
+          } else if (json.response) {
+            content = json.response;
+          }
+        }
+
+        // Prepend reasoning if available
+        if (reasoning) {
+          content = `<think>\n${reasoning}\n</think>\n\n${content}`;
         }
 
         // Return a standard JSON response that the frontend can handle
@@ -1693,6 +1717,7 @@ Here is the explanation...
           sources,
           publishable: false,
           suggested_followups: [],
+          choices: [{ message: { content, role: "assistant" } }] // Added for compatibility
         });
       } catch (fallbackError) {
         console.error("❌ Fallback error:", fallbackError);

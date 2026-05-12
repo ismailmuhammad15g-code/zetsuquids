@@ -184,7 +184,8 @@ export function GuideAIChat({ guide, isOpen, onClose }: GuideAIChatProps) {
 
       const data = await response.json();
       const aiResponse: string =
-        data.choices[0]?.message?.content ||
+        data.content ||
+        data.choices?.[0]?.message?.content ||
         "Sorry, I couldn't generate a response.";
 
       // Typing animation effect
