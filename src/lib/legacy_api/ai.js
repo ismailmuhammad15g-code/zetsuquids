@@ -1256,15 +1256,22 @@ Here is the explanation...
     const userRequestsStream = req.body.stream === true;
     const wantsStream = supportsStreaming && userRequestsStream;
 
-    const endpoint = wantsStream
+    const isCloudflare = apiUrl.includes("cloudflare");
+    
+    const endpoint = wantsStream && !isCloudflare
       ? apiUrl.replace(":generateContent", ":streamGenerateContent")
       : apiUrl;
 
-    const geminiPayload = toGeminiRequest(messagesWithSearch, validatedModel);
-    geminiPayload.generationConfig = {
-      maxOutputTokens: 4000,
-      temperature: 0.7,
-    };
+    let requestPayload;
+    if (isCloudflare) {
+        requestPayload = { messages: messagesWithSearch, stream: wantsStream };
+    } else {
+        requestPayload = toGeminiRequest(messagesWithSearch, validatedModel);
+        requestPayload.generationConfig = {
+          maxOutputTokens: 4000,
+          temperature: 0.7,
+        };
+    }
 
     // Normal flow with credit deduction handled conditionally below
     if (!skipCreditDeduction && !userId && !userEmail) {
@@ -1377,41 +1384,52 @@ Here is the explanation...
       // Determine request parameters based on whether we want streaming
       let fetchUrl = endpoint;
 
-      // Always add API key to URL for Gemini
-      // But first check if endpoint already has query params
-      const hasQueryParams = endpoint.includes("?");
-      if (!endpoint.includes("key=")) {
-        fetchUrl = hasQueryParams
-          ? `${endpoint}&key=${apiKey}`
-          : `${endpoint}?key=${apiKey}`;
+      if (!isCloudflare) {
+        // Always add API key to URL for Gemini
+        // But first check if endpoint already has query params
+        const hasQueryParams = endpoint.includes("?");
+        if (!endpoint.includes("key=")) {
+          fetchUrl = hasQueryParams
+            ? `${endpoint}&key=${apiKey}`
+            : `${endpoint}?key=${apiKey}`;
+        }
+
+        // For streaming, add the alt=sse parameter
+        if (wantsStream && endpoint.includes("generateContent")) {
+          const hasParams = fetchUrl.includes("?");
+          fetchUrl = hasParams
+            ? `${fetchUrl}&alt=sse`
+            : `${fetchUrl}?alt=sse`;
+          console.log("🚀 Sending request to Gemini STREAMING API:", {
+            model: validatedModel,
+            messageCount: messagesWithSearch.length,
+            streaming: true,
+          });
+        } else {
+          console.log("🚀 Sending request to AI API (non-streaming):", {
+            model: validatedModel,
+            messageCount: messagesWithSearch.length,
+            streaming: false,
+          });
+        }
+      } else {
+          console.log("🚀 Sending request to Cloudflare AI API:", {
+            model: validatedModel,
+            streaming: wantsStream,
+          });
       }
 
-      // For streaming, add the alt=sse parameter
-      if (wantsStream && endpoint.includes("generateContent")) {
-        const hasParams = fetchUrl.includes("?");
-        fetchUrl = hasParams
-          ? `${fetchUrl}&alt=sse`
-          : `${fetchUrl}?alt=sse`;
-        console.log("🚀 Sending request to Gemini STREAMING API:", {
-          model: validatedModel,
-          messageCount: messagesWithSearch.length,
-          streaming: true,
-        });
-      } else {
-        console.log("🚀 Sending request to AI API (non-streaming):", {
-          model: validatedModel,
-          messageCount: messagesWithSearch.length,
-          streaming: false,
-        });
-      }
 
       const fetchOptions = {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(geminiPayload),
+        body: JSON.stringify(requestPayload),
       };
+      if (isCloudflare) {
+          fetchOptions.headers["Authorization"] = `Bearer ${apiKey}`;
+      }
 
       response = await fetch(fetchUrl, fetchOptions);
 
@@ -1596,17 +1614,18 @@ Here is the explanation...
                   let content = null;
 
                   // Gemini format: candidates[0].content.parts[0].text
-                  if (jsonObj.candidates?.[0]?.content?.parts?.[0]?.text) {
+                  if (jsonObj.response) { // Cloudflare Stream format
+                    content = jsonObj.response;
+                  } else if (jsonObj.candidates?.[0]?.content?.parts?.[0]?.text) {
                     content = jsonObj.candidates[0].content.parts[0].text;
-                  }
-                  // Fallback formats
-                  else if (jsonObj.choices?.[0]?.delta?.content) {
+                  } else if (jsonObj.text) {
+                    content = jsonObj.text;
+                  }else if (jsonObj.choices?.[0]?.delta?.content) {
                     content = jsonObj.choices[0].delta.content;
                   } else if (jsonObj.choices?.[0]?.message?.content) {
                     content = jsonObj.choices[0].message.content;
                   } else if (jsonObj.content) {
                     content = jsonObj.content;
-                  } else if (jsonObj.text) {
                     content = jsonObj.text;
                   }
 
@@ -1658,7 +1677,9 @@ Here is the explanation...
         let content = "";
         let sources = fetchedSources || [];
 
-        if (json.choices?.[0]?.message?.content) {
+        if (json.result?.response) {
+          content = json.result.response;
+        } else if (json.choices?.[0]?.message?.content) {
           content = json.choices[0].message.content;
         } else if (json.candidates?.[0]?.content?.parts?.[0]?.text) {
           content = json.candidates[0].content.parts[0].text;
