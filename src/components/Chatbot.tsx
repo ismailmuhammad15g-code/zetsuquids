@@ -123,6 +123,9 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
   
   // Hide agentic action tags entirely from the user's view
   displayedContent = displayedContent.replace(/\[ACTION:REDIRECT:[^\]]*\]?/g, "");
+  displayedContent = displayedContent.replace(/```json\s*\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}\s*```/g, "");
+  // Fallback for raw JSON if backticks are missing
+  displayedContent = displayedContent.replace(/\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}/g, "");
   
   if (isTyping) {
     // If the string ends with an unclosed mermaid block, convert it to a loading block
@@ -404,9 +407,15 @@ export default function Chatbot() {
   useEffect(() => {
     const lastMsg = messages[messages.length - 1];
     if (lastMsg && lastMsg.role === "bot" && !isTyping) {
-      const match = lastMsg.content.match(/\[ACTION:REDIRECT:(.+?)\]/);
-      if (match) {
-        const path = match[1];
+      // 1. Try legacy bracket tag
+      const tagMatch = lastMsg.content.match(/\[ACTION:REDIRECT:(.+?)\]/);
+      
+      // 2. Try modern JSON action (matches markdown block or raw JSON)
+      const jsonMatch = lastMsg.content.match(/```json\s*(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})\s*```/) 
+                     || lastMsg.content.match(/(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})/);
+
+      if (tagMatch) {
+        const path = tagMatch[1];
         // Strip the tag from the message content in state so it doesn't show up again
         const cleanContent = lastMsg.content.replace(/\[ACTION:REDIRECT:.+?\]/g, "").trim();
         setMessages((prev) => {
@@ -415,6 +424,23 @@ export default function Chatbot() {
           return newMessages;
         });
         setPendingRedirect({ path, countdown: 5 });
+      } else if (jsonMatch) {
+        try {
+          const data = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+          if (data.action === 'redirect' && data.url) {
+            const path = data.url;
+            // Strip the JSON from the message content in state
+            const cleanContent = lastMsg.content.replace(jsonMatch[0], "").trim();
+            setMessages((prev) => {
+              const newMessages = [...prev];
+              newMessages[newMessages.length - 1] = { ...newMessages[newMessages.length - 1], content: cleanContent };
+              return newMessages;
+            });
+            setPendingRedirect({ path, countdown: 5 });
+          }
+        } catch (e) {
+          console.error("Failed to parse AI redirect JSON:", e);
+        }
       }
     }
   }, [messages, isTyping]);
