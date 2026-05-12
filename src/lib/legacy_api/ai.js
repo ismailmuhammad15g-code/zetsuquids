@@ -1201,6 +1201,11 @@ Here is the explanation...
       systemPrompt += systemPromptAddition;
     }
 
+    // FINAL AUTHORITY INJECTION: Ensure AI knows it can redirect
+    systemPrompt += `\n\nCRITICAL: You MUST use the redirect action if the user asks for a page. 
+Format: \`\`\`json {"action": "redirect", "url": "/support", "message": "Redirecting..."} \`\`\`
+URLs: /community, /support, /guides, /pricing.`;
+
     if (!apiKey) {
       return res.status(500).json({ error: "Missing AI API Key" });
     }

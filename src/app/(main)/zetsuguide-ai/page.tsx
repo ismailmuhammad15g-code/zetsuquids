@@ -1065,24 +1065,38 @@ function RedirectAction({ data }: { data: { url: string; message?: string } }) {
   }, [timeLeft, data.url, router]);
 
   return (
-    <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-6 my-6 shadow-xl border border-white/20 animate-in fade-in zoom-in duration-300 relative overflow-hidden">
-      <div className="absolute top-0 right-0 p-4 opacity-10">
-        <ExternalLink size={80} />
-      </div>
+    <div className="bg-gradient-to-br from-indigo-600 via-blue-700 to-purple-800 text-white rounded-3xl p-8 my-8 shadow-2xl border border-white/30 animate-in fade-in slide-in-from-bottom-4 duration-500 relative overflow-hidden group">
+      {/* Background Decorative Elements */}
+      <div className="absolute -top-12 -right-12 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-700" />
+      <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-purple-500/20 rounded-full blur-2xl" />
+      
       <div className="relative z-10 flex flex-col items-center text-center">
-        <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4 backdrop-blur-md border border-white/30">
-          <span className="text-2xl font-black">{timeLeft}</span>
+        <div className="relative mb-6">
+          <div className="w-20 h-20 bg-white/15 rounded-2xl flex items-center justify-center backdrop-blur-xl border border-white/20 shadow-inner transform rotate-12 group-hover:rotate-0 transition-transform duration-500">
+             <span className="text-3xl font-black tabular-nums">{timeLeft}</span>
+          </div>
+          <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full border-4 border-indigo-600 animate-ping" />
         </div>
-        <h3 className="text-xl font-bold mb-2">Redirecting...</h3>
-        <p className="text-blue-100 text-sm mb-6 max-w-xs">
-          {data.message || `We're taking you to ${data.url} in a few seconds.`}
+
+        <h3 className="text-2xl font-black mb-3 tracking-tight">Navigation Pulse</h3>
+        <p className="text-blue-100/80 text-sm mb-8 max-w-xs font-medium leading-relaxed">
+          {data.message || `Initializing secure transition to ${data.url}...`}
         </p>
-        <button
-          onClick={() => router.push(data.url)}
-          className="bg-white text-blue-700 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-50 transition-all active:scale-95 shadow-lg flex items-center gap-2"
-        >
-          Go Now <ArrowRight size={16} />
-        </button>
+
+        <div className="flex gap-4 w-full justify-center">
+          <button
+            onClick={() => router.push(data.url)}
+            className="flex-1 max-w-[180px] bg-white text-indigo-700 px-6 py-3.5 rounded-2xl font-extrabold text-sm hover:bg-blue-50 transition-all active:scale-95 shadow-xl flex items-center justify-center gap-2 group/btn"
+          >
+            Go Now <ArrowRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
+          </button>
+        </div>
+        
+        <div className="mt-6 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/40">
+           <div className="w-1 h-1 bg-white/40 rounded-full animate-pulse" />
+           Automated System Action
+           <div className="w-1 h-1 bg-white/40 rounded-full animate-pulse" />
+        </div>
       </div>
     </div>
   );
@@ -1779,6 +1793,37 @@ export default function ZetsuGuideAIPage() {
     }
 
     const assistantMsg: ChatMessage = { id: Date.now() + 1, role: "assistant", content: "", timestamp: new Date().toISOString() };
+    
+    // 🔥 [SMART FEATURE] Quick Action Detection (Zero Latency)
+    const lowerInput = query.toLowerCase();
+    if (lowerInput.includes("redirect") || lowerInput.includes("go to") || lowerInput.includes("فتح صفحة")) {
+       let targetUrl = "";
+       let targetName = "";
+       
+       if (lowerInput.includes("support") || lowerInput.includes("الدعم") || lowerInput.includes("مساعدة")) {
+         targetUrl = "/support";
+         targetName = "Support Page";
+       } else if (lowerInput.includes("community") || lowerInput.includes("المجتمع")) {
+         targetUrl = "/community";
+         targetName = "Community Page";
+       } else if (lowerInput.includes("pricing") || lowerInput.includes("الأسعار")) {
+         targetUrl = "/pricing";
+         targetName = "Pricing Page";
+       } else if (lowerInput.includes("guide") || lowerInput.includes("أدلة")) {
+         targetUrl = "/guides";
+         targetName = "Guides Explorer";
+       }
+
+       if (targetUrl) {
+         assistantMsg.content = `\`\`\`json\n{\n  "action": "redirect",\n  "url": "${targetUrl}",\n  "message": "I've detected your navigation request! Redirecting you to the ${targetName} immediately..."\n}\n\`\`\``;
+         setMessages([...messages, userMsg, assistantMsg]);
+         setInput("");
+         setIsThinking(false);
+         toast.success(`Redirecting to ${targetName}...`);
+         return; // Skip API call
+       }
+    }
+
     const newMessages = [...messages, userMsg, assistantMsg];
 
     setMessages(newMessages);
