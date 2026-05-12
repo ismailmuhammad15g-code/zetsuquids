@@ -25,18 +25,22 @@ CREATE INDEX IF NOT EXISTS zetsuclaw_jobs_run_at_idx ON public.zetsuclaw_jobs(ru
 ALTER TABLE public.zetsuclaw_jobs ENABLE ROW LEVEL SECURITY;
 
 -- 4. RLS Policies
+DROP POLICY IF EXISTS "Users can view their own jobs" ON public.zetsuclaw_jobs;
 CREATE POLICY "Users can view their own jobs"
     ON public.zetsuclaw_jobs FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own jobs" ON public.zetsuclaw_jobs;
 CREATE POLICY "Users can insert their own jobs"
     ON public.zetsuclaw_jobs FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own jobs" ON public.zetsuclaw_jobs;
 CREATE POLICY "Users can update their own jobs"
     ON public.zetsuclaw_jobs FOR UPDATE
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own jobs" ON public.zetsuclaw_jobs;
 CREATE POLICY "Users can delete their own jobs"
     ON public.zetsuclaw_jobs FOR DELETE
     USING (auth.uid() = user_id);

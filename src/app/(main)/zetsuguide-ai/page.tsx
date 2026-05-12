@@ -1037,10 +1037,10 @@ function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true, 
   );
 }
 
-// ─── Guide Creator Action Component ───
-function parseGuideAction(text: string) {
+// ─── AI Action Parser ───
+function parseAIAction(text: string) {
   if (!text) return null;
-  const match = text.match(/```json\s*(\{[\s\S]*?"action":\s*"create_guide"[\s\S]*?\})\s*```/);
+  const match = text.match(/```json\s*(\{[\s\S]*?"action":\s*"(create_guide|redirect)"[\s\S]*?\})\s*```/);
   if (match) {
     try {
       return JSON.parse(match[1]);
@@ -1049,6 +1049,43 @@ function parseGuideAction(text: string) {
     }
   }
   return null;
+}
+
+function RedirectAction({ data }: { data: { url: string; message?: string } }) {
+  const router = useRouter();
+  const [timeLeft, setTimeLeft] = useState(5);
+
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      router.push(data.url);
+      return;
+    }
+    const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [timeLeft, data.url, router]);
+
+  return (
+    <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-6 my-6 shadow-xl border border-white/20 animate-in fade-in zoom-in duration-300 relative overflow-hidden">
+      <div className="absolute top-0 right-0 p-4 opacity-10">
+        <ExternalLink size={80} />
+      </div>
+      <div className="relative z-10 flex flex-col items-center text-center">
+        <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4 backdrop-blur-md border border-white/30">
+          <span className="text-2xl font-black">{timeLeft}</span>
+        </div>
+        <h3 className="text-xl font-bold mb-2">Redirecting...</h3>
+        <p className="text-blue-100 text-sm mb-6 max-w-xs">
+          {data.message || `We're taking you to ${data.url} in a few seconds.`}
+        </p>
+        <button
+          onClick={() => router.push(data.url)}
+          className="bg-white text-blue-700 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-50 transition-all active:scale-95 shadow-lg flex items-center gap-2"
+        >
+          Go Now <ArrowRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function GuideCreatorAction({ data, userEmail, userId }: { data: any, userEmail: string | null | undefined, userId?: string | null }) {
@@ -1335,19 +1372,19 @@ function MessageContent({ text, isError, isThinking, userEmail, userId, selected
 
   if (!text) return null;
 
-  // Extract Guide Action JSON if present
-  const guideAction = parseGuideAction(text);
+  // Extract AI Action JSON if present
+  const aiAction = parseAIAction(text);
   let displayText = text;
-  let isGuideActionStreaming = false;
+  let isActionStreaming = false;
 
-  if (guideAction) {
+  if (aiAction) {
     // Remove the JSON block from text so it doesn't render as markdown
-    displayText = text.replace(/```json\s*(\{[\s\S]*?"action":\s*"create_guide"[\s\S]*?\})\s*```/, "").trim();
+    displayText = text.replace(/```json\s*(\{[\s\S]*?"action":\s*"(create_guide|redirect)"[\s\S]*?\})\s*```/, "").trim();
   } else {
-    // Detect if AI is currently streaming the guide action json block
-    const partialMatch = text.match(/```json\s*(\{[\s\S]*?"action":\s*"create_guide"[\s\S]*)/);
+    // Detect if AI is currently streaming an action json block
+    const partialMatch = text.match(/```json\s*(\{[\s\S]*?"action":\s*"(create_guide|redirect)"[\s\S]*)/);
     if (partialMatch) {
-      isGuideActionStreaming = true;
+      isActionStreaming = true;
       displayText = text.substring(0, partialMatch.index).trim();
     }
   }
@@ -1376,14 +1413,18 @@ function MessageContent({ text, isError, isThinking, userEmail, userId, selected
         <FilteredMarkdown content={response} />
       )}
 
-      {guideAction && !isThinking && (
-        <GuideCreatorAction data={guideAction} userEmail={userEmail} userId={userId} />
+      {aiAction && aiAction.action === 'create_guide' && !isThinking && (
+        <GuideCreatorAction data={aiAction} userEmail={userEmail} userId={userId} />
       )}
 
-      {isGuideActionStreaming && isThinking && (
+      {aiAction && aiAction.action === 'redirect' && !isThinking && (
+        <RedirectAction data={aiAction} />
+      )}
+
+      {isActionStreaming && isThinking && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 my-4 flex items-center gap-3 text-blue-800">
           <Loader2 className="animate-spin text-blue-600" size={16} />
-          <span className="font-medium text-sm">Receiving Guide Data...</span>
+          <span className="font-medium text-sm">AI is preparing an action...</span>
         </div>
       )}
 
@@ -1802,7 +1843,15 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
   "keywords": ["tag1", "tag2"]
 }
 \`\`\`
-- If the answer is in our guides, cite it: **📖 Guide:** [Title](/guide/slug)
+- If the user asks to go to a page or be redirected, you MUST output a JSON block like this:
+\`\`\`json
+{
+  "action": "redirect",
+  "url": "/community",
+  "message": "I'm redirecting you to our community page now. See you there!"
+}
+\`\`\`
+- Available URLs: /community, /pricing, /auth, /guides.
 - Use Markdown for formatting
 - Be friendly and professional
 
@@ -1835,6 +1884,15 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
   "keywords": ["tag1", "tag2"]
 }
 \`\`\`
+- If the user asks to go to a page or be redirected, you MUST output a JSON block like this:
+\`\`\`json
+{
+  "action": "redirect",
+  "url": "/community",
+  "message": "I'm redirecting you to our community page now. See you there!"
+}
+\`\`\`
+- Available URLs: /community, /pricing, /auth, /guides.
 - Use Markdown for formatting
 - Be friendly, helpful, and professional
 
