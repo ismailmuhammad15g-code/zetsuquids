@@ -157,11 +157,11 @@ Keep responses comprehensive but clear.`;
             return { needsSupport, results: relevantGuides };
         }
 
-        // Simulate streaming word-by-word for a natural feel
-        const words = content.split(/(\s+)/);
-        for (const word of words) {
-            onToken(word);
-            await new Promise(r => setTimeout(r, 12));
+        // Simulate streaming extremely fast for a "lightning" feel
+        const chunks = content.match(/[\s\S]{1,15}/g) || [content];
+        for (const chunk of chunks) {
+            onToken(chunk);
+            await new Promise(r => setTimeout(r, 2));
         }
         onDone(doneData);
         return { needsSupport, results: relevantGuides };
@@ -207,10 +207,10 @@ async function _fallbackToApiRoute(
         const data = await response.json();
         const content: string = data.content ?? '';
         if (content) {
-            const words = content.split(/(\s+)/);
-            for (const word of words) {
-                onToken(word);
-                await new Promise(r => setTimeout(r, 12));
+            const chunks = content.match(/[\s\S]{1,15}/g) || [content];
+            for (const chunk of chunks) {
+                onToken(chunk);
+                await new Promise(r => setTimeout(r, 2));
             }
         } else {
             onError('No response received from AI.');

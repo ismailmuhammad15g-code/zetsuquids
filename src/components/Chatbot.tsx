@@ -118,27 +118,12 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
     }
   }
 
-  const [displayedContent, setDisplayedContent] = useState("");
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isComplete, setIsComplete] = useState(false);
-
-  useEffect(() => {
-    if (!isTyping || isComplete) {
-      setDisplayedContent(mainContent);
-      return;
-    }
-
-    if (currentIndex < mainContent.length) {
-      const timeout = setTimeout(() => {
-        setDisplayedContent(mainContent.slice(0, currentIndex + 1));
-        setCurrentIndex(currentIndex + 1);
-      }, 15); // 15ms per character for smooth typing
-
-      return () => clearTimeout(timeout);
-    } else {
-      setIsComplete(true);
-    }
-  }, [currentIndex, mainContent, isTyping, isComplete]);
+  // Pre-process unclosed mermaid blocks while typing so they show as skeletons instead of raw text
+  let displayedContent = mainContent;
+  if (isTyping) {
+    // If the string ends with an unclosed mermaid block, convert it to a loading block
+    displayedContent = displayedContent.replace(/```mermaid\n([^`]*)$/g, "```mermaid-loading\n$1\n```");
+  }
 
   return (
     <div className="markdown-content">
@@ -157,11 +142,31 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
               code: ({ node, className, children, ...props }) => {
                 const isBlock = Boolean(className);
                 const isMermaid = className === "language-mermaid" || className === "mermaid";
+                const isMermaidLoading = className === "language-mermaid-loading";
+
+                if (isMermaidLoading) {
+                  return (
+                    <div className="not-prose bg-white border border-slate-200 rounded-lg p-6 my-4 shadow-sm w-full">
+                      <div className="flex items-center gap-3 mb-4 opacity-50">
+                        <Loader2 className="animate-spin text-slate-400" size={16} />
+                        <span className="text-slate-400 text-xs font-bold uppercase tracking-wide">Generating Diagram...</span>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="h-2 bg-slate-200 rounded w-1/4 animate-pulse"></div>
+                        <div className="h-2 bg-slate-200 rounded w-3/4 animate-pulse" style={{ animationDelay: '100ms' }}></div>
+                        <div className="h-2 bg-slate-200 rounded w-1/2 animate-pulse" style={{ animationDelay: '200ms' }}></div>
+                        <div className="h-2 bg-slate-200 rounded w-5/6 animate-pulse" style={{ animationDelay: '300ms' }}></div>
+                      </div>
+                    </div>
+                  );
+                }
 
                 if (isMermaid) {
                   return (
-                    <div className="not-prose bg-slate-50 border border-slate-200 rounded-lg p-4 my-4 overflow-x-auto">
-                      <span className="text-slate-400 text-xs font-bold mb-2 block uppercase tracking-wide">📊 Mermaid Diagram</span>
+                    <div className="not-prose bg-slate-50 border border-slate-200 rounded-lg p-4 my-4 overflow-x-auto shadow-sm">
+                      <span className="text-slate-400 text-xs font-bold mb-2 block uppercase tracking-wide flex items-center gap-2">
+                        📊 Diagram Preview
+                      </span>
                       <MermaidDiagram chart={String(children).replace(/\n$/, '')} />
                     </div>
                   );
@@ -196,7 +201,7 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
           </ReactMarkdown>
         </div>
       )}
-      {isTyping && !isComplete && (
+      {isTyping && (
         <span className="inline-block w-1 h-4 bg-indigo-400 ml-0.5 animate-pulse" />
       )}
     </div>
@@ -1300,28 +1305,22 @@ export default function Chatbot() {
                     );
                   })}
 
-                  {/* Premium "Reading documentation..." chat bubble */}
+                  {/* Premium Skeleton Loading chat bubble (Thinking state) */}
                   {isTyping && isReadingDocs && (
                     <div className="flex gap-3 animate-in slide-in-from-bottom-2 duration-300">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center flex-shrink-0 shadow-md border border-slate-700">
+                      <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-700">
                         <BotIcon size={20} className="text-white" />
                       </div>
-                      <div className="bg-white border border-slate-100 shadow-sm rounded-2xl rounded-tl-none px-4 py-3 flex items-center gap-3 max-w-[220px]">
-                        {/* Animated gradient icon */}
-                        <div className="relative flex-shrink-0">
-                          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 animate-pulse" />
-                          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 animate-ping opacity-30" />
+                      <div className="bg-white border border-slate-100 shadow-sm rounded-2xl rounded-tl-none px-4 py-4 w-48 relative overflow-hidden">
+                        {/* Shimmer Effect Line */}
+                        <div className="absolute top-0 left-0 h-[2px] bg-indigo-500/20 w-full overflow-hidden">
+                           <div className="h-full w-1/3 bg-indigo-500 rounded-full animate-[shimmer_1.5s_infinite] relative -translate-x-full"></div>
                         </div>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-[11px] font-semibold text-slate-700 tracking-wide">
-                            Reading documentation
-                          </span>
-                          {/* Bouncing dots */}
-                          <div className="flex gap-1 items-center">
-                            <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                            <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                            <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                          </div>
+                        {/* Skeleton Lines */}
+                        <div className="flex flex-col gap-2.5 w-full mt-1 opacity-70">
+                           <div className="h-2 bg-slate-200 rounded-full w-5/12 animate-pulse"></div>
+                           <div className="h-2 bg-slate-200 rounded-full w-10/12 animate-pulse" style={{ animationDelay: '150ms' }}></div>
+                           <div className="h-2 bg-slate-200 rounded-full w-7/12 animate-pulse" style={{ animationDelay: '300ms' }}></div>
                         </div>
                       </div>
                     </div>
