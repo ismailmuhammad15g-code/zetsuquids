@@ -99,7 +99,7 @@ export async function streamAIResponse(
     guides: unknown[],
     userEmail: string,
     onToken: (token: string) => void,
-    onDone: () => void,
+    onDone: (data: { needsSupport: boolean; supportCategory?: string }) => void,
     onError: (err: string) => void
 ): Promise<{ needsSupport: boolean; supportCategory?: string; results?: unknown[] }> {
     // Basic search for context
@@ -146,7 +146,10 @@ export async function streamAIResponse(
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
                         const data = line.slice(6).trim();
-                        if (data === '[DONE]') { onDone(); return { needsSupport, results: relevantGuides }; }
+                        if (data === '[DONE]') {
+                            onDone({ needsSupport, supportCategory: needsSupport ? 'technical_issue' : undefined });
+                            return { needsSupport, results: relevantGuides };
+                        }
                         try {
                             const parsed = JSON.parse(data);
                             if (parsed.content) onToken(parsed.content);
@@ -154,7 +157,7 @@ export async function streamAIResponse(
                     }
                 }
             }
-            onDone();
+            onDone({ needsSupport, supportCategory: needsSupport ? 'technical_issue' : undefined });
             return { needsSupport, results: relevantGuides };
         }
 
@@ -167,7 +170,7 @@ export async function streamAIResponse(
             onToken(word);
             await new Promise(r => setTimeout(r, 18));
         }
-        onDone();
+        onDone({ needsSupport, supportCategory: needsSupport ? 'technical_issue' : undefined });
         return { needsSupport, results: relevantGuides };
 
     } catch (error) {

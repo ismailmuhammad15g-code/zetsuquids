@@ -56,15 +56,15 @@ export const supportApi = {
     async getUnreadCount(userEmail?: string): Promise<number> {
         if (!userEmail) return 0
         try {
-            const { count, error } = await supabase
+            const { data, error } = await supabase
                 .from('support_messages')
-                .select('*', { count: 'exact', head: true })
+                .select('id')
                 .eq('user_email', userEmail)
                 .in('sender_type', ['staff', 'admin'])
                 .neq('read_status', 'read')
 
             if (error) throw error
-            return count || 0
+            return data?.length || 0
         } catch (error) {
             console.warn('Error getting unread count:', error)
             return 0

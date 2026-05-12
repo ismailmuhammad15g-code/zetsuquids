@@ -730,15 +730,15 @@ export default function Chatbot() {
             ) as ChatMessage[]
           );
         },
-        // onDone
-        () => {
+        // onDone — receives result data directly to avoid closure-before-init bug
+        (doneData: { needsSupport: boolean; supportCategory?: string }) => {
           setStreamingMsgId(null);
           setIsTyping(false);
           setIsLongLoading(false);
           clearTimeout(loadingTimeout);
-          if (result?.needsSupport) {
+          if (doneData?.needsSupport) {
             setAwaitingSupportConfirmation(true);
-            setPendingSupportCategory(result.supportCategory || "other");
+            setPendingSupportCategory(doneData.supportCategory || "other");
           }
         },
         // onError
@@ -754,6 +754,7 @@ export default function Chatbot() {
           clearTimeout(loadingTimeout);
         },
       );
+      void result;
 
     } catch (error: unknown) {
       console.error("Chat error:", error);
@@ -1257,17 +1258,29 @@ export default function Chatbot() {
                     );
                   })}
 
-                  {/* Typing indicator — only shown before first streaming token arrives */}
+                  {/* Premium "Reading documentation..." chat bubble */}
                   {isTyping && isReadingDocs && (
                     <div className="flex gap-3 animate-in slide-in-from-bottom-2 duration-300">
-                      <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-700">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center flex-shrink-0 shadow-md border border-slate-700">
                         <BotIcon size={20} className="text-white" />
                       </div>
-                      <div className="bg-white border border-slate-200 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-2">
-                        <Loader2 size={13} className="text-indigo-500 animate-spin flex-shrink-0" />
-                        <span className="text-sm text-slate-500 animate-pulse font-medium">
-                          Reading documentation...
-                        </span>
+                      <div className="bg-white border border-slate-100 shadow-sm rounded-2xl rounded-tl-none px-4 py-3 flex items-center gap-3 max-w-[220px]">
+                        {/* Animated gradient icon */}
+                        <div className="relative flex-shrink-0">
+                          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 animate-pulse" />
+                          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 animate-ping opacity-30" />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[11px] font-semibold text-slate-700 tracking-wide">
+                            Reading documentation
+                          </span>
+                          {/* Bouncing dots */}
+                          <div className="flex gap-1 items-center">
+                            <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                            <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                            <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
