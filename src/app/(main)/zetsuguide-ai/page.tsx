@@ -1037,20 +1037,28 @@ function ReasoningBlock({ thought, duration, isStreaming, isInitialOpen = true, 
   );
 }
 
-// ─── AI Action Parser ───
+// ─── AI Action Parser (Aggressive & Robust) ───
 function parseAIAction(text: string) {
   if (!text) return null;
-  // More robust regex to handle various whitespace and quote styles
-  const match = text.match(/```json\s*(\{[\s\S]*?"action"\s*:\s*"(create_guide|redirect)"[\s\S]*?\})\s*```/);
-  if (match) {
-    try {
-      // Clean up potential markdown artifacts inside the captured group
-      const jsonStr = match[1].trim();
-      return JSON.parse(jsonStr);
-    } catch (e) {
-      console.warn("Action JSON parse error:", e);
-      return null;
+
+  try {
+    // Strategy 1: Look for standard markdown JSON blocks
+    const markdownMatch = text.match(/```json\s*(\{[\s\S]*?\})\s*```/);
+    if (markdownMatch) {
+      const data = JSON.parse(markdownMatch[1].trim());
+      if (data.action === "redirect" || data.action === "create_guide") return data;
     }
+
+    // Strategy 2: Aggressive fallback - find ANY JSON-like structure containing our actions
+    // This catches cases where AI forgets backticks or writes "json {...}"
+    const rawMatch = text.match(/\{[\s\S]*?"action"\s*:\s*"(redirect|create_guide)"[\s\S]*?\}/);
+    if (rawMatch) {
+      const data = JSON.parse(rawMatch[0].trim());
+      return data;
+    }
+  } catch (e) {
+    // If partial JSON, Strategy 2 might fail until the block is complete
+    return null;
   }
   return null;
 }
@@ -1396,11 +1404,18 @@ function MessageContent({ text, isError, isThinking, userEmail, userId, selected
   let isActionStreaming = false;
 
   if (aiAction) {
-    // Remove the JSON block from text so it doesn't render as markdown
-    displayText = text.replace(/```json\s*(\{[\s\S]*?"action"\s*:\s*"(create_guide|redirect)"[\s\S]*?\})\s*```/, "").trim();
+    // Remove the JSON block (markdown or raw) from text
+    const markdownPattern = /```json\s*(\{[\s\S]*?"action"\s*:\s*"(create_guide|redirect)"[\s\S]*?\})\s*```/;
+    const rawPattern = /\{[\s\S]*?"action"\s*:\s*"(redirect|create_guide)"[\s\S]*?\}/;
+    
+    if (text.match(markdownPattern)) {
+      displayText = text.replace(markdownPattern, "").trim();
+    } else {
+      displayText = text.replace(rawPattern, "").trim();
+    }
   } else {
     // Detect if AI is currently streaming an action json block
-    const partialMatch = text.match(/```json\s*(\{[\s\S]*?"action"\s*:\s*"(create_guide|redirect)"[\s\S]*)/);
+    const partialMatch = text.match(/(\{[\s\S]*?"action"\s*:\s*"(create_guide|redirect)"[\s\S]*)/);
     if (partialMatch) {
       isActionStreaming = true;
       displayText = text.substring(0, partialMatch.index).trim();
