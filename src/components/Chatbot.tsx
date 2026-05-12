@@ -435,6 +435,74 @@ export default function Chatbot() {
     }
   }, [pendingRedirect, router, setIsOpen]);
 
+  // ZetsuClaw Background Worker (Simulates Vercel Cron/Queue)
+  useEffect(() => {
+    if (!user) return;
+    
+    const interval = setInterval(async () => {
+       const rawJobs = localStorage.getItem('zetsuclaw_jobs');
+       if (!rawJobs) return;
+       
+       let jobs = [];
+       try { jobs = JSON.parse(rawJobs); } catch(e) {}
+       
+       const pendingJobs = jobs.filter((j: any) => j.status === 'scheduled' && j.run_at <= Date.now());
+       
+       if (pendingJobs.length > 0) {
+          for (const job of pendingJobs) {
+             // Mark as processing
+             jobs = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+             jobs = jobs.map((j: any) => j.id === job.id ? { ...j, status: 'processing' } : j);
+             localStorage.setItem('zetsuclaw_jobs', JSON.stringify(jobs));
+             
+             try {
+                let resultText = "";
+                // Use fallback/direct call since we don't have onToken UI updates
+                await fetch('/api/ai', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      messages: [{ role: 'user', content: `[ZETSUCLAW BACKGROUND TASK] Execute this instruction and return the result: ${job.prompt}` }],
+                      model: 'gemini-1.5-flash',
+                      userEmail: user.email,
+                      isDeepReasoning: false,
+                      isSubAgentMode: false,
+                      skipCreditDeduction: true,
+                  }),
+                }).then(async (res) => {
+                   const data = await res.json();
+                   resultText = data.content || "Completed with no output.";
+                });
+                
+                // Update job as completed
+                jobs = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+                jobs = jobs.map((j: any) => j.id === job.id ? { ...j, status: 'completed', result: resultText, completed_at: new Date().toISOString() } : j);
+                localStorage.setItem('zetsuclaw_jobs', JSON.stringify(jobs));
+                
+                // Notify user
+                import('../lib/notificationsApi').then(({ notificationsApi }) => {
+                    notificationsApi.createNotification({
+                        user_id: user.id,
+                        actor_name: "ZetsuClaw",
+                        type: "system",
+                        title: "ZetsuClaw Task Completed",
+                        message: `Task: "${job.prompt.substring(0, 30)}..." has finished running in the background.`,
+                        link: "/zetsuguide-ai"
+                    });
+                });
+             } catch (e) {
+                // Mark as failed
+                jobs = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+                jobs = jobs.map((j: any) => j.id === job.id ? { ...j, status: 'failed', result: String(e) } : j);
+                localStorage.setItem('zetsuclaw_jobs', JSON.stringify(jobs));
+             }
+          }
+       }
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [user]);
+
   // Inject Arabic support styles
   useEffect(() => {
     if (typeof document === "undefined") return;

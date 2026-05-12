@@ -60,6 +60,10 @@ export default function NotificationBell() {
             return <AvatarImage src="/images/roles_for_notification_insider/system-notification.png" alt="System" />;
         }
 
+        if (name === "zetsuclaw") {
+            return <AvatarImage src="/images/roles_for_notification_insider/ZetsuClaw.svg" alt="ZetsuClaw" />;
+        }
+
         // Default staff/support images
         if (name === "staff" || type === "approved" || type === "rejected" || type === "message" || 
             name === "sarah" || name === "ahmed" || name === "layla" || name === "mohammed") {

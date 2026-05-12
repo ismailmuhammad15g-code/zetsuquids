@@ -1495,6 +1495,9 @@ export default function ZetsuGuideAIPage() {
   const [isSubAgent, setIsSubAgent] = useState<boolean>(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [showApiSettings, setShowApiSettings] = useState<boolean>(false);
+  const [isZetsuClaw, setIsZetsuClaw] = useState<boolean>(false);
+  const [showZetsuClawJobs, setShowZetsuClawJobs] = useState<boolean>(false);
+  const [zetsuJobs, setZetsuJobs] = useState<any[]>([]);
   const [customApiKey, setCustomApiKey] = useState<string>("");
   const [customModel, setCustomModel] = useState<string>("google/gemini-2.0-flash-exp:free");
   const [apiKeyError, setApiKeyError] = useState<string>("");
@@ -1532,7 +1535,16 @@ export default function ZetsuGuideAIPage() {
       loadCredits();
       loadConversations();
     }
-  }, [user?.email]);
+    
+    // Auto refresh ZetsuClaw jobs if tab is open
+    const interval = setInterval(() => {
+        if (showZetsuClawJobs) {
+            const jobs = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+            setZetsuJobs(jobs);
+        }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [user?.email, showZetsuClawJobs]);
 
   async function loadCredits() {
     if (!user?.email) return;
@@ -1589,6 +1601,31 @@ export default function ZetsuGuideAIPage() {
 
     const query = input.trim();
     const userMsg: ChatMessage = { id: Date.now(), role: "user", content: query, timestamp: new Date().toISOString() };
+    
+    if (isZetsuClaw) {
+       const job = {
+         id: Date.now().toString(),
+         prompt: query,
+         status: 'scheduled',
+         run_at: Date.now() + 5000, 
+         created_at: new Date().toISOString()
+       };
+       
+       const existing = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+       localStorage.setItem('zetsuclaw_jobs', JSON.stringify([job, ...existing]));
+       
+       setMessages([...messages, userMsg, {
+         id: Date.now() + 2,
+         role: "assistant",
+         content: `⚡ **ZetsuClaw Task Scheduled!**\n\nI have scheduled your task to run in the background. You will receive a notification when it is complete, and you can track it in the **ZetsuClaw Jobs** tab on the left.`,
+         timestamp: new Date().toISOString()
+       }]);
+       
+       setInput("");
+       if (textareaRef.current) textareaRef.current.style.height = "auto";
+       return;
+    }
+
     const assistantMsg: ChatMessage = { id: Date.now() + 1, role: "assistant", content: "", timestamp: new Date().toISOString() };
     const newMessages = [...messages, userMsg, assistantMsg];
 
@@ -1944,6 +1981,7 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
   };
 
   const loadConversation = async (conv: Conversation): Promise<void> => {
+    setShowZetsuClawJobs(false);
     try {
       const { data } = await supabase
         .from("zetsuguide_conversations")
@@ -2048,9 +2086,25 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
           </div>
 
           <div style={{ padding: "0 12px" }}>
-            <button className="zg-new-chat-btn" onClick={startNewChat}>
+            <button className="zg-new-chat-btn" onClick={() => {
+              startNewChat();
+              setShowZetsuClawJobs(false);
+            }}>
               <SquarePen size={15} />
               New Chat
+            </button>
+            <button
+              className="zg-new-chat-btn"
+              style={{ background: "#f3f4f6", color: "#111", border: "1px solid #e5e7eb", marginTop: "4px" }}
+              onClick={() => {
+                 setShowZetsuClawJobs(true);
+                 const jobs = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+                 setZetsuJobs(jobs);
+                 if (isMobile) setShowSidebar(false);
+              }}
+            >
+              <img src="/images/roles_for_notification_insider/ZetsuClaw.svg" alt="ZetsuClaw" style={{ width: "16px", height: "16px" }} />
+              ZetsuClaw Jobs
             </button>
           </div>
 
@@ -2199,6 +2253,48 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
           )}
 
           {/* Chat Canvas */}
+          {showZetsuClawJobs ? (
+            <div className="zg-chat-canvas" style={{ padding: "40px 20px" }}>
+              <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "30px" }}>
+                   <div style={{ width: "40px", height: "40px", background: "#111", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img src="/images/roles_for_notification_insider/ZetsuClaw.svg" style={{ width: "24px", height: "24px", filter: "brightness(0) invert(1)" }} />
+                   </div>
+                   <h2 style={{ fontSize: "24px", fontWeight: "bold" }}>ZetsuClaw Cron Jobs</h2>
+                </div>
+                
+                {zetsuJobs.length === 0 ? (
+                  <div style={{ padding: "40px", textAlign: "center", background: "#f9fafb", borderRadius: "12px", border: "1px dashed #e5e7eb" }}>
+                     <p style={{ color: "#6b7280" }}>No background jobs scheduled yet.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                     {zetsuJobs.map((job: any) => (
+                        <div key={job.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
+                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                              <span style={{ fontSize: "12px", color: "#6b7280" }}>{new Date(job.created_at).toLocaleString()}</span>
+                              <span style={{
+                                 fontSize: "11px", fontWeight: "bold", padding: "4px 8px", borderRadius: "20px",
+                                 background: job.status === "completed" ? "#d1fae5" : job.status === "failed" ? "#fee2e2" : "#fef3c7",
+                                 color: job.status === "completed" ? "#065f46" : job.status === "failed" ? "#991b1b" : "#92400e"
+                              }}>
+                                 {job.status.toUpperCase()}
+                              </span>
+                           </div>
+                           <h4 style={{ fontSize: "15px", fontWeight: "600", marginBottom: "12px", color: "#111" }}>"{job.prompt}"</h4>
+                           {job.result && (
+                              <div style={{ background: "#f9fafb", padding: "12px", borderRadius: "8px", border: "1px solid #f3f4f6", fontSize: "13px", color: "#4b5563", whiteSpace: "pre-wrap" }}>
+                                 <strong style={{ display: "block", marginBottom: "4px" }}>Result:</strong>
+                                 {job.result}
+                              </div>
+                           )}
+                        </div>
+                     ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
           <div className="zg-chat-canvas">
             {!auth ? (
               <div className="zg-login-banner">
@@ -2290,6 +2386,7 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
               </div>
             )}
           </div>
+          )}
 
           {/* Input Area */}
           {auth && (
@@ -2444,6 +2541,15 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
                         >
                           <Settings2 size={12} />
                           Sub-Agent
+                        </button>
+                        <button
+                          type="button"
+                          className={`zg-toggle${isZetsuClaw ? " active" : ""}`}
+                          onClick={() => { setIsZetsuClaw(!isZetsuClaw); if (!isZetsuClaw) { setIsDeepReasoning(false); setIsSubAgent(false); } }}
+                          disabled={isThinking}
+                        >
+                          <img src="/images/roles_for_notification_insider/ZetsuClaw.svg" alt="ZetsuClaw" className="w-3 h-3" style={{ filter: isZetsuClaw ? 'brightness(0) invert(1)' : 'grayscale(1)' }} />
+                          ZetsuClaw
                         </button>
                       </div>
                       <button
