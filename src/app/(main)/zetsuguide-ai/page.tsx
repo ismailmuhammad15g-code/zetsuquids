@@ -1498,6 +1498,7 @@ export default function ZetsuGuideAIPage() {
   const [isZetsuClaw, setIsZetsuClaw] = useState<boolean>(false);
   const [showZetsuClawJobs, setShowZetsuClawJobs] = useState<boolean>(false);
   const [zetsuJobs, setZetsuJobs] = useState<any[]>([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState<boolean>(false);
   const [customApiKey, setCustomApiKey] = useState<string>("");
   const [customModel, setCustomModel] = useState<string>("google/gemini-2.0-flash-exp:free");
   const [apiKeyError, setApiKeyError] = useState<string>("");
@@ -1535,16 +1536,7 @@ export default function ZetsuGuideAIPage() {
       loadCredits();
       loadConversations();
     }
-    
-    // Auto refresh ZetsuClaw jobs if tab is open
-    const interval = setInterval(() => {
-        if (showZetsuClawJobs) {
-            const jobs = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
-            setZetsuJobs(jobs);
-        }
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [user?.email, showZetsuClawJobs]);
+  }, [user?.email]);
 
   async function loadCredits() {
     if (!user?.email) return;
@@ -1572,6 +1564,37 @@ export default function ZetsuGuideAIPage() {
       setConversations(data || []);
     } catch { }
     setIsLoadingHistory(false);
+  }
+
+  async function loadZetsuJobs() {
+    setIsLoadingJobs(true);
+    // Primary: load from Supabase if user is authenticated
+    if (user?.id) {
+      try {
+        const { data, error } = await supabase
+          .from("zetsuclaw_jobs")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(50);
+
+        if (!error && data) {
+          // Merge with localStorage jobs (local jobs may not be in DB yet)
+          const localJobs: any[] = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+          const dbIds = new Set(data.map((j: any) => j.id));
+          const pendingLocal = localJobs.filter((j: any) => !dbIds.has(j.id));
+          setZetsuJobs([...pendingLocal, ...data]);
+          setIsLoadingJobs(false);
+          return;
+        }
+      } catch (e) {
+        console.warn("[ZetsuClaw] Could not load from Supabase, falling back to localStorage", e);
+      }
+    }
+    // Fallback: localStorage only
+    const localJobs: any[] = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+    setZetsuJobs(localJobs);
+    setIsLoadingJobs(false);
   }
 
   async function toggleGuidesDropdown() {
@@ -1603,27 +1626,110 @@ export default function ZetsuGuideAIPage() {
     const userMsg: ChatMessage = { id: Date.now(), role: "user", content: query, timestamp: new Date().toISOString() };
     
     if (isZetsuClaw) {
-       const job = {
-         id: Date.now().toString(),
-         prompt: query,
-         status: 'scheduled',
-         run_at: Date.now() + 5000, 
-         created_at: new Date().toISOString()
-       };
-       
-       const existing = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
-       localStorage.setItem('zetsuclaw_jobs', JSON.stringify([job, ...existing]));
-       
-       setMessages([...messages, userMsg, {
-         id: Date.now() + 2,
-         role: "assistant",
-         content: `⚡ **ZetsuClaw Task Scheduled!**\n\nI have scheduled your task to run in the background. You will receive a notification when it is complete, and you can track it in the **ZetsuClaw Jobs** tab on the left.`,
-         timestamp: new Date().toISOString()
-       }]);
-       
-       setInput("");
-       if (textareaRef.current) textareaRef.current.style.height = "auto";
-       return;
+      // ── Parse delay from prompt (e.g. "after 1 minute", "بعد 1 دقيقه") ──
+      const delayMs = parseDelayFromPrompt(query);
+      const runAt = new Date(Date.now() + delayMs);
+      const jobId = crypto.randomUUID();
+      const createdAt = new Date().toISOString();
+      const delayLabel = formatDelayLabel(delayMs);
+
+      // Build local job object
+      const localJob = {
+        id: jobId,
+        user_id: user?.id,
+        user_email: user?.email,
+        prompt: query,
+        status: 'scheduled',
+        run_at: runAt.toISOString(),
+        created_at: createdAt,
+        result: null,
+      };
+
+      // Save to localStorage immediately for instant UI
+      const existing = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+      localStorage.setItem('zetsuclaw_jobs', JSON.stringify([localJob, ...existing]));
+
+      // Attempt to persist to Supabase
+      if (user?.id) {
+        supabase.from("zetsuclaw_jobs").insert({
+          id: jobId,
+          user_id: user.id,
+          user_email: user.email?.toLowerCase(),
+          prompt: query,
+          status: 'scheduled',
+          run_at: runAt.toISOString(),
+          model: customModel || "google/gemini-2.0-flash-exp:free",
+        }).then(({ error }: { error: any }) => {
+          if (error) console.warn("[ZetsuClaw] DB insert failed (table may not exist):", error.message);
+        });
+      }
+
+      const scheduledMsg = {
+        id: Date.now() + 2,
+        role: "assistant" as const,
+        content: `⚡ **ZetsuClaw Task Scheduled!**\n\nYour task has been queued to run **${delayLabel}**.\n\n📋 **Task:** ${query}\n⏰ **Runs at:** ${runAt.toLocaleString()}\n\nI will send you a **real-time notification** when it's done. You can also track progress in the **ZetsuClaw Jobs** tab.`,
+        timestamp: createdAt,
+      };
+
+      setMessages([...messages, userMsg, scheduledMsg]);
+      setInput("");
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
+
+      // ── Execute job after the delay ──
+      setTimeout(async () => {
+        // Update local status to 'running'
+        const runningJobs: any[] = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+        const jobIdx = runningJobs.findIndex((j: any) => j.id === jobId);
+        if (jobIdx !== -1) {
+          runningJobs[jobIdx].status = 'running';
+          localStorage.setItem('zetsuclaw_jobs', JSON.stringify(runningJobs));
+        }
+
+        try {
+          const execResponse = await fetch('/api/zetsuclaw/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jobId,
+              prompt: query,
+              userId: user?.id,
+              userEmail: user?.email,
+              model: customModel || "google/gemini-2.0-flash-exp:free",
+              apiKey: customApiKey || undefined,
+            }),
+          });
+
+          const execData = await execResponse.json();
+          const jobResult = execData.result || 'Completed with no output.';
+
+          // Update localStorage with result
+          const updatedJobs: any[] = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+          const updateIdx = updatedJobs.findIndex((j: any) => j.id === jobId);
+          if (updateIdx !== -1) {
+            updatedJobs[updateIdx].status = execResponse.ok ? 'completed' : 'failed';
+            updatedJobs[updateIdx].result = jobResult;
+            updatedJobs[updateIdx].completed_at = new Date().toISOString();
+            localStorage.setItem('zetsuclaw_jobs', JSON.stringify(updatedJobs));
+          }
+
+          // If the Jobs panel is open, refresh it
+          if (showZetsuClawJobsRef.current) {
+            setZetsuJobs(JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]'));
+          }
+
+        } catch (execErr) {
+          console.error('[ZetsuClaw] Execution error:', execErr);
+          const failedJobs: any[] = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
+          const failIdx = failedJobs.findIndex((j: any) => j.id === jobId);
+          if (failIdx !== -1) {
+            failedJobs[failIdx].status = 'failed';
+            failedJobs[failIdx].result = `Execution failed: ${String(execErr)}`;
+            localStorage.setItem('zetsuclaw_jobs', JSON.stringify(failedJobs));
+          }
+        }
+      }, delayMs);
+
+      return;
     }
 
     const assistantMsg: ChatMessage = { id: Date.now() + 1, role: "assistant", content: "", timestamp: new Date().toISOString() };
@@ -2043,6 +2149,46 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
     }
   };
 
+  // ── ZetsuClaw Helpers ──────────────────────────────────────────────────────
+  // Ref to track if jobs panel is currently open (used inside setTimeout closures)
+  const showZetsuClawJobsRef = useRef<boolean>(false);
+  useEffect(() => { showZetsuClawJobsRef.current = showZetsuClawJobs; }, [showZetsuClawJobs]);
+
+  function parseDelayFromPrompt(prompt: string): number {
+    const lower = prompt.toLowerCase();
+    // Arabic patterns: بعد X دقيقه/ثانيه/ساعه
+    const arabicMin = lower.match(/بعد\s*(\d+(?:\.\d+)?)\s*(دقيق|دقيقه|دق|دقائق)/);
+    const arabicSec = lower.match(/بعد\s*(\d+(?:\.\d+)?)\s*(ثانية|ثانيه|ثواني)/);
+    const arabicHr  = lower.match(/بعد\s*(\d+(?:\.\d+)?)\s*(ساعة|ساعة|ساعات)/);
+    // English patterns: after X minute(s)/second(s)/hour(s)
+    const engMin = lower.match(/after\s+(\d+(?:\.\d+)?)\s+min/);
+    const engSec = lower.match(/after\s+(\d+(?:\.\d+)?)\s+sec/);
+    const engHr  = lower.match(/after\s+(\d+(?:\.\d+)?)\s+h/);
+    // In X minutes/seconds
+    const inMin = lower.match(/in\s+(\d+(?:\.\d+)?)\s+min/);
+    const inSec = lower.match(/in\s+(\d+(?:\.\d+)?)\s+sec/);
+    const inHr  = lower.match(/in\s+(\d+(?:\.\d+)?)\s+h/);
+
+    if (arabicHr)  return parseFloat(arabicHr[1]) * 60 * 60 * 1000;
+    if (arabicMin) return parseFloat(arabicMin[1]) * 60 * 1000;
+    if (arabicSec) return parseFloat(arabicSec[1]) * 1000;
+    if (engHr)     return parseFloat(engHr[1]) * 60 * 60 * 1000;
+    if (engMin)    return parseFloat(engMin[1]) * 60 * 1000;
+    if (engSec)    return parseFloat(engSec[1]) * 1000;
+    if (inHr)      return parseFloat(inHr[1]) * 60 * 60 * 1000;
+    if (inMin)     return parseFloat(inMin[1]) * 60 * 1000;
+    if (inSec)     return parseFloat(inSec[1]) * 1000;
+
+    // Default: 1 minute
+    return 60 * 1000;
+  }
+
+  function formatDelayLabel(ms: number): string {
+    if (ms >= 3600000) return `${Math.round(ms / 3600000)} hour(s)`;
+    if (ms >= 60000)   return `${Math.round(ms / 60000)} minute(s)`;
+    return `${Math.round(ms / 1000)} second(s)`;
+  }
+
   const auth = isAuthenticated();
 
   // Reactive mobile detection
@@ -2098,8 +2244,7 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
               style={{ background: "#f3f4f6", color: "#111", border: "1px solid #e5e7eb", marginTop: "4px" }}
               onClick={() => {
                  setShowZetsuClawJobs(true);
-                 const jobs = JSON.parse(localStorage.getItem('zetsuclaw_jobs') || '[]');
-                 setZetsuJobs(jobs);
+                 loadZetsuJobs();
                  if (isMobile) setShowSidebar(false);
               }}
             >
@@ -2256,40 +2401,96 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
           {showZetsuClawJobs ? (
             <div className="zg-chat-canvas" style={{ padding: "40px 20px" }}>
               <div style={{ maxWidth: "800px", margin: "0 auto" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "30px" }}>
-                   <div style={{ width: "40px", height: "40px", background: "#111", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "30px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", background: "#111", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <img src="/images/roles_for_notification_insider/ZetsuClaw.svg" style={{ width: "24px", height: "24px", filter: "brightness(0) invert(1)" }} />
-                   </div>
-                   <h2 style={{ fontSize: "24px", fontWeight: "bold" }}>ZetsuClaw Cron Jobs</h2>
+                    </div>
+                    <div>
+                      <h2 style={{ fontSize: "22px", fontWeight: "bold", margin: 0 }}>ZetsuClaw Cron Jobs</h2>
+                      <p style={{ fontSize: "12px", color: "#6b7280", margin: "2px 0 0" }}>Background AI tasks scheduled and executed for you</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={loadZetsuJobs}
+                    disabled={isLoadingJobs}
+                    style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "12px", fontWeight: 600, cursor: "pointer", color: "#374151" }}
+                  >
+                    <RefreshCw size={13} className={isLoadingJobs ? "animate-spin" : ""} />
+                    {isLoadingJobs ? "Loading..." : "Refresh"}
+                  </button>
                 </div>
-                
-                {zetsuJobs.length === 0 ? (
-                  <div style={{ padding: "40px", textAlign: "center", background: "#f9fafb", borderRadius: "12px", border: "1px dashed #e5e7eb" }}>
-                     <p style={{ color: "#6b7280" }}>No background jobs scheduled yet.</p>
+
+                {isLoadingJobs ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    {[1,2,3].map(i => (
+                      <div key={i} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "20px", animation: "pulse 1.5s ease-in-out infinite" }}>
+                        <div style={{ height: "12px", background: "#f3f4f6", borderRadius: "4px", width: "30%", marginBottom: "10px" }} />
+                        <div style={{ height: "16px", background: "#f3f4f6", borderRadius: "4px", width: "70%", marginBottom: "8px" }} />
+                        <div style={{ height: "12px", background: "#f3f4f6", borderRadius: "4px", width: "50%" }} />
+                      </div>
+                    ))}
+                  </div>
+                ) : zetsuJobs.length === 0 ? (
+                  <div style={{ padding: "60px 40px", textAlign: "center", background: "#f9fafb", borderRadius: "16px", border: "2px dashed #e5e7eb" }}>
+                    <img src="/images/roles_for_notification_insider/ZetsuClaw.svg" style={{ width: "48px", height: "48px", opacity: 0.2, margin: "0 auto 16px" }} />
+                    <p style={{ color: "#6b7280", fontWeight: 600, marginBottom: "6px" }}>No background jobs yet.</p>
+                    <p style={{ color: "#9ca3af", fontSize: "13px" }}>Enable <strong>ZetsuClaw</strong> mode in the chat, then send a prompt with a time delay like "after 1 minute".</p>
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                     {zetsuJobs.map((job: any) => (
-                        <div key={job.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
-                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                              <span style={{ fontSize: "12px", color: "#6b7280" }}>{new Date(job.created_at).toLocaleString()}</span>
+                    {zetsuJobs.map((job: any) => (
+                      <div key={job.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)", position: "relative", overflow: "hidden" }}>
+                        {/* Status bar on left */}
+                        <div style={{
+                          position: "absolute", left: 0, top: 0, bottom: 0, width: "4px",
+                          background: job.status === "completed" ? "#10b981" : job.status === "failed" ? "#ef4444" : job.status === "running" ? "#38bdf8" : "#f59e0b"
+                        }} />
+                        <div style={{ paddingLeft: "8px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                            <span style={{ fontSize: "11px", color: "#6b7280" }}>{new Date(job.created_at).toLocaleString()}</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              {job.status === "running" && (
+                                <Loader2 size={13} className="animate-spin" style={{ color: "#38bdf8" }} />
+                              )}
                               <span style={{
-                                 fontSize: "11px", fontWeight: "bold", padding: "4px 8px", borderRadius: "20px",
-                                 background: job.status === "completed" ? "#d1fae5" : job.status === "failed" ? "#fee2e2" : "#fef3c7",
-                                 color: job.status === "completed" ? "#065f46" : job.status === "failed" ? "#991b1b" : "#92400e"
+                                fontSize: "11px", fontWeight: "bold", padding: "3px 9px", borderRadius: "20px",
+                                background: job.status === "completed" ? "#d1fae5" : job.status === "failed" ? "#fee2e2" : job.status === "running" ? "#e0f2fe" : "#fef3c7",
+                                color: job.status === "completed" ? "#065f46" : job.status === "failed" ? "#991b1b" : job.status === "running" ? "#0369a1" : "#92400e"
                               }}>
-                                 {job.status.toUpperCase()}
+                                {job.status === "running" ? "⚡ RUNNING" : job.status.toUpperCase()}
                               </span>
-                           </div>
-                           <h4 style={{ fontSize: "15px", fontWeight: "600", marginBottom: "12px", color: "#111" }}>"{job.prompt}"</h4>
-                           {job.result && (
-                              <div style={{ background: "#f9fafb", padding: "12px", borderRadius: "8px", border: "1px solid #f3f4f6", fontSize: "13px", color: "#4b5563", whiteSpace: "pre-wrap" }}>
-                                 <strong style={{ display: "block", marginBottom: "4px" }}>Result:</strong>
-                                 {job.result}
-                              </div>
-                           )}
+                            </div>
+                          </div>
+                          <h4 style={{ fontSize: "14px", fontWeight: "600", marginBottom: "10px", color: "#111", lineHeight: 1.4 }}>📋 "{job.prompt}"</h4>
+                          {job.run_at && job.status === "scheduled" && (
+                            <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "10px", display: "flex", alignItems: "center", gap: "5px" }}>
+                              <span>⏰ Runs at: <strong>{new Date(job.run_at).toLocaleString()}</strong></span>
+                            </div>
+                          )}
+                          {job.result && (
+                            <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "10px", border: "1px solid #f1f5f9", fontSize: "13px", color: "#374151", whiteSpace: "pre-wrap", maxHeight: "200px", overflowY: "auto", marginBottom: "10px" }}>
+                              <strong style={{ display: "block", marginBottom: "6px", color: "#111", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Result:</strong>
+                              {job.result}
+                            </div>
+                          )}
+                          {job.status === "completed" && job.result && (
+                            <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                              <button
+                                onClick={() => {
+                                  setShowZetsuClawJobs(false);
+                                  loadConversations();
+                                  toast.success("Check your conversation history for the ZetsuClaw result!");
+                                }}
+                                style={{ fontSize: "12px", padding: "5px 12px", background: "#111", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px" }}
+                              >
+                                <MessageSquareIcon size={12} /> View Conversation
+                              </button>
+                            </div>
+                          )}
                         </div>
-                     ))}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
