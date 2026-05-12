@@ -56,17 +56,8 @@ export const supportApi = {
     async getUnreadCount(userEmail?: string): Promise<number> {
         if (!userEmail) return 0
         try {
-            // Simplified query to avoid 400 errors if read_status/is_read column is missing
-            const { data, error } = await supabase
-                .from('support_messages')
-                .select('id')
-                .eq('user_email', userEmail)
-                .in('sender_type', ['staff', 'admin'])
-
-            if (error) return 0
-            
-            // Since we can't filter by read_status, we return 0 for now to prevent breaking the UI
-            // This can be improved once the database schema is confirmed
+            // Temporarily returning 0 to avoid 400 errors while column names (read_status/is_read) are missing in the DB.
+            // This prevents the UI from breaking until the database schema is updated.
             return 0
         } catch (error) {
             console.warn('Error getting unread count:', error)
