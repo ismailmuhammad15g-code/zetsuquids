@@ -1684,6 +1684,11 @@ export default function ZetsuGuideAIPage() {
           runningJobs[jobIdx].status = 'running';
           localStorage.setItem('zetsuclaw_jobs', JSON.stringify(runningJobs));
         }
+        
+        // Immediately trigger the UI to show the "WORKING..." animated card
+        if (showZetsuClawJobsRef.current) {
+          setZetsuJobs([...runningJobs]);
+        }
 
         try {
           const execResponse = await fetch('/api/zetsuclaw/execute', {
@@ -2179,11 +2184,12 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
     if (inMin)     return parseFloat(inMin[1]) * 60 * 1000;
     if (inSec)     return parseFloat(inSec[1]) * 1000;
 
-    // Default: 1 minute
-    return 60 * 1000;
+    // Default: 0 (immediate execution if no time specified)
+    return 0;
   }
 
   function formatDelayLabel(ms: number): string {
+    if (ms === 0) return "immediately";
     if (ms >= 3600000) return `${Math.round(ms / 3600000)} hour(s)`;
     if (ms >= 60000)   return `${Math.round(ms / 60000)} minute(s)`;
     return `${Math.round(ms / 1000)} second(s)`;
