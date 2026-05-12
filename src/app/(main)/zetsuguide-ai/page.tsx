@@ -1843,15 +1843,15 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
   "keywords": ["tag1", "tag2"]
 }
 \`\`\`
-- If the user asks to go to a page or be redirected, you MUST output a JSON block like this:
+- IMPORTANT: You HAVE the ability to redirect users. If the user asks to go to a page or be redirected, you MUST output a JSON block like this:
 \`\`\`json
 {
   "action": "redirect",
-  "url": "/community",
-  "message": "I'm redirecting you to our community page now. See you there!"
+  "url": "/support",
+  "message": "I'm redirecting you to our support page now. Our team is ready to help!"
 }
 \`\`\`
-- Available URLs: /community, /pricing, /auth, /guides.
+- Available URLs: /community, /pricing, /auth, /guides, /support.
 - Use Markdown for formatting
 - Be friendly and professional
 
@@ -1884,15 +1884,15 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
   "keywords": ["tag1", "tag2"]
 }
 \`\`\`
-- If the user asks to go to a page or be redirected, you MUST output a JSON block like this:
+- IMPORTANT: You HAVE the ability to redirect users. If the user asks to go to a page or be redirected, you MUST output a JSON block like this:
 \`\`\`json
 {
   "action": "redirect",
-  "url": "/community",
-  "message": "I'm redirecting you to our community page now. See you there!"
+  "url": "/support",
+  "message": "I'm redirecting you to our support page now. Our team is ready to help!"
 }
 \`\`\`
-- Available URLs: /community, /pricing, /auth, /guides.
+- Available URLs: /community, /pricing, /auth, /guides, /support.
 - Use Markdown for formatting
 - Be friendly, helpful, and professional
 
