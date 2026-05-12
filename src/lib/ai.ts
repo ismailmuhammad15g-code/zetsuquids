@@ -102,12 +102,88 @@ export async function streamAIResponse(
     onDone: (data: { needsSupport: boolean; supportCategory?: string }) => void,
     onError: (err: string) => void
 ): Promise<{ needsSupport: boolean; supportCategory?: string; results?: unknown[] }> {
-    // Basic search for context
     const relevantGuides = basicSearch(query, guides);
     const supportKeywords = ['help', 'error', 'problem', 'not working', 'bug', 'issue', 'crash', 'failed'];
     const queryLower = query.toLowerCase();
     const needsSupport = supportKeywords.some(keyword => queryLower.includes(keyword));
+    const doneData = { needsSupport, supportCategory: needsSupport ? 'technical_issue' : undefined };
 
+    try {
+        // Use Gemini directly — the env var stores a Gemini key and URL
+        const apiKey = process.env.NEXT_PUBLIC_AI_API_KEY;
+        const baseUrl = process.env.NEXT_PUBLIC_AI_API_URL ||
+            'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+        // Build Gemini-native request
+        const geminiUrl = `${baseUrl}?key=${apiKey}`;
+        const systemPrompt = `You are ZetsuGuide AI, a helpful assistant for the ZetsuGuide platform.
+Answer the user's question with high quality markdown formatting.
+Use headers, bullet points, bold text, code blocks, and mermaid diagrams where relevant.
+Respond in the same language as the user (Arabic or English).
+Keep responses comprehensive but clear.`;
+
+        const requestBody = {
+            contents: [
+                {
+                    role: 'user',
+                    parts: [{ text: `${systemPrompt}\n\nUser question: ${query}` }]
+                }
+            ],
+            generationConfig: {
+                maxOutputTokens: 2048,
+                temperature: 0.7,
+            }
+        };
+
+        const response = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error('Gemini API error:', response.status, errText);
+            // Fallback to /api/ai route
+            return await _fallbackToApiRoute(query, guides, userEmail, onToken, onDone, onError, needsSupport, relevantGuides);
+        }
+
+        const data = await response.json();
+        const content: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+
+        if (!content) {
+            onError('The AI returned an empty response. Please try again.');
+            onDone(doneData);
+            return { needsSupport, results: relevantGuides };
+        }
+
+        // Simulate streaming word-by-word for a natural feel
+        const words = content.split(/(\s+)/);
+        for (const word of words) {
+            onToken(word);
+            await new Promise(r => setTimeout(r, 12));
+        }
+        onDone(doneData);
+        return { needsSupport, results: relevantGuides };
+
+    } catch (error) {
+        console.error('Error in streamAIResponse:', error);
+        onError('Connection error. Please check your network and try again.');
+        return { needsSupport: false };
+    }
+}
+
+async function _fallbackToApiRoute(
+    query: string,
+    _guides: unknown[],
+    userEmail: string,
+    onToken: (token: string) => void,
+    onDone: (data: { needsSupport: boolean; supportCategory?: string }) => void,
+    onError: (err: string) => void,
+    needsSupport: boolean,
+    relevantGuides: unknown[]
+): Promise<{ needsSupport: boolean; supportCategory?: string; results?: unknown[] }> {
+    const doneData = { needsSupport, supportCategory: needsSupport ? 'technical_issue' : undefined };
     try {
         const response = await fetch('/api/ai', {
             method: 'POST',
@@ -116,66 +192,34 @@ export async function streamAIResponse(
                 messages: [{ role: 'user', content: query }],
                 model: 'gemini-1.5-flash',
                 userEmail,
-                isDeepReasoning: true,
+                isDeepReasoning: false,
                 isSubAgentMode: false,
+                skipCreditDeduction: true,
             }),
         });
 
         if (!response.ok) {
-            const err = await response.text();
-            onError(`AI error: ${err}`);
+            onError('AI service is temporarily unavailable. Please try again in a moment.');
+            onDone(doneData);
             return { needsSupport, results: relevantGuides };
         }
 
-        const contentType = response.headers.get('content-type') || '';
-
-        // SSE streaming path
-        if (contentType.includes('text/event-stream') && response.body) {
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() ?? '';
-
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const data = line.slice(6).trim();
-                        if (data === '[DONE]') {
-                            onDone({ needsSupport, supportCategory: needsSupport ? 'technical_issue' : undefined });
-                            return { needsSupport, results: relevantGuides };
-                        }
-                        try {
-                            const parsed = JSON.parse(data);
-                            if (parsed.content) onToken(parsed.content);
-                        } catch { /* ignore parse errors */ }
-                    }
-                }
-            }
-            onDone({ needsSupport, supportCategory: needsSupport ? 'technical_issue' : undefined });
-            return { needsSupport, results: relevantGuides };
-        }
-
-        // Fallback: non-streaming JSON response
         const data = await response.json();
         const content: string = data.content ?? '';
-        // Simulate streaming by firing tokens word-by-word
-        const words = content.split(/(\s+)/);
-        for (const word of words) {
-            onToken(word);
-            await new Promise(r => setTimeout(r, 18));
+        if (content) {
+            const words = content.split(/(\s+)/);
+            for (const word of words) {
+                onToken(word);
+                await new Promise(r => setTimeout(r, 12));
+            }
+        } else {
+            onError('No response received from AI.');
         }
-        onDone({ needsSupport, supportCategory: needsSupport ? 'technical_issue' : undefined });
+        onDone(doneData);
         return { needsSupport, results: relevantGuides };
-
-    } catch (error) {
-        console.error('Error in stream AI response:', error);
+    } catch {
         onError('Connection error. Please try again.');
+        onDone(doneData);
         return { needsSupport: false };
     }
 }
