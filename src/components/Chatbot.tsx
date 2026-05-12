@@ -120,6 +120,10 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
 
   // Pre-process unclosed mermaid blocks while typing so they show as skeletons instead of raw text
   let displayedContent = mainContent;
+  
+  // Hide agentic action tags entirely from the user's view
+  displayedContent = displayedContent.replace(/\[ACTION:REDIRECT:[^\]]*\]?/g, "");
+  
   if (isTyping) {
     // If the string ends with an unclosed mermaid block, convert it to a loading block
     displayedContent = displayedContent.replace(/```mermaid\n([^`]*)$/g, "```mermaid-loading\n$1\n```");
@@ -141,8 +145,8 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
             components={{
               code: ({ node, className, children, ...props }) => {
                 const isBlock = Boolean(className);
-                const isMermaid = className === "language-mermaid" || className === "mermaid";
-                const isMermaidLoading = className === "language-mermaid-loading";
+                const isMermaid = className?.includes("mermaid") && !className?.includes("mermaid-loading");
+                const isMermaidLoading = className?.includes("mermaid-loading");
 
                 if (isMermaidLoading) {
                   return (
@@ -242,6 +246,7 @@ export default function Chatbot() {
   const [guides, setGuides] = useState<Guide[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const [pendingRedirect, setPendingRedirect] = useState<{ path: string; countdown: number } | null>(null);
 
   // Auth & Usage States
   const { user, profileAvatar, isAuthenticated } = useAuth();
@@ -361,6 +366,41 @@ export default function Chatbot() {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isOpen, isTyping, isLongLoading]);
+
+  // Agentic AI Redirection Parser
+  useEffect(() => {
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg && lastMsg.role === "bot" && !isTyping) {
+      const match = lastMsg.content.match(/\[ACTION:REDIRECT:(.+?)\]/);
+      if (match) {
+        const path = match[1];
+        // Strip the tag from the message content in state so it doesn't show up again
+        const cleanContent = lastMsg.content.replace(/\[ACTION:REDIRECT:.+?\]/g, "").trim();
+        setMessages((prev) => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = { ...newMessages[newMessages.length - 1], content: cleanContent };
+          return newMessages;
+        });
+        setPendingRedirect({ path, countdown: 5 });
+      }
+    }
+  }, [messages, isTyping]);
+
+  // Redirection Countdown Timer
+  useEffect(() => {
+    if (pendingRedirect) {
+      if (pendingRedirect.countdown > 0) {
+        const timer = setTimeout(() => {
+          setPendingRedirect((prev) => (prev ? { ...prev, countdown: prev.countdown - 1 } : null));
+        }, 1000);
+        return () => clearTimeout(timer);
+      } else {
+        setIsOpen(false);
+        router.push(pendingRedirect.path);
+        setPendingRedirect(null);
+      }
+    }
+  }, [pendingRedirect, router, setIsOpen]);
 
   // Inject Arabic support styles
   useEffect(() => {
@@ -1327,6 +1367,25 @@ export default function Chatbot() {
                   )}
                   <div ref={messagesEndRef} />
                 </div>
+
+                {/* Agentic Redirect Banner */}
+                {pendingRedirect && (
+                  <div className="absolute bottom-20 left-4 right-4 p-4 bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700 flex items-center justify-between z-20 animate-in slide-in-from-bottom-2 fade-in duration-300">
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin"></div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-white leading-tight">Navigating Automatically</span>
+                        <span className="text-xs text-slate-400">Redirecting to {pendingRedirect.path} in {pendingRedirect.countdown}s...</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setPendingRedirect(null)} 
+                      className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors shadow-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
 
                 {/* Input Area */}
                 <form
