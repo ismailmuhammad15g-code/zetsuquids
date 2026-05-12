@@ -11,9 +11,8 @@ const supabaseAdmin = createClient(
 
 // ── Gemini API (same config as the main AI chat) ──────────────────────────────
 const GEMINI_API_KEY = process.env.NEXT_PUBLIC_AI_API_KEY || process.env.AI_API_KEY || "";
-// Use the reliable flash model (gemini-1.5-flash is well-supported)
-const GEMINI_MODEL = "gemini-1.5-flash";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_MODEL = process.env.NEXT_PUBLIC_AI_MODEL || "gemini-flash-latest";
+const GEMINI_URL = process.env.NEXT_PUBLIC_AI_API_URL || `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 export async function POST(request: NextRequest) {
     try {
