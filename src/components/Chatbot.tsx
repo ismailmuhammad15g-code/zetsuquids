@@ -29,6 +29,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useModal } from "../contexts/ModalContext";
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "./ui/reasoning";
+import ManusComputerMockup, { type AgentLogEntry } from "./ManusComputerMockup";
+import ManusComputerMockup from "./ManusComputerMockup";
 
 type ChatRole = "user" | "bot" | "assistant" | "system";
 type ChatMessageType = "text" | "error" | "limit_reached";
@@ -130,6 +132,9 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
   displayedContent = displayedContent.replace(/\[ACTION:CONTINUE\]?/g, "");
   displayedContent = displayedContent.replace(/\[ACTION:STEP:[^\]]*\]?/g, "");
   displayedContent = displayedContent.replace(/\[ACTION:THOUGHT:[\s\S]*?\]?/g, "");
+  displayedContent = displayedContent.replace(/\[ACTION:SEARCH:[^\]]*\]?/g, "");
+  displayedContent = displayedContent.replace(/\[ACTION:WRITE:[^\]]*\]?/g, "");
+  displayedContent = displayedContent.replace(/\[ACTION:RESULT:[^\]]*\]?/g, "");
   displayedContent = displayedContent.replace(/```json\s*\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}\s*```/g, "");
   // Fallback for raw JSON if backticks are missing
   displayedContent = displayedContent.replace(/\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}/g, "");
@@ -275,6 +280,21 @@ export default function Chatbot() {
   // Agentic execution state
   const [agentSteps, setAgentSteps] = useState<string[]>([]);
   const [triggerContinue, setTriggerContinue] = useState(false);
+  const [agentLogs, setAgentLogs] = useState<AgentLogEntry[]>([]);
+  const [agentIsActive, setAgentIsActive] = useState(false);
+  const [agentCurrentStep, setAgentCurrentStep] = useState<string | undefined>(undefined);
+
+  const pushLog = (type: AgentLogEntry["type"], text: string, isLive = false) => {
+    const entry: AgentLogEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      type,
+      text,
+      timestamp: Date.now(),
+      isLive,
+    };
+    setAgentLogs((prev) => [...prev, entry]);
+    return entry.id;
+  };
   const [guides, setGuides] = useState<Guide[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -480,12 +500,12 @@ export default function Chatbot() {
       // 4. Try modern JSON action for redirect
       const jsonMatch = contentToClean.match(/```json\s*(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})\s*```/)
         || contentToClean.match(/(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})/);
-
       if (tagMatch) {
         const path = tagMatch[1];
         contentToClean = contentToClean.replace(tagMatch[0], "").trim();
         hasChanges = true;
         setPendingRedirect({ path, countdown: 5 });
+        pushLog("action", `Navigating to: ${path}`);
       } else if (jsonMatch) {
         try {
           const data = JSON.parse(jsonMatch[1] || jsonMatch[0]);
@@ -494,6 +514,7 @@ export default function Chatbot() {
             contentToClean = contentToClean.replace(jsonMatch[0], "").trim();
             hasChanges = true;
             setPendingRedirect({ path, countdown: 5 });
+            pushLog("action", `Navigating to: ${path}`);
           }
         } catch (e) {
           console.error("Failed to parse AI redirect JSON:", e);
@@ -504,6 +525,7 @@ export default function Chatbot() {
       if (contentToClean.includes("[ACTION:PUBLISH]")) {
         contentToClean = contentToClean.replace("[ACTION:PUBLISH]", "").trim();
         hasChanges = true;
+        pushLog("done", "Publishing guide to database...");
         window.dispatchEvent(new CustomEvent('ai_trigger_save'));
       }
 
@@ -514,26 +536,77 @@ export default function Chatbot() {
         shouldContinue = true;
         hasChanges = true;
         contentToClean = contentToClean.replace(continueRegex, "").trim();
+        // Notify panel that agent is continuing
+        setAgentIsActive(true);
       }
 
       // 6. Action STEP
-      const stepRegex = /\[ACTION:STEP:(.+?)\]/g;
+      const stepRegex2 = /\[ACTION:STEP:(.+?)\]/g;
       let sMatch;
-      while ((sMatch = stepRegex.exec(contentToClean)) !== null) {
+      while ((sMatch = stepRegex2.exec(contentToClean)) !== null) {
         const step = sMatch[1].trim();
         hasChanges = true;
         setAgentSteps((prev) => {
           if (!prev.includes(step)) return [...prev, step];
           return prev;
         });
+        setAgentCurrentStep(step);
+        setAgentIsActive(true);
+        pushLog("step", step, true);
         contentToClean = contentToClean.replace(sMatch[0], "").trim();
       }
       
-      // Clean up THOUGHT from state to prevent clutter
-      const thoughtRegex = /\[ACTION:THOUGHT:([\s\S]*?)\]/g;
-      if (thoughtRegex.test(contentToClean)) {
+      // 7. Action THOUGHT
+      const thoughtRegex2 = /\[ACTION:THOUGHT:([\s\S]*?)\]/g;
+      let tMatch;
+      while ((tMatch = thoughtRegex2.exec(contentToClean)) !== null) {
+        const thought = tMatch[1].trim();
         hasChanges = true;
-        contentToClean = contentToClean.replace(thoughtRegex, "").trim();
+        pushLog("thought", thought);
+        contentToClean = contentToClean.replace(tMatch[0], "").trim();
+      }
+
+      // 8. Action SEARCH (new!)
+      const searchRegex = /\[ACTION:SEARCH:([\s\S]*?)\]/g;
+      let srMatch;
+      while ((srMatch = searchRegex.exec(contentToClean)) !== null) {
+        const query = srMatch[1].trim();
+        hasChanges = true;
+        pushLog("search", `Searching: "${query}"`, true);
+        setAgentCurrentStep(`Searching for: ${query}`);
+        setAgentIsActive(true);
+        contentToClean = contentToClean.replace(srMatch[0], "").trim();
+      }
+
+      // 9. Action WRITE (new!)
+      const writeRegex = /\[ACTION:WRITE:([\s\S]*?)\]/g;
+      let wrMatch;
+      while ((wrMatch = writeRegex.exec(contentToClean)) !== null) {
+        const what = wrMatch[1].trim();
+        hasChanges = true;
+        pushLog("write", what, true);
+        setAgentCurrentStep(what);
+        setAgentIsActive(true);
+        contentToClean = contentToClean.replace(wrMatch[0], "").trim();
+      }
+
+      // 10. Action RESULT (new!)
+      const resultRegex = /\[ACTION:RESULT:([\s\S]*?)\]/g;
+      let rsMatch;
+      while ((rsMatch = resultRegex.exec(contentToClean)) !== null) {
+        const result = rsMatch[1].trim();
+        hasChanges = true;
+        pushLog("result", result);
+        contentToClean = contentToClean.replace(rsMatch[0], "").trim();
+      }
+
+      // If no CONTINUE tag and agent was active, mark as done
+      if (!shouldContinue && agentIsActive) {
+        setAgentIsActive(false);
+        setAgentCurrentStep(undefined);
+        if (agentLogs.length > 0) {
+          pushLog("done", "Task completed successfully.");
+        }
       }
 
       if (hasChanges) {
@@ -1017,6 +1090,14 @@ export default function Chatbot() {
     setMessages((prev) => [...prev, userMsg] as ChatMessage[]);
     setIsTyping(true);
 
+    // Reset agent panel for new non-hidden conversations
+    if (!isHidden) {
+      setAgentLogs([]);
+      setAgentSteps([]);
+      setAgentIsActive(false);
+      setAgentCurrentStep(undefined);
+    }
+
     // Optimistic UI update
     const newTokens = Math.max(0, tokensLeft - 1);
     setTokensLeft(newTokens);
@@ -1050,6 +1131,10 @@ export default function Chatbot() {
 
       // Phase 1: Show "Reading documentation..." shimmer
       setIsReadingDocs(true);
+      if (!isHidden) {
+        setAgentIsActive(true);
+        pushLog("thought", "Analyzing request and searching knowledge base...", true);
+      }
 
       const searchResults = basicSearch(text, guides);
       setIsBrowsingGuides((searchResults as any[]).length > 0);
@@ -1286,13 +1371,30 @@ export default function Chatbot() {
       {/* Chat Window */}
       {isOpen && (
         <div
-          className={`fixed z-50 transition-all duration-300 ease-in-out bg-white border border-slate-200 shadow-2xl flex flex-col overflow-hidden font-sans
+          className={`fixed z-50 transition-all duration-500 ease-in-out flex flex-row-reverse overflow-hidden font-sans
                     ${isMinimized
               ? "bottom-6 right-6 w-72 h-16 rounded-2xl cursor-pointer"
-              : "bottom-0 right-0 w-full h-[85vh] rounded-t-3xl sm:bottom-6 sm:right-6 sm:w-[500px] sm:h-[700px] sm:max-h-[90vh] sm:rounded-3xl"
+              : agentLogs.length > 0
+                ? "bottom-0 right-0 w-full h-[90vh] sm:bottom-6 sm:right-6 sm:w-[1300px] sm:h-[760px] gap-2 sm:max-h-[90vh] rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 bg-white"
+                : "bottom-0 right-0 w-full h-[85vh] rounded-t-3xl sm:bottom-6 sm:right-6 sm:w-[500px] sm:h-[700px] sm:max-h-[90vh] sm:rounded-3xl shadow-2xl border border-slate-200 bg-white"
             }
-                `}
+              `}
         >
+          {/* Agent Workspace Panel — slides in from left when active */}
+          {agentLogs.length > 0 && !isMinimized && (
+            <div style={{ position: "relative", zIndex: 100, marginRight: "16px", marginTop: "16px", marginBottom: "16px", borderRadius: "16px" }} className="hidden sm:flex flex-col flex-shrink-0 animate-in slide-in-from-right-4 duration-500 overflow-hidden shadow-2xl relative">
+              <ManusComputerMockup
+                logs={agentLogs}
+                isActive={agentIsActive}
+                currentStep={agentCurrentStep}
+                currentCode={messages[messages.length - 1]?.role === "bot" ? messages[messages.length - 1].content : ""}
+                currentCode={messages[messages.length - 1]?.role === "bot" ? messages[messages.length - 1].content : ""}
+              />
+            </div>
+          )}
+
+          {/* Main chat panel */}
+          <div className="flex flex-col flex-1 min-w-0 overflow-hidden bg-white rounded-t-3xl sm:rounded-3xl">
           {/* Header */}
           <div
             className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 cursor-pointer relative overflow-hidden"
@@ -1990,9 +2092,9 @@ export default function Chatbot() {
               </div>
             </div>
           )}
-        </div>
+        </div>{/* end main chat panel */}
+        </div>{/* end outer split-screen container */}
       )}
     </>
   );
 }
-
