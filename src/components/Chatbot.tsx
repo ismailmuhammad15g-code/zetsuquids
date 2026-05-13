@@ -30,7 +30,6 @@ import Link from "next/link";
 import { useModal } from "../contexts/ModalContext";
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "./ui/reasoning";
 import ManusComputerMockup, { type AgentLogEntry } from "./ManusComputerMockup";
-import ManusComputerMockup from "./ManusComputerMockup";
 
 type ChatRole = "user" | "bot" | "assistant" | "system";
 type ChatMessageType = "text" | "error" | "limit_reached";
@@ -2091,8 +2090,8 @@ export default function Chatbot() {
                 </div>
               </div>
             )}
-          </div>{/* end main chat panel */}
-        </div>{/* end outer split-screen container */}
+          </div>
+        </div>
       )}
     </>
   );
