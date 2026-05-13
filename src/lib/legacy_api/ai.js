@@ -1433,9 +1433,17 @@ URLs: /community, /support, /guides, /pricing.`;
         });
       }
 
+      // Handle 401 specifically to help the user know it's an auth issue
+      if (response.status === 401) {
+          return res.status(401).json({
+              error: `AI Service Error (401)`,
+              details: `Authentication failed. Please check your AI_API_KEY. Upstream message: ${errorText.substring(0, 100)}`,
+          });
+      }
+
       return res.status(response.status).json({
         error: `AI Service Error (${response.status})`,
-        details: "Please try again in a moment.",
+        details: `Upstream error: ${errorText.substring(0, 100)}`,
       });
     }
 
