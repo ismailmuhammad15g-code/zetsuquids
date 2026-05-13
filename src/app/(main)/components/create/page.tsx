@@ -112,6 +112,16 @@ export default function App() {
   const lastDetectedRef = useRef<Set<string>>(new Set());
   const clearBadgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Direct Site Actions: Load title/description from URL params
+  useEffect(() => {
+    if (!isEditMode) {
+      const titleParam = searchParams.get('title');
+      const descParam = searchParams.get('desc');
+      if (titleParam) setTitle(decodeURIComponent(titleParam));
+      if (descParam) setDescription(decodeURIComponent(descParam));
+    }
+  }, [searchParams, isEditMode]);
+
   // Load existing component data when in edit mode
   useEffect(() => {
     if (!editId) return;

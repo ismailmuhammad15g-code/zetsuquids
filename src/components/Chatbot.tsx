@@ -428,20 +428,27 @@ export default function Chatbot() {
       let contentToClean = lastMsg.content;
       let hasChanges = false;
 
-      // 1. Highlight Action
-      const highlightMatch = contentToClean.match(/\[ACTION:HIGHLIGHT:(.+?)\]/);
-      if (highlightMatch) {
-         const selector = highlightMatch[1].trim();
-         contentToClean = contentToClean.replace(highlightMatch[0], "").trim();
+      // 1. Highlight Actions (Multi-support)
+      const highlightRegex = /\[ACTION:HIGHLIGHT:(.+?)\]/g;
+      let hMatch;
+      while ((hMatch = highlightRegex.exec(contentToClean)) !== null) {
+         const selector = hMatch[1].trim();
          hasChanges = true;
          try {
              const elements = document.querySelectorAll(selector);
-             elements.forEach(el => {
-                 el.classList.add('ai-highlight-glow');
-                 setTimeout(() => el.classList.remove('ai-highlight-glow'), 6000);
-             });
-         } catch(e) {}
+             if (elements.length > 0) {
+               elements.forEach(el => {
+                   el.classList.add('ai-highlight-glow');
+                   // Scroll into view if not visible
+                   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                   setTimeout(() => el.classList.remove('ai-highlight-glow'), 8000);
+               });
+             }
+         } catch(e) {
+           console.warn("AI Highlight selector failed:", selector, e);
+         }
       }
+      contentToClean = contentToClean.replace(highlightRegex, "").trim();
 
       // 2. Memory Action
       const memoryMatch = contentToClean.match(/\[ACTION:MEMORY:([\s\S]+?)\]/);
