@@ -361,6 +361,10 @@ export default function Chatbot() {
   }, [user]);
   const [loadingUsage, setLoadingUsage] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
+  const [redeemSuccess, setRedeemSuccess] = useState(false);
   const [isLongLoading, setIsLongLoading] = useState(false);
 
   // Check & Reset Usage from Supabase
@@ -417,6 +421,75 @@ export default function Chatbot() {
     }
     initUsage();
   }, [user, isOpen]);
+
+  async function handleRedeemCode() {
+    if (!promoCode.trim() || !user?.email) return;
+
+    setIsRedeeming(true);
+    setRedeemError(null);
+
+    try {
+      // 1. Check code in zetsuguide_promo_codes
+      const { data: codeData, error: codeError } = await supabase
+        .from("zetsuguide_promo_codes")
+        .select("*")
+        .eq("code", promoCode.trim())
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (codeError || !codeData) {
+        throw new Error("Invalid or expired promo code.");
+      }
+
+      // 2. Check if user already redeemed this code
+      const { data: existingRedemption } = await supabase
+        .from("zetsuguide_promo_redemptions")
+        .select("id")
+        .eq("user_email", user.email)
+        .eq("code", promoCode.trim())
+        .maybeSingle();
+
+      if (existingRedemption) {
+        throw new Error("You have already redeemed this code.");
+      }
+
+      // 3. Add credits to zetsuguide_credits
+      const { data: currentCreditData } = await supabase
+        .from("zetsuguide_credits")
+        .select("credits")
+        .eq("user_email", user.email)
+        .maybeSingle();
+
+      const newBalance = (currentCreditData?.credits || 0) + codeData.reward_credits;
+
+      const { error: updateError } = await supabase
+        .from("zetsuguide_credits")
+        .upsert({ 
+          user_email: user.email, 
+          credits: newBalance,
+          updated_at: new Date().toISOString()
+        });
+
+      if (updateError) throw updateError;
+
+      // 4. Record redemption
+      await supabase
+        .from("zetsuguide_promo_redemptions")
+        .insert([{ user_email: user.email, code: promoCode.trim() }]);
+
+      // Success!
+      setRedeemSuccess(true);
+      setTokensLeft(prev => prev + codeData.reward_credits);
+      setPromoCode("");
+      setTimeout(() => setRedeemSuccess(false), 3000);
+      
+    } catch (err: any) {
+      console.error("Redemption error:", err);
+      setRedeemError(err.message || "Redemption failed.");
+    } finally {
+      setIsRedeeming(false);
+    }
+  }
 
   // Load guides for context
   useEffect(() => {
@@ -1629,27 +1702,65 @@ export default function Chatbot() {
 
                     {/* Upgrade Overlay */}
                     {showUpgrade && isAuthenticated() && (
-                      <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
-                        <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative flex flex-col items-center border border-slate-200">
-                          <button onClick={() => setShowUpgrade(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-800"><X size={20} /></button>
+                      <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center animate-in fade-in duration-300">
+                        <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-[0_32px_64px_-12px_rgba(0,0,0,0.2)] relative flex flex-col items-center border border-slate-100 overflow-hidden">
+                          {/* Top Gradient Bar */}
+                          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+                          
+                          <button 
+                            onClick={() => { setShowUpgrade(false); setRedeemError(null); }} 
+                            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-50 rounded-full transition-all"
+                          >
+                            <X size={20} />
+                          </button>
+
                           <div className="mb-6 relative">
-                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center animate-pulse shadow-inner border border-slate-200">
-                              <Zap size={40} className="text-yellow-500" />
+                            <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center rotate-3 shadow-inner border border-indigo-100/50">
+                              <Zap size={40} className="text-indigo-600 fill-indigo-600/10" />
                             </div>
-                            <div className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center shadow-lg">
-                              <Lock size={16} className="text-white" />
+                            <div className="absolute -top-2 -right-2 w-8 h-8 bg-black rounded-xl flex items-center justify-center shadow-lg border-2 border-white">
+                              <Lock size={14} className="text-white" />
                             </div>
                           </div>
-                          <h3 className="text-2xl font-bold text-slate-900 mb-2">
-                            {tokensLeft === 0
-                              ? "Out of Queries"
-                              : "Energy Status"}
+
+                          <h3 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">
+                            {tokensLeft === 0 ? "Out of Energy" : "Boost Your AI"}
                           </h3>
-                          <p className="text-sm text-slate-500 mb-8 max-w-[280px]">
+                          <p className="text-sm text-slate-500 mb-8 leading-relaxed px-4">
                             {tokensLeft === 0
-                              ? "You've used all your free queries. Upgrade to Premium for unlimited AI access!"
-                              : `You have ${tokensLeft} free queries remaining. Upgrade to Premium for more!`}
+                              ? "You've exhausted your free queries for today. Upgrade to Premium for infinite possibilities!"
+                              : `You have ${tokensLeft} free queries remaining. Want to remove all limits?`}
                           </p>
+
+                          {/* Promo Code Section */}
+                          <div className="w-full mb-8 space-y-3">
+                            <div className="relative group">
+                              <input 
+                                type="text" 
+                                placeholder="Have a promo code?" 
+                                value={promoCode}
+                                onChange={(e) => setPromoCode(e.target.value)}
+                                className={`w-full px-4 py-3 bg-slate-50 border ${redeemError ? 'border-red-200' : 'border-slate-200'} rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all`}
+                              />
+                              <button 
+                                onClick={handleRedeemCode}
+                                disabled={isRedeeming || !promoCode.trim()}
+                                className="absolute right-2 top-2 px-3 py-1 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-800 disabled:bg-slate-200 transition-all shadow-sm"
+                              >
+                                {isRedeeming ? <Loader2 size={12} className="animate-spin" /> : "Redeem"}
+                              </button>
+                            </div>
+                            {redeemError && (
+                              <p className="text-[10px] text-red-500 font-bold text-left pl-1">{redeemError}</p>
+                            )}
+                            {redeemSuccess && (
+                              <div className="bg-emerald-50 text-emerald-600 text-[10px] font-bold p-2 rounded-lg flex items-center gap-2 animate-in slide-in-from-top-1">
+                                <CheckCircle2 size={12} />
+                                1000 Queries added successfully!
+                              </div>
+                            )}
+                          </div>
+
                           <div className="flex flex-col gap-3 w-full">
                             <button
                               onClick={() => {
@@ -1657,15 +1768,15 @@ export default function Chatbot() {
                                 setShowUpgrade(false);
                                 router.push("/pricing");
                               }}
-                              className="w-full px-6 py-3.5 bg-slate-900 text-white font-bold text-sm rounded-xl hover:bg-slate-800 transition-colors shadow-lg"
+                              className="w-full px-6 py-4 bg-indigo-600 text-white font-black text-sm rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20 active:scale-[0.98]"
                             >
-                              Upgrade Now
+                              Get Unlimited Access
                             </button>
                             <button
                               onClick={() => setShowUpgrade(false)}
-                              className="w-full px-6 py-3.5 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 transition-colors"
+                              className="w-full px-6 py-3 bg-white text-slate-400 font-bold text-xs rounded-xl hover:text-slate-600 transition-colors"
                             >
-                              {tokensLeft > 0 ? "Continue Free" : "Maybe Later"}
+                              Maybe Later
                             </button>
                           </div>
                         </div>
