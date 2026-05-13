@@ -60,7 +60,15 @@ export default function ManusComputerMockup({ logs, isActive, currentCode, filen
                             <Maximize size={8} className="text-green-900 opacity-0 group-hover:opacity-100" />
                         </div>
                     </div>
-                    <span className="ml-2 font-semibold text-slate-700 text-sm">ZetsuGuide AI Workstation</span>
+                    <div className="flex items-center gap-2 ml-2">
+                        <span className="font-semibold text-slate-700 text-sm">ZetsuGuide AI Workstation</span>
+                        {isActive && (
+                            <div className="flex items-center gap-1 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 animate-pulse">
+                                <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                                <span className="text-[8px] font-bold text-red-600 uppercase">Live</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="flex items-center gap-3">
                     <Terminal size={14} className="text-slate-400" />

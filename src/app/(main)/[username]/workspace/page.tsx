@@ -274,9 +274,15 @@ export default function UserWorkspacePage() {
         };
       });
 
+      const isOwner = user?.email && profile.author_email === user.email;
+      
+      const filteredGuides = mergedMatchingGuides.filter(g => 
+        g.status === 'approved' || (isOwner && g.status === 'ai_generated')
+      );
+
       setUserProfile(profile);
       setUserGuides(
-        mergedMatchingGuides.sort(
+        filteredGuides.sort(
           (a, b) => new Date(b.created_at || "").getTime() - new Date(a.created_at || "").getTime(),
         ),
       );

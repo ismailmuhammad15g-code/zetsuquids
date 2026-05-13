@@ -616,22 +616,29 @@ export default function Chatbot() {
                     content: contentForGuide,
                     user_email: user?.email,
                     author_name: (user?.user_metadata?.full_name as string) || user?.email?.split('@')[0] || "AI Author",
-                    status: 'approved'
+                    status: 'ai_generated'
                 }).then((newGuide) => {
-                    pushLog("done", `Guide saved successfully! Link: /guide/${newGuide.slug}`);
+                    pushLog("done", `Guide successfully generated! Link: /guide/${newGuide.slug}`);
+                    
+                    // Update terminal logs
                     setAgentLogs(prev => [...prev, {
                         id: Math.random().toString(),
                         type: 'done',
-                        text: `Your guide is live at: https://zetsuguide.com/guide/${newGuide.slug}`,
+                        text: `Deployment successful: /guide/${newGuide.slug}`,
                         timestamp: Date.now()
                     }]);
+
+                    // AUTO-REPORT: Trigger a hidden message so AI can announce the success to the user
+                    handleSend(null, `[SYSTEM] Guide saved successfully. Permanent URL: /guide/${newGuide.slug}. Please provide the link to the user and ask for their feedback.`, true);
                 }).catch(err => {
                     console.error("Failed to save guide via agent:", err);
-                    pushLog("error", "Failed to save guide automatically.");
+                    pushLog("error", "Failed to save guide to database.");
+                    handleSend(null, `[SYSTEM] Error saving guide: ${err.message}. Please inform the user.`, true);
                 });
             });
         } else {
             pushLog("error", "Authentication required to save guides.");
+            handleSend(null, `[SYSTEM] Save failed: User is not authenticated. Ask the user to sign in first.`, true);
         }
       }
 
