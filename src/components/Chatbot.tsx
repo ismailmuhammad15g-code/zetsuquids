@@ -123,6 +123,8 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
 
   // Hide agentic action tags entirely from the user's view
   displayedContent = displayedContent.replace(/\[ACTION:REDIRECT:[^\]]*\]?/g, "");
+  displayedContent = displayedContent.replace(/\[ACTION:HIGHLIGHT:[^\]]*\]?/g, "");
+  displayedContent = displayedContent.replace(/\[ACTION:MEMORY:[\s\S]*?\]?/g, "");
   displayedContent = displayedContent.replace(/```json\s*\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}\s*```/g, "");
   // Fallback for raw JSON if backticks are missing
   displayedContent = displayedContent.replace(/\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}/g, "");
@@ -245,6 +247,21 @@ export default function Chatbot() {
   const [isTyping, setIsTyping] = useState(false);
   const [isReadingDocs, setIsReadingDocs] = useState(false);
   const [isBrowsingGuides, setIsBrowsingGuides] = useState(false);
+  const [userMemory, setUserMemory] = useState<string>("");
+
+  useEffect(() => {
+    if (user?.email && typeof window !== "undefined") {
+       import("../lib/github-assets").then(({ RAW_BASE }) => {
+          fetch(`${RAW_BASE}/users/memory/${user.email}.json?t=${Date.now()}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+               if (data && data.memory) setUserMemory(data.memory);
+            })
+            .catch(() => {});
+       });
+    }
+  }, [user?.email]);
+
   // Tracks which message is currently being streamed (used to show live cursor)
   const [streamingMsgId, setStreamingMsgId] = useState<number | null>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
@@ -404,47 +421,78 @@ export default function Chatbot() {
     }
   }, [messages, isOpen, isTyping, isLongLoading]);
 
-  // Agentic AI Redirection Parser
+  // Agentic AI Actions Parser
   useEffect(() => {
     const lastMsg = messages[messages.length - 1];
     if (lastMsg && lastMsg.role === "bot" && !isTyping) {
-      // 1. Try legacy bracket tag
-      const tagMatch = lastMsg.content.match(/\[ACTION:REDIRECT:(.+?)\]/);
+      let contentToClean = lastMsg.content;
+      let hasChanges = false;
 
-      // 2. Try modern JSON action (matches markdown block or raw JSON)
-      const jsonMatch = lastMsg.content.match(/```json\s*(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})\s*```/)
-        || lastMsg.content.match(/(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})/);
+      // 1. Highlight Action
+      const highlightMatch = contentToClean.match(/\[ACTION:HIGHLIGHT:(.+?)\]/);
+      if (highlightMatch) {
+         const selector = highlightMatch[1].trim();
+         contentToClean = contentToClean.replace(highlightMatch[0], "").trim();
+         hasChanges = true;
+         try {
+             const elements = document.querySelectorAll(selector);
+             elements.forEach(el => {
+                 el.classList.add('ai-highlight-glow');
+                 setTimeout(() => el.classList.remove('ai-highlight-glow'), 6000);
+             });
+         } catch(e) {}
+      }
+
+      // 2. Memory Action
+      const memoryMatch = contentToClean.match(/\[ACTION:MEMORY:([\s\S]+?)\]/);
+      if (memoryMatch) {
+         const newMemory = memoryMatch[1].trim();
+         contentToClean = contentToClean.replace(memoryMatch[0], "").trim();
+         hasChanges = true;
+         
+         if (user?.email) {
+            setUserMemory(newMemory);
+            import("../lib/github-assets").then(({ uploadTextToGitHub }) => {
+               uploadTextToGitHub(JSON.stringify({ memory: newMemory }), `users/memory/${user.email}.json`, `Update user memory for ${user.email}`)
+                 .catch(console.error);
+            });
+         }
+      }
+
+      // 3. Try legacy bracket tag for redirect
+      const tagMatch = contentToClean.match(/\[ACTION:REDIRECT:(.+?)\]/);
+      // 4. Try modern JSON action for redirect
+      const jsonMatch = contentToClean.match(/```json\s*(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})\s*```/)
+        || contentToClean.match(/(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})/);
 
       if (tagMatch) {
         const path = tagMatch[1];
-        // Strip the tag from the message content in state so it doesn't show up again
-        const cleanContent = lastMsg.content.replace(/\[ACTION:REDIRECT:.+?\]/g, "").trim();
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          newMessages[newMessages.length - 1] = { ...newMessages[newMessages.length - 1], content: cleanContent };
-          return newMessages;
-        });
+        contentToClean = contentToClean.replace(tagMatch[0], "").trim();
+        hasChanges = true;
         setPendingRedirect({ path, countdown: 5 });
       } else if (jsonMatch) {
         try {
           const data = JSON.parse(jsonMatch[1] || jsonMatch[0]);
           if (data.action === 'redirect' && data.url) {
             const path = data.url;
-            // Strip the JSON from the message content in state
-            const cleanContent = lastMsg.content.replace(jsonMatch[0], "").trim();
-            setMessages((prev) => {
-              const newMessages = [...prev];
-              newMessages[newMessages.length - 1] = { ...newMessages[newMessages.length - 1], content: cleanContent };
-              return newMessages;
-            });
+            contentToClean = contentToClean.replace(jsonMatch[0], "").trim();
+            hasChanges = true;
             setPendingRedirect({ path, countdown: 5 });
           }
         } catch (e) {
           console.error("Failed to parse AI redirect JSON:", e);
         }
       }
+
+      if (hasChanges) {
+        setMessages((prev) => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = { ...newMessages[newMessages.length - 1], content: contentToClean };
+          return newMessages;
+        });
+      }
     }
-  }, [messages, isTyping]);
+  }, [messages, isTyping, user?.email]);
 
   // Redirection Countdown Timer
   useEffect(() => {
@@ -563,6 +611,20 @@ export default function Chatbot() {
         .arabic-bubble {
             text-align: right;
             direction: rtl;
+        }
+
+        /* AI UI Highlight Glow */
+        @keyframes aiHighlightGlow {
+            0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.7); outline: 2px solid black; }
+            50% { box-shadow: 0 0 20px 10px rgba(0, 0, 0, 0); outline: 2px solid black; background-color: rgba(0,0,0,0.05); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); outline: transparent; }
+        }
+        .ai-highlight-glow {
+            animation: aiHighlightGlow 2s ease-in-out infinite !important;
+            border-radius: 8px !important;
+            transition: all 0.3s ease !important;
+            position: relative !important;
+            z-index: 50 !important;
         }
     `;
 
@@ -940,7 +1002,7 @@ export default function Chatbot() {
       } else if (currentPage !== '/') {
          pageContextInfo = `User is on the page: ${currentPage}.`;
       }
-      const enhancedText = `[SYSTEM NOTE: ${pageContextInfo}]\n\nUser: ${text}`;
+      const enhancedText = `[SYSTEM NOTE: ${pageContextInfo}]\n[USER MEMORY: ${userMemory || 'No prior memory recorded.'}]\n\nUser: ${text}`;
 
       // Create a placeholder streaming message
       const botMsgId = Date.now() + 1;

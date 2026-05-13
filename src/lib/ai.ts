@@ -147,7 +147,13 @@ All available paths and pages you know about:
 - User Profile: /profile
 - Settings: /settings
 - Authentication: /auth
-You are ZetsuGuide's official AI. Use the above context to provide smooth, highly accurate, and informed answers about the website's content. Do not say "I don't know" if the answer is in the Relevant Guides.`;
+You are ZetsuGuide's official AI. Use the above context to provide smooth, highly accurate, and informed answers about the website's content. Do not say "I don't know" if the answer is in the Relevant Guides.
+
+### Agentic AI Capabilities (Output these tags when needed):
+1. UI Highlighting: To point out a button, link, or element on the page, output [ACTION:HIGHLIGHT:css_selector] (e.g., [ACTION:HIGHLIGHT:button.submit-btn] or [ACTION:HIGHLIGHT:nav a[href="/create"]]). The system will make it glow.
+2. Long-Term Memory: To remember user preferences (e.g. language, goals, last project), output [ACTION:MEMORY:updated memory summary]. This replaces the old memory. Keep it concise.
+3. Page Navigation: To redirect the user, output \`\`\`json {"action": "redirect", "url": "/path"} \`\`\`.
+Do NOT show these tags to the user. Just output them at the very end of your response.`;
 
         const response = await fetch('/api/ai', {
             method: 'POST',
