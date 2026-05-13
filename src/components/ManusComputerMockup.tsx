@@ -14,12 +14,11 @@ export type AgentLogEntry = {
 interface ManusComputerMockupProps {
     logs: AgentLogEntry[];
     isActive: boolean;
-    currentStep?: string;
     currentCode?: string; // If the AI is writing code/markdown currently
     filename?: string;
 }
 
-export default function ManusComputerMockup({ logs, isActive, currentStep, currentCode, filename = "ai_news_findings.md" }: ManusComputerMockupProps) {
+export default function ManusComputerMockup({ logs, isActive, currentCode, filename = "ai_news_findings.md" }: ManusComputerMockupProps) {
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const [elapsed, setElapsed] = useState(0);
     const startTime = useRef(Date.now());
@@ -40,8 +39,6 @@ export default function ManusComputerMockup({ logs, isActive, currentStep, curre
         }, 1000);
         return () => clearInterval(interval);
     }, [isActive]);
-
-    const activeLog = [...logs].reverse().find(l => l.isLive || l.type === 'thought' || l.type === 'search' || l.type === 'write' || l.type === 'action');
 
     return (
         <div className="flex flex-col w-[600px] h-[700px] max-h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 animate-in slide-in-from-right-4 zoom-in-95 duration-500 font-sans">

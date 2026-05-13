@@ -281,7 +281,6 @@ export default function Chatbot() {
   const [triggerContinue, setTriggerContinue] = useState(false);
   const [agentLogs, setAgentLogs] = useState<AgentLogEntry[]>([]);
   const [agentIsActive, setAgentIsActive] = useState(false);
-  const [agentCurrentStep, setAgentCurrentStep] = useState<string | undefined>(undefined);
 
   const pushLog = (type: AgentLogEntry["type"], text: string, isLive = false) => {
     const entry: AgentLogEntry = {
@@ -549,7 +548,7 @@ export default function Chatbot() {
           if (!prev.includes(step)) return [...prev, step];
           return prev;
         });
-        setAgentCurrentStep(step);
+        
         setAgentIsActive(true);
         pushLog("step", step, true);
         contentToClean = contentToClean.replace(sMatch[0], "").trim();
@@ -572,7 +571,7 @@ export default function Chatbot() {
         const query = srMatch[1].trim();
         hasChanges = true;
         pushLog("search", `Searching: "${query}"`, true);
-        setAgentCurrentStep(`Searching for: ${query}`);
+        
         setAgentIsActive(true);
         contentToClean = contentToClean.replace(srMatch[0], "").trim();
       }
@@ -584,7 +583,7 @@ export default function Chatbot() {
         const what = wrMatch[1].trim();
         hasChanges = true;
         pushLog("write", what, true);
-        setAgentCurrentStep(what);
+        
         setAgentIsActive(true);
         contentToClean = contentToClean.replace(wrMatch[0], "").trim();
       }
@@ -602,7 +601,7 @@ export default function Chatbot() {
       // If no CONTINUE tag and agent was active, mark as done
       if (!shouldContinue && agentIsActive) {
         setAgentIsActive(false);
-        setAgentCurrentStep(undefined);
+        
         if (agentLogs.length > 0) {
           pushLog("done", "Task completed successfully.");
         }
@@ -1094,7 +1093,7 @@ export default function Chatbot() {
       setAgentLogs([]);
       setAgentSteps([]);
       setAgentIsActive(false);
-      setAgentCurrentStep(undefined);
+      
     }
 
     // Optimistic UI update
@@ -1385,7 +1384,6 @@ export default function Chatbot() {
               <ManusComputerMockup
                 logs={agentLogs}
                 isActive={agentIsActive}
-                currentStep={agentCurrentStep}
                 currentCode={messages[messages.length - 1]?.role === "bot" ? messages[messages.length - 1].content : ""}
               />
             </div>
