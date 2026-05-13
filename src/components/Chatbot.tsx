@@ -218,6 +218,8 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
 }
 
 export default function Chatbot() {
+  const { user, profileAvatar, isAuthenticated } = useAuth();
+  const router = useRouter();
   const { isChatOpen: isOpen, setIsChatOpen: setIsOpen, chatTab: activeTab, setChatTab: setActiveTab } = useModal();
   const [isMinimized, setIsMinimized] = useState(false);
   // Keep initial render deterministic for SSR; hydrate popup preference after mount.
@@ -272,8 +274,6 @@ export default function Chatbot() {
   const [showSoundModal, setShowSoundModal] = useState<boolean>(false);
 
   // Auth & Usage States
-  const { user, profileAvatar, isAuthenticated } = useAuth();
-  const router = useRouter();
   const [tokensLeft, setTokensLeft] = useState(30);
 
   useEffect(() => {
