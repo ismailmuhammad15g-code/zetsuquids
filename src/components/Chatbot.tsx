@@ -1388,7 +1388,6 @@ export default function Chatbot() {
                 isActive={agentIsActive}
                 currentStep={agentCurrentStep}
                 currentCode={messages[messages.length - 1]?.role === "bot" ? messages[messages.length - 1].content : ""}
-                currentCode={messages[messages.length - 1]?.role === "bot" ? messages[messages.length - 1].content : ""}
               />
             </div>
           )}
