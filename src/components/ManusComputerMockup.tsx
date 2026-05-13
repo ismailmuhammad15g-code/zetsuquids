@@ -1,5 +1,5 @@
 "use client";
-import { CheckCircle2, ChevronRight, Code2, Loader2, Maximize, Minus, PauseCircle, Terminal, X } from "lucide-react";
+import { CheckCircle2, ChevronRight, Loader2, Maximize, Minus, PauseCircle, Terminal, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
@@ -18,10 +18,13 @@ interface ManusComputerMockupProps {
     filename?: string;
 }
 
-export default function ManusComputerMockup({ logs, isActive, currentCode, filename = "ai_news_findings.md" }: ManusComputerMockupProps) {
+export default function ManusComputerMockup({ logs, isActive, currentCode, filename = "task_workflow.md" }: ManusComputerMockupProps) {
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const [elapsed, setElapsed] = useState(0);
     const startTime = useRef(Date.now());
+    
+    // Get the latest log entry for real-time display
+    const latestLog = logs.length > 0 ? logs[logs.length - 1] : null;
 
     // Auto-scroll to bottom of logs
     useEffect(() => {
@@ -60,26 +63,24 @@ export default function ManusComputerMockup({ logs, isActive, currentCode, filen
                     <span className="ml-2 font-semibold text-slate-700 text-sm">ZetsuGuide AI Workstation</span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                        <span className="text-[10px] font-bold text-green-600 uppercase tracking-tight">Secure</span>
-                    </div>
                     <Terminal size={14} className="text-slate-400" />
                 </div>
             </div>
 
-            {/* Professional Browser/App Address Bar */}
+            {/* Real-time Operation Status Bar */}
             <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 border-b border-slate-200">
                 <div className="flex items-center gap-1.5 text-slate-400">
-                    <ChevronRight size={14} className="rotate-180" />
-                    <ChevronRight size={14} />
+                    <Terminal size={12} />
                 </div>
-                <div className="flex-1 bg-white border border-slate-200 rounded-md py-1 px-3 flex items-center gap-2 shadow-sm">
-                    <span className="text-slate-300 text-xs font-semibold select-none">https://</span>
-                    <span className="text-slate-600 text-xs font-medium">ai.zetsuguide.com/workspace/agent-01</span>
+                <div className="flex-1 bg-slate-900 border border-slate-800 rounded-md py-1.5 px-3 flex items-center gap-2 shadow-inner">
+                    <span className="text-emerald-500 text-[10px] font-mono font-bold select-none whitespace-nowrap">bash ~ agent:</span>
+                    <span className="text-slate-300 text-[11px] font-mono truncate">
+                        {isActive ? (latestLog?.text || "Initializing kernel...") : "Session terminated (idle)"}
+                    </span>
+                    {isActive && <span className="w-1.5 h-3 bg-emerald-500 animate-pulse"></span>}
                 </div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded">
-                    V2.5.0
+                <div className="text-[10px] font-bold text-slate-500 font-mono">
+                    PID: {isActive ? '8842' : '----'}
                 </div>
             </div>
 
