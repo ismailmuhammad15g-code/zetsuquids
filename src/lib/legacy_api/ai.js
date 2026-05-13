@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 // ============ DEEP RESEARCH AGENT ============
 
 // 1. Generate search queries (Brainstorming)
-async function generateSearchQueries(query, aiApiKey, aiUrl) {
+async function generateSearchQueries(query, aiApiKey, aiUrl, model) {
   try {
     console.log("🧠 Generating research queries for:", query);
 
@@ -21,6 +21,7 @@ async function generateSearchQueries(query, aiApiKey, aiUrl) {
           },
           { role: "user", content: query }
         ],
+        model: model || "openai/gpt-oss-120b",
         max_tokens: 200,
         temperature: 0.5,
       }),
@@ -162,7 +163,7 @@ async function searchDuckDuckGo(query) {
 
 // 4. MAIN AGENT: Deep Research Logic
 // 4. MAIN AGENT: Deep Research Logic
-async function deepResearch(query, aiApiKey, aiUrl, providedQueries = null) {
+async function deepResearch(query, aiApiKey, aiUrl, model, providedQueries = null) {
   try {
     // Step 1: Brainstorm queries (or use provided strategy)
     let queries = [];
@@ -174,7 +175,7 @@ async function deepResearch(query, aiApiKey, aiUrl, providedQueries = null) {
       console.log("🤔 Using strategy-provided queries:", providedQueries);
       queries = providedQueries;
     } else {
-      queries = await generateSearchQueries(query, aiApiKey, aiUrl);
+      queries = await generateSearchQueries(query, aiApiKey, aiUrl, model);
       console.log("🤔 Research Plan:", queries);
     }
 
@@ -471,6 +472,7 @@ async function executeSubAgentWorkflow(
     query,
     apiKey,
     apiUrl,
+    model,
     researchQuery,
   );
   const researchData = researchResult.success
@@ -518,7 +520,7 @@ async function executeDeepReasoning(query, apiKey, apiUrl, model) {
   );
 
   // STAGE 2: RESEARCH
-  const researchResult = await deepResearch(query, apiKey, apiUrl);
+  const researchResult = await deepResearch(query, apiKey, apiUrl, model);
   const externalData = researchResult.success
     ? researchResult.sources
       .map(
@@ -1086,7 +1088,7 @@ export default async function handler(req, res) {
 
     // BRANCH: STANDARD MODE (Existing Logic)
     if (userMessage && !skipCreditDeduction && apiKey) {
-      const fetchResult = await deepResearch(userMessage, apiKey, apiUrl);
+      const fetchResult = await deepResearch(userMessage, apiKey, apiUrl, validatedModel);
 
       console.log("📊 Deep Research result:", {
         success: fetchResult.success,
