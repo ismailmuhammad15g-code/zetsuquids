@@ -1246,12 +1246,7 @@ export default function Chatbot() {
         return;
       }
 
-      // Phase 1: Show "Reading documentation..." shimmer
       setIsReadingDocs(true);
-      if (!isHidden) {
-        setAgentIsActive(true);
-        pushLog("thought", "Analyzing request and searching knowledge base...", true);
-      }
 
       const searchResults = basicSearch(text, guides);
       setIsBrowsingGuides((searchResults as any[]).length > 0);
