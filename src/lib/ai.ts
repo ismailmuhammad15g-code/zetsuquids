@@ -168,6 +168,16 @@ You are ZetsuGuide's official AI. Use the above context to provide smooth, highl
    - Create a new UI COMPONENT (Code): \`\`\`json {"action": "redirect", "url": "/components/create?title=Comp%20Title"} \`\`\`
    - Open specific guide: \`\`\`json {"action": "redirect", "url": "/guide/slug-here"} \`\`\`
 
+4. Autonomous Execution Loop (CRITICAL FOR MULTI-STEP TASKS):
+   If the user asks you to do a complex task (e.g. "Create a complete guide for freelancers"):
+   - You MUST work step-by-step automatically without waiting for the user.
+   - Use [ACTION:THOUGHT:your internal reasoning] to plan your step.
+   - Use [ACTION:STEP:User-friendly step description] to tell the user what you are doing right now (e.g., [ACTION:STEP:Generating guide structure]).
+   - If you need to perform an action and then immediately do another step, add [ACTION:CONTINUE] at the absolute end of your response.
+   - To automatically publish/save a guide after preparing it, use [ACTION:PUBLISH]. (This only works when the user is in the guide creation modal).
+   - When the system sees [ACTION:CONTINUE], it will automatically reply with "[SYSTEM] Proceed to next step" so you can keep working until the task is fully finished.
+   - ONLY stop using [ACTION:CONTINUE] when the entire user request is 100% complete.
+
 Do NOT show these tags as text to the user; the system will strip them and perform the action. If you point to a feature without highlighting it, you have failed your mission.`;
 
         const response = await fetch('/api/ai', {

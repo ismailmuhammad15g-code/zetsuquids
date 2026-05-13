@@ -239,6 +239,16 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
   }, [formData, slugValue]);
 
   useEffect(() => {
+    const handleAISave = () => {
+      console.log("AI trigger save received");
+      const fakeEvent = { preventDefault: () => {} } as unknown as React.FormEvent;
+      handleSubmit(fakeEvent);
+    };
+    window.addEventListener('ai_trigger_save', handleAISave);
+    return () => window.removeEventListener('ai_trigger_save', handleAISave);
+  }, [formData, slugValue, user, saving]);
+
+  useEffect(() => {
     document.body.style.overflow = "hidden";
     setValidationErrors(validateContent(formData, "markdown"));
     return () => {

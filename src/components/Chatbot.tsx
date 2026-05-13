@@ -40,6 +40,7 @@ interface ChatMessage {
   type: ChatMessageType;
   guideId?: string | number;
   relatedGuides?: unknown[];
+  isHidden?: boolean;
 }
 
 interface SupportFormData {
@@ -125,6 +126,10 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
   displayedContent = displayedContent.replace(/\[ACTION:REDIRECT:[^\]]*\]?/g, "");
   displayedContent = displayedContent.replace(/\[ACTION:HIGHLIGHT:[^\]]*\]?/g, "");
   displayedContent = displayedContent.replace(/\[ACTION:MEMORY:[\s\S]*?\]?/g, "");
+  displayedContent = displayedContent.replace(/\[ACTION:PUBLISH\]?/g, "");
+  displayedContent = displayedContent.replace(/\[ACTION:CONTINUE\]?/g, "");
+  displayedContent = displayedContent.replace(/\[ACTION:STEP:[^\]]*\]?/g, "");
+  displayedContent = displayedContent.replace(/\[ACTION:THOUGHT:[\s\S]*?\]?/g, "");
   displayedContent = displayedContent.replace(/```json\s*\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}\s*```/g, "");
   // Fallback for raw JSON if backticks are missing
   displayedContent = displayedContent.replace(/\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}/g, "");
@@ -266,6 +271,10 @@ export default function Chatbot() {
 
   // Tracks which message is currently being streamed (used to show live cursor)
   const [streamingMsgId, setStreamingMsgId] = useState<number | null>(null);
+
+  // Agentic execution state
+  const [agentSteps, setAgentSteps] = useState<string[]>([]);
+  const [triggerContinue, setTriggerContinue] = useState(false);
   const [guides, setGuides] = useState<Guide[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -491,12 +500,52 @@ export default function Chatbot() {
         }
       }
 
+      // 4.5. Action PUBLISH (Direct save)
+      if (contentToClean.includes("[ACTION:PUBLISH]")) {
+        contentToClean = contentToClean.replace("[ACTION:PUBLISH]", "").trim();
+        hasChanges = true;
+        window.dispatchEvent(new CustomEvent('ai_trigger_save'));
+      }
+
+      // 5. Action CONTINUE
+      const continueRegex = /\[ACTION:CONTINUE\]/g;
+      let shouldContinue = false;
+      if (continueRegex.test(contentToClean)) {
+        shouldContinue = true;
+        hasChanges = true;
+        contentToClean = contentToClean.replace(continueRegex, "").trim();
+      }
+
+      // 6. Action STEP
+      const stepRegex = /\[ACTION:STEP:(.+?)\]/g;
+      let sMatch;
+      while ((sMatch = stepRegex.exec(contentToClean)) !== null) {
+        const step = sMatch[1].trim();
+        hasChanges = true;
+        setAgentSteps((prev) => {
+          if (!prev.includes(step)) return [...prev, step];
+          return prev;
+        });
+        contentToClean = contentToClean.replace(sMatch[0], "").trim();
+      }
+      
+      // Clean up THOUGHT from state to prevent clutter
+      const thoughtRegex = /\[ACTION:THOUGHT:([\s\S]*?)\]/g;
+      if (thoughtRegex.test(contentToClean)) {
+        hasChanges = true;
+        contentToClean = contentToClean.replace(thoughtRegex, "").trim();
+      }
+
       if (hasChanges) {
         setMessages((prev) => {
           const newMessages = [...prev];
           newMessages[newMessages.length - 1] = { ...newMessages[newMessages.length - 1], content: contentToClean };
           return newMessages;
         });
+      }
+      
+      if (shouldContinue) {
+        setTriggerContinue(true);
       }
     }
   }, [messages, isTyping, user?.email]);
@@ -894,9 +943,20 @@ export default function Chatbot() {
     }
   }, [isOpen, activeTab, user?.email, unreadSupportCount]);
 
-  async function handleSend(e: React.FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    if (triggerContinue) {
+      setTriggerContinue(false);
+      setTimeout(() => {
+         handleSend(null, "[SYSTEM] Action completed successfully. Proceed to the next step. Output ONLY the next action.", true);
+      }, 1000);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triggerContinue]);
+
+  async function handleSend(e?: React.FormEvent<HTMLFormElement> | null, forceInput?: string, isHidden = false) {
     e?.preventDefault();
-    if (!userInput.trim()) return;
+    const text = forceInput || userInput.trim();
+    if (!text) return;
 
     // Check Auth
     if (!isAuthenticated()) {
@@ -912,8 +972,6 @@ export default function Chatbot() {
     if (!user) {
       return;
     }
-
-    const text = userInput.trim();
 
     // Check if user is confirming support ticket
     if (awaitingSupportConfirmation && text.toLowerCase() === "yes") {
@@ -954,6 +1012,7 @@ export default function Chatbot() {
       role: "user",
       content: text,
       type: "text",
+      isHidden: isHidden,
     };
     setMessages((prev) => [...prev, userMsg] as ChatMessage[]);
     setIsTyping(true);
@@ -1532,7 +1591,7 @@ export default function Chatbot() {
                   )}
 
                   {/* Messages */}
-                  {messages.map((msg) => {
+                  {messages.filter((msg) => !msg.isHidden).map((msg) => {
                     const isArabic = isArabicText(msg.content);
                     return (
                       <div
@@ -1597,6 +1656,37 @@ export default function Chatbot() {
                       </div>
                     );
                   })}
+
+                  {/* Agent Task Steps UI */}
+                  {agentSteps.length > 0 && (
+                    <div className="flex flex-col gap-2 mt-4 mb-2 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Sparkles size={16} className="text-purple-600 animate-pulse" />
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Agent Workspace</span>
+                      </div>
+                      <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm flex flex-col gap-2">
+                        {agentSteps.map((step, idx) => {
+                          // The last step might be active if the agent is still running, otherwise completed
+                          const isLast = idx === agentSteps.length - 1;
+                          const isCompleted = !isLast || !triggerContinue; // If we're not triggering continue, it's done
+                          return (
+                            <div key={idx} className="flex items-center gap-2.5">
+                              {isCompleted ? (
+                                <div className="w-5 h-5 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                </div>
+                              ) : (
+                                <div className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
+                                  <Loader2 size={12} className="animate-spin" />
+                                </div>
+                              )}
+                              <span className={`text-sm ${isCompleted ? 'text-slate-600' : 'text-slate-800 font-medium'}`}>{step}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Premium Skeleton Loading chat bubble (Thinking state) */}
                   {isTyping && isReadingDocs && (
