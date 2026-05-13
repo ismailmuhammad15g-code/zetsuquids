@@ -18,7 +18,7 @@ import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import mermaid from "mermaid";
 import { useAuth } from "../contexts/AuthContext";
-import { streamAIResponse, isAIConfigured } from "../lib/ai";
+import { streamAIResponse, isAIConfigured, basicSearch } from "../lib/ai";
 import { Guide, guidesApi } from "../lib/api";
 import { supabase } from "../lib/supabase";
 import { supportApi } from "../lib/supportApi";
@@ -244,6 +244,7 @@ export default function Chatbot() {
   const [userInput, setUserInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isReadingDocs, setIsReadingDocs] = useState(false);
+  const [isBrowsingGuides, setIsBrowsingGuides] = useState(false);
   // Tracks which message is currently being streamed (used to show live cursor)
   const [streamingMsgId, setStreamingMsgId] = useState<number | null>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
@@ -922,9 +923,24 @@ export default function Chatbot() {
       // Phase 1: Show "Reading documentation..." shimmer
       setIsReadingDocs(true);
 
+      const searchResults = basicSearch(text, guides);
+      setIsBrowsingGuides((searchResults as any[]).length > 0);
+
       // Inject current page context
       const currentPage = window.location.pathname;
-      const enhancedText = `[User is currently on page: ${currentPage}]\n${text}`;
+      let pageContextInfo = "User is currently on the Main Page / Dashboard.";
+      if (currentPage.includes('/guides/')) {
+         pageContextInfo = `User is currently reading a specific guide at path: ${currentPage}.`;
+      } else if (currentPage.includes('/auth')) {
+         pageContextInfo = "User is on the Login/Register page.";
+      } else if (currentPage.includes('/pricing')) {
+         pageContextInfo = "User is looking at the Premium Pricing plans.";
+      } else if (currentPage.includes('/settings')) {
+         pageContextInfo = "User is in the Settings area.";
+      } else if (currentPage !== '/') {
+         pageContextInfo = `User is on the page: ${currentPage}.`;
+      }
+      const enhancedText = `[SYSTEM NOTE: ${pageContextInfo}]\n\nUser: ${text}`;
 
       // Create a placeholder streaming message
       const botMsgId = Date.now() + 1;
@@ -1342,42 +1358,46 @@ export default function Chatbot() {
                   )}
 
                   {/* Upgrade Overlay */}
-                  {showUpgrade && isAuthenticated() && activeTab === "chat" && (
-                    <div className="absolute inset-0 z-30 bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
-                      <div className="mb-6 relative">
-                        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center animate-pulse shadow-xl">
-                          <Zap size={40} className="text-yellow-500" />
+                  {showUpgrade && isAuthenticated() && (
+                    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+                      <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative flex flex-col items-center border border-slate-200">
+                        <button onClick={() => setShowUpgrade(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-800"><X size={20}/></button>
+                        <div className="mb-6 relative">
+                          <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center animate-pulse shadow-inner border border-slate-200">
+                            <Zap size={40} className="text-yellow-500" />
+                          </div>
+                          <div className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center shadow-lg">
+                            <Lock size={16} className="text-white" />
+                          </div>
                         </div>
-                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center animate-bounce shadow-lg">
-                          <Lock size={16} className="text-white" />
+                        <h3 className="text-2xl font-bold text-slate-900 mb-2">
+                          {tokensLeft === 0
+                            ? "Out of Queries"
+                            : "Energy Status"}
+                        </h3>
+                        <p className="text-sm text-slate-500 mb-8 max-w-[280px]">
+                          {tokensLeft === 0
+                            ? "You've used all your free queries. Upgrade to Premium for unlimited AI access!"
+                            : `You have ${tokensLeft} free queries remaining. Upgrade to Premium for more!`}
+                        </p>
+                        <div className="flex flex-col gap-3 w-full">
+                          <button
+                            onClick={() => {
+                              setIsOpen(false);
+                              setShowUpgrade(false);
+                              router.push("/pricing");
+                            }}
+                            className="w-full px-6 py-3.5 bg-slate-900 text-white font-bold text-sm rounded-xl hover:bg-slate-800 transition-colors shadow-lg"
+                          >
+                            Upgrade Now
+                          </button>
+                          <button
+                            onClick={() => setShowUpgrade(false)}
+                            className="w-full px-6 py-3.5 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 transition-colors"
+                          >
+                            {tokensLeft > 0 ? "Continue Free" : "Maybe Later"}
+                          </button>
                         </div>
-                      </div>
-                      <h3 className="text-2xl font-bold text-white mb-2">
-                        {tokensLeft === 0
-                          ? "Out of Queries"
-                          : "Energy Status"}
-                      </h3>
-                      <p className="text-sm text-slate-300 mb-6 max-w-[280px]">
-                        {tokensLeft === 0
-                          ? "You've used all your free queries. Upgrade to Premium for unlimited AI access!"
-                          : `You have ${tokensLeft} free queries remaining. Upgrade to Premium for more!`}
-                      </p>
-                      <div className="flex flex-col gap-3 w-full max-w-[240px]">
-                        <button
-                          onClick={() => {
-                            setIsOpen(false);
-                            router.push("/pricing");
-                          }}
-                          className="w-full px-6 py-3 bg-white text-slate-900 font-bold text-sm rounded-xl hover:scale-105 transition-transform shadow-lg"
-                        >
-                          Upgrade Now
-                        </button>
-                        <button
-                          onClick={() => setShowUpgrade(false)}
-                          className="w-full px-6 py-3 bg-slate-800 border border-slate-700 text-white font-medium text-sm rounded-xl hover:bg-slate-700 transition-colors"
-                        >
-                          {tokensLeft > 0 ? "Continue Free" : "Maybe Later"}
-                        </button>
                       </div>
                     </div>
                   )}
@@ -1523,7 +1543,9 @@ export default function Chatbot() {
                         
                         <div className="flex items-center gap-2 mb-3 w-full">
                            <Loader2 className="animate-spin text-black" size={14} />
-                           <span className="text-black text-xs font-bold uppercase tracking-wider">Reading documents...</span>
+                           <span className="text-black text-xs font-bold uppercase tracking-wider">
+                             {isBrowsingGuides ? "Reading documents..." : "Thinking..."}
+                           </span>
                         </div>
 
                         {/* Skeleton Lines */}
