@@ -12,24 +12,24 @@ import {
   X,
   Zap,
 } from "lucide-react";
+import mermaid from "mermaid";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
-import mermaid from "mermaid";
 import { useAuth } from "../contexts/AuthContext";
-import { streamAIResponse, isAIConfigured, basicSearch } from "../lib/ai";
+import { useModal } from "../contexts/ModalContext";
+import { basicSearch, isAIConfigured, streamAIResponse } from "../lib/ai";
 import { Guide, guidesApi } from "../lib/api";
+import { getAvatarForUser } from "../lib/avatar";
 import { supabase } from "../lib/supabase";
 import { supportApi } from "../lib/supportApi";
-import { getAvatarForUser } from "../lib/avatar";
 import BotIcon from "./BotIcon";
 import DirectSupportChat from "./DirectSupportChat";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { useModal } from "../contexts/ModalContext";
-import { Reasoning, ReasoningTrigger, ReasoningContent } from "./ui/reasoning";
 import ManusComputerMockup, { type AgentLogEntry } from "./ManusComputerMockup";
+import { Reasoning, ReasoningContent, ReasoningTrigger } from "./ui/reasoning";
 
 type ChatRole = "user" | "bot" | "assistant" | "system";
 type ChatMessageType = "text" | "error" | "limit_reached";
