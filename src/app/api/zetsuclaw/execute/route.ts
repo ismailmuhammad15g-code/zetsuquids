@@ -33,33 +33,50 @@ Be comprehensive but concise. Current time: ${new Date().toISOString()}`;
         if (CF_API_KEY && CF_API_URL.includes("cloudflare")) {
             try {
                 console.log("[ZetsuClaw] Attempting Cloudflare API...");
-                const fetchWithRetry = async (url: string, options: any, maxRetries = 3) => {
+                const FALLBACK_ACCOUNT_ID = "04d7be59de81eacb9f44fab1fa6d558b";
+                const FALLBACK_API_KEY = "cfut_H8HIV7wmyvp4ZIB2mXOteYnX8xKN2dNo3iM0tC0j78936518";
+
+                const fetchWithRetry = async (url: string, apiKey: string, options: any, maxRetries = 3) => {
                     for (let i = 0; i <= maxRetries; i++) {
-                        const response = await fetch(url, options);
+                        const response = await fetch(url, {
+                            ...options,
+                            headers: { ...options.headers, "Authorization": `Bearer ${apiKey}` }
+                        });
+                        
                         if (response.status === 429 && i < maxRetries) {
-                            const waitTime = Math.pow(2, i) * 2000 + Math.random() * 1000;
+                            const waitTime = Math.pow(2, i) * 3000 + Math.random() * 1000;
                             console.log(`[ZetsuClaw] Rate limited (429). Retrying in ${Math.round(waitTime)}ms... (Attempt ${i + 1}/${maxRetries})`);
                             await new Promise(r => setTimeout(r, waitTime));
                             continue;
                         }
                         return response;
                     }
-                    return fetch(url, options); // Should not reach here but for type safety
+                    return fetch(url, options); 
                 };
 
-                const cfResponse = await fetchWithRetry(CF_API_URL, {
+                const requestBody = {
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: `Task: ${prompt}` }
+                    ]
+                };
+
+                let cfResponse = await fetchWithRetry(CF_API_URL, CF_API_KEY, {
                     method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${CF_API_KEY}`
-                    },
-                    body: JSON.stringify({
-                        messages: [
-                            { role: "system", content: systemPrompt },
-                            { role: "user", content: `Task: ${prompt}` }
-                        ]
-                    }),
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(requestBody),
                 });
+
+                // If primary account fails with 429, try fallback account
+                if (cfResponse.status === 429 && FALLBACK_ACCOUNT_ID && FALLBACK_API_KEY) {
+                    console.warn("[ZetsuClaw] Primary account rate limited. Switching to fallback...");
+                    const fallbackUrl = CF_API_URL.replace(/\/accounts\/[^\/]+\//, `/accounts/${FALLBACK_ACCOUNT_ID}/`);
+                    cfResponse = await fetchWithRetry(fallbackUrl, FALLBACK_API_KEY, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(requestBody),
+                    });
+                }
 
                 if (cfResponse.ok) {
                     const cfData = await cfResponse.json();

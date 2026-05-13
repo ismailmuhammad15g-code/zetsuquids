@@ -554,9 +554,9 @@ async function executeDeepReasoning(query, apiKey, apiUrl, model) {
 }
 
 // Exponential backoff retry logic for API calls with intelligent wait times
-async function fetchWithExponentialBackoff(url, options, maxRetries = 4) {
+async function fetchWithExponentialBackoff(url, options, maxRetries = 5) {
   let lastError;
-  const waitTimes = [2000, 5000, 10000]; // 2s, 5s, 10s
+  const waitTimes = [3000, 7000, 15000, 30000, 45000]; // 3s, 7s, 15s, 30s, 45s
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -660,7 +660,7 @@ export default async function handler(req, res) {
       body || {};
 
     // Validate and set default model
-    const validatedModel = model || "@cf/moonshotai/kimi-k2.6";
+    const validatedModel = model || "@cf/meta/llama-3.1-8b-instruct";
 
     // Get the last user message for intelligent fetch
     const userMessage = messages?.find((m) => m.role === "user")?.content || "";
@@ -1339,48 +1339,73 @@ URLs: /community, /support, /guides, /pricing.`;
 
 
     // ═══════════════════════════════════════════════════════
-    // MAIN AI REQUEST FLOW (for all cases)
+    // MAIN AI REQUEST FLOW WITH ACCOUNT FALLBACK
     // ═══════════════════════════════════════════════════════
 
     let response;
+    let currentApiKey = apiKey;
+    let currentApiUrl = apiUrl;
+    let isFallbackActive = false;
+
+    // Fallback Account Credentials provided by user
+    const FALLBACK_ACCOUNT_ID = "04d7be59de81eacb9f44fab1fa6d558b";
+    const FALLBACK_API_KEY = "cfut_H8HIV7wmyvp4ZIB2mXOteYnX8xKN2dNo3iM0tC0j78936518";
+
+    // Re-verify model default to Llama 3.1 8B for better stability
+    const activeModel = validatedModel || "@cf/meta/llama-3.1-8b-instruct";
+    requestPayload.model = activeModel;
+
     try {
-      // Determine request parameters based on whether we want streaming
-      let fetchUrl = apiUrl;
+      // Loop to allow trying fallback account if primary is rate limited
+      for (let accountAttempt = 1; accountAttempt <= 2; accountAttempt++) {
+        console.log(`🚀 AI Attempt with Account ${accountAttempt}:`, {
+          model: activeModel,
+          isCloudflare,
+          isFallback: isFallbackActive
+        });
 
-      if (!isCloudflare) {
-        console.log("🚀 Sending request to AI API:", {
-          model: validatedModel,
-          streaming: wantsStream,
-        });
-      } else {
-        console.log("🚀 Sending request to Cloudflare AI API:", {
-          model: validatedModel,
-          streaming: wantsStream,
-        });
+        const fetchOptions = {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestPayload),
+        };
+
+        if (isCloudflare || currentApiUrl.includes("routeway.ai")) {
+            fetchOptions.headers["Authorization"] = `Bearer ${currentApiKey}`;
+        }
+
+        response = await fetchWithExponentialBackoff(currentApiUrl, fetchOptions, accountAttempt === 1 ? 4 : 2);
+
+        // If successful, break the account loop
+        if (response.ok) {
+          console.log(`✅ AI Response Success (Account ${accountAttempt})`);
+          break;
+        }
+
+        // If rate limited (429) and we have a fallback available, switch accounts
+        if (response.status === 429 && accountAttempt === 1 && FALLBACK_ACCOUNT_ID && FALLBACK_API_KEY) {
+          console.warn("⚠️ Primary Account Rate Limited. Switching to Fallback Account...");
+          currentApiKey = FALLBACK_API_KEY;
+          
+          // Reconstruct URL with fallback account ID
+          // Matches /accounts/[ANY_ID]/
+          currentApiUrl = currentApiUrl.replace(/\/accounts\/[^\/]+\//, `/accounts/${FALLBACK_ACCOUNT_ID}/`);
+          isFallbackActive = true;
+          continue; 
+        }
+
+        // If we get here and it's still not OK, we stop
+        break;
       }
 
-
-      const fetchOptions = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestPayload),
-      };
-      if (isCloudflare || apiUrl.includes("routeway.ai")) {
-          fetchOptions.headers["Authorization"] = `Bearer ${apiKey}`;
-      }
-
-      response = await fetchWithExponentialBackoff(fetchUrl, fetchOptions, 3);
-
-      console.log("📥 Received response:", {
+      console.log("📥 Received final response:", {
         status: response.status,
-        statusText: response.statusText,
-        contentType: response.headers.get("content-type"),
-        hasBody: !!response.body,
+        isFallback: isFallbackActive
       });
     } catch (fetchError) {
-      console.error("❌ API failed:", fetchError);
+      console.error("❌ API execution failed:", fetchError);
       return res.status(504).json({
         error: "AI service unavailable",
         details: "The AI service is temporarily unavailable. Please try again.",

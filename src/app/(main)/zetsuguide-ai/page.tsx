@@ -1979,7 +1979,7 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
         ...cleanedHistory
       ];
 
-      const modelToUse = customModel || "@cf/moonshotai/kimi-k2.6";
+      const modelToUse = customModel || "@cf/meta/llama-3.1-8b-instruct";
       const bodyPayload = {
         model: modelToUse,
         messages: messagesPayload,
