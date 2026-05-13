@@ -469,7 +469,7 @@ export default function Chatbot() {
           user_email: user.email, 
           credits: newBalance,
           updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'user_email' });
 
       if (updateError) throw updateError;
 
