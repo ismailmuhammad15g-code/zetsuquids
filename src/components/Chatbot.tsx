@@ -263,14 +263,14 @@ export default function Chatbot() {
 
   useEffect(() => {
     if (user?.email && typeof window !== "undefined") {
-       import("../lib/github-assets").then(({ RAW_BASE }) => {
-          fetch(`${RAW_BASE}/users/memory/${user.email}.json?t=${Date.now()}`)
-            .then(res => res.ok ? res.json() : null)
-            .then(data => {
-               if (data && data.memory) setUserMemory(data.memory);
-            })
-            .catch(() => {});
-       });
+      import("../lib/github-assets").then(({ RAW_BASE }) => {
+        fetch(`${RAW_BASE}/users/memory/${user.email}.json?t=${Date.now()}`)
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            if (data && data.memory) setUserMemory(data.memory);
+          })
+          .catch(() => { });
+      });
     }
   }, [user?.email]);
 
@@ -461,38 +461,38 @@ export default function Chatbot() {
       const highlightRegex = /\[ACTION:HIGHLIGHT:(.+?)\]/g;
       let hMatch;
       while ((hMatch = highlightRegex.exec(contentToClean)) !== null) {
-         const selector = hMatch[1].trim();
-         hasChanges = true;
-         try {
-             const elements = document.querySelectorAll(selector);
-             if (elements.length > 0) {
-               elements.forEach(el => {
-                   el.classList.add('ai-highlight-glow');
-                   // Scroll into view if not visible
-                   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                   setTimeout(() => el.classList.remove('ai-highlight-glow'), 8000);
-               });
-             }
-         } catch(e) {
-           console.warn("AI Highlight selector failed:", selector, e);
-         }
+        const selector = hMatch[1].trim();
+        hasChanges = true;
+        try {
+          const elements = document.querySelectorAll(selector);
+          if (elements.length > 0) {
+            elements.forEach(el => {
+              el.classList.add('ai-highlight-glow');
+              // Scroll into view if not visible
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              setTimeout(() => el.classList.remove('ai-highlight-glow'), 8000);
+            });
+          }
+        } catch (e) {
+          console.warn("AI Highlight selector failed:", selector, e);
+        }
       }
       contentToClean = contentToClean.replace(highlightRegex, "").trim();
 
       // 2. Memory Action
       const memoryMatch = contentToClean.match(/\[ACTION:MEMORY:([\s\S]+?)\]/);
       if (memoryMatch) {
-         const newMemory = memoryMatch[1].trim();
-         contentToClean = contentToClean.replace(memoryMatch[0], "").trim();
-         hasChanges = true;
-         
-         if (user?.email) {
-            setUserMemory(newMemory);
-            import("../lib/github-assets").then(({ uploadTextToGitHub }) => {
-               uploadTextToGitHub(JSON.stringify({ memory: newMemory }), `users/memory/${user.email}.json`, `Update user memory for ${user.email}`)
-                 .catch(console.error);
-            });
-         }
+        const newMemory = memoryMatch[1].trim();
+        contentToClean = contentToClean.replace(memoryMatch[0], "").trim();
+        hasChanges = true;
+
+        if (user?.email) {
+          setUserMemory(newMemory);
+          import("../lib/github-assets").then(({ uploadTextToGitHub }) => {
+            uploadTextToGitHub(JSON.stringify({ memory: newMemory }), `users/memory/${user.email}.json`, `Update user memory for ${user.email}`)
+              .catch(console.error);
+          });
+        }
       }
 
       // 3. Try legacy bracket tag for redirect
@@ -555,7 +555,7 @@ export default function Chatbot() {
         pushLog("step", step, true);
         contentToClean = contentToClean.replace(sMatch[0], "").trim();
       }
-      
+
       // 7. Action THOUGHT
       const thoughtRegex2 = /\[ACTION:THOUGHT:([\s\S]*?)\]/g;
       let tMatch;
@@ -616,7 +616,7 @@ export default function Chatbot() {
           return newMessages;
         });
       }
-      
+
       if (shouldContinue) {
         setTriggerContinue(true);
       }
@@ -1020,7 +1020,7 @@ export default function Chatbot() {
     if (triggerContinue) {
       setTriggerContinue(false);
       setTimeout(() => {
-         handleSend(null, "[SYSTEM] Action completed successfully. Proceed to the next step. Output ONLY the next action.", true);
+        handleSend(null, "[SYSTEM] Action completed successfully. Proceed to the next step. Output ONLY the next action.", true);
       }, 1000);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1143,15 +1143,15 @@ export default function Chatbot() {
       const currentPage = window.location.pathname;
       let pageContextInfo = "User is currently on the Main Page / Dashboard.";
       if (currentPage.includes('/guides/')) {
-         pageContextInfo = `User is currently reading a specific guide at path: ${currentPage}.`;
+        pageContextInfo = `User is currently reading a specific guide at path: ${currentPage}.`;
       } else if (currentPage.includes('/auth')) {
-         pageContextInfo = "User is on the Login/Register page.";
+        pageContextInfo = "User is on the Login/Register page.";
       } else if (currentPage.includes('/pricing')) {
-         pageContextInfo = "User is looking at the Premium Pricing plans.";
+        pageContextInfo = "User is looking at the Premium Pricing plans.";
       } else if (currentPage.includes('/settings')) {
-         pageContextInfo = "User is in the Settings area.";
+        pageContextInfo = "User is in the Settings area.";
       } else if (currentPage !== '/') {
-         pageContextInfo = `User is on the page: ${currentPage}.`;
+        pageContextInfo = `User is on the page: ${currentPage}.`;
       }
       const enhancedText = `[SYSTEM NOTE: ${pageContextInfo}]\n[USER MEMORY: ${userMemory || 'No prior memory recorded.'}]\n\nUser: ${text}`;
 
@@ -1395,704 +1395,704 @@ export default function Chatbot() {
 
           {/* Main chat panel */}
           <div className="flex flex-col flex-1 min-w-0 overflow-hidden bg-white rounded-t-3xl sm:rounded-3xl">
-          {/* Header */}
-          <div
-            className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 cursor-pointer relative overflow-hidden"
-            onClick={() => isMinimized && setIsMinimized(false)}
-          >
-            <div className="absolute inset-0 bg-slate-50 pointer-events-none"></div>
-            <div className="flex items-center gap-3 relative z-10">
-              <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center shadow-sm overflow-hidden">
-                <BotIcon size={28} className="text-white" />
-              </div>
-              <div>
-                <h3 className="text-slate-900 font-bold text-sm tracking-wide">
-                  ZetsuGuide AI
-                </h3>
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-sm"></span>
-                  <span className="text-[10px] text-slate-500 font-medium">
-                    Online
-                  </span>
+            {/* Header */}
+            <div
+              className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 cursor-pointer relative overflow-hidden"
+              onClick={() => isMinimized && setIsMinimized(false)}
+            >
+              <div className="absolute inset-0 bg-slate-50 pointer-events-none"></div>
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center shadow-sm overflow-hidden">
+                  <BotIcon size={28} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-slate-900 font-bold text-sm tracking-wide">
+                    ZetsuGuide AI
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-sm"></span>
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      Online
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex items-center gap-1 relative z-10">
-              {!isMinimized && (
-                <div
-                  onClick={() => {
-                    if (!isAuthenticated()) {
-                      router.push("/auth");
-                      setIsOpen(false);
-                    } else {
-                      if (tokensLeft <= 0) {
-                        setShowUpgrade(true);
+              <div className="flex items-center gap-1 relative z-10">
+                {!isMinimized && (
+                  <div
+                    onClick={() => {
+                      if (!isAuthenticated()) {
+                        router.push("/auth");
+                        setIsOpen(false);
                       } else {
-                        setShowUpgrade(true);
+                        if (tokensLeft <= 0) {
+                          setShowUpgrade(true);
+                        } else {
+                          setShowUpgrade(true);
+                        }
                       }
-                    }
-                  }}
-                  className="hidden sm:flex items-center gap-1 px-2 py-1 bg-white border border-slate-200 rounded-full mr-2 cursor-pointer hover:bg-slate-50 transition-colors shadow-sm"
-                >
-                  <Zap
-                    size={12}
-                    className={
-                      tokensLeft > 0 ? "text-slate-700" : "text-slate-400"
-                    }
-                  />
-                  <span
-                    className={`text-[10px] font-bold ${tokensLeft > 0 ? "text-slate-700" : "text-red-500"}`}
+                    }}
+                    className="hidden sm:flex items-center gap-1 px-2 py-1 bg-white border border-slate-200 rounded-full mr-2 cursor-pointer hover:bg-slate-50 transition-colors shadow-sm"
                   >
-                    {loadingUsage ? "..." : `${tokensLeft}/30`}
-                  </span>
-                </div>
-              )}
-              {!isMinimized && (
+                    <Zap
+                      size={12}
+                      className={
+                        tokensLeft > 0 ? "text-slate-700" : "text-slate-400"
+                      }
+                    />
+                    <span
+                      className={`text-[10px] font-bold ${tokensLeft > 0 ? "text-slate-700" : "text-red-500"}`}
+                    >
+                      {loadingUsage ? "..." : `${tokensLeft}/30`}
+                    </span>
+                  </div>
+                )}
+                {!isMinimized && (
+                  <button
+                    onClick={(e: React.MouseEvent<HTMLElement>) => {
+                      e.stopPropagation();
+                      setIsMinimized(true);
+                    }}
+                    className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    <ChevronDown size={18} />
+                  </button>
+                )}
                 <button
                   onClick={(e: React.MouseEvent<HTMLElement>) => {
                     e.stopPropagation();
-                    setIsMinimized(true);
+                    setIsOpen(false);
                   }}
-                  className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 >
-                  <ChevronDown size={18} />
+                  <X size={18} />
                 </button>
-              )}
-              <button
-                onClick={(e: React.MouseEvent<HTMLElement>) => {
-                  e.stopPropagation();
-                  setIsOpen(false);
-                }}
-                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                <X size={18} />
-              </button>
+              </div>
             </div>
-          </div>
 
-          {/* Tab Navigation */}
-          {!isMinimized && (
-            <div className="flex gap-2 border-b border-slate-200 px-4 pb-0 pt-2 bg-slate-50">
-              <button
-                onClick={() => {
-                  setActiveTab("chat");
-                  setShowSupportForm(false);
-                }}
-                className={`px-4 py-2 rounded-t-lg font-semibold transition-all border border-b-0 ${activeTab === "chat"
-                  ? "bg-white text-slate-800 border-slate-200"
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50"
-                  }`}
-              >
-                AI Chat
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab("direct-support");
-                  setShowSupportForm(false);
-                }}
-                className={`px-4 py-2 rounded-t-lg font-semibold transition-all relative border border-b-0 flex items-center gap-2 ${activeTab === "direct-support"
-                  ? "bg-white text-slate-800 border-slate-200"
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50"
-                  }`}
-              >
-                Direct Support
-                {unreadSupportCount > 0 && (
-                  <span className="w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold shadow-sm animate-pulse">
-                    {unreadSupportCount}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab("support-form");
-                  setShowSupportForm(true);
-                }}
-                className={`px-4 py-2 rounded-t-lg font-semibold transition-all border border-b-0 ${activeTab === "support-form"
-                  ? "bg-white text-slate-800 border-slate-200"
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50"
-                  }`}
-              >
-                Support Form
-              </button>
-            </div>
-          )}
-
-          {/* Content */}
-          {!isMinimized && (
-            <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 relative">
-              {/* Content Area - Conditional based on activeTab */}
-              {/* AI Chat Tab Content */}
-              <div
-                className="flex-1 flex flex-col overflow-hidden relative"
-                style={{ display: activeTab === "chat" ? "flex" : "none" }}
-              >
-                <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent relative bg-slate-50">
-
-                  {/* Sound Permission Modal Overlay */}
-                  {showSoundModal && activeTab === "chat" && (
-                    <div className="absolute inset-0 z-30 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
-                      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 border border-slate-200 shadow-sm">
-                        <Zap size={32} className="text-indigo-500 animate-pulse" />
-                      </div>
-                      <h3 className="text-xl font-bold text-slate-800 mb-2">
-                        Enable Sound Notifications?
-                      </h3>
-                      <p className="text-sm text-slate-500 mb-6 max-w-[220px]">
-                        We can play a sound when ZetsuGuide AI finishes typing its response.
-                      </p>
-                      <div className="flex gap-3 w-full max-w-[220px]">
-                        <button
-                          onClick={() => handleSoundPermission(false)}
-                          className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 font-bold text-sm rounded-lg hover:bg-slate-200 transition-colors"
-                        >
-                          Later
-                        </button>
-                        <button
-                          onClick={() => handleSoundPermission(true)}
-                          className="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-lg hover:bg-indigo-500 transition-colors shadow-sm"
-                        >
-                          Allow
-                        </button>
-                      </div>
-                    </div>
+            {/* Tab Navigation */}
+            {!isMinimized && (
+              <div className="flex gap-2 border-b border-slate-200 px-4 pb-0 pt-2 bg-slate-50">
+                <button
+                  onClick={() => {
+                    setActiveTab("chat");
+                    setShowSupportForm(false);
+                  }}
+                  className={`px-4 py-2 rounded-t-lg font-semibold transition-all border border-b-0 ${activeTab === "chat"
+                    ? "bg-white text-slate-800 border-slate-200"
+                    : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50"
+                    }`}
+                >
+                  AI Chat
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab("direct-support");
+                    setShowSupportForm(false);
+                  }}
+                  className={`px-4 py-2 rounded-t-lg font-semibold transition-all relative border border-b-0 flex items-center gap-2 ${activeTab === "direct-support"
+                    ? "bg-white text-slate-800 border-slate-200"
+                    : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50"
+                    }`}
+                >
+                  Direct Support
+                  {unreadSupportCount > 0 && (
+                    <span className="w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold shadow-sm animate-pulse">
+                      {unreadSupportCount}
+                    </span>
                   )}
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab("support-form");
+                    setShowSupportForm(true);
+                  }}
+                  className={`px-4 py-2 rounded-t-lg font-semibold transition-all border border-b-0 ${activeTab === "support-form"
+                    ? "bg-white text-slate-800 border-slate-200"
+                    : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50"
+                    }`}
+                >
+                  Support Form
+                </button>
+              </div>
+            )}
 
-                  {/* Login Gate Overlay */}
-                  {!isAuthenticated() && activeTab === "chat" && (
-                    <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
-                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 border border-slate-200 shadow-sm">
-                        <Lock size={32} className="text-slate-400" />
-                      </div>
-                      <h3 className="text-xl font-bold text-slate-800 mb-2">
-                        Login Required
-                      </h3>
-                      <p className="text-sm text-slate-500 mb-6 max-w-[200px]">
-                        You must be logged in to chat with our AI assistant.
-                      </p>
-                      <div className="flex flex-col gap-3 w-full max-w-[200px]">
-                        <Link
-                          href="/auth"
-                          className="w-full px-6 py-2.5 bg-slate-900 text-white font-bold text-sm rounded-full hover:bg-slate-800 transition-colors shadow-sm"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          Login / Register
-                        </Link>
-                        <button
-                          onClick={() => setIsOpen(false)}
-                          className="text-slate-400 text-xs hover:text-slate-600 transition-colors"
-                        >
-                          Close
-                        </button>
-                      </div>
-                    </div>
-                  )}
+            {/* Content */}
+            {!isMinimized && (
+              <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 relative">
+                {/* Content Area - Conditional based on activeTab */}
+                {/* AI Chat Tab Content */}
+                <div
+                  className="flex-1 flex flex-col overflow-hidden relative"
+                  style={{ display: activeTab === "chat" ? "flex" : "none" }}
+                >
+                  <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent relative bg-slate-50">
 
-                  {/* Upgrade Overlay */}
-                  {showUpgrade && isAuthenticated() && (
-                    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
-                      <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative flex flex-col items-center border border-slate-200">
-                        <button onClick={() => setShowUpgrade(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-800"><X size={20}/></button>
-                        <div className="mb-6 relative">
-                          <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center animate-pulse shadow-inner border border-slate-200">
-                            <Zap size={40} className="text-yellow-500" />
-                          </div>
-                          <div className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center shadow-lg">
-                            <Lock size={16} className="text-white" />
-                          </div>
+                    {/* Sound Permission Modal Overlay */}
+                    {showSoundModal && activeTab === "chat" && (
+                      <div className="absolute inset-0 z-30 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+                        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 border border-slate-200 shadow-sm">
+                          <Zap size={32} className="text-indigo-500 animate-pulse" />
                         </div>
-                        <h3 className="text-2xl font-bold text-slate-900 mb-2">
-                          {tokensLeft === 0
-                            ? "Out of Queries"
-                            : "Energy Status"}
+                        <h3 className="text-xl font-bold text-slate-800 mb-2">
+                          Enable Sound Notifications?
                         </h3>
-                        <p className="text-sm text-slate-500 mb-8 max-w-[280px]">
-                          {tokensLeft === 0
-                            ? "You've used all your free queries. Upgrade to Premium for unlimited AI access!"
-                            : `You have ${tokensLeft} free queries remaining. Upgrade to Premium for more!`}
+                        <p className="text-sm text-slate-500 mb-6 max-w-[220px]">
+                          We can play a sound when ZetsuGuide AI finishes typing its response.
                         </p>
-                        <div className="flex flex-col gap-3 w-full">
+                        <div className="flex gap-3 w-full max-w-[220px]">
                           <button
-                            onClick={() => {
-                              setIsOpen(false);
-                              setShowUpgrade(false);
-                              router.push("/pricing");
-                            }}
-                            className="w-full px-6 py-3.5 bg-slate-900 text-white font-bold text-sm rounded-xl hover:bg-slate-800 transition-colors shadow-lg"
+                            onClick={() => handleSoundPermission(false)}
+                            className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 font-bold text-sm rounded-lg hover:bg-slate-200 transition-colors"
                           >
-                            Upgrade Now
+                            Later
                           </button>
                           <button
-                            onClick={() => setShowUpgrade(false)}
-                            className="w-full px-6 py-3.5 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 transition-colors"
+                            onClick={() => handleSoundPermission(true)}
+                            className="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-lg hover:bg-indigo-500 transition-colors shadow-sm"
                           >
-                            {tokensLeft > 0 ? "Continue Free" : "Maybe Later"}
+                            Allow
                           </button>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Support Form Overlay */}
-                  {showSupportForm && isAuthenticated() && activeTab === "chat" && (
-                    <div className="absolute inset-0 z-40 bg-slate-50 flex flex-col overflow-hidden">
-                      {/* Header */}
-                      <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-white">
-                        <h3 className="text-slate-800 font-bold text-lg">
-                          Contact Support
+                    {/* Login Gate Overlay */}
+                    {!isAuthenticated() && activeTab === "chat" && (
+                      <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 border border-slate-200 shadow-sm">
+                          <Lock size={32} className="text-slate-400" />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-800 mb-2">
+                          Login Required
                         </h3>
-                        <button
-                          onClick={() => setShowSupportForm(false)}
-                          className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-                        >
-                          <X size={20} />
-                        </button>
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
-                        <p className="text-slate-500 text-sm mb-4">
-                          Need help? Our support team is here for you!
+                        <p className="text-sm text-slate-500 mb-6 max-w-[200px]">
+                          You must be logged in to chat with our AI assistant.
                         </p>
-                        <div className="space-y-3">
-                          <div>
-                            <label className="text-slate-700 text-sm font-medium mb-1 block">
-                              Your Name
-                            </label>
-                            <input
-                              type="text"
-                              className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-200 shadow-sm"
-                              placeholder="John Doe"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-slate-700 text-sm font-medium mb-1 block">
-                              Email
-                            </label>
-                            <input
-                              type="email"
-                              className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-200 shadow-sm"
-                              placeholder="john@example.com"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-slate-700 text-sm font-medium mb-1 block">
-                              Message
-                            </label>
-                            <textarea
-                              className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-200 resize-none shadow-sm"
-                              rows={5}
-                              placeholder="Describe your issue..."
-                            />
-                          </div>
-                          <button className="w-full bg-slate-900 text-white font-bold py-3 rounded-lg hover:bg-slate-800 transition-all shadow-md">
-                            Send Message
+                        <div className="flex flex-col gap-3 w-full max-w-[200px]">
+                          <Link
+                            href="/auth"
+                            className="w-full px-6 py-2.5 bg-slate-900 text-white font-bold text-sm rounded-full hover:bg-slate-800 transition-colors shadow-sm"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            Login / Register
+                          </Link>
+                          <button
+                            onClick={() => setIsOpen(false)}
+                            className="text-slate-400 text-xs hover:text-slate-600 transition-colors"
+                          >
+                            Close
                           </button>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Messages */}
-                  {messages.filter((msg) => !msg.isHidden).map((msg) => {
-                    const isArabic = isArabicText(msg.content);
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}
-                      >
-                        {(msg.role === "assistant" || msg.role === "bot") && (
-                          <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center flex-shrink-0 shadow-sm border border-black">
-                            <BotIcon size={20} className="text-white" />
+                    {/* Upgrade Overlay */}
+                    {showUpgrade && isAuthenticated() && (
+                      <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+                        <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative flex flex-col items-center border border-slate-200">
+                          <button onClick={() => setShowUpgrade(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-800"><X size={20} /></button>
+                          <div className="mb-6 relative">
+                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center animate-pulse shadow-inner border border-slate-200">
+                              <Zap size={40} className="text-yellow-500" />
+                            </div>
+                            <div className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center shadow-lg">
+                              <Lock size={16} className="text-white" />
+                            </div>
                           </div>
-                        )}
-                        <div
-                          className={`max-w-[85%] ${msg.role === "user" ? "order-1" : ""}`}
-                        >
-                          <div
-                            className={`rounded-2xl px-4 py-3 shadow-sm border ${msg.role === "user"
-                              ? `bg-black text-white border-black ${isArabic ? "rounded-bl-none" : "rounded-tr-none"}`
-                              : `bg-white text-black border-black rounded-tl-none`
-                              }`}
+                          <h3 className="text-2xl font-bold text-slate-900 mb-2">
+                            {tokensLeft === 0
+                              ? "Out of Queries"
+                              : "Energy Status"}
+                          </h3>
+                          <p className="text-sm text-slate-500 mb-8 max-w-[280px]">
+                            {tokensLeft === 0
+                              ? "You've used all your free queries. Upgrade to Premium for unlimited AI access!"
+                              : `You have ${tokensLeft} free queries remaining. Upgrade to Premium for more!`}
+                          </p>
+                          <div className="flex flex-col gap-3 w-full">
+                            <button
+                              onClick={() => {
+                                setIsOpen(false);
+                                setShowUpgrade(false);
+                                router.push("/pricing");
+                              }}
+                              className="w-full px-6 py-3.5 bg-slate-900 text-white font-bold text-sm rounded-xl hover:bg-slate-800 transition-colors shadow-lg"
+                            >
+                              Upgrade Now
+                            </button>
+                            <button
+                              onClick={() => setShowUpgrade(false)}
+                              className="w-full px-6 py-3.5 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 transition-colors"
+                            >
+                              {tokensLeft > 0 ? "Continue Free" : "Maybe Later"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Support Form Overlay */}
+                    {showSupportForm && isAuthenticated() && activeTab === "chat" && (
+                      <div className="absolute inset-0 z-40 bg-slate-50 flex flex-col overflow-hidden">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-white">
+                          <h3 className="text-slate-800 font-bold text-lg">
+                            Contact Support
+                          </h3>
+                          <button
+                            onClick={() => setShowSupportForm(false)}
+                            className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
                           >
-                            {msg.role === "assistant" || msg.role === "bot" ? (
-                              <MarkdownMessage
-                                content={msg.content}
-                                isTyping={msg.id === streamingMsgId}
+                            <X size={20} />
+                          </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
+                          <p className="text-slate-500 text-sm mb-4">
+                            Need help? Our support team is here for you!
+                          </p>
+                          <div className="space-y-3">
+                            <div>
+                              <label className="text-slate-700 text-sm font-medium mb-1 block">
+                                Your Name
+                              </label>
+                              <input
+                                type="text"
+                                className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-200 shadow-sm"
+                                placeholder="John Doe"
                               />
-                            ) : (
-                              <p
-                                className={`text-sm leading-relaxed ${isArabic ? "arabic-text" : ""}`}
-                                dir={isArabic ? "rtl" : "ltr"}
-                                style={{
-                                  textAlign: isArabic ? "right" : "left",
-                                  direction: isArabic ? "rtl" : "ltr",
-                                  fontFamily: isArabic
-                                    ? "'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif"
-                                    : "inherit",
-                                }}
+                            </div>
+                            <div>
+                              <label className="text-slate-700 text-sm font-medium mb-1 block">
+                                Email
+                              </label>
+                              <input
+                                type="email"
+                                className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-200 shadow-sm"
+                                placeholder="john@example.com"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-slate-700 text-sm font-medium mb-1 block">
+                                Message
+                              </label>
+                              <textarea
+                                className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-200 resize-none shadow-sm"
+                                rows={5}
+                                placeholder="Describe your issue..."
+                              />
+                            </div>
+                            <button className="w-full bg-slate-900 text-white font-bold py-3 rounded-lg hover:bg-slate-800 transition-all shadow-md">
+                              Send Message
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Messages */}
+                    {messages.filter((msg) => !msg.isHidden).map((msg) => {
+                      const isArabic = isArabicText(msg.content);
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}
+                        >
+                          {(msg.role === "assistant" || msg.role === "bot") && (
+                            <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center flex-shrink-0 shadow-sm border border-black">
+                              <BotIcon size={20} className="text-white" />
+                            </div>
+                          )}
+                          <div
+                            className={`max-w-[85%] ${msg.role === "user" ? "order-1" : ""}`}
+                          >
+                            <div
+                              className={`rounded-2xl px-4 py-3 shadow-sm border ${msg.role === "user"
+                                ? `bg-black text-white border-black ${isArabic ? "rounded-bl-none" : "rounded-tr-none"}`
+                                : `bg-white text-black border-black rounded-tl-none`
+                                }`}
+                            >
+                              {msg.role === "assistant" || msg.role === "bot" ? (
+                                <MarkdownMessage
+                                  content={msg.content}
+                                  isTyping={msg.id === streamingMsgId}
+                                />
+                              ) : (
+                                <p
+                                  className={`text-sm leading-relaxed ${isArabic ? "arabic-text" : ""}`}
+                                  dir={isArabic ? "rtl" : "ltr"}
+                                  style={{
+                                    textAlign: isArabic ? "right" : "left",
+                                    direction: isArabic ? "rtl" : "ltr",
+                                    fontFamily: isArabic
+                                      ? "'Segoe UI', 'SF Pro Arabic', system-ui, -apple-system, sans-serif"
+                                      : "inherit",
+                                  }}
+                                >
+                                  {msg.content}
+                                </p>
+                              )}
+                            </div>
+                            {msg.guideId && (
+                              <Link
+                                href={`/guides/${msg.guideId}`}
+                                className={`mt-2 flex items-center gap-2 text-xs text-slate-500 hover:text-slate-800 transition-colors w-fit ${isArabic ? "flex-row-reverse" : ""}`}
+                                onClick={() => setIsOpen(false)}
                               >
-                                {msg.content}
-                              </p>
+                                <FileText size={14} />
+                                <span>View Full Guide</span>
+                              </Link>
                             )}
                           </div>
-                          {msg.guideId && (
-                            <Link
-                              href={`/guides/${msg.guideId}`}
-                              className={`mt-2 flex items-center gap-2 text-xs text-slate-500 hover:text-slate-800 transition-colors w-fit ${isArabic ? "flex-row-reverse" : ""}`}
-                              onClick={() => setIsOpen(false)}
-                            >
-                              <FileText size={14} />
-                              <span>View Full Guide</span>
-                            </Link>
+                          {msg.role === "user" && (
+                            <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 order-2 border border-slate-300 shadow-sm">
+                              <img
+                                src={getAvatarForUser(user?.email, profileAvatar)}
+                                className="w-full h-full object-cover"
+                                alt="Me"
+                              />
+                            </div>
                           )}
                         </div>
-                        {msg.role === "user" && (
-                          <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 order-2 border border-slate-300 shadow-sm">
-                            <img
-                              src={getAvatarForUser(user?.email, profileAvatar)}
-                              className="w-full h-full object-cover"
-                              alt="Me"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
 
-                  {/* Agent Task Steps UI */}
-                  {agentSteps.length > 0 && (
-                    <div className="flex flex-col gap-2 mt-4 mb-2 animate-in fade-in slide-in-from-bottom-2">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Sparkles size={16} className="text-purple-600 animate-pulse" />
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Agent Workspace</span>
-                      </div>
-                      <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm flex flex-col gap-2">
-                        {agentSteps.map((step, idx) => {
-                          // The last step might be active if the agent is still running, otherwise completed
-                          const isLast = idx === agentSteps.length - 1;
-                          const isCompleted = !isLast || !triggerContinue; // If we're not triggering continue, it's done
-                          return (
-                            <div key={idx} className="flex items-center gap-2.5">
-                              {isCompleted ? (
-                                <div className="w-5 h-5 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0">
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                </div>
-                              ) : (
-                                <div className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
-                                  <Loader2 size={12} className="animate-spin" />
-                                </div>
-                              )}
-                              <span className={`text-sm ${isCompleted ? 'text-slate-600' : 'text-slate-800 font-medium'}`}>{step}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Premium Skeleton Loading chat bubble (Thinking state) */}
-                  {isTyping && isReadingDocs && (
-                    <div className="flex gap-3 animate-in slide-in-from-bottom-2 duration-300">
-                      <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center flex-shrink-0 shadow-sm border border-black">
-                        <BotIcon size={20} className="text-white" />
-                      </div>
-                      <div className="bg-white border-2 border-black shadow-sm rounded-2xl rounded-tl-none px-4 py-4 w-64 relative overflow-hidden flex flex-col justify-center">
-                        {/* Shimmer Effect Line */}
-                        <div className="absolute top-0 left-0 h-[2px] bg-black/10 w-full overflow-hidden">
-                          <div className="h-full w-1/3 bg-black rounded-full animate-[shimmer_1.5s_infinite] relative -translate-x-full"></div>
+                    {/* Agent Task Steps UI */}
+                    {agentSteps.length > 0 && (
+                      <div className="flex flex-col gap-2 mt-4 mb-2 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Sparkles size={16} className="text-purple-600 animate-pulse" />
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Agent Workspace</span>
                         </div>
-                        
-                        <div className="flex items-center gap-2 mb-3 w-full">
-                           <Loader2 className="animate-spin text-black" size={14} />
-                           <span className="text-black text-xs font-bold uppercase tracking-wider">
-                             {isBrowsingGuides ? "Reading documents..." : "Thinking..."}
-                           </span>
-                        </div>
-
-                        {/* Skeleton Lines */}
-                        <div className="flex flex-col gap-2.5 w-full opacity-100">
-                          <div className="h-2 bg-black/20 rounded-full w-full animate-pulse"></div>
-                          <div className="h-2 bg-black/20 rounded-full w-10/12 animate-pulse" style={{ animationDelay: '150ms' }}></div>
-                          <div className="h-2 bg-black/20 rounded-full w-7/12 animate-pulse" style={{ animationDelay: '300ms' }}></div>
+                        <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm flex flex-col gap-2">
+                          {agentSteps.map((step, idx) => {
+                            // The last step might be active if the agent is still running, otherwise completed
+                            const isLast = idx === agentSteps.length - 1;
+                            const isCompleted = !isLast || !triggerContinue; // If we're not triggering continue, it's done
+                            return (
+                              <div key={idx} className="flex items-center gap-2.5">
+                                {isCompleted ? (
+                                  <div className="w-5 h-5 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                  </div>
+                                ) : (
+                                  <div className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
+                                    <Loader2 size={12} className="animate-spin" />
+                                  </div>
+                                )}
+                                <span className={`text-sm ${isCompleted ? 'text-slate-600' : 'text-slate-800 font-medium'}`}>{step}</span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
-                    </div>
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-
-                {/* Agentic Redirect Banner */}
-                {pendingRedirect && (
-                  <div className="absolute bottom-20 left-4 right-4 p-4 bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700 flex items-center justify-between z-20 animate-in slide-in-from-bottom-2 fade-in duration-300">
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin"></div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-white leading-tight">Navigating Automatically</span>
-                        <span className="text-xs text-slate-400">Redirecting to {pendingRedirect.path} in {pendingRedirect.countdown}s...</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setPendingRedirect(null)}
-                      className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors shadow-sm"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-
-                {/* Input Area */}
-                <form
-                  onSubmit={handleSend}
-                  className="p-4 bg-white border-t border-slate-200 relative z-10"
-                >
-                  <div className="relative flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={userInput}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUserInput(e.target.value)}
-                      placeholder={
-                        isAuthenticated()
-                          ? tokensLeft > 0
-                            ? "Ask a question..."
-                            : "Upgrade to continue..."
-                          : "Login to chat..."
-                      }
-                      disabled={!isAuthenticated() || tokensLeft <= 0}
-                      className="flex-1 bg-slate-50 border border-slate-200 text-slate-800 placeholder:text-slate-400 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-inner"
-                    />
-                    <button
-                      type="submit"
-                      disabled={
-                        !userInput.trim() ||
-                        isTyping ||
-                        !isAuthenticated() ||
-                        tokensLeft <= 0
-                      }
-                      className="p-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
-                    >
-                      <Send size={18} />
-                    </button>
-                  </div>
-                  <div className="mt-2 flex justify-between items-center px-1">
-                    <p className="text-[10px] text-slate-500">
-                      Powered by ZetsuGuide AI.
-                      {tokensLeft > 0 && isAuthenticated() && (
-                        <span className="text-slate-400 ml-1">
-                          {" "}
-                          {tokensLeft}/30 queries remaining.
-                        </span>
-                      )}
-                    </p>
-                    {!isAuthenticated() && (
-                      <Link
-                        href="/auth"
-                        className="text-[10px] font-bold text-slate-600 hover:text-slate-900"
-                      >
-                        Login Required
-                      </Link>
                     )}
-                  </div>
-                </form>
-              </div>
 
-              {/* Direct Support Tab Content */}
-              {/* Always mounted (CSS hidden) so DirectSupportChat never re-initialises on tab switch */}
-              <div
-                className="flex-1 flex flex-col overflow-hidden relative"
-                style={{ display: activeTab === "direct-support" ? "flex" : "none" }}
-              >
-                {/* Login Gate Overlay for Direct Support */}
-                {!isAuthenticated() && activeTab === "direct-support" && (
-                  <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
-                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 border border-slate-200 shadow-sm">
-                      <MessageSquare size={24} className="text-slate-400" />
-                    </div>
-                    <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-xl max-w-xs w-full">
-                      <h3 className="text-xl font-bold text-slate-800 mb-2">
-                        Login Required
-                      </h3>
-                      <p className="text-slate-500 text-sm mb-4">
-                        You must be logged in to use Direct Support.
-                      </p>
-                      <div className="flex flex-col gap-2">
-                        <Link
-                          href="/auth"
-                          className="block w-full bg-slate-900 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-800 transition-colors text-sm shadow-md"
-                        >
-                          Login
-                        </Link>
-                        <button
-                          onClick={() => setActiveTab("chat")}
-                          className="w-full text-slate-400 hover:text-slate-600 text-xs transition-colors"
-                        >
-                          ? Back to Chat
-                        </button>
+                    {/* Premium Skeleton Loading chat bubble (Thinking state) */}
+                    {isTyping && isReadingDocs && (
+                      <div className="flex gap-3 animate-in slide-in-from-bottom-2 duration-300">
+                        <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center flex-shrink-0 shadow-sm border border-black">
+                          <BotIcon size={20} className="text-white" />
+                        </div>
+                        <div className="bg-white border-2 border-black shadow-sm rounded-2xl rounded-tl-none px-4 py-4 w-64 relative overflow-hidden flex flex-col justify-center">
+                          {/* Shimmer Effect Line */}
+                          <div className="absolute top-0 left-0 h-[2px] bg-black/10 w-full overflow-hidden">
+                            <div className="h-full w-1/3 bg-black rounded-full animate-[shimmer_1.5s_infinite] relative -translate-x-full"></div>
+                          </div>
+
+                          <div className="flex items-center gap-2 mb-3 w-full">
+                            <Loader2 className="animate-spin text-black" size={14} />
+                            <span className="text-black text-xs font-bold uppercase tracking-wider">
+                              {isBrowsingGuides ? "Reading documents..." : "Thinking..."}
+                            </span>
+                          </div>
+
+                          {/* Skeleton Lines */}
+                          <div className="flex flex-col gap-2.5 w-full opacity-100">
+                            <div className="h-2 bg-black/20 rounded-full w-full animate-pulse"></div>
+                            <div className="h-2 bg-black/20 rounded-full w-10/12 animate-pulse" style={{ animationDelay: '150ms' }}></div>
+                            <div className="h-2 bg-black/20 rounded-full w-7/12 animate-pulse" style={{ animationDelay: '300ms' }}></div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    <div ref={messagesEndRef} />
                   </div>
-                )}
-                <DirectSupportChat />
-              </div>
 
-              {/* Support Form Tab Content */}
-              <div
-                className="flex-1 overflow-y-auto p-6 relative bg-slate-50"
-                style={{ display: activeTab === "support-form" ? "block" : "none" }}
-              >
-                {/* Login Gate Overlay for Support Form */}
-                {!isAuthenticated() && activeTab === "support-form" && (
-                  <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
-                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 border border-slate-200 shadow-sm">
-                      <Sparkles size={24} className="text-slate-400" />
-                    </div>
-                    <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-xl max-w-xs w-full">
-                      <h3 className="text-xl font-bold text-slate-800 mb-2">
-                        Login Required
-                      </h3>
-                      <p className="text-slate-500 text-sm mb-4">
-                        You must be logged in to submit support requests.
-                      </p>
-                      <div className="flex flex-col gap-2">
-                        <Link
-                          href="/auth"
-                          className="block w-full bg-slate-900 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-800 transition-colors text-sm shadow-md"
-                        >
-                          Login
-                        </Link>
-                        <button
-                          onClick={() => setActiveTab("chat")}
-                          className="w-full text-slate-400 hover:text-slate-600 text-xs transition-colors"
-                        >
-                          ? Back to Chat
-                        </button>
+                  {/* Agentic Redirect Banner */}
+                  {pendingRedirect && (
+                    <div className="absolute bottom-20 left-4 right-4 p-4 bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700 flex items-center justify-between z-20 animate-in slide-in-from-bottom-2 fade-in duration-300">
+                      <div className="flex items-center gap-3">
+                        <div className="w-5 h-5 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin"></div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-white leading-tight">Navigating Automatically</span>
+                          <span className="text-xs text-slate-400">Redirecting to {pendingRedirect.path} in {pendingRedirect.countdown}s...</span>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                )}
-                <div className="max-w-md mx-auto">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center shadow-md">
-                      <Sparkles size={24} className="text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-800">
-                        Customer Support
-                      </h3>
-                      <p className="text-sm text-slate-500">
-                        We'll get back to you within 24 hours
-                      </p>
-                    </div>
-                  </div>
-
-                  <form onSubmit={handleSupportSubmit} className="space-y-4">
-                    {/* Email */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
-                        Email Address *
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={supportFormData.email}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          setSupportFormData((prev) => ({
-                            ...prev,
-                            email: e.target.value,
-                          }))
-                        }
-                        className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all shadow-sm"
-                        placeholder="your@email.com"
-                      />
-                    </div>
-
-                    {/* Phone */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
-                        Phone Number (Optional)
-                      </label>
-                      <input
-                        type="tel"
-                        value={supportFormData.phone}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          setSupportFormData((prev) => ({
-                            ...prev,
-                            phone: e.target.value,
-                          }))
-                        }
-                        className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all shadow-sm"
-                        placeholder="+20 123 456 7890"
-                      />
-                    </div>
-
-                    {/* Category */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
-                        Issue Category *
-                      </label>
-                      <select
-                        required
-                        value={supportFormData.category}
-                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                          setSupportFormData((prev) => ({
-                            ...prev,
-                            category: e.target.value,
-                          }))
-                        }
-                        className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all shadow-sm"
+                      <button
+                        onClick={() => setPendingRedirect(null)}
+                        className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors shadow-sm"
                       >
-                        <option value="account">Account Issues</option>
-                        <option value="payment">Payment & Billing</option>
-                        <option value="technical">
-                          Technical Problems
-                        </option>
-                        <option value="other">Other</option>
-                      </select>
+                        Cancel
+                      </button>
                     </div>
+                  )}
 
-                    {/* Message */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
-                        Describe Your Issue *
-                      </label>
-                      <textarea
-                        required
-                        value={supportFormData.message}
-                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                          setSupportFormData((prev) => ({
-                            ...prev,
-                            message: e.target.value,
-                          }))
+                  {/* Input Area */}
+                  <form
+                    onSubmit={handleSend}
+                    className="p-4 bg-white border-t border-slate-200 relative z-10"
+                  >
+                    <div className="relative flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={userInput}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUserInput(e.target.value)}
+                        placeholder={
+                          isAuthenticated()
+                            ? tokensLeft > 0
+                              ? "Ask a question..."
+                              : "Upgrade to continue..."
+                            : "Login to chat..."
                         }
-                        rows={5}
-                        className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all resize-none shadow-sm"
-                        placeholder="Please provide as much detail as possible..."
+                        disabled={!isAuthenticated() || tokensLeft <= 0}
+                        className="flex-1 bg-slate-50 border border-slate-200 text-slate-800 placeholder:text-slate-400 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-inner"
                       />
+                      <button
+                        type="submit"
+                        disabled={
+                          !userInput.trim() ||
+                          isTyping ||
+                          !isAuthenticated() ||
+                          tokensLeft <= 0
+                        }
+                        className="p-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                      >
+                        <Send size={18} />
+                      </button>
                     </div>
-
-                    {/* Submit Button */}
-                    <button
-                      type="submit"
-                      disabled={supportSubmitting}
-                      className="w-full px-6 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl hover:scale-[1.02] hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
-                    >
-                      {supportSubmitting ? (
-                        <>
-                          <Loader2 size={16} className="animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <Send size={16} />
-                          Submit Ticket
-                        </>
+                    <div className="mt-2 flex justify-between items-center px-1">
+                      <p className="text-[10px] text-slate-500">
+                        Powered by ZetsuGuide AI.
+                        {tokensLeft > 0 && isAuthenticated() && (
+                          <span className="text-slate-400 ml-1">
+                            {" "}
+                            {tokensLeft}/30 queries remaining.
+                          </span>
+                        )}
+                      </p>
+                      {!isAuthenticated() && (
+                        <Link
+                          href="/auth"
+                          className="text-[10px] font-bold text-slate-600 hover:text-slate-900"
+                        >
+                          Login Required
+                        </Link>
                       )}
-                    </button>
+                    </div>
                   </form>
                 </div>
+
+                {/* Direct Support Tab Content */}
+                {/* Always mounted (CSS hidden) so DirectSupportChat never re-initialises on tab switch */}
+                <div
+                  className="flex-1 flex flex-col overflow-hidden relative"
+                  style={{ display: activeTab === "direct-support" ? "flex" : "none" }}
+                >
+                  {/* Login Gate Overlay for Direct Support */}
+                  {!isAuthenticated() && activeTab === "direct-support" && (
+                    <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 border border-slate-200 shadow-sm">
+                        <MessageSquare size={24} className="text-slate-400" />
+                      </div>
+                      <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-xl max-w-xs w-full">
+                        <h3 className="text-xl font-bold text-slate-800 mb-2">
+                          Login Required
+                        </h3>
+                        <p className="text-slate-500 text-sm mb-4">
+                          You must be logged in to use Direct Support.
+                        </p>
+                        <div className="flex flex-col gap-2">
+                          <Link
+                            href="/auth"
+                            className="block w-full bg-slate-900 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-800 transition-colors text-sm shadow-md"
+                          >
+                            Login
+                          </Link>
+                          <button
+                            onClick={() => setActiveTab("chat")}
+                            className="w-full text-slate-400 hover:text-slate-600 text-xs transition-colors"
+                          >
+                            ? Back to Chat
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <DirectSupportChat />
+                </div>
+
+                {/* Support Form Tab Content */}
+                <div
+                  className="flex-1 overflow-y-auto p-6 relative bg-slate-50"
+                  style={{ display: activeTab === "support-form" ? "block" : "none" }}
+                >
+                  {/* Login Gate Overlay for Support Form */}
+                  {!isAuthenticated() && activeTab === "support-form" && (
+                    <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 border border-slate-200 shadow-sm">
+                        <Sparkles size={24} className="text-slate-400" />
+                      </div>
+                      <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-xl max-w-xs w-full">
+                        <h3 className="text-xl font-bold text-slate-800 mb-2">
+                          Login Required
+                        </h3>
+                        <p className="text-slate-500 text-sm mb-4">
+                          You must be logged in to submit support requests.
+                        </p>
+                        <div className="flex flex-col gap-2">
+                          <Link
+                            href="/auth"
+                            className="block w-full bg-slate-900 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-800 transition-colors text-sm shadow-md"
+                          >
+                            Login
+                          </Link>
+                          <button
+                            onClick={() => setActiveTab("chat")}
+                            className="w-full text-slate-400 hover:text-slate-600 text-xs transition-colors"
+                          >
+                            ? Back to Chat
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="max-w-md mx-auto">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center shadow-md">
+                        <Sparkles size={24} className="text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-800">
+                          Customer Support
+                        </h3>
+                        <p className="text-sm text-slate-500">
+                          We'll get back to you within 24 hours
+                        </p>
+                      </div>
+                    </div>
+
+                    <form onSubmit={handleSupportSubmit} className="space-y-4">
+                      {/* Email */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
+                          Email Address *
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          value={supportFormData.email}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setSupportFormData((prev) => ({
+                              ...prev,
+                              email: e.target.value,
+                            }))
+                          }
+                          className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all shadow-sm"
+                          placeholder="your@email.com"
+                        />
+                      </div>
+
+                      {/* Phone */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
+                          Phone Number (Optional)
+                        </label>
+                        <input
+                          type="tel"
+                          value={supportFormData.phone}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setSupportFormData((prev) => ({
+                              ...prev,
+                              phone: e.target.value,
+                            }))
+                          }
+                          className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all shadow-sm"
+                          placeholder="+20 123 456 7890"
+                        />
+                      </div>
+
+                      {/* Category */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
+                          Issue Category *
+                        </label>
+                        <select
+                          required
+                          value={supportFormData.category}
+                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                            setSupportFormData((prev) => ({
+                              ...prev,
+                              category: e.target.value,
+                            }))
+                          }
+                          className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all shadow-sm"
+                        >
+                          <option value="account">Account Issues</option>
+                          <option value="payment">Payment & Billing</option>
+                          <option value="technical">
+                            Technical Problems
+                          </option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+
+                      {/* Message */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
+                          Describe Your Issue *
+                        </label>
+                        <textarea
+                          required
+                          value={supportFormData.message}
+                          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                            setSupportFormData((prev) => ({
+                              ...prev,
+                              message: e.target.value,
+                            }))
+                          }
+                          rows={5}
+                          className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all resize-none shadow-sm"
+                          placeholder="Please provide as much detail as possible..."
+                        />
+                      </div>
+
+                      {/* Submit Button */}
+                      <button
+                        type="submit"
+                        disabled={supportSubmitting}
+                        className="w-full px-6 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl hover:scale-[1.02] hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
+                      >
+                        {supportSubmitting ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send size={16} />
+                            Submit Ticket
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-        </div>{/* end main chat panel */}
+            )}
+          </div>{/* end main chat panel */}
         </div>{/* end outer split-screen container */}
       )}
     </>
