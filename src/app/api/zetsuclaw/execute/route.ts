@@ -33,7 +33,6 @@ Execute the task thoroughly and return a complete, well-formatted result in Mark
 Be comprehensive but concise. Current time: ${new Date().toISOString()}`;
 
         let aiResult = "";
-        let isSuccess = false;
         
         const fetchWithRetry = async (url: string, apiKey: string, options: any, maxRetries = 3) => {
             for (let i = 0; i <= maxRetries; i++) {
@@ -109,7 +108,6 @@ Be comprehensive but concise. Current time: ${new Date().toISOString()}`;
 
                 if (content) {
                     aiResult = reasoning ? `<think>\n${reasoning}\n</think>\n\n${content}` : content;
-                    isSuccess = true;
                     console.log("[ZetsuClaw] AI success.");
                 } else {
                     console.warn("[ZetsuClaw] AI returned empty content.");
