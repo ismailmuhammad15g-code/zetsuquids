@@ -57,21 +57,48 @@ export default function ManusComputerMockup({ logs, isActive, currentCode, filen
                             <Maximize size={8} className="text-green-900 opacity-0 group-hover:opacity-100" />
                         </div>
                     </div>
-                    <span className="ml-2 font-semibold text-slate-700 text-sm">Manus's Computer</span>
+                    <span className="ml-2 font-semibold text-slate-700 text-sm">ZetsuGuide AI Workstation</span>
                 </div>
                 <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                        <span className="text-[10px] font-bold text-green-600 uppercase tracking-tight">Secure</span>
+                    </div>
                     <Terminal size={14} className="text-slate-400" />
-                    <Code2 size={14} className="text-slate-400" />
                 </div>
             </div>
 
-            {/* Sub-header / App context */}
-            <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-slate-100 text-xs text-slate-500">
-                <div className="flex items-center font-medium">
-                    <span className="text-slate-700">🖋️ Manus is using Editor</span>
+            {/* Professional Browser/App Address Bar */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 border-b border-slate-200">
+                <div className="flex items-center gap-1.5 text-slate-400">
+                    <ChevronRight size={14} className="rotate-180" />
+                    <ChevronRight size={14} />
                 </div>
-                <span className="text-slate-300">|</span>
-                <span>Creating file <span className="font-mono text-slate-600 bg-slate-100 px-1 py-0.5 rounded">{filename}</span></span>
+                <div className="flex-1 bg-white border border-slate-200 rounded-md py-1 px-3 flex items-center gap-2 shadow-sm">
+                    <span className="text-slate-300 text-xs font-semibold select-none">https://</span>
+                    <span className="text-slate-600 text-xs font-medium">ai.zetsuguide.com/workspace/agent-01</span>
+                </div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded">
+                    V2.5.0
+                </div>
+            </div>
+
+            {/* Task Context Bar */}
+            <div className="flex items-center justify-between px-4 py-1.5 bg-indigo-600 text-white shadow-lg">
+                <div className="flex items-center gap-2 overflow-hidden">
+                    <Loader2 size={12} className={`animate-spin ${isActive ? 'opacity-100' : 'opacity-0'}`} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">
+                        {isActive ? 'Processing Autonomous Task' : 'Task Successfully Completed'}
+                    </span>
+                    <span className="text-indigo-300">|</span>
+                    <span className="text-[11px] font-medium truncate italic opacity-90">
+                        Target: {filename}
+                    </span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-1 h-1 rounded-full bg-white/50"></div>
+                    <span className="text-[9px] font-mono opacity-70">CPU: {isActive ? '12%' : '0%'}</span>
+                </div>
             </div>
 
             {/* Main Content Area */}
