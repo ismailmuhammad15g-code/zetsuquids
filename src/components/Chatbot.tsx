@@ -2,6 +2,7 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import "highlight.js/styles/github-dark.css";
 import {
+  CheckCircle2,
   ChevronDown,
   FileText,
   Loader2,
