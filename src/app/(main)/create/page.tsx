@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useModal } from "../../../contexts/ModalContext";
 
-export default function CreateProxyPage() {
+function CreateProxyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { openAddModal } = useModal();
@@ -44,5 +44,13 @@ export default function CreateProxyPage() {
         <p className="font-bold text-sm uppercase tracking-widest">Initializing Creator...</p>
       </div>
     </div>
+  );
+}
+
+export default function CreateProxyPage() {
+  return (
+    <Suspense fallback={null}>
+      <CreateProxyContent />
+    </Suspense>
   );
 }
