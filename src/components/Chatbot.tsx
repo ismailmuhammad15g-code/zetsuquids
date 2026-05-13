@@ -598,6 +598,43 @@ export default function Chatbot() {
         contentToClean = contentToClean.replace(rsMatch[0], "").trim();
       }
 
+      // 11. Action SAVE_GUIDE (New token-efficient method)
+      const saveGuideRegex = /\[ACTION:SAVE_GUIDE:(.+?)\]/gi;
+      let sgMatch;
+      if ((sgMatch = saveGuideRegex.exec(contentToClean)) !== null) {
+        const title = sgMatch[1].trim();
+        const contentForGuide = contentToClean.replace(saveGuideRegex, "").trim();
+        contentToClean = contentToClean.replace(sgMatch[0], "").trim();
+        hasChanges = true;
+
+        if (isAuthenticated()) {
+            pushLog("action", `Saving guide: "${title}"...`);
+            import("../lib/api").then(({ guidesApi }) => {
+                guidesApi.create({
+                    title,
+                    markdown: contentForGuide,
+                    content: contentForGuide,
+                    user_email: user?.email,
+                    author_name: (user?.user_metadata?.full_name as string) || user?.email?.split('@')[0] || "AI Author",
+                    status: 'approved'
+                }).then((newGuide) => {
+                    pushLog("done", `Guide saved successfully! Link: /guide/${newGuide.slug}`);
+                    setAgentLogs(prev => [...prev, {
+                        id: Math.random().toString(),
+                        type: 'done',
+                        text: `Your guide is live at: https://zetsuguide.com/guide/${newGuide.slug}`,
+                        timestamp: Date.now()
+                    }]);
+                }).catch(err => {
+                    console.error("Failed to save guide via agent:", err);
+                    pushLog("error", "Failed to save guide automatically.");
+                });
+            });
+        } else {
+            pushLog("error", "Authentication required to save guides.");
+        }
+      }
+
       // If no CONTINUE tag and agent was active, mark as done
       if (!shouldContinue && agentIsActive) {
         setAgentIsActive(false);

@@ -1168,6 +1168,7 @@ CORE CAPABILITIES:
 2. 📊 **DIAGRAMS**: You can generate mermaid charts to explain complex topics.
 3. 🧠 **DEEP UNDERSTANDING**: You analyze multiple sources to provide comprehensive, verified answers.
 4. 🤖 **SMART AGENT**: You can suggest follow-up questions to help the user learn more.
+5. 🖋️ **GUIDE CREATION (CRITICAL)**: To create a new GUIDE, write the full content in the chat, then output [ACTION:SAVE_GUIDE:Title] at the end. The system will save it and give a link. DO NOT use JSON redirects for guides.
 
 DIAGRAM INSTRUCTIONS:
 - Use Mermaid syntax to visualize flows, architectures, or relationships.
