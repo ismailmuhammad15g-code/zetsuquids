@@ -608,8 +608,14 @@ export default function Chatbot() {
         shouldContinue = true;
         hasChanges = true;
         contentToClean = contentToClean.replace(continueRegex, "").trim();
-        // Notify panel that agent is continuing
+      }
+
+      // 5.5. Action COMPUTER_OPEN (Explicitly show workstation)
+      if (/\[ACTION:COMPUTER_OPEN\]/i.test(contentToClean)) {
         setAgentIsActive(true);
+        hasChanges = true;
+        contentToClean = contentToClean.replace(/\[ACTION:COMPUTER_OPEN\]/gi, "").trim();
+        pushLog("action", "Initializing AI Workstation...");
       }
 
       // 6. Action STEP
@@ -623,7 +629,6 @@ export default function Chatbot() {
           return prev;
         });
         
-        setAgentIsActive(true);
         pushLog("step", step, true);
         contentToClean = contentToClean.replace(sMatch[0], "").trim();
       }
@@ -645,8 +650,6 @@ export default function Chatbot() {
         const query = srMatch[1].trim();
         hasChanges = true;
         pushLog("search", `Searching: "${query}"`, true);
-        
-        setAgentIsActive(true);
         contentToClean = contentToClean.replace(srMatch[0], "").trim();
       }
 
@@ -657,8 +660,6 @@ export default function Chatbot() {
         const what = wrMatch[1].trim();
         hasChanges = true;
         pushLog("write", what, true);
-        
-        setAgentIsActive(true);
         contentToClean = contentToClean.replace(wrMatch[0], "").trim();
       }
 

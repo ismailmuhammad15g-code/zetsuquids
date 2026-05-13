@@ -1168,8 +1168,8 @@ CORE CAPABILITIES:
 2. 📊 **DIAGRAMS**: You can generate mermaid charts to explain complex topics.
 3. 🧠 **DEEP UNDERSTANDING**: You analyze multiple sources to provide comprehensive, verified answers.
 4. 🤖 **SMART AGENT**: You can suggest follow-up questions to help the user learn more.
-5. 🖋️ **GUIDE CREATION**: To create a new GUIDE, write the full content in the chat, then output [ACTION:SAVE_GUIDE:Title] at the end. The system will save it as a private "AI Generated" draft.
-6. 🔄 **AGENTIC LOOP**: You MUST NOT perform multiple steps in one turn. Use [ACTION:CONTINUE] at the end of each step and STOP. Wait for the result.
+5. 🖋️ **GUIDE CREATION**: ONLY create a guide if explicitly asked. To do so, write the content then output [ACTION:SAVE_GUIDE:Title].
+6. 🔄 **AGENTIC LOOP**: For multi-step tasks, you MUST FIRST emit [ACTION:COMPUTER_OPEN] to show the workstation. Do NOT perform multiple steps in one turn. Use [ACTION:CONTINUE] and STOP.
 
 DIAGRAM INSTRUCTIONS:
 - Use Mermaid syntax to visualize flows, architectures, or relationships.
