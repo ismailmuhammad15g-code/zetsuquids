@@ -123,20 +123,20 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
   // Pre-process unclosed mermaid blocks while typing so they show as skeletons instead of raw text
   let displayedContent = mainContent;
 
-  // Hide agentic action tags entirely from the user's view
-  displayedContent = displayedContent.replace(/\[ACTION:REDIRECT:[^\]]*\]?/g, "");
-  displayedContent = displayedContent.replace(/\[ACTION:HIGHLIGHT:[^\]]*\]?/g, "");
-  displayedContent = displayedContent.replace(/\[ACTION:MEMORY:[\s\S]*?\]?/g, "");
-  displayedContent = displayedContent.replace(/\[ACTION:PUBLISH\]?/g, "");
-  displayedContent = displayedContent.replace(/\[ACTION:CONTINUE\]?/g, "");
-  displayedContent = displayedContent.replace(/\[ACTION:STEP:[^\]]*\]?/g, "");
-  displayedContent = displayedContent.replace(/\[ACTION:THOUGHT:[\s\S]*?\]?/g, "");
-  displayedContent = displayedContent.replace(/\[ACTION:SEARCH:[^\]]*\]?/g, "");
-  displayedContent = displayedContent.replace(/\[ACTION:WRITE:[^\]]*\]?/g, "");
-  displayedContent = displayedContent.replace(/\[ACTION:RESULT:[^\]]*\]?/g, "");
-  displayedContent = displayedContent.replace(/```json\s*\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}\s*```/g, "");
+  // Hide agentic action tags entirely from the user's view (Case-insensitive)
+  displayedContent = displayedContent.replace(/\[ACTION:REDIRECT:[^\]]*\]?/gi, "");
+  displayedContent = displayedContent.replace(/\[ACTION:HIGHLIGHT:[^\]]*\]?/gi, "");
+  displayedContent = displayedContent.replace(/\[ACTION:MEMORY:[\s\S]*?\]?/gi, "");
+  displayedContent = displayedContent.replace(/\[ACTION:PUBLISH\]?/gi, "");
+  displayedContent = displayedContent.replace(/\[ACTION:CONTINUE\]?/gi, "");
+  displayedContent = displayedContent.replace(/\[ACTION:STEP:[^\]]*\]?/gi, "");
+  displayedContent = displayedContent.replace(/\[ACTION:THOUGHT:[\s\S]*?\]?/gi, "");
+  displayedContent = displayedContent.replace(/\[ACTION:SEARCH:[^\]]*\]?/gi, "");
+  displayedContent = displayedContent.replace(/\[ACTION:WRITE:[^\]]*\]?/gi, "");
+  displayedContent = displayedContent.replace(/\[ACTION:RESULT:[^\]]*\]?/gi, "");
+  displayedContent = displayedContent.replace(/```json\s*\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}\s*```/gi, "");
   // Fallback for raw JSON if backticks are missing
-  displayedContent = displayedContent.replace(/\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}/g, "");
+  displayedContent = displayedContent.replace(/\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}/gi, "");
 
   if (isTyping) {
     // If the string ends with an unclosed mermaid block, convert it to a loading block
@@ -456,7 +456,7 @@ export default function Chatbot() {
       let hasChanges = false;
 
       // 1. Highlight Actions (Multi-support)
-      const highlightRegex = /\[ACTION:HIGHLIGHT:(.+?)\]/g;
+      const highlightRegex = /\[ACTION:HIGHLIGHT:(.+?)\]/gi;
       let hMatch;
       while ((hMatch = highlightRegex.exec(contentToClean)) !== null) {
         const selector = hMatch[1].trim();
@@ -478,7 +478,7 @@ export default function Chatbot() {
       contentToClean = contentToClean.replace(highlightRegex, "").trim();
 
       // 2. Memory Action
-      const memoryMatch = contentToClean.match(/\[ACTION:MEMORY:([\s\S]+?)\]/);
+      const memoryMatch = contentToClean.match(/\[ACTION:MEMORY:([\s\S]+?)\]/i);
       if (memoryMatch) {
         const newMemory = memoryMatch[1].trim();
         contentToClean = contentToClean.replace(memoryMatch[0], "").trim();
@@ -494,10 +494,10 @@ export default function Chatbot() {
       }
 
       // 3. Try legacy bracket tag for redirect
-      const tagMatch = contentToClean.match(/\[ACTION:REDIRECT:(.+?)\]/);
+      const tagMatch = contentToClean.match(/\[ACTION:REDIRECT:(.+?)\]/i);
       // 4. Try modern JSON action for redirect
-      const jsonMatch = contentToClean.match(/```json\s*(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})\s*```/)
-        || contentToClean.match(/(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})/);
+      const jsonMatch = contentToClean.match(/```json\s*(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})\s*```/i)
+        || contentToClean.match(/(\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\})/i);
       if (tagMatch) {
         const path = tagMatch[1];
         contentToClean = contentToClean.replace(tagMatch[0], "").trim();
@@ -520,15 +520,15 @@ export default function Chatbot() {
       }
 
       // 4.5. Action PUBLISH (Direct save)
-      if (contentToClean.includes("[ACTION:PUBLISH]")) {
-        contentToClean = contentToClean.replace("[ACTION:PUBLISH]", "").trim();
+      if (/\[ACTION:PUBLISH\]/i.test(contentToClean)) {
+        contentToClean = contentToClean.replace(/\[ACTION:PUBLISH\]/gi, "").trim();
         hasChanges = true;
         pushLog("done", "Publishing guide to database...");
         window.dispatchEvent(new CustomEvent('ai_trigger_save'));
       }
 
       // 5. Action CONTINUE
-      const continueRegex = /\[ACTION:CONTINUE\]/g;
+      const continueRegex = /\[ACTION:CONTINUE\]/gi;
       let shouldContinue = false;
       if (continueRegex.test(contentToClean)) {
         shouldContinue = true;
@@ -539,7 +539,7 @@ export default function Chatbot() {
       }
 
       // 6. Action STEP
-      const stepRegex2 = /\[ACTION:STEP:(.+?)\]/g;
+      const stepRegex2 = /\[ACTION:STEP:(.+?)\]/gi;
       let sMatch;
       while ((sMatch = stepRegex2.exec(contentToClean)) !== null) {
         const step = sMatch[1].trim();
@@ -555,7 +555,7 @@ export default function Chatbot() {
       }
 
       // 7. Action THOUGHT
-      const thoughtRegex2 = /\[ACTION:THOUGHT:([\s\S]*?)\]/g;
+      const thoughtRegex2 = /\[ACTION:THOUGHT:([\s\S]*?)\]/gi;
       let tMatch;
       while ((tMatch = thoughtRegex2.exec(contentToClean)) !== null) {
         const thought = tMatch[1].trim();
@@ -565,7 +565,7 @@ export default function Chatbot() {
       }
 
       // 8. Action SEARCH (new!)
-      const searchRegex = /\[ACTION:SEARCH:([\s\S]*?)\]/g;
+      const searchRegex = /\[ACTION:SEARCH:([\s\S]*?)\]/gi;
       let srMatch;
       while ((srMatch = searchRegex.exec(contentToClean)) !== null) {
         const query = srMatch[1].trim();
@@ -577,7 +577,7 @@ export default function Chatbot() {
       }
 
       // 9. Action WRITE (new!)
-      const writeRegex = /\[ACTION:WRITE:([\s\S]*?)\]/g;
+      const writeRegex = /\[ACTION:WRITE:([\s\S]*?)\]/gi;
       let wrMatch;
       while ((wrMatch = writeRegex.exec(contentToClean)) !== null) {
         const what = wrMatch[1].trim();
@@ -589,7 +589,7 @@ export default function Chatbot() {
       }
 
       // 10. Action RESULT (new!)
-      const resultRegex = /\[ACTION:RESULT:([\s\S]*?)\]/g;
+      const resultRegex = /\[ACTION:RESULT:([\s\S]*?)\]/gi;
       let rsMatch;
       while ((rsMatch = resultRegex.exec(contentToClean)) !== null) {
         const result = rsMatch[1].trim();
