@@ -141,7 +141,7 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
         </Reasoning>
       )}
       {displayedContent && (
-        <div className="prose prose-sm max-w-none prose-slate prose-headings:font-bold prose-a:text-indigo-600 prose-code:text-indigo-700 prose-pre:bg-slate-900 prose-pre:text-slate-50 prose-blockquote:border-indigo-400 prose-strong:text-slate-800 prose-li:marker:text-slate-400">
+        <div className="prose prose-sm max-w-none prose-slate prose-headings:font-bold prose-a:text-black prose-a:underline prose-code:text-black prose-code:bg-black/5 prose-pre:bg-black prose-pre:text-white prose-blockquote:border-black prose-strong:text-black prose-li:marker:text-black">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeHighlight]}
@@ -187,7 +187,7 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
                   </pre>
                 ) : (
                   <code
-                    className="not-prose bg-slate-100 px-1.5 py-0.5 rounded text-indigo-600 text-xs font-mono border border-slate-200"
+                    className="not-prose bg-black/5 px-1.5 py-0.5 rounded text-black text-xs font-mono border border-black/10"
                     {...props}
                   >
                     {children}
@@ -196,7 +196,7 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
               },
               a: ({ node, ...props }) => (
                 <a
-                  className="text-indigo-600 hover:text-indigo-800 underline"
+                  className="text-black hover:text-black/80 underline"
                   target="_blank"
                   rel="noopener noreferrer"
                   {...props}
@@ -922,6 +922,10 @@ export default function Chatbot() {
       // Phase 1: Show "Reading documentation..." shimmer
       setIsReadingDocs(true);
 
+      // Inject current page context
+      const currentPage = window.location.pathname;
+      const enhancedText = `[User is currently on page: ${currentPage}]\n${text}`;
+
       // Create a placeholder streaming message
       const botMsgId = Date.now() + 1;
       setStreamingMsgId(botMsgId);
@@ -932,7 +936,7 @@ export default function Chatbot() {
 
       // Stream AI response
       const result = await streamAIResponse(
-        text,
+        enhancedText,
         guides,
         user?.email || "chatbot-user",
         // onToken: append each chunk to the streaming message
@@ -1447,7 +1451,7 @@ export default function Chatbot() {
                         className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}
                       >
                         {(msg.role === "assistant" || msg.role === "bot") && (
-                          <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-700">
+                          <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center flex-shrink-0 shadow-sm border border-black">
                             <BotIcon size={20} className="text-white" />
                           </div>
                         )}
@@ -1456,8 +1460,8 @@ export default function Chatbot() {
                         >
                           <div
                             className={`rounded-2xl px-4 py-3 shadow-sm border ${msg.role === "user"
-                              ? `bg-slate-900 text-white border-slate-800 ${isArabic ? "rounded-bl-none" : "rounded-tr-none"}`
-                              : `bg-white text-slate-800 border-slate-200 rounded-tl-none`
+                              ? `bg-black text-white border-black ${isArabic ? "rounded-bl-none" : "rounded-tr-none"}`
+                              : `bg-white text-black border-black rounded-tl-none`
                               }`}
                           >
                             {msg.role === "assistant" || msg.role === "bot" ? (
@@ -1508,19 +1512,25 @@ export default function Chatbot() {
                   {/* Premium Skeleton Loading chat bubble (Thinking state) */}
                   {isTyping && isReadingDocs && (
                     <div className="flex gap-3 animate-in slide-in-from-bottom-2 duration-300">
-                      <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-700">
+                      <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center flex-shrink-0 shadow-sm border border-black">
                         <BotIcon size={20} className="text-white" />
                       </div>
-                      <div className="bg-white border border-slate-100 shadow-sm rounded-2xl rounded-tl-none px-4 py-4 w-48 relative overflow-hidden">
+                      <div className="bg-white border-2 border-black shadow-sm rounded-2xl rounded-tl-none px-4 py-4 w-64 relative overflow-hidden flex flex-col justify-center">
                         {/* Shimmer Effect Line */}
-                        <div className="absolute top-0 left-0 h-[2px] bg-indigo-500/20 w-full overflow-hidden">
-                          <div className="h-full w-1/3 bg-indigo-500 rounded-full animate-[shimmer_1.5s_infinite] relative -translate-x-full"></div>
+                        <div className="absolute top-0 left-0 h-[2px] bg-black/10 w-full overflow-hidden">
+                          <div className="h-full w-1/3 bg-black rounded-full animate-[shimmer_1.5s_infinite] relative -translate-x-full"></div>
                         </div>
+                        
+                        <div className="flex items-center gap-2 mb-3 w-full">
+                           <Loader2 className="animate-spin text-black" size={14} />
+                           <span className="text-black text-xs font-bold uppercase tracking-wider">Reading documents...</span>
+                        </div>
+
                         {/* Skeleton Lines */}
-                        <div className="flex flex-col gap-2.5 w-full mt-1 opacity-70">
-                          <div className="h-2 bg-slate-200 rounded-full w-5/12 animate-pulse"></div>
-                          <div className="h-2 bg-slate-200 rounded-full w-10/12 animate-pulse" style={{ animationDelay: '150ms' }}></div>
-                          <div className="h-2 bg-slate-200 rounded-full w-7/12 animate-pulse" style={{ animationDelay: '300ms' }}></div>
+                        <div className="flex flex-col gap-2.5 w-full opacity-100">
+                          <div className="h-2 bg-black/20 rounded-full w-full animate-pulse"></div>
+                          <div className="h-2 bg-black/20 rounded-full w-10/12 animate-pulse" style={{ animationDelay: '150ms' }}></div>
+                          <div className="h-2 bg-black/20 rounded-full w-7/12 animate-pulse" style={{ animationDelay: '300ms' }}></div>
                         </div>
                       </div>
                     </div>

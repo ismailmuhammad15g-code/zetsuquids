@@ -128,11 +128,26 @@ async function _fallbackToApiRoute(
         const totalViews = userGuides.reduce((acc, g) => acc + (g.views_count || g.views || 0), 0);
         const totalLikes = userGuides.reduce((acc, g) => acc + (g.likes_count || g.likes || 0), 0);
         
+        const relevantGuidesText = relevantGuides.length > 0 
+            ? `\n### Relevant Guides from Website:\n${relevantGuides.slice(0, 5).map((g: any) => `Title: ${g.title || 'Untitled'}\nURL Path: /guides/${g.id}\nContent Snippet: ${(g.content || g.markdown || g.html_content || '').substring(0, 800)}...`).join('\n\n')}`
+            : '\n### Relevant Guides: No specific guides found matching this query.';
+
         const userDataContext = `
 ### Real-Time User Data
 You are currently talking to user: ${userEmail}
 The user has published ${totalGuides} guides on the platform.
-The user's guides have a total of ${totalViews} lifetime views and ${totalLikes} total likes.`;
+The user's guides have a total of ${totalViews} lifetime views and ${totalLikes} total likes.
+${relevantGuidesText}
+
+### Global Website Context (ZetsuGuide)
+All available paths and pages you know about:
+- Home Page: /
+- Explore Guides: /guides
+- Create a new guide: /create
+- User Profile: /profile
+- Settings: /settings
+- Authentication: /auth
+You are ZetsuGuide's official AI. Use the above context to provide smooth, highly accurate, and informed answers about the website's content. Do not say "I don't know" if the answer is in the Relevant Guides.`;
 
         const response = await fetch('/api/ai', {
             method: 'POST',
