@@ -26,7 +26,7 @@ async function generateSearchQueries(query, aiApiKey, aiUrl) {
       }),
     };
 
-    if (isCloudflare || aiUrl.includes("routeway.ai")) {
+    if (aiApiKey) {
       fetchOptions.headers["Authorization"] = `Bearer ${aiApiKey}`;
     }
 
@@ -562,8 +562,8 @@ async function fetchWithExponentialBackoff(url, options, maxRetries = 5) {
     try {
       console.log(`📤 API call attempt ${attempt}/${maxRetries}`);
       const controller = new AbortController();
-      // Long timeout: 90 seconds for deep thought
-      const timeoutId = setTimeout(() => controller.abort(), 90000);
+      // Long timeout: 180 seconds for deep thought (thinking models)
+      const timeoutId = setTimeout(() => controller.abort(), 180000);
 
       const response = await fetch(url, {
         ...options,
@@ -660,22 +660,29 @@ export default async function handler(req, res) {
       body || {};
 
     // Validate and set default model
-    const validatedModel = model || "@cf/meta/llama-3.1-8b-instruct";
+    const validatedModel = model || process.env.AI_MODEL || "openai/gpt-oss-120b";
 
     // Get the last user message for intelligent fetch
     const userMessage = messages?.find((m) => m.role === "user")?.content || "";
 
-    // Get API credentials for source selection
-    const apiKey =
-      process.env.NEXT_PUBLIC_AI_API_KEY ||
-      process.env.AI_API_KEY ||
-      process.env.VITE_AI_API_KEY ||
-      process.env.ROUTEWAY_API_KEY;
-    const apiUrl =
-      process.env.NEXT_PUBLIC_AI_API_URL ||
-      process.env.AI_API_URL ||
-      process.env.VITE_AI_API_URL ||
-      "https://api.routeway.ai/v1/chat/completions";
+    // Get API credentials from environment variables
+    const primaryApiKey = process.env.AI_API_KEY || process.env.NEXT_PUBLIC_AI_API_KEY;
+    const primaryApiUrl = process.env.AI_BASE_URL || process.env.NEXT_PUBLIC_AI_API_URL;
+    const primaryModel = process.env.AI_MODEL || process.env.NEXT_PUBLIC_AI_MODEL;
+
+    // Aliases for compatibility with legacy code in this file
+    const apiKey = primaryApiKey;
+    const apiUrl = primaryApiUrl;
+
+    const fallbackApiKey = process.env.CF_API_KEY;
+    const fallbackAccountId = process.env.CF_ACCOUNT_ID;
+    const fallbackModel = process.env.CF_MODEL || "@cf/moonshotai/kimi-k2.6";
+
+    // Reconstruct Cloudflare URL if fallback is needed
+    const getFallbackUrl = () => {
+      if (!fallbackAccountId) return null;
+      return `https://api.cloudflare.com/client/v4/accounts/${fallbackAccountId}/ai/run/${fallbackModel}`;
+    };
 
     // MODES
     const isDeepReasoning = body?.isDeepReasoning || false;
@@ -1339,60 +1346,61 @@ URLs: /community, /support, /guides, /pricing.`;
 
 
     // ═══════════════════════════════════════════════════════
-    // MAIN AI REQUEST FLOW WITH ACCOUNT FALLBACK
+    // MAIN AI REQUEST FLOW WITH GROQ -> CLOUDFLARE FALLBACK
     // ═══════════════════════════════════════════════════════
 
     let response;
-    let currentApiKey = apiKey;
-    let currentApiUrl = apiUrl;
+    let currentApiKey = primaryApiKey;
+    let currentApiUrl = primaryApiUrl;
+    let currentModel = validatedModel || primaryModel;
     let isFallbackActive = false;
 
-    // Fallback Account Credentials provided by user
-    const FALLBACK_ACCOUNT_ID = "04d7be59de81eacb9f44fab1fa6d558b";
-    const FALLBACK_API_KEY = "cfut_H8HIV7wmyvp4ZIB2mXOteYnX8xKN2dNo3iM0tC0j78936518";
-
-    // Re-verify model default to Llama 3.1 8B for better stability
-    const activeModel = validatedModel || "@cf/meta/llama-3.1-8b-instruct";
-    requestPayload.model = activeModel;
-
     try {
-      // Loop to allow trying fallback account if primary is rate limited
-      for (let accountAttempt = 1; accountAttempt <= 2; accountAttempt++) {
-        console.log(`🚀 AI Attempt with Account ${accountAttempt}:`, {
-          model: activeModel,
-          isCloudflare,
-          isFallback: isFallbackActive
+      // Loop: Attempt 1 = Primary (Groq), Attempt 2 = Fallback (Cloudflare)
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        const isCloudflareAttempt = isFallbackActive || currentApiUrl?.includes("cloudflare");
+        
+        console.log(`🚀 AI Attempt ${attempt}:`, {
+          provider: isCloudflareAttempt ? "Cloudflare" : "Primary/Groq",
+          model: currentModel,
+          url: currentApiUrl?.substring(0, 50) + "..."
         });
+
+        // Update payload model for current provider
+        requestPayload.model = currentModel;
 
         const fetchOptions = {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${currentApiKey}`
           },
           body: JSON.stringify(requestPayload),
         };
 
-        if (isCloudflare || currentApiUrl.includes("routeway.ai")) {
-            fetchOptions.headers["Authorization"] = `Bearer ${currentApiKey}`;
-        }
+        // Groq/OpenAI compatible models might need different handling than Cloudflare
+        // but generally standard OpenAI headers work for both if Cloudflare is accessed via its run API
+        
+        response = await fetchWithExponentialBackoff(currentApiUrl, fetchOptions, attempt === 1 ? 3 : 2);
 
-        response = await fetchWithExponentialBackoff(currentApiUrl, fetchOptions, accountAttempt === 1 ? 4 : 2);
-
-        // If successful, break the account loop
+        // If successful, break the loop
         if (response.ok) {
-          console.log(`✅ AI Response Success (Account ${accountAttempt})`);
+          console.log(`✅ AI Response Success (Attempt ${attempt})`);
           break;
         }
 
-        // If rate limited (429) and we have a fallback available, switch accounts
-        if (response.status === 429 && accountAttempt === 1 && FALLBACK_ACCOUNT_ID && FALLBACK_API_KEY) {
-          console.warn("⚠️ Primary Account Rate Limited. Switching to Fallback Account...");
-          currentApiKey = FALLBACK_API_KEY;
-          
-          // Reconstruct URL with fallback account ID
-          // Matches /accounts/[ANY_ID]/
-          currentApiUrl = currentApiUrl.replace(/\/accounts\/[^\/]+\//, `/accounts/${FALLBACK_ACCOUNT_ID}/`);
+        // If primary fails or is rate limited, and we have fallback configured
+        if (attempt === 1 && fallbackApiKey && fallbackAccountId) {
+          console.warn(`⚠️ Primary AI failed (${response.status}). Switching to Fallback (Cloudflare)...`);
+          currentApiKey = fallbackApiKey;
+          currentApiUrl = getFallbackUrl();
+          currentModel = fallbackModel;
           isFallbackActive = true;
+          
+          if (!currentApiUrl) {
+              console.error("❌ Fallback URL could not be generated. Aborting.");
+              break;
+          }
           continue; 
         }
 
