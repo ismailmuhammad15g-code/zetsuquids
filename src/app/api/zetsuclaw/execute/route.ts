@@ -33,7 +33,21 @@ Be comprehensive but concise. Current time: ${new Date().toISOString()}`;
         if (CF_API_KEY && CF_API_URL.includes("cloudflare")) {
             try {
                 console.log("[ZetsuClaw] Attempting Cloudflare API...");
-                const cfResponse = await fetch(CF_API_URL, {
+                const fetchWithRetry = async (url: string, options: any, maxRetries = 3) => {
+                    for (let i = 0; i <= maxRetries; i++) {
+                        const response = await fetch(url, options);
+                        if (response.status === 429 && i < maxRetries) {
+                            const waitTime = Math.pow(2, i) * 2000 + Math.random() * 1000;
+                            console.log(`[ZetsuClaw] Rate limited (429). Retrying in ${Math.round(waitTime)}ms... (Attempt ${i + 1}/${maxRetries})`);
+                            await new Promise(r => setTimeout(r, waitTime));
+                            continue;
+                        }
+                        return response;
+                    }
+                    return fetch(url, options); // Should not reach here but for type safety
+                };
+
+                const cfResponse = await fetchWithRetry(CF_API_URL, {
                     method: "POST",
                     headers: { 
                         "Content-Type": "application/json",

@@ -30,7 +30,7 @@ async function generateSearchQueries(query, aiApiKey, aiUrl) {
       fetchOptions.headers["Authorization"] = `Bearer ${aiApiKey}`;
     }
 
-    const response = await fetch(aiUrl, fetchOptions);
+    const response = await fetchWithExponentialBackoff(aiUrl, fetchOptions, 2);
 
     if (!response.ok) return [query];
 
@@ -1131,7 +1131,7 @@ export default async function handler(req, res) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestPayload),
-      });
+      }, 3);
 
       // Return raw response for enhancement
       if (!response.ok) {
@@ -1266,11 +1266,12 @@ URLs: /community, /support, /guides, /pricing.`;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const lookupEmail = userEmail ? userEmail.toLowerCase() : userId;
+    // ─── CREDIT MANAGEMENT ───
     let currentCredits = 100;
+    let deductCredits = async () => {};
 
-    // Handle credit deduction ONLY if not skipping
     if (!skipCreditDeduction) {
-      // Check if user exists in credits table
+      // Find current credits or create if not exists
       const { data: creditData, error: creditError } = await supabase
         .from("zetsuguide_credits")
         .select("credits")
@@ -1279,22 +1280,17 @@ URLs: /community, /support, /guides, /pricing.`;
 
       if (creditError) {
         console.error("Error fetching credits:", creditError);
-        // Return details for debugging
         return res.status(500).json({
           error: "Failed to verify credits",
           details: creditError.message,
-          hint: "Please ensure the 'zetsuguide_credits' table exists.",
         });
       }
 
       if (!creditData) {
-        // User doesn't exist in table yet, create them with default credits
-        console.log(
-          `User ${lookupEmail} not found in credits table. Creating default entry...`,
-        );
+        console.log(`User ${lookupEmail} not found in credits table. Creating default entry...`);
         const { data: newCreditData, error: insertError } = await supabase
           .from("zetsuguide_credits")
-          .insert([{ user_email: lookupEmail, credits: 10 }]) // Default 10 credits
+          .insert([{ user_id: userId || null, user_email: lookupEmail, credits: 10 }])
           .select("credits")
           .single();
 
@@ -1305,7 +1301,6 @@ URLs: /community, /support, /guides, /pricing.`;
             details: insertError.message,
           });
         }
-
         currentCredits = newCreditData?.credits || 10;
       } else {
         currentCredits = creditData.credits;
@@ -1319,23 +1314,29 @@ URLs: /community, /support, /guides, /pricing.`;
         });
       }
 
-      // Deduct credit BEFORE streaming starts
-      const { error: deductError } = await supabase
-        .from("zetsuguide_credits")
-        .update({
-          credits: currentCredits - 1,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_email", lookupEmail);
+      // Deduction logic to be called after successful fetch
+      deductCredits = async () => {
+        const { error: deductError } = await supabase
+          .from("zetsuguide_credits")
+          .update({
+            credits: currentCredits - 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_email", lookupEmail);
 
-      if (deductError) {
-        console.error("Failed to deduct credit:", deductError);
-      } else {
-        console.log(
-          `Deducted 1 credit for user ${lookupEmail}. New balance: ${currentCredits - 1}`,
-        );
-      }
+        if (deductError) {
+          console.error("Failed to deduct credit:", deductError);
+        } else {
+          console.log(`Deducted 1 credit for user ${lookupEmail}. New balance: ${currentCredits - 1}`);
+        }
+      };
     }
+
+
+
+
+
+
 
     // ═══════════════════════════════════════════════════════
     // MAIN AI REQUEST FLOW (for all cases)
@@ -1370,7 +1371,7 @@ URLs: /community, /support, /guides, /pricing.`;
           fetchOptions.headers["Authorization"] = `Bearer ${apiKey}`;
       }
 
-      response = await fetch(fetchUrl, fetchOptions);
+      response = await fetchWithExponentialBackoff(fetchUrl, fetchOptions, 3);
 
       console.log("📥 Received response:", {
         status: response.status,
@@ -1389,11 +1390,24 @@ URLs: /community, /support, /guides, /pricing.`;
     if (!response.ok) {
       const errorText = await response.text();
       console.error("❌ AI API error:", response.status, errorText);
+      
+      // Special handling for 429 to give user better feedback
+      if (response.status === 429) {
+        return res.status(429).json({
+          error: "Rate Limit Exceeded (429)",
+          details: "The AI service is currently busy. We've tried multiple retries, but Cloudflare is still limiting requests. Please wait a minute before trying again.",
+          isRateLimit: true
+        });
+      }
+
       return res.status(response.status).json({
         error: `AI Service Error (${response.status})`,
         details: "Please try again in a moment.",
       });
     }
+
+    // Successfully got a response from AI, now deduct credit
+    await deductCredits();
 
     // Branch based on whether streaming is actually happening
     console.log("Response Processing:", {

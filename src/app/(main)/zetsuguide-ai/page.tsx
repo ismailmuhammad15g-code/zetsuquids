@@ -1963,9 +1963,20 @@ ${selectedGuide ? `IMPORTANT INSTRUCTION: The user has explicitly selected a spe
 ⚠️ CRITICAL: You MUST use <thinking>...</thinking> tags. Your response will be REJECTED if you don't wrap your thinking process in these exact tags. Start with <thinking> and end with </thinking>.`
         };
 
+      const cleanedHistory = newMessages.slice(-8).filter(m => m.content.trim() !== "").map(m => {
+        if (m.role === 'assistant') {
+          // Strip <thinking>...</thinking> blocks from history to save tokens and prevent confusion
+          let clean = m.content;
+          clean = clean.replace(/<thinking>[\s\S]*?<\/thinking>/gi, "");
+          clean = clean.replace(/<thinking>[\s\S]*?$/gi, ""); // Handle partials
+          return { ...m, content: clean.trim() };
+        }
+        return m;
+      });
+
       const messagesPayload = [
         contextSystemMessage,
-        ...newMessages.slice(-8).filter(m => m.content.trim() !== "")
+        ...cleanedHistory
       ];
 
       const modelToUse = customModel || "@cf/moonshotai/kimi-k2.6";
