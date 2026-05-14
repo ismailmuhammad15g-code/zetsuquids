@@ -1241,13 +1241,13 @@ export default function Chatbot() {
     if (!isHidden) {
       setAgentLogs([]);
       setAgentSteps([]);
-      setAgentIsActive(false);
-      
     }
 
-    // Optimistic UI update
-    const newTokens = Math.max(0, tokensLeft - 1);
-    setTokensLeft(newTokens);
+    // Optimistic UI update (Only for non-system messages)
+    if (!isHidden) {
+      const newTokens = Math.max(0, tokensLeft - 1);
+      setTokensLeft(newTokens);
+    }
 
     // Update DB
     try {
