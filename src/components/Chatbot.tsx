@@ -539,9 +539,17 @@ export default function Chatbot() {
   // Agentic AI Actions Parser
   useEffect(() => {
     const lastMsg = messages[messages.length - 1];
-    if (lastMsg && lastMsg.role === "bot" && !isTyping) {
+    if (lastMsg && (lastMsg.role === "bot" || lastMsg.role === "assistant") && !isTyping) {
+      // 1. Detection Phase (Use RAW content)
+      const rawText = lastMsg.content;
+      const isFinished = /\[ACTION:(WORK_FINISHED|COMPUTER_CLOSE)\]/i.test(rawText);
+      let shouldContinue = /\[ACTION:CONTINUE\]/i.test(rawText);
+      const justOpened = /\[ACTION:COMPUTER_OPEN\]/i.test(rawText);
+      
       let contentToClean = lastMsg.content;
       let hasChanges = false;
+
+      console.log("🤖 Agent State Check:", { isFinished, shouldContinue, agentIsActive });
 
       // 1. Highlight Actions (Multi-support)
       const highlightRegex = /\[ACTION:HIGHLIGHT:(.+?)\]/gi;
@@ -615,13 +623,10 @@ export default function Chatbot() {
         window.dispatchEvent(new CustomEvent('ai_trigger_save'));
       }
 
-      // 5. Action CONTINUE
-      const continueRegex = /\[ACTION:CONTINUE\]/gi;
-      let shouldContinue = false;
-      if (continueRegex.test(contentToClean)) {
-        shouldContinue = true;
+      // 5. Action CONTINUE (Already detected at top, just clean content here)
+      if (shouldContinue) {
         hasChanges = true;
-        contentToClean = contentToClean.replace(continueRegex, "").trim();
+        contentToClean = contentToClean.replace(/\[ACTION:CONTINUE\]/gi, "").trim();
       }
 
       // 5.5. Action COMPUTER_OPEN (Explicitly show workstation)
@@ -739,12 +744,10 @@ export default function Chatbot() {
         }
       }
 
-      // If no CONTINUE tag and agent was active, mark as done
-      // REMOVED AUTOMATIC CLOSING: The workstation stays open until COMPUTER_CLOSE or user manual close
-      const justOpened = /\[ACTION:COMPUTER_OPEN\]/i.test(lastMsg.content);
+      // 12. Auto-log done status
       if (!shouldContinue && agentIsActive) {
-        if (agentLogs.length > 0 && !justOpened) {
-          pushLog("done", "Task completed successfully.");
+        if (agentLogs.length > 0 && !justOpened && !isFinished) {
+          pushLog("done", "Step completed.");
         }
       }
 
@@ -764,16 +767,7 @@ export default function Chatbot() {
         });
       }
 
-      // 1. Detection Phase (Use RAW content)
-      const rawText = lastMsg.content;
-      const isFinished = /\[ACTION:(WORK_FINISHED|COMPUTER_CLOSE)\]/i.test(rawText);
-      const shouldContinue = /\[ACTION:CONTINUE\]/i.test(rawText);
-      const justOpened = /\[ACTION:COMPUTER_OPEN\]/i.test(rawText);
-
-      console.log("🤖 Agent State Check:", { isFinished, shouldContinue, agentIsActive });
-
-      // 2. Final Decision Phase
-
+      // Final Decision Phase (Infinite Autonomy)
       if (isFinished) {
         console.log("🤖 Task finished via explicit tag.");
         if (agentLogs.length > 0 && !justOpened) {
