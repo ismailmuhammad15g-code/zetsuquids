@@ -764,18 +764,27 @@ export default function Chatbot() {
         });
       }
 
-      if (shouldContinue) {
+      // 1. Detection Phase (Use RAW content)
+      const rawText = lastMsg.content;
+      const isFinished = /\[ACTION:(WORK_FINISHED|COMPUTER_CLOSE)\]/i.test(rawText);
+      const shouldContinue = /\[ACTION:CONTINUE\]/i.test(rawText);
+      const justOpened = /\[ACTION:COMPUTER_OPEN\]/i.test(rawText);
+
+      console.log("🤖 Agent State Check:", { isFinished, shouldContinue, agentIsActive });
+
+      // 2. Final Decision Phase
+
+      if (isFinished) {
+        console.log("🤖 Task finished via explicit tag.");
+        if (agentLogs.length > 0 && !justOpened) {
+          pushLog("done", "Task completed successfully.");
+        }
+      } else if (shouldContinue) {
         setTriggerContinue(true);
       } else if (agentIsActive) {
         // INFINITE AUTONOMY: Always continue if agent is active UNLESS a finish tag is found
-        const isFinished = /\[ACTION:(WORK_FINISHED|COMPUTER_CLOSE)\]/i.test(lastMsg.content);
-        
-        if (!isFinished) {
-          console.log("🤖 Infinite Autonomy: Agent active and no finish tag found. Auto-triggering next step...");
-          setTriggerContinue(true);
-        } else {
-          console.log("🤖 Task finished via explicit tag.");
-        }
+        console.log("🤖 Infinite Autonomy: Agent active and no finish tag found. Auto-triggering next step...");
+        setTriggerContinue(true);
       }
     }
   }, [messages, isTyping, user?.email]);
