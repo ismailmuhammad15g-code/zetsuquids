@@ -381,7 +381,7 @@ export default function Chatbot() {
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
   const [isLongLoading, setIsLongLoading] = useState(false);
-  const processedMessages = useRef<Set<number>>(new Set());
+  const processedMessages = useRef<Set<string | number>>(new Set());
 
   // Check & Reset Usage from Supabase
   useEffect(() => {
