@@ -766,6 +766,20 @@ export default function Chatbot() {
 
       if (shouldContinue) {
         setTriggerContinue(true);
+      } else if (agentIsActive && !/\[ACTION:COMPUTER_CLOSE\]/i.test(lastMsg.content)) {
+        // WATCHDOG: If the AI forgot the tag but the text sounds like it should continue
+        const textLower = contentToClean.toLowerCase();
+        const impliesMore = textLower.includes("next steps") || 
+                           textLower.includes("i will") || 
+                           textLower.includes("proceeding") ||
+                           textLower.includes("الخطوات") || 
+                           textLower.includes("سأقوم") ||
+                           textLower.includes("سأبدأ");
+        
+        if (impliesMore) {
+          console.log("🤖 Watchdog: AI forgot [ACTION:CONTINUE] but text implies more steps. Auto-triggering...");
+          setTriggerContinue(true);
+        }
       }
     }
   }, [messages, isTyping, user?.email]);
