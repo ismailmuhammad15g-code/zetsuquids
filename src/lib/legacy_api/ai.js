@@ -661,24 +661,31 @@ export default async function handler(req, res) {
     const { messages, model, userId, userEmail, skipCreditDeduction } =
       body || {};
 
-    // Validate and set default model
-    const validatedModel = model || process.env.AI_MODEL || "openai/gpt-oss-120b";
+    // Validate and set default model based on provider
+    let validatedModel = model || process.env.AI_MODEL || "llama-3.3-70b-versatile";
+    
+    // Auto-fix model names for Groq if they look like OpenAI/Legacy names
+    if (process.env.AI_BASE_URL?.includes("groq.com")) {
+        if (!validatedModel || validatedModel.includes("gpt-oss") || validatedModel.includes("glm")) {
+            validatedModel = "llama-3.3-70b-versatile";
+        }
+    }
 
     // Get the last user message for intelligent fetch
     const userMessage = messages?.find((m) => m.role === "user")?.content || "";
 
     // Get API credentials from environment variables
-    const primaryApiKey = process.env.AI_API_KEY || process.env.NEXT_PUBLIC_AI_API_KEY;
-    const primaryApiUrl = process.env.AI_BASE_URL || process.env.NEXT_PUBLIC_AI_API_URL;
-    const primaryModel = process.env.AI_MODEL || process.env.NEXT_PUBLIC_AI_MODEL;
+    const primaryApiKey = (process.env.AI_API_KEY || process.env.NEXT_PUBLIC_AI_API_KEY || "").trim();
+    const primaryApiUrl = (process.env.AI_BASE_URL || process.env.NEXT_PUBLIC_AI_API_URL || "").trim();
+    const primaryModel = (process.env.AI_MODEL || process.env.NEXT_PUBLIC_AI_MODEL || "").trim();
 
     // Aliases for compatibility with legacy code in this file
     const apiKey = primaryApiKey;
     const apiUrl = primaryApiUrl;
 
-    const fallbackApiKey = process.env.CF_API_KEY;
-    const fallbackAccountId = process.env.CF_ACCOUNT_ID;
-    const fallbackModel = process.env.CF_MODEL || "@cf/moonshotai/kimi-k2.6";
+    const fallbackApiKey = (process.env.CF_API_KEY || "").trim();
+    const fallbackAccountId = (process.env.CF_ACCOUNT_ID || "").trim();
+    const fallbackModel = process.env.CF_MODEL || "@cf/meta/llama-3.1-8b-instruct";
 
     // Reconstruct Cloudflare URL if fallback is needed
     const getFallbackUrl = () => {
@@ -1385,6 +1392,20 @@ URLs: /community, /support, /guides, /pricing.`;
         // Groq/OpenAI compatible models might need different handling than Cloudflare
         // but generally standard OpenAI headers work for both if Cloudflare is accessed via its run API
         
+        // Skip if credentials are missing for this attempt
+        if (!currentApiKey || !currentApiUrl) {
+            console.warn(`⚠️ Skipping AI Attempt ${attempt}: Missing API Key or URL.`);
+            if (attempt === 1 && fallbackApiKey && fallbackAccountId) {
+                // Trigger fallback immediately
+                currentApiKey = fallbackApiKey;
+                currentApiUrl = getFallbackUrl();
+                currentModel = fallbackModel;
+                isFallbackActive = true;
+                continue;
+            }
+            break;
+        }
+
         response = await fetchWithExponentialBackoff(currentApiUrl, fetchOptions, attempt === 1 ? 3 : 2);
 
         // If successful, break the loop
@@ -1393,18 +1414,17 @@ URLs: /community, /support, /guides, /pricing.`;
           break;
         }
 
-        // If primary fails or is rate limited, and we have fallback configured
+        // Log specific failure reason
+        const errorTextForLog = await response.clone().text();
+        console.error(`❌ AI Attempt ${attempt} failed with status: ${response.status}. Body: ${errorTextForLog.substring(0, 100)}`);
+
+        // If primary fails (auth, rate limit, decommissioned model, or any error), and we have fallback configured
         if (attempt === 1 && fallbackApiKey && fallbackAccountId) {
           console.warn(`⚠️ Primary AI failed (${response.status}). Switching to Fallback (Cloudflare)...`);
           currentApiKey = fallbackApiKey;
           currentApiUrl = getFallbackUrl();
           currentModel = fallbackModel;
           isFallbackActive = true;
-          
-          if (!currentApiUrl) {
-              console.error("❌ Fallback URL could not be generated. Aborting.");
-              break;
-          }
           continue; 
         }
 
