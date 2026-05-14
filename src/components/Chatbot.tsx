@@ -135,6 +135,7 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
   displayedContent = displayedContent.replace(/\[ACTION:SEARCH:[^\]]*\]?/gi, "");
   displayedContent = displayedContent.replace(/\[ACTION:WRITE:[^\]]*\]?/gi, "");
   displayedContent = displayedContent.replace(/\[ACTION:RESULT:[^\]]*\]?/gi, "");
+  displayedContent = displayedContent.replace(/\[ACTION:(WORK_FINISHED|WORK-FINISHED|WORKFINISHED|COMPUTER_CLOSE|FINISHED|FINISH|DONE|COMPLETE|COMPLETED|SUCCESS)\]?/gi, "");
   displayedContent = displayedContent.replace(/```json\s*\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}\s*```/gi, "");
   // Fallback for raw JSON if backticks are missing
   displayedContent = displayedContent.replace(/\{[\s\S]*?"action"\s*:\s*"redirect"[\s\S]*?\}/gi, "");
@@ -547,7 +548,7 @@ export default function Chatbot() {
 
       // 1. Detection Phase (Use RAW content)
       const rawText = lastMsg.content;
-      const isFinished = /\[ACTION:(WORK_FINISHED|WORK-FINISHED|WORKFINISHED|COMPUTER_CLOSE)\]/i.test(rawText);
+      const isFinished = /\[ACTION:(WORK_FINISHED|WORK-FINISHED|WORKFINISHED|COMPUTER_CLOSE|FINISHED|FINISH|DONE|COMPLETE|COMPLETED|SUCCESS)\]/i.test(rawText);
       let shouldContinue = /\[ACTION:CONTINUE\]/i.test(rawText);
       const justOpened = /\[ACTION:COMPUTER_OPEN\]/i.test(rawText);
       
@@ -749,6 +750,12 @@ export default function Chatbot() {
         }
       }
 
+      // 11.5. Clean Finished Tags
+      if (isFinished) {
+        hasChanges = true;
+        contentToClean = contentToClean.replace(/\[ACTION:(WORK_FINISHED|WORK-FINISHED|WORKFINISHED|COMPUTER_CLOSE|FINISHED|FINISH|DONE|COMPLETE|COMPLETED|SUCCESS)\]/gi, "").trim();
+      }
+
       // 12. Auto-log done status
       if (!shouldContinue && agentIsActive) {
         if (agentLogs.length > 0 && !justOpened && !isFinished) {
@@ -775,6 +782,7 @@ export default function Chatbot() {
       // Final Decision Phase (Infinite Autonomy)
       if (isFinished) {
         console.log("🤖 Task finished via explicit tag.");
+        setAgentIsActive(false);
         if (agentLogs.length > 0 && !justOpened) {
           pushLog("done", "Task completed successfully.");
         }
