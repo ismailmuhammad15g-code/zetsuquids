@@ -144,8 +144,17 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
     displayedContent = displayedContent.replace(/```mermaid\n([^`]*)$/g, "```mermaid-loading\n$1\n```");
   }
 
+  const isArabic = isArabicText(displayedContent);
+
   return (
-    <div className="markdown-content">
+    <div 
+      className={`markdown-content ${isArabic ? "arabic-text" : ""}`} 
+      dir={isArabic ? "rtl" : "ltr"}
+      style={{ 
+        textAlign: isArabic ? "right" : "left",
+        direction: isArabic ? "rtl" : "ltr"
+      }}
+    >
       {thinkContent && (
         <Reasoning defaultOpen={false}>
           <ReasoningTrigger />
@@ -1858,8 +1867,8 @@ export default function Chatbot() {
                           >
                             <div
                               className={`rounded-2xl px-4 py-3 shadow-sm border ${msg.role === "user"
-                                ? `bg-black text-white border-black ${isArabic ? "rounded-bl-none" : "rounded-tr-none"}`
-                                : `bg-white text-black border-black rounded-tl-none`
+                                ? `bg-black text-white border-black ${isArabic ? "rounded-br-none" : "rounded-tr-none"}`
+                                : `bg-white text-black border-black ${isArabic ? "rounded-tr-none" : "rounded-tl-none"}`
                                 }`}
                             >
                               {msg.role === "assistant" || msg.role === "bot" ? (
@@ -2245,4 +2254,42 @@ export default function Chatbot() {
       )}
     </>
   );
+}
+
+// Global CSS for Arabic Support
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.innerHTML = `
+    .arabic-text {
+      font-family: 'Segoe UI', 'SF Pro Arabic', 'Tahoma', 'Arial', sans-serif !important;
+      line-height: 1.8 !important;
+      letter-spacing: 0 !important;
+      word-spacing: 0.1em !important;
+    }
+    
+    /* Ensure code blocks in Arabic stay LTR */
+    [dir="rtl"] pre, [dir="rtl"] code {
+      direction: ltr !important;
+      text-align: left !important;
+    }
+    
+    /* Fix prose markers for RTL */
+    [dir="rtl"] .prose ul, [dir="rtl"] .prose ol {
+      padding-left: 0 !important;
+      padding-right: 1.625em !important;
+    }
+    
+    [dir="rtl"] .prose li {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+    
+    [dir="rtl"] .prose blockquote {
+      border-left: none !important;
+      border-right: 4px solid black !important;
+      padding-left: 0 !important;
+      padding-right: 1em !important;
+    }
+  `;
+  document.head.appendChild(style);
 }
