@@ -1247,16 +1247,16 @@ export default function Chatbot() {
     if (!isHidden) {
       const newTokens = Math.max(0, tokensLeft - 1);
       setTokensLeft(newTokens);
-    }
 
-    // Update DB
-    try {
-      await supabase
-        .from("user_chatbot_usage")
-        .update({ tokens_left: newTokens })
-        .eq("user_id", user.id);
-    } catch (err) {
-      console.error("Failed to update token usage:", err);
+      // Update DB
+      try {
+        await supabase
+          .from("user_chatbot_usage")
+          .update({ tokens_left: newTokens })
+          .eq("user_id", user.id);
+      } catch (err) {
+        console.error("Failed to update token usage:", err);
+      }
     }
 
     // Set timeout for delay message
