@@ -1486,14 +1486,14 @@ export default function Chatbot() {
           className={`fixed z-50 transition-all duration-500 ease-in-out flex flex-row-reverse overflow-hidden font-sans
                     ${isMinimized
               ? "bottom-6 right-6 w-72 h-16 rounded-2xl cursor-pointer"
-              : agentLogs.length > 0
+              : agentIsActive
                 ? "bottom-0 right-0 w-full h-[90vh] sm:bottom-6 sm:right-6 sm:w-[1300px] sm:h-[760px] gap-2 sm:max-h-[90vh] rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 bg-white"
                 : "bottom-0 right-0 w-full h-[85vh] rounded-t-3xl sm:bottom-6 sm:right-6 sm:w-[500px] sm:h-[700px] sm:max-h-[90vh] sm:rounded-3xl shadow-2xl border border-slate-200 bg-white"
             }
               `}
         >
           {/* Agent Workspace Panel — slides in from left when active */}
-          {agentLogs.length > 0 && !isMinimized && (
+          {agentIsActive && !isMinimized && (
             <div style={{ position: "relative", zIndex: 100, marginRight: "16px", marginTop: "16px", marginBottom: "16px", borderRadius: "16px" }} className="hidden sm:flex flex-col flex-shrink-0 animate-in slide-in-from-right-4 duration-500 overflow-hidden shadow-2xl relative">
               <ManusComputerMockup
                 logs={agentLogs}
