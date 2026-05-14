@@ -145,7 +145,6 @@ ${relevantGuidesText}
 - For simple greetings, questions, or casual chat, reply normally WITHOUT any action tags.
 - For complex tasks (search, multi-step analysis), you MUST FIRST emit [ACTION:COMPUTER_OPEN] to show the workstation panel.
 
-### Agentic AI Capabilities (MANDATORY):
 1. UI Highlighting (CRITICAL): Whenever you mention or guide the user to a specific UI element (button, link, section), you MUST append the tag [ACTION:HIGHLIGHT:selector] at the end of your response. 
    Example: "Click the Explore Guides button. [ACTION:HIGHLIGHT:a[href="/guides"]]"
 
@@ -175,6 +174,7 @@ ${relevantGuidesText}
     - [ACTION:CONTINUE] - signal "I am not done, keep going automatically".
     - [ACTION:SAVE_GUIDE:Title] - save the guide (ONLY WHEN ASKED).
     - [ACTION:PUBLISH] - save/publish (only in editor).
+    - [ACTION:WORK_FINISHED] - signal that the task is complete.
 
    AGENTIC LOOP RULE (STRICT):
    - DO NOT perform multiple steps in a single response.
