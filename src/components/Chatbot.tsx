@@ -381,6 +381,7 @@ export default function Chatbot() {
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
   const [isLongLoading, setIsLongLoading] = useState(false);
+  const processedMessages = useRef<Set<number>>(new Set());
 
   // Check & Reset Usage from Supabase
   useEffect(() => {
@@ -540,9 +541,13 @@ export default function Chatbot() {
   useEffect(() => {
     const lastMsg = messages[messages.length - 1];
     if (lastMsg && (lastMsg.role === "bot" || lastMsg.role === "assistant") && !isTyping) {
+      // Prevent double-processing of the same message
+      if (processedMessages.current.has(lastMsg.id)) return;
+      processedMessages.current.add(lastMsg.id);
+
       // 1. Detection Phase (Use RAW content)
       const rawText = lastMsg.content;
-      const isFinished = /\[ACTION:(WORK_FINISHED|COMPUTER_CLOSE)\]/i.test(rawText);
+      const isFinished = /\[ACTION:(WORK_FINISHED|WORK-FINISHED|WORKFINISHED|COMPUTER_CLOSE)\]/i.test(rawText);
       let shouldContinue = /\[ACTION:CONTINUE\]/i.test(rawText);
       const justOpened = /\[ACTION:COMPUTER_OPEN\]/i.test(rawText);
       
