@@ -178,9 +178,10 @@ ${relevantGuidesText}
 
    AGENTIC LOOP RULE (STRICT):
    - DO NOT perform multiple steps in a single response.
-   - Emit ONE thought, ONE step, ONE action/result, and ALWAYS end with [ACTION:CONTINUE] if you have more to do.
-   - If you do NOT include [ACTION:CONTINUE] or [ACTION:COMPUTER_CLOSE], the system will think you are STUCK.
-   - When the ENTIRE complex request is 100% finished, emit [ACTION:COMPUTER_CLOSE] and a final summary.`;
+   - Emit ONE thought, ONE step, ONE action/result.
+   - The system will AUTOMATICALLY trigger the next step for you as long as you are in Agent Mode.
+   - To STOP the loop and finish the task, you MUST emit [ACTION:WORK_FINISHED] or [ACTION:COMPUTER_CLOSE].
+   - If you do NOT include a finish tag, you will be asked to continue forever.`;
 
         const response = await fetch('/api/ai', {
             method: 'POST',

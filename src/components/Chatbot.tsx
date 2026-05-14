@@ -766,19 +766,15 @@ export default function Chatbot() {
 
       if (shouldContinue) {
         setTriggerContinue(true);
-      } else if (agentIsActive && !/\[ACTION:COMPUTER_CLOSE\]/i.test(lastMsg.content)) {
-        // WATCHDOG: If the AI forgot the tag but the text sounds like it should continue
-        const textLower = contentToClean.toLowerCase();
-        const impliesMore = textLower.includes("next steps") || 
-                           textLower.includes("i will") || 
-                           textLower.includes("proceeding") ||
-                           textLower.includes("الخطوات") || 
-                           textLower.includes("سأقوم") ||
-                           textLower.includes("سأبدأ");
+      } else if (agentIsActive) {
+        // INFINITE AUTONOMY: Always continue if agent is active UNLESS a finish tag is found
+        const isFinished = /\[ACTION:(WORK_FINISHED|COMPUTER_CLOSE)\]/i.test(lastMsg.content);
         
-        if (impliesMore) {
-          console.log("🤖 Watchdog: AI forgot [ACTION:CONTINUE] but text implies more steps. Auto-triggering...");
+        if (!isFinished) {
+          console.log("🤖 Infinite Autonomy: Agent active and no finish tag found. Auto-triggering next step...");
           setTriggerContinue(true);
+        } else {
+          console.log("🤖 Task finished via explicit tag.");
         }
       }
     }
