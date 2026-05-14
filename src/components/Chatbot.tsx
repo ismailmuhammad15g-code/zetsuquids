@@ -144,6 +144,11 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
     displayedContent = displayedContent.replace(/```mermaid\n([^`]*)$/g, "```mermaid-loading\n$1\n```");
   }
 
+  // If message is purely tags and not typing, return null to avoid empty bubbles
+  if (!displayedContent.trim() && !thinkContent && !isTyping) {
+    return null;
+  }
+
   const isArabic = isArabicText(displayedContent);
 
   return (
@@ -627,6 +632,14 @@ export default function Chatbot() {
         pushLog("action", "Initializing AI Workstation...");
       }
 
+      // 5.6. Action COMPUTER_CLOSE
+      if (/\[ACTION:COMPUTER_CLOSE\]/i.test(contentToClean)) {
+        setAgentIsActive(false);
+        hasChanges = true;
+        contentToClean = contentToClean.replace(/\[ACTION:COMPUTER_CLOSE\]/gi, "").trim();
+        pushLog("done", "Workstation closed.");
+      }
+
       // 6. Action STEP
       const stepRegex2 = /\[ACTION:STEP:(.+?)\]/gi;
       let sMatch;
@@ -727,12 +740,10 @@ export default function Chatbot() {
       }
 
       // If no CONTINUE tag and agent was active, mark as done
-      // CRITICAL: ONLY close if we didn't just see a COMPUTER_OPEN tag in this message
+      // REMOVED AUTOMATIC CLOSING: The workstation stays open until COMPUTER_CLOSE or user manual close
       const justOpened = /\[ACTION:COMPUTER_OPEN\]/i.test(lastMsg.content);
-      if (!shouldContinue && agentIsActive && !justOpened) {
-        setAgentIsActive(false);
-        
-        if (agentLogs.length > 0) {
+      if (!shouldContinue && agentIsActive) {
+        if (agentLogs.length > 0 && !justOpened) {
           pushLog("done", "Task completed successfully.");
         }
       }
@@ -740,7 +751,15 @@ export default function Chatbot() {
       if (hasChanges) {
         setMessages((prev) => {
           const newMessages = [...prev];
-          newMessages[newMessages.length - 1] = { ...newMessages[newMessages.length - 1], content: contentToClean };
+          const msgToUpdate = newMessages[newMessages.length - 1];
+          const isActuallyEmpty = contentToClean.trim() === "";
+          
+          newMessages[newMessages.length - 1] = { 
+            ...msgToUpdate, 
+            content: contentToClean,
+            // Hide the message if it only contained action tags
+            isHidden: isActuallyEmpty ? true : msgToUpdate.isHidden
+          };
           return newMessages;
         });
       }
@@ -1863,6 +1882,16 @@ export default function Chatbot() {
                     {/* Messages */}
                     {messages.filter((msg) => !msg.isHidden).map((msg) => {
                       const isArabic = isArabicText(msg.content);
+                      
+                      // Check if message is essentially empty (only tags) and not currently typing
+                      const cleanedContent = msg.content
+                        .replace(/\[ACTION:.*?\]/gi, "")
+                        .replace(/```json[\s\S]*?```/gi, "")
+                        .trim();
+                      const isEssentiallyEmpty = cleanedContent === "" && !msg.content.includes("<think>") && msg.id !== streamingMsgId;
+                      
+                      if (isEssentiallyEmpty && (msg.role === "assistant" || msg.role === "bot")) return null;
+
                       return (
                         <div
                           key={msg.id}

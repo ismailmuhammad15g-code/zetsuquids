@@ -165,15 +165,16 @@ ${relevantGuidesText}
    - Break the task into atomic steps and work through each step automatically.
    
    AVAILABLE ACTION TAGS (Emit at the START of each step):
-   - [ACTION:COMPUTER_OPEN] - use this FIRST to show the workstation panel.
-   - [ACTION:THOUGHT:your plan] - emit this after COMPUTER_OPEN to show reasoning.
-   - [ACTION:SEARCH:query] - when gathering information.
-   - [ACTION:WRITE:section] - when writing a section.
-   - [ACTION:RESULT:summary] - summarize the key results.
-   - [ACTION:STEP:label] - short label for the current step.
-   - [ACTION:CONTINUE] - signal "I am not done, keep going automatically".
-   - [ACTION:SAVE_GUIDE:Title] - save the guide (ONLY WHEN ASKED).
-   - [ACTION:PUBLISH] - save/publish (only in editor).
+    - [ACTION:COMPUTER_OPEN] - use this FIRST to show the workstation panel.
+    - [ACTION:COMPUTER_CLOSE] - use this LAST when the entire complex task is finished.
+    - [ACTION:THOUGHT:your plan] - emit this after COMPUTER_OPEN to show reasoning.
+    - [ACTION:SEARCH:query] - when gathering information.
+    - [ACTION:WRITE:section] - when writing a section.
+    - [ACTION:RESULT:summary] - summarize the key results.
+    - [ACTION:STEP:label] - short label for the current step.
+    - [ACTION:CONTINUE] - signal "I am not done, keep going automatically".
+    - [ACTION:SAVE_GUIDE:Title] - save the guide (ONLY WHEN ASKED).
+    - [ACTION:PUBLISH] - save/publish (only in editor).
 
    AGENTIC LOOP RULE (STRICT):
    - DO NOT perform multiple steps in a single response.
