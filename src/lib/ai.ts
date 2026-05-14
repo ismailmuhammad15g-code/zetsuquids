@@ -180,8 +180,8 @@ ${relevantGuidesText}
    - DO NOT perform multiple steps in a single response.
    - Emit ONE thought, ONE step, ONE action/result.
    - The system will AUTOMATICALLY trigger the next step for you as long as you are in Agent Mode.
-   - To STOP the loop and finish the task, you MUST emit [ACTION:WORK_FINISHED] or [ACTION:COMPUTER_CLOSE].
-   - If you do NOT include a finish tag, you will be asked to continue forever.`;
+   - To STOP the loop and finish the task, you MUST emit exactly [ACTION:WORK_FINISHED] at the very end of your final message.
+   - FAILURE TO EMIT [ACTION:WORK_FINISHED] WILL CAUSE AN INFINITE LOOP. YOU MUST INCLUDE IT.`;
 
         const response = await fetch('/api/ai', {
             method: 'POST',
