@@ -938,6 +938,10 @@ export default function DirectSupportChat() {
                                                        rounded-[18px] rounded-bl-[4px]`
                                                 }
                                             `}
+                                            dir={isArabicText(msg.content) ? 'rtl' : 'ltr'}
+                                            style={{
+                                                textAlign: isArabicText(msg.content) ? 'right' : 'left'
+                                            }}
                                         >
                                             {/* Image if exists */}
                                             {msg.imageUrl && (

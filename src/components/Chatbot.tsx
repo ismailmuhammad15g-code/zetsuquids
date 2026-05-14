@@ -1867,8 +1867,8 @@ export default function Chatbot() {
                           >
                             <div
                               className={`rounded-2xl px-4 py-3 shadow-sm border ${msg.role === "user"
-                                ? `bg-black text-white border-black ${isArabic ? "rounded-br-none" : "rounded-tr-none"}`
-                                : `bg-white text-black border-black ${isArabic ? "rounded-tr-none" : "rounded-tl-none"}`
+                                ? `bg-black text-white border-black rounded-tr-none`
+                                : `bg-white text-black border-black rounded-tl-none`
                                 }`}
                             >
                               {msg.role === "assistant" || msg.role === "bot" ? (
