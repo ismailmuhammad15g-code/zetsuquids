@@ -11,8 +11,8 @@ const supabaseAdmin = createClient(
 
 // ── AI APIs ────────────────────────────────────────────────────────
 const PRIMARY_API_KEY = process.env.AI_API_KEY || process.env.NEXT_PUBLIC_AI_API_KEY || "";
-const PRIMARY_API_URL = process.env.AI_BASE_URL || process.env.NEXT_PUBLIC_AI_API_URL || "";
-const PRIMARY_MODEL = process.env.AI_MODEL || process.env.NEXT_PUBLIC_AI_MODEL || "";
+const PRIMARY_API_URL = process.env.AI_BASE_URL || process.env.NEXT_PUBLIC_AI_API_URL || "https://api.groq.com/openai/v1/chat/completions";
+const PRIMARY_MODEL = process.env.AI_MODEL || process.env.NEXT_PUBLIC_AI_MODEL || "llama-3.3-70b-versatile";
 
 const FALLBACK_API_KEY = process.env.CF_API_KEY || "";
 const FALLBACK_ACCOUNT_ID = process.env.CF_ACCOUNT_ID || "";

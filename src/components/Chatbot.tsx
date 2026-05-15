@@ -548,14 +548,20 @@ export default function Chatbot() {
 
       // 1. Detection Phase (Use RAW content)
       const rawText = lastMsg.content;
-      const isFinished = /\[ACTION:(WORK_FINISHED|WORK-FINISHED|WORKFINISHED|COMPUTER_CLOSE|FINISHED|FINISH|DONE|COMPLETE|COMPLETED|SUCCESS)\]/i.test(rawText);
-      let shouldContinue = /\[ACTION:CONTINUE\]/i.test(rawText);
-      const justOpened = /\[ACTION:COMPUTER_OPEN\]/i.test(rawText);
+      
+      const explicitFinish = /\[\s*ACTION\s*:\s*(WORK_FINISHED|WORK-FINISHED|WORKFINISHED|COMPUTER_CLOSE|FINISHED|FINISH|DONE|COMPLETE|COMPLETED|SUCCESS)\s*\]/i.test(rawText);
+      const codeFinish = /"action"\s*:\s*"(work_finished|finished|done|complete|computer_close)"/i.test(rawText);
+      let shouldContinue = /\[\s*ACTION\s*:\s*CONTINUE\s*\]/i.test(rawText);
+      const justOpened = /\[\s*ACTION\s*:\s*COMPUTER_OPEN\s*\]/i.test(rawText);
+      
+      // Smart Auto-Completion: If AI forgot finish tag but is active and didn't use ANY progress tags, it's done naturally (e.g. just gave final code)
+      const usedProgressTag = /\[\s*ACTION\s*:\s*(STEP|THOUGHT|SEARCH|WRITE|RESULT|SAVE_GUIDE)/i.test(rawText);
+      const isFinished = explicitFinish || codeFinish || (agentIsActive && !usedProgressTag && !shouldContinue && !justOpened);
       
       let contentToClean = lastMsg.content;
       let hasChanges = false;
 
-      console.log("🤖 Agent State Check:", { isFinished, shouldContinue, agentIsActive });
+      console.log("🤖 Agent State Check:", { explicitFinish, isFinished, shouldContinue, agentIsActive, usedProgressTag });
 
       // 1. Highlight Actions (Multi-support)
       const highlightRegex = /\[ACTION:HIGHLIGHT:(.+?)\]/gi;
@@ -751,9 +757,9 @@ export default function Chatbot() {
       }
 
       // 11.5. Clean Finished Tags
-      if (isFinished) {
+      if (explicitFinish || codeFinish) {
         hasChanges = true;
-        contentToClean = contentToClean.replace(/\[ACTION:(WORK_FINISHED|WORK-FINISHED|WORKFINISHED|COMPUTER_CLOSE|FINISHED|FINISH|DONE|COMPLETE|COMPLETED|SUCCESS)\]/gi, "").trim();
+        contentToClean = contentToClean.replace(/\[\s*ACTION\s*:\s*(WORK_FINISHED|WORK-FINISHED|WORKFINISHED|COMPUTER_CLOSE|FINISHED|FINISH|DONE|COMPLETE|COMPLETED|SUCCESS)\s*\]/gi, "").trim();
       }
 
       // 12. Auto-log done status
@@ -781,7 +787,7 @@ export default function Chatbot() {
 
       // Final Decision Phase (Infinite Autonomy)
       if (isFinished) {
-        console.log("🤖 Task finished via explicit tag.");
+        console.log(`🤖 Task finished (${explicitFinish ? 'explicit tag' : 'smart auto-detect'}).`);
         setAgentIsActive(false);
         if (agentLogs.length > 0 && !justOpened) {
           pushLog("done", "Task completed successfully.");
@@ -789,8 +795,8 @@ export default function Chatbot() {
       } else if (shouldContinue) {
         setTriggerContinue(true);
       } else if (agentIsActive) {
-        // INFINITE AUTONOMY: Always continue if agent is active UNLESS a finish tag is found
-        console.log("🤖 Infinite Autonomy: Agent active and no finish tag found. Auto-triggering next step...");
+        // INFINITE AUTONOMY (Only triggers if AI actually used progress tags like STEP but forgot CONTINUE)
+        console.log("🤖 Infinite Autonomy: Agent active and using progress tags but no finish/continue tag found. Auto-triggering next step...");
         setTriggerContinue(true);
       }
     }

@@ -676,8 +676,8 @@ export default async function handler(req, res) {
 
     // Get API credentials from environment variables
     const primaryApiKey = (process.env.AI_API_KEY || process.env.NEXT_PUBLIC_AI_API_KEY || "").trim();
-    const primaryApiUrl = (process.env.AI_BASE_URL || process.env.NEXT_PUBLIC_AI_API_URL || "").trim();
-    const primaryModel = (process.env.AI_MODEL || process.env.NEXT_PUBLIC_AI_MODEL || "").trim();
+    const primaryApiUrl = (process.env.AI_BASE_URL || process.env.NEXT_PUBLIC_AI_API_URL || "https://api.groq.com/openai/v1/chat/completions").trim();
+    const primaryModel = (process.env.AI_MODEL || process.env.NEXT_PUBLIC_AI_MODEL || "llama-3.3-70b-versatile").trim();
 
     // Aliases for compatibility with legacy code in this file
     const apiKey = primaryApiKey;
