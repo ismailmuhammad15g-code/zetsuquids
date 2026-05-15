@@ -148,11 +148,15 @@ export default function ScriptsMarketplace() {
               <Link href={`/scripts/${script.id}`} key={script.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl transition-all group flex flex-col">
                 <div className="h-48 w-full overflow-hidden relative bg-gray-100 flex items-center justify-center">
                   {script.thumbnail_url ? (
-                    <img 
-                      src={script.thumbnail_url} 
-                      alt={script.title} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
+                    <>
+                      <img 
+                        src={script.thumbnail_url} 
+                        alt={script.title} 
+                        onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <Code2 size={64} className="text-gray-300 group-hover:scale-110 transition-transform duration-500 hidden absolute" />
+                    </>
                   ) : (
                     <Code2 size={64} className="text-gray-300 group-hover:scale-110 transition-transform duration-500" />
                   )}

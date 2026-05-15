@@ -87,21 +87,31 @@ export default function ScriptDetailsPage() {
   };
 
   const fetchComments = async () => {
-    const { data } = await supabase
-      .from('marketplace_comments')
-      .select('*')
-      .eq('script_id', id)
-      .order('created_at', { ascending: false });
-    if (data) setComments(data);
+    try {
+      const { data, error } = await supabase
+        .from('marketplace_comments')
+        .select('*')
+        .eq('script_id', id)
+        .order('created_at', { ascending: false });
+      if (error && error.code !== '42P01') console.error('fetchComments error', error);
+      if (data) setComments(data);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const fetchReviews = async () => {
-    const { data } = await supabase
-      .from('marketplace_reviews')
-      .select('*')
-      .eq('script_id', id)
-      .order('created_at', { ascending: false });
-    if (data) setReviews(data);
+    try {
+      const { data, error } = await supabase
+        .from('marketplace_reviews')
+        .select('*')
+        .eq('script_id', id)
+        .order('created_at', { ascending: false });
+      if (error && error.code !== '42P01') console.error('fetchReviews error', error);
+      if (data) setReviews(data);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleSimulatePurchase = async () => {
@@ -275,13 +285,19 @@ export default function ScriptDetailsPage() {
             {/* Preview Image */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative min-h-[300px] flex items-center justify-center">
               {script.thumbnail_url ? (
-                <img src={script.thumbnail_url} alt={script.title} className="w-full h-auto object-cover max-h-[500px]" />
-              ) : (
-                <div className="text-gray-400 flex flex-col items-center">
-                   <LayoutTemplate size={64} className="mb-4 opacity-50" />
-                   <p>No preview image available</p>
-                </div>
-              )}
+                <img 
+                  src={script.thumbnail_url} 
+                  alt={script.title} 
+                  onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
+                  className="w-full h-auto object-cover max-h-[500px]" 
+                />
+              ) : null}
+              
+              <div className={`text-gray-400 flex-col items-center ${script.thumbnail_url ? 'hidden absolute' : 'flex'}`}>
+                 <LayoutTemplate size={64} className="mb-4 opacity-50" />
+                 <p>No preview image available</p>
+              </div>
+
               {script.preview_url && (
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end justify-center pb-8 opacity-0 hover:opacity-100 transition-opacity">
                   <a href={script.preview_url} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-900 font-bold px-8 py-3 rounded-lg shadow-lg hover:bg-gray-50 flex items-center gap-2 transform transition-transform hover:scale-105">

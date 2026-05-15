@@ -1,7 +1,13 @@
+'use client';
+import React from 'react';
 import Link from 'next/link';
-import { ShoppingCart, User, Code, Search, Monitor } from 'lucide-react';
+import { ShoppingCart, Code, Search, Monitor, LogIn } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { getAvatarForUser } from '@/lib/avatar';
 
 export default function ScriptsLayout({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-gray-50 text-black font-sans selection:bg-indigo-100 selection:text-indigo-900">
       {/* Navbar */}
@@ -46,13 +52,27 @@ export default function ScriptsLayout({ children }: { children: React.ReactNode 
                 <Monitor size={18} />
                 Creator Console
               </Link>
-              <button className="text-gray-500 hover:text-indigo-600 transition-colors relative">
+              
+              <Link href="/scripts/cart" className="text-gray-500 hover:text-indigo-600 transition-colors relative mr-2">
                 <ShoppingCart size={24} />
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center">0</span>
-              </button>
-              <button className="text-gray-500 hover:text-indigo-600 transition-colors">
-                <User size={24} />
-              </button>
+              </Link>
+
+              {user ? (
+                <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-indigo-200">
+                   <img 
+                      src={getAvatarForUser(user.email, user.user_metadata?.avatar_url as string | null)} 
+                      alt="User" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`; }}
+                   />
+                </div>
+              ) : (
+                <Link href="/auth" className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-black transition-colors">
+                  <LogIn size={16} />
+                  Login / Sign Up
+                </Link>
+              )}
             </div>
             
           </div>
