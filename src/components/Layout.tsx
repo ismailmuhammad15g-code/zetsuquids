@@ -348,6 +348,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       href: "/",
     },
     {
+      label: "Scripts",
+      icon: <Layers size={18} className="translate-y-[1px]" />,
+      href: "/scripts",
+      isActive: pathname.startsWith("/scripts"),
+    },
+    {
       label: "Guides",
       icon: <BookOpen size={18} className="translate-y-[1px]" />,
       href: "/guides",
