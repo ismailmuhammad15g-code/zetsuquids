@@ -13,6 +13,20 @@ import { format } from 'date-fns';
 import { getAvatarForUser } from '@/lib/avatar';
 import { toast } from 'sonner';
 
+// Validate image URL - reject broken data URLs
+function isValidImageUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  if (url.startsWith('data:')) {
+    return /^data:image\/[a-z]+;base64,[A-Za-z0-9+/=]{100,}$/.test(url);
+  }
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function ScriptDetailsPage() {
   const params = useParams();
   const id = params.id as string;
@@ -93,10 +107,13 @@ export default function ScriptDetailsPage() {
         .select('*')
         .eq('script_id', id)
         .order('created_at', { ascending: false });
-      if (error && error.code !== '42P01') console.error('fetchComments error', error);
+      // Silently ignore if table doesn't exist (42P01 or 404)
+      if (error && error.code !== '42P01' && !error.message?.includes('404')) {
+        console.error('fetchComments error', error);
+      }
       if (data) setComments(data);
     } catch (err) {
-      console.error(err);
+      // Silently handle table not found
     }
   };
 
@@ -107,10 +124,13 @@ export default function ScriptDetailsPage() {
         .select('*')
         .eq('script_id', id)
         .order('created_at', { ascending: false });
-      if (error && error.code !== '42P01') console.error('fetchReviews error', error);
+      // Silently ignore if table doesn't exist (42P01 or 404)
+      if (error && error.code !== '42P01' && !error.message?.includes('404')) {
+        console.error('fetchReviews error', error);
+      }
       if (data) setReviews(data);
     } catch (err) {
-      console.error(err);
+      // Silently handle table not found
     }
   };
 
@@ -284,16 +304,16 @@ export default function ScriptDetailsPage() {
 
             {/* Preview Image */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative min-h-[300px] flex items-center justify-center">
-              {script.thumbnail_url ? (
-                <img 
-                  src={script.thumbnail_url} 
-                  alt={script.title} 
+              {isValidImageUrl(script.thumbnail_url) ? (
+                <img
+                  src={script.thumbnail_url}
+                  alt={script.title}
                   onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
-                  className="w-full h-auto object-cover max-h-[500px]" 
+                  className="w-full h-auto object-cover max-h-[500px]"
                 />
               ) : null}
-              
-              <div className={`text-gray-400 flex-col items-center ${script.thumbnail_url ? 'hidden absolute' : 'flex'}`}>
+
+              <div className={`text-gray-400 flex-col items-center ${isValidImageUrl(script.thumbnail_url) ? 'hidden absolute' : 'flex'}`}>
                  <LayoutTemplate size={64} className="mb-4 opacity-50" />
                  <p>No preview image available</p>
               </div>
@@ -421,7 +441,7 @@ export default function ScriptDetailsPage() {
                       ) : (
                         comments.map(comment => (
                           <div key={comment.id} className="flex gap-4">
-                            <img src={comment.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_name}`} alt={comment.author_name} className="w-10 h-10 rounded-full object-cover border border-gray-200 shrink-0" />
+                            <img src={isValidImageUrl(comment.author_avatar) ? comment.author_avatar : `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_name}`} alt={comment.author_name} className="w-10 h-10 rounded-full object-cover border border-gray-200 shrink-0" />
                             <div className="flex-1">
                               <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-none p-4 shadow-sm">
                                 <div className="flex justify-between items-center mb-2">
@@ -499,7 +519,7 @@ export default function ScriptDetailsPage() {
                           <div key={review.id} className="border-b border-gray-100 pb-6 last:border-0 last:pb-0">
                             <div className="flex justify-between items-start mb-3">
                               <div className="flex items-center gap-3">
-                                <img src={review.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${review.author_name}`} alt={review.author_name} className="w-10 h-10 rounded-full object-cover border border-gray-200" />
+                                <img src={isValidImageUrl(review.author_avatar) ? review.author_avatar : `https://api.dicebear.com/7.x/avataaars/svg?seed=${review.author_name}`} alt={review.author_name} className="w-10 h-10 rounded-full object-cover border border-gray-200" />
                                 <div>
                                   <p className="font-bold text-gray-900">{review.author_name}</p>
                                   <div className="flex items-center gap-1 mt-0.5">

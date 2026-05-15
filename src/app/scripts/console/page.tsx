@@ -1,9 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  BarChart3, Package, DollarSign, 
-  PlusCircle, Settings, Bell, Search, 
+import {
+  BarChart3, Package, DollarSign,
+  PlusCircle, Settings, Bell, Search,
   Edit, Trash2, Eye, TrendingUp, AlertCircle, Loader2
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -37,27 +37,33 @@ export default function CreatorConsole() {
         .eq('author_id', user?.id)
         .order('created_at', { ascending: false });
 
+      // Silently handle if table doesn't exist
+      if (error && (error.code === '42P01' || error.message?.includes('404'))) {
+        setItems([]);
+        setLoading(false);
+        return;
+      }
       if (error) throw error;
-      
+
       setItems(scripts || []);
-      
+
       // Calculate basic stats from scripts
       let rev = 0;
       let sales = 0;
       let active = 0;
-      
+
       (scripts || []).forEach((script: any) => {
          sales += script.sales_count;
          rev += (script.sales_count * script.price);
          if (script.status === 'Active') active++;
       });
-      
+
       setStats({
         totalRevenue: rev,
         totalSales: sales,
         activeItems: active
       });
-      
+
     } catch (error) {
       console.error("Error fetching creator data:", error);
     } finally {

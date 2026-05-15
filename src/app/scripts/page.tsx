@@ -1,8 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Star, Download, Code2, Cpu, LayoutTemplate, ShieldCheck, Loader2 } from 'lucide-react';
+import { Star, Download, Code2, Cpu, LayoutTemplate, ShieldCheck, Loader2, LogIn, UserPlus, X, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { getAvatarForUser } from '@/lib/avatar';
 
 interface ScriptItem {
   id: string;
@@ -17,14 +19,57 @@ interface ScriptItem {
   tags: string[];
 }
 
+// Validate image URL - reject broken data URLs
+function isValidImageUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  if (url.startsWith('data:')) {
+    // Only allow properly formed data URLs (must have base64 content)
+    return /^data:image\/[a-z]+;base64,[A-Za-z0-9+/=]{100,}$/.test(url);
+  }
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function ScriptsMarketplace() {
+  const { user } = useAuth();
   const [scripts, setScripts] = useState<ScriptItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [hasConfirmedAccount, setHasConfirmedAccount] = useState(false);
 
   useEffect(() => {
     fetchScripts();
   }, [activeCategory]);
+
+  // Show account confirmation modal when user first arrives and is logged in
+  useEffect(() => {
+    if (user && !hasConfirmedAccount) {
+      const confirmed = sessionStorage.getItem('scripts_account_confirmed');
+      if (!confirmed) {
+        setShowAccountModal(true);
+      } else {
+        setHasConfirmedAccount(true);
+      }
+    }
+  }, [user, hasConfirmedAccount]);
+
+  const handleConfirmAccount = () => {
+    sessionStorage.setItem('scripts_account_confirmed', 'true');
+    setHasConfirmedAccount(true);
+    setShowAccountModal(false);
+  };
+
+  const handleSwitchAccount = async () => {
+    await supabase.auth.signOut();
+    sessionStorage.removeItem('scripts_account_confirmed');
+    setShowAccountModal(false);
+    window.location.href = '/auth';
+  };
 
   const fetchScripts = async () => {
     setLoading(true);
@@ -68,6 +113,54 @@ export default function ScriptsMarketplace() {
 
   return (
     <div>
+      {/* Account Confirmation Modal */}
+      {showAccountModal && user && (
+        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-8 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button onClick={() => setShowAccountModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black">
+              <X size={20} />
+            </button>
+            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200">
+              <span className="text-white font-black text-3xl">Z</span>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back!</h3>
+            <p className="text-gray-500 mb-6">You are logged in as:</p>
+
+            <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-4 mb-6 border border-gray-200">
+              <img
+                src={getAvatarForUser(user.email, user.user_metadata?.avatar_url as string | null)}
+                alt="Avatar"
+                className="w-12 h-12 rounded-full object-cover border-2 border-indigo-200"
+                onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`; }}
+              />
+              <div className="text-left">
+                <p className="font-bold text-gray-900">{user.user_metadata?.full_name || user.email?.split('@')[0]}</p>
+                <p className="text-sm text-gray-500">{user.email}</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-500 mb-6">Do you want to continue with this account for all your scripts and purchases?</p>
+
+            <div className="space-y-3">
+              <button
+                onClick={handleConfirmAccount}
+                className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all shadow-lg flex items-center justify-center gap-2"
+              >
+                <User size={18} />
+                Continue with this Account
+              </button>
+              <button
+                onClick={handleSwitchAccount}
+                className="w-full bg-white text-gray-700 border border-gray-300 font-bold py-3 rounded-xl hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+              >
+                <LogIn size={18} />
+                Switch Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
       <div className="bg-indigo-600 py-16 sm:py-24 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
@@ -78,8 +171,8 @@ export default function ScriptsMarketplace() {
           <p className="text-xl text-indigo-100 max-w-2xl mx-auto mb-10">
             Thousands of high-quality scripts, plugins, and templates. Stored securely on GitHub, delivered instantly to you.
           </p>
-          <div className="flex justify-center gap-4">
-            <button 
+          <div className="flex justify-center gap-4 flex-wrap">
+            <button
               onClick={() => {
                 document.getElementById('scripts-grid')?.scrollIntoView({ behavior: 'smooth' });
               }}
@@ -87,9 +180,22 @@ export default function ScriptsMarketplace() {
             >
               Browse All
             </button>
-            <Link href="/scripts/console" className="bg-indigo-500 text-white border border-indigo-400 hover:bg-indigo-400 px-8 py-3 rounded-lg font-bold text-lg shadow-lg transition-all transform hover:-translate-y-1">
-              Start Selling
-            </Link>
+            {!user ? (
+              <>
+                <Link href="/auth" className="bg-indigo-500 text-white border border-indigo-400 hover:bg-indigo-400 px-8 py-3 rounded-lg font-bold text-lg shadow-lg transition-all transform hover:-translate-y-1 flex items-center gap-2">
+                  <LogIn size={18} />
+                  Login
+                </Link>
+                <Link href="/auth" className="bg-white text-indigo-600 border border-white hover:bg-gray-50 px-8 py-3 rounded-lg font-bold text-lg shadow-lg transition-all transform hover:-translate-y-1 flex items-center gap-2">
+                  <UserPlus size={18} />
+                  Sign Up
+                </Link>
+              </>
+            ) : (
+              <Link href="/scripts/console" className="bg-indigo-500 text-white border border-indigo-400 hover:bg-indigo-400 px-8 py-3 rounded-lg font-bold text-lg shadow-lg transition-all transform hover:-translate-y-1">
+                Start Selling
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -147,11 +253,11 @@ export default function ScriptsMarketplace() {
             {scripts.map((script) => (
               <Link href={`/scripts/${script.id}`} key={script.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl transition-all group flex flex-col">
                 <div className="h-48 w-full overflow-hidden relative bg-gray-100 flex items-center justify-center">
-                  {script.thumbnail_url ? (
+                  {isValidImageUrl(script.thumbnail_url) ? (
                     <>
-                      <img 
-                        src={script.thumbnail_url} 
-                        alt={script.title} 
+                      <img
+                        src={script.thumbnail_url}
+                        alt={script.title}
                         onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
