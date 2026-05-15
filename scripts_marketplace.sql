@@ -1,5 +1,10 @@
+-- Clean up existing tables safely if they exist (since previous versions lacked new columns)
+DROP TABLE IF EXISTS marketplace_reviews CASCADE;
+DROP TABLE IF EXISTS marketplace_purchases CASCADE;
+DROP TABLE IF EXISTS marketplace_scripts CASCADE;
+
 -- Updated Schema for Marketplace Scripts (Using Supabase for Data, GitHub for Storage)
-CREATE TABLE IF NOT EXISTS marketplace_scripts (
+CREATE TABLE marketplace_scripts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title VARCHAR(255) NOT NULL,
   description TEXT NOT NULL,
@@ -26,7 +31,7 @@ CREATE TABLE IF NOT EXISTS marketplace_scripts (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS marketplace_purchases (
+CREATE TABLE marketplace_purchases (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   script_id UUID NOT NULL REFERENCES marketplace_scripts(id) ON DELETE CASCADE,
   buyer_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -34,7 +39,7 @@ CREATE TABLE IF NOT EXISTS marketplace_purchases (
   purchase_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS marketplace_reviews (
+CREATE TABLE marketplace_reviews (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   script_id UUID NOT NULL REFERENCES marketplace_scripts(id) ON DELETE CASCADE,
   reviewer_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,

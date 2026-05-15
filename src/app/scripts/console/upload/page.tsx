@@ -51,28 +51,35 @@ export default function UploadScriptPage() {
       // We need the author's name from user profile or metadata
       const authorName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Creator';
 
-      const payload = {
+      const payload: any = {
         title: formData.title,
         description: formData.description,
-        long_description: formData.long_description,
+        long_description: formData.long_description || null,
         price: isNaN(priceNum) ? 0 : priceNum,
         category: formData.category,
-        tags: tagsArray,
-        version: formData.version,
-        features: featuresArray,
-        github_repo_url: formData.github_repo_url,
-        thumbnail_url: formData.thumbnail_url,
-        preview_url: formData.preview_url,
+        tags: tagsArray.length > 0 ? tagsArray : [],
+        version: formData.version || '1.0.0',
+        features: featuresArray.length > 0 ? featuresArray : [],
+        github_repo_url: formData.github_repo_url || null,
+        thumbnail_url: formData.thumbnail_url || null,
+        preview_url: formData.preview_url || null,
         author_id: user.id,
         author_name: authorName,
         status: 'Active'
       };
 
+      // Clean up empty strings that might cause issues with UUID or URLs
+      Object.keys(payload).forEach(key => {
+        if (payload[key] === '') {
+          payload[key] = null;
+        }
+      });
+
       const { error } = await supabase.from('marketplace_scripts').insert([payload]);
 
       if (error) {
-        console.error("Upload error:", error);
-        toast.error(`Error uploading: ${error.message}`);
+        console.error("Upload error details:", JSON.stringify(error, null, 2));
+        toast.error(`Error uploading: ${error.message || error.details || 'Unknown error'}`);
       } else {
         toast.success("Script published successfully!");
         setSuccess(true);
