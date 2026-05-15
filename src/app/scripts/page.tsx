@@ -134,7 +134,7 @@ export default function ScriptsMarketplace() {
                 onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`; }}
               />
               <div className="text-left">
-                <p className="font-bold text-gray-900">{user.user_metadata?.full_name || user.email?.split('@')[0]}</p>
+                <p className="font-bold text-gray-900">{String(user.user_metadata?.full_name || user.email?.split('@')[0] || 'User')}</p>
                 <p className="text-sm text-gray-500">{user.email}</p>
               </div>
             </div>
