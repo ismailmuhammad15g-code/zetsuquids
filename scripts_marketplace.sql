@@ -18,9 +18,9 @@ CREATE TABLE marketplace_scripts (
   author_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   author_name VARCHAR(255) NOT NULL DEFAULT 'Anonymous',
   
-  thumbnail_url VARCHAR(1000), -- E.g. Supabase storage or GitHub raw link
-  preview_url VARCHAR(1000),
-  github_repo_url VARCHAR(1000), -- The heavy script is stored here
+  thumbnail_url TEXT, -- Changed to TEXT to support long base64 image strings
+  preview_url TEXT,
+  github_repo_url TEXT,
   
   sales_count INT DEFAULT 0,
   rating DECIMAL(3, 2) DEFAULT 0.00,
