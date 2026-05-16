@@ -89,7 +89,42 @@ export default function ScriptsMarketplace() {
       const { data, error } = await query;
 
       if (error) throw error;
-      setScripts(data || []);
+
+      // Fetch real sales and review counts for each script
+      const enrichedScripts = await Promise.all(
+        (data || []).map(async (script: any) => {
+          try {
+            // Get actual sales count
+            const { count: salesCount } = await supabase
+              .from('marketplace_purchases')
+              .select('*', { count: 'exact', head: true })
+              .eq('script_id', script.id);
+
+            // Get actual reviews
+            const { data: reviewsData } = await supabase
+              .from('marketplace_reviews')
+              .select('rating')
+              .eq('script_id', script.id);
+
+            const actualSales = salesCount || 0;
+            const actualReviews = reviewsData?.length || 0;
+            const avgRating = actualReviews > 0
+              ? reviewsData.reduce((sum: number, r: any) => sum + r.rating, 0) / actualReviews
+              : 0;
+
+            return {
+              ...script,
+              sales_count: actualSales,
+              reviews_count: actualReviews,
+              rating: Math.round(avgRating * 10) / 10
+            };
+          } catch {
+            return script;
+          }
+        })
+      );
+
+      setScripts(enrichedScripts);
     } catch (error) {
       console.error('Error fetching scripts:', error);
     } finally {

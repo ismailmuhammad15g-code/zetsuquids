@@ -39,7 +39,6 @@ export default function ScriptDetailsPage() {
   const [activeTab, setActiveTab] = useState('details');
 
   const [hasPurchased, setHasPurchased] = useState(false);
-  const [purchasing, setPurchasing] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Tabs Data
@@ -74,9 +73,33 @@ export default function ScriptDetailsPage() {
         .select('*')
         .eq('id', id)
         .single();
-      
+
       if (error) throw error;
-      setScript(data);
+
+      // Fetch actual sales count from purchases
+      const { count: salesCount } = await supabase
+        .from('marketplace_purchases')
+        .select('*', { count: 'exact', head: true })
+        .eq('script_id', id);
+
+      // Fetch actual reviews stats
+      const { data: reviewsData } = await supabase
+        .from('marketplace_reviews')
+        .select('rating')
+        .eq('script_id', id);
+
+      const actualSalesCount = salesCount || 0;
+      const actualReviewsCount = reviewsData?.length || 0;
+      const avgRating = actualReviewsCount > 0
+        ? reviewsData.reduce((sum: number, r: any) => sum + r.rating, 0) / actualReviewsCount
+        : 0;
+
+      setScript({
+        ...data,
+        sales_count: actualSalesCount,
+        reviews_count: actualReviewsCount,
+        rating: Math.round(avgRating * 10) / 10
+      });
     } catch (error) {
       console.error('Error fetching script details:', error);
     } finally {
@@ -139,9 +162,9 @@ export default function ScriptDetailsPage() {
       setShowAuthModal(true);
       return;
     }
-    setPurchasing(true);
+
+    // Check if already purchased
     try {
-      // Check if already purchased
       const { data: existing } = await supabase
         .from('marketplace_purchases')
         .select('id')
@@ -152,24 +175,14 @@ export default function ScriptDetailsPage() {
       if (existing) {
         setHasPurchased(true);
         toast.info('You already own this script!');
-        setPurchasing(false);
         return;
       }
-
-      const { error } = await supabase.from('marketplace_purchases').insert({
-        script_id: id,
-        buyer_id: user.id,
-        amount: script.price,
-        status: 'completed'
-      });
-      if (error) throw error;
-      setHasPurchased(true);
-      toast.success("Purchase successful! You now have access to the source code and can leave a review.");
-    } catch (error: any) {
-      toast.error(`Error: ${error.message}`);
-    } finally {
-      setPurchasing(false);
+    } catch (err) {
+      // Continue to checkout if check fails
     }
+
+    // Redirect to checkout page
+    window.location.href = `/scripts/checkout?script=${id}`;
   };
 
   const handlePostComment = async () => {
@@ -701,10 +714,9 @@ export default function ScriptDetailsPage() {
                 <>
                   <button
                     onClick={handleSimulatePurchase}
-                    disabled={purchasing}
-                    className="w-full bg-indigo-600 text-white font-bold text-lg py-3 rounded-lg shadow-md hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 mb-3 disabled:opacity-70"
+                    className="w-full bg-indigo-600 text-white font-bold text-lg py-3 rounded-lg shadow-md hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 mb-3"
                   >
-                    {purchasing ? <Loader2 size={20} className="animate-spin" /> : <ShoppingCart size={20} />}
+                    <ShoppingCart size={20} />
                     Purchase Now
                   </button>
                   <button

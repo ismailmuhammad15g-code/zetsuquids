@@ -1,9 +1,7 @@
 'use client';
-import React from 'react';
 import { X, ShoppingCart, Trash2, ArrowRight } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 function isValidImageUrl(url: string | null | undefined): boolean {
@@ -22,7 +20,6 @@ function isValidImageUrl(url: string | null | undefined): boolean {
 export default function CartDrawer() {
   const { items, isOpen, setIsOpen, removeFromCart, clearCart, total, itemCount } = useCart();
   const { user } = useAuth();
-  const [purchasing, setPurchasing] = React.useState(false);
 
   const handleCheckout = async () => {
     if (!user) {
@@ -33,45 +30,9 @@ export default function CartDrawer() {
 
     if (items.length === 0) return;
 
-    setPurchasing(true);
-    try {
-      // Process each purchase
-      for (const item of items) {
-        // Check if already purchased
-        const { data: existing } = await supabase
-          .from('marketplace_purchases')
-          .select('id')
-          .eq('script_id', item.id)
-          .eq('buyer_id', user.id)
-          .maybeSingle();
-
-        if (existing) {
-          toast.info(`You already own "${item.title}"`);
-          continue;
-        }
-
-        const { error } = await supabase.from('marketplace_purchases').insert({
-          script_id: item.id,
-          buyer_id: user.id,
-          amount: item.price,
-          status: 'completed'
-        });
-
-        if (error) {
-          console.error('Purchase error for', item.title, error);
-          throw error;
-        }
-      }
-
-      toast.success(`Successfully purchased ${itemCount} script${itemCount > 1 ? 's' : ''}!`);
-      clearCart();
-      setIsOpen(false);
-      window.location.reload();
-    } catch (err: any) {
-      toast.error(`Purchase failed: ${err.message}`);
-    } finally {
-      setPurchasing(false);
-    }
+    // Redirect to checkout page
+    setIsOpen(false);
+    window.location.href = '/scripts/checkout?cart=true';
   };
 
   return (
@@ -166,16 +127,9 @@ export default function CartDrawer() {
             </div>
             <button
               onClick={handleCheckout}
-              disabled={purchasing}
-              className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+              className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
             >
-              {purchasing ? (
-                'Processing...'
-              ) : (
-                <>
-                  Checkout <ArrowRight size={18} />
-                </>
-              )}
+              Checkout <ArrowRight size={18} />
             </button>
             <button
               onClick={clearCart}
