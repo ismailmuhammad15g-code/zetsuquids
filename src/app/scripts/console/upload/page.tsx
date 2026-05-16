@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Upload, Loader2, Github, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Upload, Loader2, Github, CheckCircle2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function UploadScriptPage() {
