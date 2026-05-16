@@ -35,6 +35,11 @@ CREATE TABLE IF NOT EXISTS marketplace_scripts (
 ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS author_avatar TEXT;
 ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS contact_url TEXT;
 ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS long_description TEXT;
+
+-- Add missing columns to marketplace_purchases
+ALTER TABLE marketplace_purchases ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE marketplace_purchases ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'completed';
+ALTER TABLE marketplace_purchases ADD COLUMN IF NOT EXISTS amount NUMERIC(10,2) DEFAULT 0;
 ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS version TEXT DEFAULT '1.0.0';
 ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS features TEXT[] DEFAULT '{}';
 ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS github_repo_url TEXT;

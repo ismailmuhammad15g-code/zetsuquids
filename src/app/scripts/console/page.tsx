@@ -34,11 +34,10 @@ export default function CreatorConsole() {
       const { data: scripts, error } = await supabase
         .from('marketplace_scripts')
         .select('*')
-        .eq('author_id', user?.id)
-        .order('created_at', { ascending: false });
+        .eq('author_id', user?.id);
 
       // Silently handle if table doesn't exist
-      if (error && (error.code === '42P01' || error.message?.includes('404'))) {
+      if (error && (error.code === '42P01' || error.code === '42703' || error.message?.includes('400') || error.message?.includes('404'))) {
         setItems([]);
         setLoading(false);
         return;

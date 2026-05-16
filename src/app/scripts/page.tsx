@@ -80,15 +80,14 @@ export default function ScriptsMarketplace() {
       let query = supabase
         .from('marketplace_scripts')
         .select('*')
-        .eq('status', 'Active')
-        .order('created_at', { ascending: false });
+        .eq('status', 'Active');
 
       if (activeCategory) {
         query = query.eq('category', activeCategory);
       }
 
       const { data, error } = await query;
-      
+
       if (error) throw error;
       setScripts(data || []);
     } catch (error) {

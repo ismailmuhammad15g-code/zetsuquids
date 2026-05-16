@@ -82,13 +82,12 @@ export default function UserDashboard() {
       const { data, error } = await supabase
         .from('marketplace_purchases')
         .select('*')
-        .eq('buyer_id', user.id)
-        .order('created_at', { ascending: false });
+        .eq('buyer_id', user.id);
 
       if (error) {
         // Silently handle if table doesn't exist
-        if (error.code === '42P01' || error.message?.includes('400') || error.message?.includes('404')) {
-          console.warn('marketplace_purchases table not found. Run SQL migration.');
+        if (error.code === '42P01' || error.code === '42703' || error.message?.includes('400') || error.message?.includes('404')) {
+          console.warn('marketplace_purchases table issue:', error.message);
           setPurchases([]);
           setTablesExist(false);
           return;
@@ -139,13 +138,12 @@ export default function UserDashboard() {
       const { data, error } = await supabase
         .from('marketplace_favorites')
         .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .eq('user_id', user.id);
 
       if (error) {
         // Silently handle if table doesn't exist
-        if (error.code === '42P01' || error.message?.includes('400') || error.message?.includes('404')) {
-          console.warn('marketplace_favorites table not found. Run SQL migration.');
+        if (error.code === '42P01' || error.code === '42703' || error.message?.includes('400') || error.message?.includes('404')) {
+          console.warn('marketplace_favorites table issue:', error.message);
           setFavorites([]);
           return;
         }
@@ -197,13 +195,12 @@ export default function UserDashboard() {
       const { data, error } = await supabase
         .from('marketplace_reviews')
         .select('*')
-        .eq('reviewer_id', user.id)
-        .order('created_at', { ascending: false });
+        .eq('reviewer_id', user.id);
 
       if (error) {
         // Silently handle if table doesn't exist
-        if (error.code === '42P01' || error.message?.includes('400') || error.message?.includes('404')) {
-          console.warn('marketplace_reviews table not found. Run SQL migration.');
+        if (error.code === '42P01' || error.code === '42703' || error.message?.includes('400') || error.message?.includes('404')) {
+          console.warn('marketplace_reviews table issue:', error.message);
           setReviews([]);
           return;
         }

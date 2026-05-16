@@ -107,10 +107,9 @@ export default function ScriptDetailsPage() {
       const { data, error } = await supabase
         .from('marketplace_comments')
         .select('*')
-        .eq('script_id', id)
-        .order('created_at', { ascending: false });
-      // Silently ignore if table doesn't exist (42P01 or 404)
-      if (error && error.code !== '42P01' && !error.message?.includes('404')) {
+        .eq('script_id', id);
+      // Silently ignore if table doesn't exist
+      if (error && error.code !== '42P01' && error.code !== '42703' && !error.message?.includes('400') && !error.message?.includes('404')) {
         console.error('fetchComments error', error);
       }
       if (data) setComments(data);
@@ -124,10 +123,9 @@ export default function ScriptDetailsPage() {
       const { data, error } = await supabase
         .from('marketplace_reviews')
         .select('*')
-        .eq('script_id', id)
-        .order('created_at', { ascending: false });
-      // Silently ignore if table doesn't exist (42P01 or 404)
-      if (error && error.code !== '42P01' && !error.message?.includes('404')) {
+        .eq('script_id', id);
+      // Silently ignore if table doesn't exist
+      if (error && error.code !== '42P01' && error.code !== '42703' && !error.message?.includes('400') && !error.message?.includes('404')) {
         console.error('fetchReviews error', error);
       }
       if (data) setReviews(data);
