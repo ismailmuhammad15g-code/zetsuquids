@@ -4,17 +4,20 @@ import Link from 'next/link';
 import {
   BarChart3, Package, DollarSign,
   PlusCircle, Settings, Bell, Search,
-  Edit, Trash2, Eye, TrendingUp, AlertCircle, Loader2
+  Edit, Trash2, Eye, TrendingUp, AlertCircle, Loader2, X
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 export default function CreatorConsole() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const [deleteModal, setDeleteModal] = useState<{ show: boolean; item: any }>({ show: false, item: null });
+  const [deleting, setDeleting] = useState(false);
+
   const [stats, setStats] = useState({
     totalRevenue: 0,
     totalSales: 0,
@@ -30,13 +33,11 @@ export default function CreatorConsole() {
   const fetchAuthorData = async () => {
     setLoading(true);
     try {
-      // Fetch scripts
       const { data: scripts, error } = await supabase
         .from('marketplace_scripts')
         .select('*')
         .eq('author_id', user?.id);
 
-      // Silently handle if table doesn't exist
       if (error && (error.code === '42P01' || error.code === '42703' || error.message?.includes('400') || error.message?.includes('404'))) {
         setItems([]);
         setLoading(false);
@@ -44,17 +45,32 @@ export default function CreatorConsole() {
       }
       if (error) throw error;
 
-      setItems(scripts || []);
+      // Fetch real sales data for each script
+      const enrichedScripts = await Promise.all(
+        (scripts || []).map(async (script: any) => {
+          try {
+            const { count: salesCount } = await supabase
+              .from('marketplace_purchases')
+              .select('*', { count: 'exact', head: true })
+              .eq('script_id', script.id);
 
-      // Calculate basic stats from scripts
+            return { ...script, sales_count: salesCount || 0 };
+          } catch {
+            return script;
+          }
+        })
+      );
+
+      setItems(enrichedScripts);
+
       let rev = 0;
       let sales = 0;
       let active = 0;
 
-      (scripts || []).forEach((script: any) => {
-         sales += script.sales_count;
-         rev += (script.sales_count * script.price);
-         if (script.status === 'Active') active++;
+      enrichedScripts.forEach((script: any) => {
+        sales += script.sales_count;
+        rev += (script.sales_count * script.price);
+        if (script.status === 'Active') active++;
       });
 
       setStats({
@@ -70,6 +86,46 @@ export default function CreatorConsole() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteModal.item) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('marketplace_scripts')
+        .delete()
+        .eq('id', deleteModal.item.id)
+        .eq('author_id', user?.id);
+
+      if (error) throw error;
+
+      setItems(prev => prev.filter(i => i.id !== deleteModal.item.id));
+      setDeleteModal({ show: false, item: null });
+      toast.success('Script deleted successfully');
+    } catch (err: any) {
+      toast.error(`Failed to delete: ${err.message}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleToggleStatus = async (item: any) => {
+    const newStatus = item.status === 'Active' ? 'Draft' : 'Active';
+    try {
+      const { error } = await supabase
+        .from('marketplace_scripts')
+        .update({ status: newStatus })
+        .eq('id', item.id)
+        .eq('author_id', user?.id);
+
+      if (error) throw error;
+
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: newStatus } : i));
+      toast.success(`Script ${newStatus === 'Active' ? 'activated' : 'deactivated'}`);
+    } catch (err: any) {
+      toast.error(`Failed to update: ${err.message}`);
+    }
+  };
+
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
@@ -82,31 +138,64 @@ export default function CreatorConsole() {
 
   return (
     <div className="bg-gray-50 min-h-screen flex flex-col md:flex-row">
-      
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.show && (
+        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Delete Script</h3>
+              <button onClick={() => setDeleteModal({ show: false, item: null })} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete <span className="font-bold">{deleteModal.item?.title}</span>? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteModal({ show: false, item: null })}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
+              >
+                {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar Navigation */}
       <div className="w-full md:w-64 bg-white border-r border-gray-200 shrink-0 hidden md:block">
         <div className="p-6">
           <h2 className="text-xs font-black text-gray-400 uppercase tracking-wider mb-4">Creator Menu</h2>
           <nav className="space-y-1">
-            <button 
+            <button
               onClick={() => setActiveTab('dashboard')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'dashboard' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
             >
               <BarChart3 size={18} /> Dashboard
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('items')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'items' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
             >
               <Package size={18} /> My Items
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('earnings')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'earnings' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
             >
               <DollarSign size={18} /> Earnings & Payouts
             </button>
-            <button 
+            <button
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors`}
             >
               <Settings size={18} /> Settings
@@ -117,7 +206,7 @@ export default function CreatorConsole() {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-x-hidden">
-        
+
         {/* Topbar for Console */}
         <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4 md:hidden">
@@ -137,7 +226,7 @@ export default function CreatorConsole() {
         </header>
 
         <div className="p-4 sm:p-6 lg:p-8">
-          
+
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
               {/* Stats Grid */}
@@ -188,7 +277,7 @@ export default function CreatorConsole() {
                   <div className="text-center p-12">
                      <Package size={48} className="mx-auto text-gray-300 mb-4" />
                      <h3 className="font-bold text-gray-900 text-lg">No items yet</h3>
-                     <p className="text-gray-500 mt-2">You haven't uploaded any scripts to the marketplace.</p>
+                     <p className="text-gray-500 mt-2">You haven&apos;t uploaded any scripts to the marketplace.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -214,15 +303,28 @@ export default function CreatorConsole() {
                             <td className="p-4 text-gray-700">{item.sales_count}</td>
                             <td className="p-4 font-medium text-gray-900">${(item.sales_count * item.price).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                             <td className="p-4">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                              <button
+                                onClick={() => handleToggleStatus(item)}
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${item.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                              >
                                 {item.status}
-                              </span>
+                              </button>
                             </td>
                             <td className="p-4">
                               <div className="flex justify-end gap-2">
-                                <Link href={`/scripts/${item.id}`} className="p-1.5 text-gray-400 hover:text-indigo-600 transition-colors" title="View"><Eye size={16}/></Link>
-                                <button className="p-1.5 text-gray-400 hover:text-amber-600 transition-colors" title="Edit"><Edit size={16}/></button>
-                                <button className="p-1.5 text-gray-400 hover:text-red-600 transition-colors" title="Delete"><Trash2 size={16}/></button>
+                                <Link href={`/scripts/${item.id}`} className="p-1.5 text-gray-400 hover:text-indigo-600 transition-colors" title="View">
+                                  <Eye size={16}/>
+                                </Link>
+                                <Link href={`/scripts/console/edit/${item.id}`} className="p-1.5 text-gray-400 hover:text-amber-600 transition-colors" title="Edit">
+                                  <Edit size={16}/>
+                                </Link>
+                                <button
+                                  onClick={() => setDeleteModal({ show: true, item })}
+                                  className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
+                                  title="Delete"
+                                >
+                                  <Trash2 size={16}/>
+                                </button>
                               </div>
                             </td>
                           </tr>
