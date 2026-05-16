@@ -37,6 +37,19 @@ export default function CartDrawer() {
     try {
       // Process each purchase
       for (const item of items) {
+        // Check if already purchased
+        const { data: existing } = await supabase
+          .from('marketplace_purchases')
+          .select('id')
+          .eq('script_id', item.id)
+          .eq('buyer_id', user.id)
+          .maybeSingle();
+
+        if (existing) {
+          toast.info(`You already own "${item.title}"`);
+          continue;
+        }
+
         const { error } = await supabase.from('marketplace_purchases').insert({
           script_id: item.id,
           buyer_id: user.id,
@@ -44,7 +57,8 @@ export default function CartDrawer() {
           status: 'completed'
         });
 
-        if (error && !error.message?.includes('duplicate')) {
+        if (error) {
+          console.error('Purchase error for', item.title, error);
           throw error;
         }
       }
@@ -52,6 +66,7 @@ export default function CartDrawer() {
       toast.success(`Successfully purchased ${itemCount} script${itemCount > 1 ? 's' : ''}!`);
       clearCart();
       setIsOpen(false);
+      window.location.reload();
     } catch (err: any) {
       toast.error(`Purchase failed: ${err.message}`);
     } finally {

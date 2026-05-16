@@ -143,10 +143,26 @@ export default function ScriptDetailsPage() {
     }
     setPurchasing(true);
     try {
+      // Check if already purchased
+      const { data: existing } = await supabase
+        .from('marketplace_purchases')
+        .select('id')
+        .eq('script_id', id)
+        .eq('buyer_id', user.id)
+        .maybeSingle();
+
+      if (existing) {
+        setHasPurchased(true);
+        toast.info('You already own this script!');
+        setPurchasing(false);
+        return;
+      }
+
       const { error } = await supabase.from('marketplace_purchases').insert({
         script_id: id,
         buyer_id: user.id,
-        amount: script.price
+        amount: script.price,
+        status: 'completed'
       });
       if (error) throw error;
       setHasPurchased(true);

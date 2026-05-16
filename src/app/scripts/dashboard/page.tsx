@@ -2,102 +2,216 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  User, Heart, ShoppingCart, Package,
-  Settings, LogOut, Loader2
+  User, Heart, ShoppingCart, Package, Star,
+  Settings, LogOut, Loader2, TrendingUp, ExternalLink
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAvatarForUser } from '@/lib/avatar';
+import { toast } from 'sonner';
 
 interface Purchase {
   id: string;
   script_id: string;
+  buyer_id: string;
   amount: number;
   status: string;
   created_at: string;
-  script?: {
-    title: string;
-    thumbnail_url: string | null;
-    author_name: string;
-    category: string;
-  };
+  script_title?: string;
+  script_thumbnail?: string | null;
+  script_author?: string;
+  script_category?: string;
 }
 
 interface Favorite {
   id: string;
   script_id: string;
+  user_id: string;
   created_at: string;
-  script?: {
-    title: string;
-    thumbnail_url: string | null;
-    author_name: string;
-    price: number;
-    category: string;
-  };
+  script_title?: string;
+  script_thumbnail?: string | null;
+  script_author?: string;
+  script_price?: number;
+  script_category?: string;
+}
+
+interface Review {
+  id: string;
+  script_id: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+  script_title?: string;
 }
 
 export default function UserDashboard() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'purchases' | 'favorites' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'purchases' | 'favorites' | 'reviews' | 'settings'>('overview');
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
-      fetchUserData();
+      fetchAllData();
     }
   }, [user]);
 
-  const fetchUserData = async () => {
+  const fetchAllData = async () => {
+    if (!user) return;
     setLoading(true);
+
     try {
-      // Fetch purchases with script details
-      const { data: purchasesData, error: purchasesError } = await supabase
-        .from('marketplace_purchases')
-        .select('*')
-        .eq('buyer_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (purchasesData && !purchasesError) {
-        // Fetch script details for each purchase
-        const purchasesWithScripts = await Promise.all(
-          purchasesData.map(async (purchase: any) => {
-            const { data: script } = await supabase
-              .from('marketplace_scripts')
-              .select('title, thumbnail_url, author_name, category')
-              .eq('id', purchase.script_id)
-              .single();
-            return { ...purchase, script: script || undefined };
-          })
-        );
-        setPurchases(purchasesWithScripts);
-      }
-
-      // Fetch favorites with script details
-      const { data: favoritesData, error: favoritesError } = await supabase
-        .from('marketplace_favorites')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (favoritesData && !favoritesError) {
-        const favoritesWithScripts = await Promise.all(
-          favoritesData.map(async (fav: any) => {
-            const { data: script } = await supabase
-              .from('marketplace_scripts')
-              .select('title, thumbnail_url, author_name, price, category')
-              .eq('id', fav.script_id)
-              .single();
-            return { ...fav, script: script || undefined };
-          })
-        );
-        setFavorites(favoritesWithScripts);
-      }
+      await Promise.all([
+        fetchPurchases(),
+        fetchFavorites(),
+        fetchReviews()
+      ]);
     } catch (err) {
-      console.error('Error fetching user data:', err);
+      console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPurchases = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('marketplace_purchases')
+        .select('*')
+        .eq('buyer_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Purchases fetch error:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const enriched = await Promise.all(
+          data.map(async (p: any) => {
+            try {
+              const { data: script } = await supabase
+                .from('marketplace_scripts')
+                .select('title, thumbnail_url, author_name, category')
+                .eq('id', p.script_id)
+                .single();
+              return {
+                ...p,
+                script_title: script?.title || 'Unknown Script',
+                script_thumbnail: script?.thumbnail_url,
+                script_author: script?.author_name || 'Unknown',
+                script_category: script?.category
+              };
+            } catch {
+              return {
+                ...p,
+                script_title: 'Unknown Script',
+                script_thumbnail: null,
+                script_author: 'Unknown',
+                script_category: undefined
+              };
+            }
+          })
+        );
+        setPurchases(enriched);
+      } else {
+        setPurchases([]);
+      }
+    } catch (err) {
+      console.error('Purchases error:', err);
+    }
+  };
+
+  const fetchFavorites = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('marketplace_favorites')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Favorites fetch error:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const enriched = await Promise.all(
+          data.map(async (f: any) => {
+            try {
+              const { data: script } = await supabase
+                .from('marketplace_scripts')
+                .select('title, thumbnail_url, author_name, price, category')
+                .eq('id', f.script_id)
+                .single();
+              return {
+                ...f,
+                script_title: script?.title || 'Unknown Script',
+                script_thumbnail: script?.thumbnail_url,
+                script_author: script?.author_name || 'Unknown',
+                script_price: script?.price || 0,
+                script_category: script?.category
+              };
+            } catch {
+              return {
+                ...f,
+                script_title: 'Unknown Script',
+                script_thumbnail: null,
+                script_author: 'Unknown',
+                script_price: 0,
+                script_category: undefined
+              };
+            }
+          })
+        );
+        setFavorites(enriched);
+      } else {
+        setFavorites([]);
+      }
+    } catch (err) {
+      console.error('Favorites error:', err);
+    }
+  };
+
+  const fetchReviews = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('marketplace_reviews')
+        .select('*')
+        .eq('reviewer_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Reviews fetch error:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const enriched = await Promise.all(
+          data.map(async (r: any) => {
+            try {
+              const { data: script } = await supabase
+                .from('marketplace_scripts')
+                .select('title')
+                .eq('id', r.script_id)
+                .single();
+              return { ...r, script_title: script?.title || 'Unknown Script' };
+            } catch {
+              return { ...r, script_title: 'Unknown Script' };
+            }
+          })
+        );
+        setReviews(enriched);
+      } else {
+        setReviews([]);
+      }
+    } catch (err) {
+      console.error('Reviews error:', err);
     }
   };
 
@@ -105,8 +219,9 @@ export default function UserDashboard() {
     try {
       await supabase.from('marketplace_favorites').delete().eq('id', favoriteId);
       setFavorites(prev => prev.filter(f => f.id !== favoriteId));
+      toast.success('Removed from favorites');
     } catch (err) {
-      console.error('Error removing favorite:', err);
+      toast.error('Failed to remove favorite');
     }
   };
 
@@ -130,6 +245,7 @@ export default function UserDashboard() {
   }
 
   const totalSpent = purchases.reduce((sum, p) => sum + Number(p.amount), 0);
+  const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -164,6 +280,7 @@ export default function UserDashboard() {
                   { id: 'overview', label: 'Overview', icon: User },
                   { id: 'purchases', label: 'My Purchases', icon: Package },
                   { id: 'favorites', label: 'Favorites', icon: Heart },
+                  { id: 'reviews', label: 'My Reviews', icon: Star },
                   { id: 'settings', label: 'Settings', icon: Settings },
                 ].map((item) => (
                   <button
@@ -177,6 +294,12 @@ export default function UserDashboard() {
                   >
                     <item.icon size={20} />
                     {item.label}
+                    {item.id === 'purchases' && purchases.length > 0 && (
+                      <span className="ml-auto bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full">{purchases.length}</span>
+                    )}
+                    {item.id === 'favorites' && favorites.length > 0 && (
+                      <span className="ml-auto bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">{favorites.length}</span>
+                    )}
                   </button>
                 ))}
                 <button
@@ -202,7 +325,7 @@ export default function UserDashboard() {
                 {activeTab === 'overview' && (
                   <div className="space-y-6">
                     {/* Stats Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
@@ -217,7 +340,7 @@ export default function UserDashboard() {
                       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                            <ShoppingCart size={24} className="text-green-600" />
+                            <TrendingUp size={24} className="text-green-600" />
                           </div>
                           <div>
                             <p className="text-sm text-gray-500">Total Spent</p>
@@ -236,6 +359,17 @@ export default function UserDashboard() {
                           </div>
                         </div>
                       </div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+                            <Star size={24} className="text-yellow-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Reviews Given</p>
+                            <p className="text-2xl font-extrabold text-gray-900">{reviews.length}</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Recent Purchases */}
@@ -247,21 +381,29 @@ export default function UserDashboard() {
                         </button>
                       </div>
                       {purchases.length === 0 ? (
-                        <p className="text-gray-500 text-center py-8">No purchases yet</p>
+                        <div className="text-center py-8">
+                          <Package size={40} className="mx-auto text-gray-300 mb-3" />
+                          <p className="text-gray-500">No purchases yet</p>
+                          <Link href="/scripts" className="text-indigo-600 hover:text-indigo-700 font-medium text-sm mt-2 inline-block">
+                            Browse Marketplace
+                          </Link>
+                        </div>
                       ) : (
                         <div className="space-y-4">
-                          {purchases.slice(0, 3).map((purchase) => (
+                          {purchases.slice(0, 5).map((purchase) => (
                             <div key={purchase.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                               <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
                                 <Package size={20} className="text-gray-400" />
                               </div>
                               <div className="flex-1">
-                                <p className="font-medium text-gray-900">{purchase.script?.title || 'Unknown Script'}</p>
-                                <p className="text-sm text-gray-500">by {purchase.script?.author_name || 'Unknown'}</p>
+                                <Link href={`/scripts/${purchase.script_id}`} className="font-medium text-gray-900 hover:text-indigo-600">
+                                  {purchase.script_title}
+                                </Link>
+                                <p className="text-sm text-gray-500">by {purchase.script_author}</p>
                               </div>
                               <div className="text-right">
                                 <p className="font-bold text-gray-900">${Number(purchase.amount).toFixed(2)}</p>
-                                <p className="text-xs text-gray-400">{new Date(purchase.created_at || '').toLocaleDateString()}</p>
+                                <p className="text-xs text-gray-400">{new Date(purchase.created_at).toLocaleDateString()}</p>
                               </div>
                             </div>
                           ))}
@@ -278,20 +420,28 @@ export default function UserDashboard() {
                         </button>
                       </div>
                       {favorites.length === 0 ? (
-                        <p className="text-gray-500 text-center py-8">No favorites yet</p>
+                        <div className="text-center py-8">
+                          <Heart size={40} className="mx-auto text-gray-300 mb-3" />
+                          <p className="text-gray-500">No favorites yet</p>
+                          <Link href="/scripts" className="text-indigo-600 hover:text-indigo-700 font-medium text-sm mt-2 inline-block">
+                            Browse Marketplace
+                          </Link>
+                        </div>
                       ) : (
                         <div className="space-y-4">
-                          {favorites.slice(0, 3).map((fav) => (
+                          {favorites.slice(0, 5).map((fav) => (
                             <div key={fav.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                               <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
                                 <Heart size={20} className="text-red-400" />
                               </div>
                               <div className="flex-1">
-                                <p className="font-medium text-gray-900">{fav.script?.title || 'Unknown Script'}</p>
-                                <p className="text-sm text-gray-500">by {fav.script?.author_name || 'Unknown'}</p>
+                                <Link href={`/scripts/${fav.script_id}`} className="font-medium text-gray-900 hover:text-indigo-600">
+                                  {fav.script_title}
+                                </Link>
+                                <p className="text-sm text-gray-500">by {fav.script_author}</p>
                               </div>
                               <div className="text-right">
-                                <p className="font-bold text-gray-900">${fav.script?.price?.toFixed(2) || '0.00'}</p>
+                                <p className="font-bold text-gray-900">${(fav.script_price || 0).toFixed(2)}</p>
                               </div>
                             </div>
                           ))}
@@ -304,7 +454,7 @@ export default function UserDashboard() {
                 {/* Purchases Tab */}
                 {activeTab === 'purchases' && (
                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-6">My Purchases</h2>
+                    <h2 className="text-xl font-bold text-gray-900 mb-6">My Purchases ({purchases.length})</h2>
                     {purchases.length === 0 ? (
                       <div className="text-center py-12">
                         <Package size={48} className="mx-auto text-gray-300 mb-4" />
@@ -321,19 +471,26 @@ export default function UserDashboard() {
                               <Package size={24} className="text-gray-400" />
                             </div>
                             <div className="flex-1">
-                              <Link href={`/scripts/${purchase.script_id}`} className="font-bold text-gray-900 hover:text-indigo-600">
-                                {purchase.script?.title || 'Unknown Script'}
+                              <Link href={`/scripts/${purchase.script_id}`} className="font-bold text-gray-900 hover:text-indigo-600 text-lg">
+                                {purchase.script_title}
                               </Link>
-                              <p className="text-sm text-gray-500">by {purchase.script?.author_name || 'Unknown'}</p>
-                              <p className="text-xs text-gray-400 mt-1">{purchase.script?.category}</p>
+                              <p className="text-sm text-gray-500">by {purchase.script_author}</p>
+                              <p className="text-xs text-gray-400 mt-1">{purchase.script_category}</p>
                             </div>
                             <div className="text-right">
                               <p className="font-bold text-lg text-gray-900">${Number(purchase.amount).toFixed(2)}</p>
-                              <p className="text-xs text-gray-400">{new Date(purchase.created_at || '').toLocaleDateString()}</p>
+                              <p className="text-xs text-gray-400">{new Date(purchase.created_at).toLocaleDateString()}</p>
                               <span className="inline-block mt-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                                 {purchase.status}
                               </span>
                             </div>
+                            <Link
+                              href={`/scripts/${purchase.script_id}`}
+                              className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="View Script"
+                            >
+                              <ExternalLink size={18} />
+                            </Link>
                           </div>
                         ))}
                       </div>
@@ -344,7 +501,7 @@ export default function UserDashboard() {
                 {/* Favorites Tab */}
                 {activeTab === 'favorites' && (
                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-6">My Favorites</h2>
+                    <h2 className="text-xl font-bold text-gray-900 mb-6">My Favorites ({favorites.length})</h2>
                     {favorites.length === 0 ? (
                       <div className="text-center py-12">
                         <Heart size={48} className="mx-auto text-gray-300 mb-4" />
@@ -363,10 +520,10 @@ export default function UserDashboard() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <Link href={`/scripts/${fav.script_id}`} className="font-bold text-gray-900 hover:text-indigo-600 block truncate">
-                                  {fav.script?.title || 'Unknown Script'}
+                                  {fav.script_title}
                                 </Link>
-                                <p className="text-sm text-gray-500">by {fav.script?.author_name || 'Unknown'}</p>
-                                <p className="text-lg font-bold text-indigo-600 mt-2">${fav.script?.price?.toFixed(2) || '0.00'}</p>
+                                <p className="text-sm text-gray-500">by {fav.script_author}</p>
+                                <p className="text-lg font-bold text-indigo-600 mt-2">${(fav.script_price || 0).toFixed(2)}</p>
                               </div>
                               <button
                                 onClick={() => handleRemoveFavorite(fav.id)}
@@ -376,6 +533,45 @@ export default function UserDashboard() {
                                 <Heart size={18} className="fill-current" />
                               </button>
                             </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Reviews Tab */}
+                {activeTab === 'reviews' && (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-6">My Reviews ({reviews.length})</h2>
+                    {reviews.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Star size={48} className="mx-auto text-gray-300 mb-4" />
+                        <p className="text-gray-500 font-medium">No reviews yet</p>
+                        <p className="text-sm text-gray-400 mt-1">Purchase a script and leave a review</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {reviews.map((review) => (
+                          <div key={review.id} className="border border-gray-200 rounded-xl p-4">
+                            <div className="flex items-start justify-between mb-2">
+                              <Link href={`/scripts/${review.script_id}`} className="font-bold text-gray-900 hover:text-indigo-600">
+                                {review.script_title}
+                              </Link>
+                              <div className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    size={16}
+                                    className={star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            {review.comment && (
+                              <p className="text-gray-600 text-sm mt-2">{review.comment}</p>
+                            )}
+                            <p className="text-xs text-gray-400 mt-2">{new Date(review.created_at).toLocaleDateString()}</p>
                           </div>
                         ))}
                       </div>
@@ -404,22 +600,44 @@ export default function UserDashboard() {
                       <div className="border-t border-gray-200 pt-6">
                         <h3 className="font-bold text-gray-900 mb-4">Account Information</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
+                          <div className="p-4 bg-gray-50 rounded-lg">
                             <label className="text-sm text-gray-500">Email</label>
                             <p className="font-medium text-gray-900">{user.email}</p>
                           </div>
-                          <div>
+                          <div className="p-4 bg-gray-50 rounded-lg">
                             <label className="text-sm text-gray-500">Member Since</label>
                             <p className="font-medium text-gray-900">{new Date(user.created_at || '').toLocaleDateString()}</p>
                           </div>
-                          <div>
+                          <div className="p-4 bg-gray-50 rounded-lg">
                             <label className="text-sm text-gray-500">Total Purchases</label>
                             <p className="font-medium text-gray-900">{purchases.length}</p>
                           </div>
-                          <div>
+                          <div className="p-4 bg-gray-50 rounded-lg">
                             <label className="text-sm text-gray-500">Total Spent</label>
                             <p className="font-medium text-gray-900">${totalSpent.toFixed(2)}</p>
                           </div>
+                          <div className="p-4 bg-gray-50 rounded-lg">
+                            <label className="text-sm text-gray-500">Reviews Given</label>
+                            <p className="font-medium text-gray-900">{reviews.length}</p>
+                          </div>
+                          <div className="p-4 bg-gray-50 rounded-lg">
+                            <label className="text-sm text-gray-500">Average Rating Given</label>
+                            <p className="font-medium text-gray-900">{avgRating > 0 ? avgRating.toFixed(1) : 'N/A'}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-gray-200 pt-6">
+                        <h3 className="font-bold text-gray-900 mb-4">Quick Actions</h3>
+                        <div className="flex flex-wrap gap-4">
+                          <Link href="/scripts" className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors">
+                            <ShoppingCart size={18} />
+                            Browse Marketplace
+                          </Link>
+                          <Link href="/scripts/console" className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                            <Package size={18} />
+                            Creator Console
+                          </Link>
                         </div>
                       </div>
                     </div>
