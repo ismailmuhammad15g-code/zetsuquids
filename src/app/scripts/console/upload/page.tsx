@@ -24,7 +24,8 @@ export default function UploadScriptPage() {
     features: '',
     github_repo_url: '',
     thumbnail_url: '',
-    preview_url: ''
+    preview_url: '',
+    contact_url: ''
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -63,6 +64,7 @@ export default function UploadScriptPage() {
         github_repo_url: formData.github_repo_url || null,
         thumbnail_url: formData.thumbnail_url || null,
         preview_url: formData.preview_url || null,
+        contact_url: formData.contact_url || null,
         author_id: user.id,
         author_name: authorName,
         status: 'Active'
@@ -225,6 +227,16 @@ export default function UploadScriptPage() {
                     Provide the URL to the private GitHub repository containing your script. Buyers will receive access upon purchase.
                   </p>
                   <input required name="github_repo_url" value={formData.github_repo_url} onChange={handleChange} type="url" className="w-full px-4 py-2 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="https://github.com/username/my-awesome-script" />
+                </div>
+
+                <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+                  <h3 className="font-bold text-green-900 flex items-center gap-2 mb-2">
+                    <Send size={20} /> Contact & Support URL
+                  </h3>
+                  <p className="text-sm text-green-700 mb-4">
+                    Provide a URL where buyers can contact you for support (e.g., email, WhatsApp, Discord, Telegram, or a contact form).
+                  </p>
+                  <input name="contact_url" value={formData.contact_url} onChange={handleChange} type="url" className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="https://discord.gg/your-server or mailto:you@email.com" />
                 </div>
               </div>
             </div>

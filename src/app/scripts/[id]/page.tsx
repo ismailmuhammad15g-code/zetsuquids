@@ -217,6 +217,59 @@ export default function ScriptDetailsPage() {
     }
   };
 
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriting, setFavoriting] = useState(false);
+
+  useEffect(() => {
+    if (user && id) {
+      checkFavoriteStatus();
+    }
+  }, [user, id]);
+
+  const checkFavoriteStatus = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from('marketplace_favorites')
+        .select('id')
+        .eq('script_id', id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (data) setIsFavorited(true);
+    } catch (err) {
+      // Silently handle if table doesn't exist
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    setFavoriting(true);
+    try {
+      if (isFavorited) {
+        await supabase
+          .from('marketplace_favorites')
+          .delete()
+          .eq('script_id', id)
+          .eq('user_id', user.id);
+        setIsFavorited(false);
+        toast.success('Removed from favorites');
+      } else {
+        await supabase
+          .from('marketplace_favorites')
+          .insert({ script_id: id, user_id: user.id });
+        setIsFavorited(true);
+        toast.success('Added to favorites');
+      }
+    } catch (err: any) {
+      toast.error('Failed to update favorites');
+    } finally {
+      setFavoriting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -551,9 +604,23 @@ export default function ScriptDetailsPage() {
                     </p>
                     
                     {hasPurchased ? (
-                      <button className="bg-black text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-gray-800 transition-transform hover:-translate-y-1">
-                        Contact {script.author_name}
-                      </button>
+                      script.contact_url ? (
+                        <a
+                          href={script.contact_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block bg-black text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-gray-800 transition-transform hover:-translate-y-1"
+                        >
+                          Contact {script.author_name}
+                        </a>
+                      ) : (
+                        <button
+                          onClick={() => toast.info('Author has not provided contact information yet.')}
+                          className="bg-black text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-gray-800 transition-transform hover:-translate-y-1"
+                        >
+                          Contact {script.author_name}
+                        </button>
+                      )
                     ) : (
                       <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
                         <ShoppingCart size={24} className="mx-auto text-gray-400 mb-2" />
@@ -613,9 +680,21 @@ export default function ScriptDetailsPage() {
                 </button>
               )}
               
-              <button className="w-full bg-white text-gray-700 border border-gray-300 font-bold py-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-                <Heart size={20} className="text-gray-400" />
-                Add to Favorites
+              <button
+                onClick={handleToggleFavorite}
+                disabled={favoriting}
+                className={`w-full font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                  isFavorited
+                    ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {favoriting ? (
+                  <Loader2 size={20} className="animate-spin" />
+                ) : (
+                  <Heart size={20} className={isFavorited ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
+                )}
+                {isFavorited ? 'Remove from Favorites' : 'Add to Favorites'}
               </button>
               
               <p className="text-xs text-center text-gray-400 mt-4 flex items-center justify-center gap-1">
