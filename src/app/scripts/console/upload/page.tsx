@@ -50,7 +50,6 @@ export default function UploadScriptPage() {
 
       // We need the author's name from user profile or metadata
       const authorName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Creator';
-      const authorAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`;
 
       const payload: any = {
         title: formData.title,
@@ -66,7 +65,6 @@ export default function UploadScriptPage() {
         preview_url: formData.preview_url || null,
         author_id: user.id,
         author_name: authorName,
-        author_avatar: authorAvatar,
         status: 'Active'
       };
 
