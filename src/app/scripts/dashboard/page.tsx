@@ -51,6 +51,7 @@ export default function UserDashboard() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tablesExist, setTablesExist] = useState(true);
 
   useEffect(() => {
     if (user) {
@@ -85,6 +86,13 @@ export default function UserDashboard() {
         .order('created_at', { ascending: false });
 
       if (error) {
+        // Silently handle if table doesn't exist
+        if (error.code === '42P01' || error.message?.includes('400') || error.message?.includes('404')) {
+          console.warn('marketplace_purchases table not found. Run SQL migration.');
+          setPurchases([]);
+          setTablesExist(false);
+          return;
+        }
         console.error('Purchases fetch error:', error);
         return;
       }
@@ -135,6 +143,12 @@ export default function UserDashboard() {
         .order('created_at', { ascending: false });
 
       if (error) {
+        // Silently handle if table doesn't exist
+        if (error.code === '42P01' || error.message?.includes('400') || error.message?.includes('404')) {
+          console.warn('marketplace_favorites table not found. Run SQL migration.');
+          setFavorites([]);
+          return;
+        }
         console.error('Favorites fetch error:', error);
         return;
       }
@@ -187,6 +201,12 @@ export default function UserDashboard() {
         .order('created_at', { ascending: false });
 
       if (error) {
+        // Silently handle if table doesn't exist
+        if (error.code === '42P01' || error.message?.includes('400') || error.message?.includes('404')) {
+          console.warn('marketplace_reviews table not found. Run SQL migration.');
+          setReviews([]);
+          return;
+        }
         console.error('Reviews fetch error:', error);
         return;
       }
@@ -269,6 +289,23 @@ export default function UserDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Warning Banner if tables are missing */}
+      {!tablesExist && (
+        <div className="bg-yellow-50 border-b border-yellow-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                <span className="text-yellow-600 font-bold">!</span>
+              </div>
+              <div>
+                <p className="font-medium text-yellow-800">Database tables not found</p>
+                <p className="text-sm text-yellow-700">Run <code className="bg-yellow-100 px-1 rounded">SQLs/MARKETPLACE_ALL_IN_ONE.sql</code> in Supabase SQL Editor to create the marketplace tables.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
