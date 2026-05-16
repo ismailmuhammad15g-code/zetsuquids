@@ -35,6 +35,12 @@ CREATE TABLE IF NOT EXISTS marketplace_scripts (
 ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS author_avatar TEXT;
 ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS contact_url TEXT;
 ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS long_description TEXT;
+ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS download_url TEXT;
+ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS download_sha TEXT;
+ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS screenshots TEXT[] DEFAULT '{}';
+ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS video_url TEXT;
+ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS show_readme BOOLEAN DEFAULT false;
+ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS readme_content TEXT;
 
 -- Add missing columns to marketplace_purchases
 ALTER TABLE marketplace_purchases ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();

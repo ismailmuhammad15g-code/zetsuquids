@@ -396,6 +396,58 @@ export default function ScriptDetailsPage() {
               </div>
             </div>
 
+            {/* Screenshots Gallery */}
+            {script.screenshots && script.screenshots.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="p-4 border-b border-gray-100">
+                  <h3 className="font-bold text-gray-900">Screenshots</h3>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-4">
+                  {script.screenshots.map((screenshot: string, index: number) => (
+                    <a key={index} href={screenshot} target="_blank" rel="noopener noreferrer" className="block">
+                      <img
+                        src={screenshot}
+                        alt={`Screenshot ${index + 1}`}
+                        className="w-full h-40 object-cover rounded-lg border border-gray-200 hover:opacity-90 transition-opacity"
+                      />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Video Embed */}
+            {script.video_url && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="p-4 border-b border-gray-100">
+                  <h3 className="font-bold text-gray-900">Video Preview</h3>
+                </div>
+                <div className="aspect-video">
+                  {script.video_url.includes('youtube.com') || script.video_url.includes('youtu.be') ? (
+                    <iframe
+                      src={`https://www.youtube.com/embed/${script.video_url.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sandalsResorts\S+?\?v=))([\w-]{10,12})/)?.[1] || ''}`}
+                      className="w-full h-full"
+                      allowFullScreen
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    />
+                  ) : script.video_url.includes('vimeo.com') ? (
+                    <iframe
+                      src={`https://player.vimeo.com/video/${script.video_url.match(/vimeo\.com\/(\d+)/)?.[1] || ''}`}
+                      className="w-full h-full"
+                      allowFullScreen
+                      allow="autoplay; fullscreen; picture-in-picture"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full bg-gray-100">
+                      <a href={script.video_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">
+                        Watch Video
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Preview Image */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative min-h-[300px] flex items-center justify-center">
               {isValidImageUrl(script.thumbnail_url) ? (
@@ -484,6 +536,35 @@ export default function ScriptDetailsPage() {
                            <p className="text-sm font-bold text-gray-900">Stored Securely on GitHub</p>
                            <p className="text-xs text-gray-500">Upon purchase, you will receive direct access to the source code repository.</p>
                          </div>
+                      </div>
+                    )}
+
+                    {/* Download ZIP Button */}
+                    {script.download_url && hasPurchased && (
+                      <div className="mt-8 p-6 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between">
+                         <div className="flex items-center gap-4">
+                           <div className="p-3 bg-white rounded-lg shadow-sm">
+                             <FileCode className="text-indigo-600" size={28} />
+                           </div>
+                           <div>
+                             <p className="text-lg font-bold text-indigo-900">Download Script Files</p>
+                             <p className="text-sm text-indigo-700">Download the complete script as a ZIP file.</p>
+                           </div>
+                         </div>
+                         <a href={script.download_url} download className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                           Download ZIP
+                         </a>
+                      </div>
+                    )}
+
+                    {/* README Content */}
+                    {script.show_readme && script.readme_content && (
+                      <div className="mt-8">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">README</h3>
+                        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 prose prose-sm max-w-none">
+                          <pre className="whitespace-pre-wrap text-gray-700 font-mono text-sm">{script.readme_content}</pre>
+                        </div>
                       </div>
                     )}
                   </div>
