@@ -46,6 +46,8 @@ function CheckoutContent() {
   const [success, setSuccess] = useState(false);
   const [script, setScript] = useState<ScriptDetails | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank' | 'paypal'>('card');
+  const [purchasedCount, setPurchasedCount] = useState(0);
+  const [purchasedTotal, setPurchasedTotal] = useState(0);
 
   // Card form state
   const [cardNumber, setCardNumber] = useState('');
@@ -121,6 +123,10 @@ function CheckoutContent() {
     setProcessing(true);
     try {
       if (isCartCheckout) {
+        // Save count and total before clearing cart
+        const count = cartItems.length;
+        const total = cartItems.reduce((sum, item) => sum + item.price, 0);
+
         // Process cart items
         for (const item of cartItems) {
           const { data: existing } = await supabase
@@ -139,6 +145,9 @@ function CheckoutContent() {
             });
           }
         }
+
+        setPurchasedCount(count);
+        setPurchasedTotal(total);
         clearCart();
       } else {
         // Process single script
@@ -222,7 +231,7 @@ function CheckoutContent() {
           <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Payment Successful!</h1>
           <p className="text-gray-500 mb-6">
             {isCartCheckout
-              ? `You have successfully purchased ${cartItems.length} item${cartItems.length > 1 ? 's' : ''}.`
+              ? `You have successfully purchased ${purchasedCount} item${purchasedCount !== 1 ? 's' : ''} for $${purchasedTotal.toFixed(2)}.`
               : `You now own "${script?.title}".`
             }
           </p>
