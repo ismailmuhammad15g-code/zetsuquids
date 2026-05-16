@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
@@ -7,6 +7,25 @@ import { useAuth } from '@/contexts/AuthContext';
 import { uploadToGitHub } from '@/lib/github-assets';
 import { ArrowLeft, Upload, Loader2, Github, CheckCircle2, Send, X, Image, FileArchive, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+
+const STORAGE_KEY = 'zetsumarket_upload_draft';
+
+const defaultFormData = {
+  title: '',
+  description: '',
+  long_description: '',
+  price: '',
+  category: 'React',
+  tags: '',
+  version: '1.0.0',
+  features: '',
+  github_repo_url: '',
+  thumbnail_url: '',
+  preview_url: '',
+  contact_url: '',
+  video_url: '',
+  show_readme: false
+};
 
 export default function UploadScriptPage() {
   const router = useRouter();
@@ -16,21 +35,17 @@ export default function UploadScriptPage() {
   const zipInputRef = useRef<HTMLInputElement>(null);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    long_description: '',
-    price: '',
-    category: 'React',
-    tags: '',
-    version: '1.0.0',
-    features: '',
-    github_repo_url: '',
-    thumbnail_url: '',
-    preview_url: '',
-    contact_url: '',
-    video_url: '',
-    show_readme: false
+  // Load saved form data from localStorage
+  const [formData, setFormData] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          return { ...defaultFormData, ...JSON.parse(saved) };
+        } catch {}
+      }
+    }
+    return defaultFormData;
   });
 
   const [zipFile, setZipFile] = useState<File | null>(null);
@@ -38,13 +53,27 @@ export default function UploadScriptPage() {
   const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState('');
 
+  // Save form data to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+  }, [formData]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev: typeof defaultFormData) => ({ ...prev, [name]: value }));
   };
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, show_readme: e.target.checked }));
+    setFormData((prev: typeof defaultFormData) => ({ ...prev, show_readme: e.target.checked }));
+  };
+
+  const clearDraft = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setFormData(defaultFormData);
+    setZipFile(null);
+    setScreenshots([]);
+    setScreenshotPreviews([]);
+    toast.success('Draft cleared');
   };
 
   const handleZipSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,8 +125,8 @@ export default function UploadScriptPage() {
     setLoading(true);
 
     try {
-      const featuresArray = formData.features.split('\n').filter(f => f.trim() !== '');
-      const tagsArray = formData.tags.split(',').map(t => t.trim()).filter(t => t !== '');
+      const featuresArray = formData.features.split('\n').filter((f: string) => f.trim() !== '');
+      const tagsArray = formData.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t !== '');
       const priceNum = parseFloat(formData.price);
       const authorName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Creator';
 
@@ -169,6 +198,7 @@ export default function UploadScriptPage() {
         console.error("Upload error details:", JSON.stringify(error, null, 2));
         toast.error(`Error uploading: ${error.message || error.details || 'Unknown error'}`);
       } else {
+        localStorage.removeItem(STORAGE_KEY);
         toast.success("Script published successfully!");
         setSuccess(true);
         setTimeout(() => {
@@ -443,14 +473,19 @@ export default function UploadScriptPage() {
               </div>
             )}
 
-            <div className="pt-6 border-t border-gray-200 flex justify-end gap-4">
-              <Link href="/scripts/console" className="px-6 py-2.5 rounded-lg font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
-                Cancel
-              </Link>
-              <button disabled={loading} type="submit" className="px-8 py-2.5 rounded-lg font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-70">
-                {loading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                Publish Script
+            <div className="pt-6 border-t border-gray-200 flex justify-between">
+              <button type="button" onClick={clearDraft} className="px-4 py-2.5 rounded-lg font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors text-sm">
+                Clear Draft
               </button>
+              <div className="flex gap-4">
+                <Link href="/scripts/console" className="px-6 py-2.5 rounded-lg font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                  Cancel
+                </Link>
+                <button disabled={loading} type="submit" className="px-8 py-2.5 rounded-lg font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-70">
+                  {loading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                  Publish Script
+                </button>
+              </div>
             </div>
 
           </form>
