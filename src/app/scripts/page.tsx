@@ -1,10 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Star, Download, Code2, Cpu, LayoutTemplate, ShieldCheck, Loader2, LogIn, UserPlus, X, User } from 'lucide-react';
+import { Star, Download, Code2, Cpu, LayoutTemplate, ShieldCheck, Loader2, LogIn, UserPlus, X, User, ShoppingCart } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { getAvatarForUser } from '@/lib/avatar';
+import { toast } from 'sonner';
 
 interface ScriptItem {
   id: string;
@@ -36,6 +38,7 @@ function isValidImageUrl(url: string | null | undefined): boolean {
 
 export default function ScriptsMarketplace() {
   const { user } = useAuth();
+  const { addToCart } = useCart();
   const [scripts, setScripts] = useState<ScriptItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -291,7 +294,27 @@ export default function ScriptsMarketplace() {
 
                   <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
                     <span className="text-xs text-gray-500">by <span className="font-semibold text-gray-700 hover:text-indigo-600">{script.author_name}</span></span>
-                    <span className="font-extrabold text-xl text-gray-900">${script.price.toFixed(2)}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-xl text-gray-900">${script.price.toFixed(2)}</span>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          addToCart({
+                            id: script.id,
+                            title: script.title,
+                            price: script.price,
+                            thumbnail_url: script.thumbnail_url,
+                            author_name: script.author_name
+                          });
+                          toast.success('Added to cart!');
+                        }}
+                        className="p-2 bg-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-200 transition-colors"
+                        title="Add to Cart"
+                      >
+                        <ShoppingCart size={16} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </Link>

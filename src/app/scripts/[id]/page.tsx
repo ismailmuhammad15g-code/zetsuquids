@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { format } from 'date-fns';
 import { getAvatarForUser } from '@/lib/avatar';
 import { toast } from 'sonner';
@@ -31,6 +32,7 @@ export default function ScriptDetailsPage() {
   const params = useParams();
   const id = params.id as string;
   const { user } = useAuth();
+  const { addToCart } = useCart();
   
   const [script, setScript] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -268,6 +270,18 @@ export default function ScriptDetailsPage() {
     } finally {
       setFavoriting(false);
     }
+  };
+
+  const handleAddToCart = () => {
+    if (!script) return;
+    addToCart({
+      id: script.id,
+      title: script.title,
+      price: Number(script.price),
+      thumbnail_url: script.thumbnail_url,
+      author_name: script.author_name
+    });
+    toast.success('Added to cart!');
   };
 
   if (loading) {
@@ -670,14 +684,23 @@ export default function ScriptDetailsPage() {
                   Already Purchased
                 </div>
               ) : (
-                <button 
-                  onClick={handleSimulatePurchase}
-                  disabled={purchasing}
-                  className="w-full bg-indigo-600 text-white font-bold text-lg py-3 rounded-lg shadow-md hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 mb-3 disabled:opacity-70"
-                >
-                  {purchasing ? <Loader2 size={20} className="animate-spin" /> : <ShoppingCart size={20} />}
-                  Purchase Now
-                </button>
+                <>
+                  <button
+                    onClick={handleSimulatePurchase}
+                    disabled={purchasing}
+                    className="w-full bg-indigo-600 text-white font-bold text-lg py-3 rounded-lg shadow-md hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 mb-3 disabled:opacity-70"
+                  >
+                    {purchasing ? <Loader2 size={20} className="animate-spin" /> : <ShoppingCart size={20} />}
+                    Purchase Now
+                  </button>
+                  <button
+                    onClick={handleAddToCart}
+                    className="w-full bg-white text-indigo-600 border-2 border-indigo-600 font-bold text-lg py-3 rounded-lg hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2 mb-3"
+                  >
+                    <ShoppingCart size={20} />
+                    Add to Cart
+                  </button>
+                </>
               )}
               
               <button
