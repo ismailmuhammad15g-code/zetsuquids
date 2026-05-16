@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { uploadToGitHub } from '@/lib/github-assets';
-import { ArrowLeft, Upload, Loader2, Github, CheckCircle2, Send, X, Image, FileArchive, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Upload, Loader2, Github, CheckCircle2, Send, X, Image, Eye, EyeOff, HelpCircle, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STORAGE_KEY = 'zetsumarket_upload_draft';
@@ -24,6 +24,7 @@ const defaultFormData = {
   preview_url: '',
   contact_url: '',
   video_url: '',
+  download_url: '',
   show_readme: false
 };
 
@@ -32,8 +33,8 @@ export default function UploadScriptPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const zipInputRef = useRef<HTMLInputElement>(null);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Load saved form data from localStorage
   const [formData, setFormData] = useState(() => {
@@ -48,10 +49,11 @@ export default function UploadScriptPage() {
     return defaultFormData;
   });
 
-  const [zipFile, setZipFile] = useState<File | null>(null);
   const [screenshots, setScreenshots] = useState<File[]>([]);
   const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState('');
+  const [uploadPercent, setUploadPercent] = useState(0);
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(-1);
 
   // Save form data to localStorage whenever it changes
   useEffect(() => {
@@ -70,25 +72,9 @@ export default function UploadScriptPage() {
   const clearDraft = () => {
     localStorage.removeItem(STORAGE_KEY);
     setFormData(defaultFormData);
-    setZipFile(null);
     setScreenshots([]);
     setScreenshotPreviews([]);
     toast.success('Draft cleared');
-  };
-
-  const handleZipSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.name.endsWith('.zip')) {
-        toast.error('Please select a ZIP file');
-        return;
-      }
-      if (file.size > 100 * 1024 * 1024) {
-        toast.error('ZIP file must be under 100MB');
-        return;
-      }
-      setZipFile(file);
-    }
   };
 
   const handleScreenshotSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,7 +86,6 @@ export default function UploadScriptPage() {
     const validFiles = files.filter(f => f.type.startsWith('image/'));
     setScreenshots(prev => [...prev, ...validFiles]);
 
-    // Create previews
     validFiles.forEach(file => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -123,6 +108,7 @@ export default function UploadScriptPage() {
     }
 
     setLoading(true);
+    setUploadPercent(0);
 
     try {
       const featuresArray = formData.features.split('\n').filter((f: string) => f.trim() !== '');
@@ -130,36 +116,25 @@ export default function UploadScriptPage() {
       const priceNum = parseFloat(formData.price);
       const authorName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Creator';
 
-      let downloadUrl = '';
-      let downloadSha = '';
-      let readmeContent = '';
-
-      // Upload ZIP file to GitHub
-      if (zipFile) {
-        setUploadProgress('Uploading ZIP file...');
-        const zipBase64 = await fileToBase64(zipFile);
-        const zipResult = await uploadToGitHub(zipBase64, 'marketplace/downloads', `${user.id}-${Date.now()}.zip`);
-        downloadUrl = zipResult.url;
-        downloadSha = zipResult.sha;
-
-        // Try to extract README from ZIP (simplified - just store the URL)
-        // In a real app, you'd use a library like JSZip to extract README.md
-        readmeContent = '';
-      }
-
       // Upload screenshots to GitHub
       const screenshotUrls: string[] = [];
       if (screenshots.length > 0) {
-        setUploadProgress(`Uploading screenshots (0/${screenshots.length})...`);
         for (let i = 0; i < screenshots.length; i++) {
-          setUploadProgress(`Uploading screenshots (${i + 1}/${screenshots.length})...`);
+          setUploadingScreenshot(i);
+          setUploadProgress(`Uploading screenshot ${i + 1} of ${screenshots.length}...`);
+          setUploadPercent(Math.round(((i + 0.5) / screenshots.length) * 80));
+
           const base64 = await fileToBase64(screenshots[i]);
           const result = await uploadToGitHub(base64, 'marketplace/screenshots', `${user.id}-${Date.now()}-${i}.jpg`);
           screenshotUrls.push(result.url);
+
+          setUploadPercent(Math.round(((i + 1) / screenshots.length) * 80));
         }
+        setUploadingScreenshot(-1);
       }
 
       setUploadProgress('Saving to database...');
+      setUploadPercent(90);
 
       const payload: any = {
         title: formData.title,
@@ -175,11 +150,9 @@ export default function UploadScriptPage() {
         preview_url: formData.preview_url || null,
         contact_url: formData.contact_url || null,
         video_url: formData.video_url || null,
-        download_url: downloadUrl || null,
-        download_sha: downloadSha || null,
+        download_url: formData.download_url || null,
         screenshots: screenshotUrls.length > 0 ? screenshotUrls : [],
         show_readme: formData.show_readme,
-        readme_content: readmeContent || null,
         author_id: user.id,
         author_name: authorName,
         status: 'Active'
@@ -192,12 +165,16 @@ export default function UploadScriptPage() {
         }
       });
 
+      setUploadPercent(95);
+
       const { error } = await supabase.from('marketplace_scripts').insert([payload]);
 
       if (error) {
         console.error("Upload error details:", JSON.stringify(error, null, 2));
         toast.error(`Error uploading: ${error.message || error.details || 'Unknown error'}`);
       } else {
+        setUploadPercent(100);
+        setUploadProgress('Done!');
         localStorage.removeItem(STORAGE_KEY);
         toast.success("Script published successfully!");
         setSuccess(true);
@@ -211,6 +188,7 @@ export default function UploadScriptPage() {
     } finally {
       setLoading(false);
       setUploadProgress('');
+      setUploadPercent(0);
     }
   };
 
@@ -350,41 +328,59 @@ export default function UploadScriptPage() {
                   <input name="video_url" value={formData.video_url} onChange={handleChange} type="url" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="https://youtube.com/watch?v=..." />
                 </div>
 
-                {/* ZIP Upload */}
+                {/* Download URL */}
                 <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">
-                  <h3 className="font-bold text-purple-900 flex items-center gap-2 mb-2">
-                    <FileArchive size={20} /> Upload Script Files (ZIP)
-                  </h3>
-                  <p className="text-sm text-purple-700 mb-4">
-                    Upload a ZIP file containing your script. Buyers will be able to download this after purchase.
-                  </p>
-                  <input
-                    ref={zipInputRef}
-                    type="file"
-                    accept=".zip"
-                    onChange={handleZipSelect}
-                    className="hidden"
-                  />
-                  {zipFile ? (
-                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-purple-200">
-                      <FileArchive size={20} className="text-purple-600" />
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{zipFile.name}</p>
-                        <p className="text-sm text-gray-500">{(zipFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                      </div>
-                      <button type="button" onClick={() => setZipFile(null)} className="text-gray-400 hover:text-red-500">
-                        <X size={18} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => zipInputRef.current?.click()}
-                      className="w-full py-4 border-2 border-dashed border-purple-300 rounded-lg text-purple-600 hover:bg-purple-100 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Upload size={20} />
-                      Select ZIP File
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-bold text-purple-900 flex items-center gap-2">
+                      <ExternalLink size={20} /> Script Download URL
+                    </h3>
+                    <button type="button" onClick={() => setShowTutorial(!showTutorial)} className="text-purple-600 hover:text-purple-700 flex items-center gap-1 text-sm font-medium">
+                      <HelpCircle size={16} />
+                      How to get URL?
                     </button>
+                  </div>
+                  <p className="text-sm text-purple-700 mb-4">
+                    Paste the direct download link to your script ZIP file. Buyers will download from this URL after purchase.
+                  </p>
+                  <input name="download_url" value={formData.download_url} onChange={handleChange} type="url" className="w-full px-4 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="https://drive.google.com/uc?id=..." />
+
+                  {/* Tutorial */}
+                  {showTutorial && (
+                    <div className="mt-4 bg-white rounded-lg border border-purple-200 p-4 text-sm">
+                      <h4 className="font-bold text-gray-900 mb-3">How to upload your ZIP and get a download URL:</h4>
+                      <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                          <span className="bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded text-xs shrink-0">1</span>
+                          <div>
+                            <p className="font-medium text-gray-900">Google Drive (Recommended - Free)</p>
+                            <p className="text-gray-600 mt-1">Upload your ZIP to Google Drive, right-click, select "Share", set to "Anyone with the link", then copy the link.</p>
+                            <a href="https://drive.google.com" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline mt-1 inline-flex items-center gap-1">
+                              Open Google Drive <ExternalLink size={12} />
+                            </a>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded text-xs shrink-0">2</span>
+                          <div>
+                            <p className="font-medium text-gray-900">GitHub Releases (Free)</p>
+                            <p className="text-gray-600 mt-1">Create a release on your repo, attach the ZIP file, then copy the download URL from the release.</p>
+                            <a href="https://github.com/new" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline mt-1 inline-flex items-center gap-1">
+                              Create GitHub Release <ExternalLink size={12} />
+                            </a>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded text-xs shrink-0">3</span>
+                          <div>
+                            <p className="font-medium text-gray-900">Dropbox (Free)</p>
+                            <p className="text-gray-600 mt-1">Upload to Dropbox, click "Share", create a link, then change "dl=0" to "dl=1" at the end of the URL.</p>
+                            <a href="https://dropbox.com" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline mt-1 inline-flex items-center gap-1">
+                              Open Dropbox <ExternalLink size={12} />
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -396,19 +392,25 @@ export default function UploadScriptPage() {
                   <p className="text-sm text-blue-700 mb-4">
                     Upload screenshots of your script. These will be shown in the product gallery.
                   </p>
-                  <input
-                    ref={screenshotInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleScreenshotSelect}
-                    className="hidden"
-                  />
+                  <input ref={screenshotInputRef} type="file" accept="image/*" multiple onChange={handleScreenshotSelect} className="hidden" />
                   {screenshotPreviews.length > 0 && (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                       {screenshotPreviews.map((preview, index) => (
-                        <div key={index} className="relative group">
-                          <img src={preview} alt={`Screenshot ${index + 1}`} className="w-full h-24 object-cover rounded-lg border border-blue-200" />
+                        <div key={index} className={`relative group ${uploadingScreenshot === index ? 'animate-pulse' : ''}`}>
+                          <img
+                            src={preview}
+                            alt={`Screenshot ${index + 1}`}
+                            className={`w-full h-24 object-cover rounded-lg border-2 transition-all ${
+                              uploadingScreenshot === index
+                                ? 'border-blue-400 opacity-60 blur-[2px]'
+                                : 'border-blue-200'
+                            }`}
+                          />
+                          {uploadingScreenshot === index && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Loader2 size={20} className="animate-spin text-blue-600" />
+                            </div>
+                          )}
                           <button
                             type="button"
                             onClick={() => removeScreenshot(index)}
@@ -453,7 +455,7 @@ export default function UploadScriptPage() {
                       {formData.show_readme ? <Eye size={20} className="text-green-600" /> : <EyeOff size={20} className="text-gray-400" />}
                       <div>
                         <h3 className="font-bold text-gray-900">Show README in Details</h3>
-                        <p className="text-sm text-gray-500">If your ZIP contains a README.md, it will be shown in the product details page.</p>
+                        <p className="text-sm text-gray-500">If your script has a README, it will be shown in the product details page.</p>
                       </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -466,10 +468,21 @@ export default function UploadScriptPage() {
             </div>
 
             {/* Upload Progress */}
-            {uploadProgress && (
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 flex items-center gap-3">
-                <Loader2 size={20} className="animate-spin text-indigo-600" />
-                <p className="text-indigo-700 font-medium">{uploadProgress}</p>
+            {loading && (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <Loader2 size={20} className="animate-spin text-indigo-600" />
+                    <p className="text-indigo-700 font-medium">{uploadProgress || 'Preparing...'}</p>
+                  </div>
+                  <span className="text-indigo-700 font-bold">{uploadPercent}%</span>
+                </div>
+                <div className="w-full bg-indigo-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-indigo-600 h-3 rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${uploadPercent}%` }}
+                  />
+                </div>
               </div>
             )}
 
