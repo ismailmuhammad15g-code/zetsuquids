@@ -1,15 +1,33 @@
 'use client';
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { ShoppingCart, Code, Search, Monitor, LogIn } from 'lucide-react';
+import { ShoppingCart, Code, Search, Monitor, LogIn, User, Heart, Package, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CartProvider, useCart } from '@/contexts/CartContext';
 import { getAvatarForUser } from '@/lib/avatar';
 import CartDrawer from '@/components/scripts/CartDrawer';
 
 function ScriptsLayoutInner({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { setIsOpen, itemCount } = useCart();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = '/scripts';
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 text-black font-sans selection:bg-indigo-100 selection:text-indigo-900">
@@ -69,13 +87,71 @@ function ScriptsLayoutInner({ children }: { children: React.ReactNode }) {
               </button>
 
               {user ? (
-                <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-indigo-200">
-                   <img
-                      src={getAvatarForUser(user.email, user.user_metadata?.avatar_url as string | null)}
-                      alt="User"
-                      className="w-full h-full object-cover"
-                      onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`; }}
-                   />
+                <div className="relative" ref={menuRef}>
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-indigo-200">
+                      <img
+                        src={getAvatarForUser(user.email, user.user_metadata?.avatar_url as string | null)}
+                        alt="User"
+                        className="w-full h-full object-cover"
+                        onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`; }}
+                      />
+                    </div>
+                    <ChevronDown size={16} className={`text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+                      {/* User Info */}
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <p className="font-bold text-gray-900">{String(user.user_metadata?.full_name || user.email?.split('@')[0] || 'User')}</p>
+                        <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                      </div>
+
+                      {/* Menu Items */}
+                      <div className="py-1">
+                        <Link
+                          href="/scripts/dashboard"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                        >
+                          <User size={18} />
+                          My Dashboard
+                        </Link>
+                        <Link
+                          href="/scripts/dashboard"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                        >
+                          <Package size={18} />
+                          My Purchases
+                        </Link>
+                        <Link
+                          href="/scripts/dashboard"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                        >
+                          <Heart size={18} />
+                          Favorites
+                        </Link>
+                      </div>
+
+                      {/* Logout */}
+                      <div className="border-t border-gray-100 pt-1">
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors w-full"
+                        >
+                          <LogOut size={18} />
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <Link href="/auth" className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-black transition-colors">
