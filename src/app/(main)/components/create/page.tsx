@@ -1,11 +1,29 @@
 "use client";
 
-import { ArrowLeft, Layers, Maximize2, Minimize2, Play, Save, Settings, Upload, X, Terminal, ChevronUp, ChevronDown, Pencil } from "lucide-react";
+import {
+  ArrowLeft,
+  Layers,
+  Maximize2,
+  Minimize2,
+  Play,
+  Save,
+  Settings,
+  Upload,
+  X,
+  Terminal,
+  ChevronUp,
+  ChevronDown,
+  Pencil,
+  Monitor,
+  Tablet,
+  Smartphone,
+  Wand2,
+} from "lucide-react";
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { getAvatarForUser } from "../../../../lib/avatar";
@@ -13,8 +31,20 @@ import { supabase, uiComponentsApi } from "../../../../lib/supabase";
 import { uploadToGitHub, uploadComponentCode, isGitHubConfigured } from "../../../../lib/github-assets";
 import { detectSecrets } from "../../../../lib/secret-analyzer";
 
+// Sub-components
+import { AuthGateOverlay } from "./_components/AuthGateOverlay";
+import { SkeletonPreview } from "./_components/SkeletonPreview";
+import { ProblemsPanel } from "./_components/ProblemsPanel";
+import { PublishModal } from "./_components/PublishModal";
+
+// shadcn/ui
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+
 function decryptEnv(encrypted: string): Record<string, string> {
-  if (!encrypted || encrypted === '{}') return {};
+  if (!encrypted || encrypted === "{}") return {};
   try {
     return JSON.parse(atob(encrypted));
   } catch {
@@ -23,21 +53,33 @@ function decryptEnv(encrypted: string): Record<string, string> {
 }
 
 // Dynamically import Monaco Editor to avoid SSR issues
-const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
+const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
+
+// Draft auto-save key
+const DRAFT_KEY = "create-component-draft";
+const DRAFT_MAX_AGE = 24 * 60 * 60 * 1000; // 24h
+
+interface Marker {
+  severity: number;
+  message: string;
+  startLineNumber: number;
+  startColumn: number;
+  source: string;
+}
 
 function CreateComponentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, profileAvatar } = useAuth();
+  const { user, profileAvatar, isAuthenticated, loading: authLoading } = useAuth();
 
-  // Edit mode: populated when navigated via ?edit=<id>
-  const editId = searchParams.get('edit');
+  // Edit mode
+  const editId = searchParams.get("edit");
   const isEditMode = !!editId;
 
   const [title, setTitle] = useState("My Awesome Component");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
-  const [componentType, setComponentType] = useState<'component' | 'template'>('component');
+  const [componentType, setComponentType] = useState<"component" | "template">("component");
 
   const [htmlCode, setHtmlCode] = useState('<button class="my-btn">\n  Hover me\n</button>');
   const [cssCode, setCssCode] = useState(`.my-btn {
@@ -65,8 +107,10 @@ btn.addEventListener('click', () => {
   const [envCode, setEnvCode] = useState(`# Enter your environment variables here
 # MY_API_KEY=123456789
 `);
-  const [reactFiles, setReactFiles] = useState<{ name: string, content: string }[]>([
-    { name: 'App.tsx', content: `import React, { useState } from 'react';
+  const [reactFiles, setReactFiles] = useState<{ name: string; content: string }[]>([
+    {
+      name: "App.tsx",
+      content: `import React, { useState } from 'react';
 
 export default function App() {
   const [count, setCount] = useState(0);
@@ -83,28 +127,37 @@ export default function App() {
       </button>
     </div>
   );
-}` }
+}`,
+    },
   ]);
   const [activeReactFile, setActiveReactFile] = useState(0);
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null);
-  const [renameValue, setRenameValue] = useState('');
+  const [renameValue, setRenameValue] = useState("");
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
-  const [newFileName, setNewFileName] = useState('');
+  const [newFileName, setNewFileName] = useState("");
 
-  const [activeTab, setActiveTab] = useState<'html' | 'css' | 'js' | 'env' | 'react'>('html');
-  const [creationMode, setCreationMode] = useState<'classic' | 'react'>('classic');
-
-
-
+  const [activeTab, setActiveTab] = useState<"html" | "css" | "js" | "env" | "react">("html");
+  const [creationMode, setCreationMode] = useState<"classic" | "react">("classic");
 
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [consoleLogs, setConsoleLogs] = useState<{type: string, message: string, time: string}[]>([]);
+  const [consoleLogs, setConsoleLogs] = useState<{ type: string; message: string; time: string }[]>([]);
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
-  
+
   const [isSaving, setIsSaving] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
 
-  // Use a ref to store the screenshot data URL to be used during save
+  // Preview loading state
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+  // Monaco diagnostics
+  const [markers, setMarkers] = useState<Marker[]>([]);
+  const [isProblemsOpen, setIsProblemsOpen] = useState(false);
+  const editorRef = useRef<any>(null);
+  const monacoRef = useRef<any>(null);
+
+  // Responsive preview
+  const [previewWidth, setPreviewWidth] = useState<"100%" | "768px" | "375px">("100%");
+
   const screenshotRef = React.useRef<string | null>(null);
 
   // Secret detection state
@@ -112,11 +165,96 @@ export default function App() {
   const lastDetectedRef = useRef<Set<string>>(new Set());
   const clearBadgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Draft auto-save timer
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load draft on mount (only if not edit mode)
+  useEffect(() => {
+    if (isEditMode) return;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (Date.now() - draft.timestamp > DRAFT_MAX_AGE) {
+        localStorage.removeItem(DRAFT_KEY);
+        return;
+      }
+      if (draft.title) setTitle(draft.title);
+      if (draft.description) setDescription(draft.description);
+      if (draft.tags) setTags(draft.tags);
+      if (draft.componentType) setComponentType(draft.componentType);
+      if (draft.creationMode) setCreationMode(draft.creationMode);
+      if (draft.htmlCode) setHtmlCode(draft.htmlCode);
+      if (draft.cssCode) setCssCode(draft.cssCode);
+      if (draft.jsCode) setJsCode(draft.jsCode);
+      if (draft.envCode) setEnvCode(draft.envCode);
+      if (draft.reactFiles) setReactFiles(draft.reactFiles);
+      toast.info("Draft restored", { duration: 3000 });
+    } catch {
+      // ignore parse errors
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-save draft every 10s
+  useEffect(() => {
+    if (isEditMode) return;
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          DRAFT_KEY,
+          JSON.stringify({
+            title,
+            description,
+            tags,
+            componentType,
+            creationMode,
+            htmlCode,
+            cssCode,
+            jsCode,
+            envCode,
+            reactFiles,
+            timestamp: Date.now(),
+          })
+        );
+      } catch {
+        // quota exceeded — ignore
+      }
+    }, 10000);
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    };
+  }, [title, description, tags, componentType, creationMode, htmlCode, cssCode, jsCode, envCode, reactFiles, isEditMode]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+S → open publish modal
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        if (showPublishModal) {
+          // If modal is open, trigger save
+          handleSave();
+        } else {
+          setShowPublishModal(true);
+        }
+      }
+      // Escape → close modals
+      if (e.key === "Escape") {
+        if (showPublishModal) setShowPublishModal(false);
+        if (showNewFileDialog) setShowNewFileDialog(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  });
+
   // Direct Site Actions: Load title/description from URL params
   useEffect(() => {
     if (!isEditMode) {
-      const titleParam = searchParams.get('title');
-      const descParam = searchParams.get('desc');
+      const titleParam = searchParams.get("title");
+      const descParam = searchParams.get("desc");
       if (titleParam) setTitle(decodeURIComponent(titleParam));
       if (descParam) setDescription(decodeURIComponent(descParam));
     }
@@ -128,11 +266,13 @@ export default function App() {
     async function loadForEdit() {
       try {
         const all = await uiComponentsApi.getAll();
-        let found = all.find(c => String(c.id) === String(editId));
-        if (!found) { toast.error('Component not found'); return; }
+        let found = all.find((c) => String(c.id) === String(editId));
+        if (!found) {
+          toast.error("Component not found");
+          return;
+        }
 
-        // If code is on GitHub, fetch it first
-        if (found.lottie_url && found.lottie_url.includes('githubusercontent')) {
+        if (found.lottie_url && found.lottie_url.includes("githubusercontent")) {
           try {
             const res = await fetch(found.lottie_url);
             if (res.ok) {
@@ -146,135 +286,135 @@ export default function App() {
 
         const comp = found!;
 
-        setTitle(comp.title || '');
-        setDescription(comp.description || '');
-        setTags((comp.tags || []).join(', '));
-        setComponentType((comp.component_type as 'component' | 'template') || 'component');
-        
+        setTitle(comp.title || "");
+        setDescription(comp.description || "");
+        setTags((comp.tags || []).join(", "));
+        setComponentType((comp.component_type as "component" | "template") || "component");
+
         const hasReact = comp.react_files && comp.react_files.length > 0;
         if (hasReact) {
-          setCreationMode('react');
-          setActiveTab('react');
+          setCreationMode("react");
+          setActiveTab("react");
           setReactFiles(comp.react_files!);
         } else {
-          setCreationMode('classic');
-          setActiveTab('html');
-          setHtmlCode(comp.html_code || '');
-          setCssCode(comp.css_code || '');
-          setJsCode(comp.js_code || '');
+          setCreationMode("classic");
+          setActiveTab("html");
+          setHtmlCode(comp.html_code || "");
+          setCssCode(comp.css_code || "");
+          setJsCode(comp.js_code || "");
         }
         const rawEnvVars = comp.env_vars as string | Record<string, string> | null;
-        // Decrypt env vars if they're encrypted (base64 string)
         let envVars: Record<string, string> = {};
-        if (typeof rawEnvVars === 'string' && rawEnvVars.length > 0 && rawEnvVars !== '{}') {
+        if (typeof rawEnvVars === "string" && rawEnvVars.length > 0 && rawEnvVars !== "{}") {
           try {
-            // Try to decrypt - base64 encoded JSON
             envVars = decryptEnv(rawEnvVars);
           } catch (e) {
-            console.error('Failed to decrypt env vars:', e);
+            console.error("Failed to decrypt env vars:", e);
           }
-        } else if (typeof rawEnvVars === 'object' && rawEnvVars) {
+        } else if (typeof rawEnvVars === "object" && rawEnvVars) {
           envVars = rawEnvVars as Record<string, string>;
         }
         if (Object.keys(envVars).length > 0) {
-          setEnvCode(Object.entries(envVars).map(([k,v]) => `${k}=${v}`).join('\n'));
+          setEnvCode(
+            Object.entries(envVars)
+              .map(([k, v]) => `${k}=${v}`)
+              .join("\n")
+          );
         }
       } catch (e) {
         console.error(e);
-        toast.error('Failed to load component for editing');
+        toast.error("Failed to load component for editing");
       }
     }
     loadForEdit();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
-  
+
+  // Listen for messages from iframe
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'CONSOLE_LOG') {
-        setConsoleLogs(prev => [...prev, { type: event.data.logType, message: event.data.message, time: new Date().toLocaleTimeString() }]);
-      } else if (event.data?.type === 'CONSOLE_CLEAR') {
+      if (event.data?.type === "CONSOLE_LOG") {
+        setConsoleLogs((prev) => [
+          ...prev,
+          { type: event.data.logType, message: event.data.message, time: new Date().toLocaleTimeString() },
+        ]);
+      } else if (event.data?.type === "CONSOLE_CLEAR") {
         setConsoleLogs([]);
-      } else if (event.data?.type === 'SCREENSHOT_DATA') {
+      } else if (event.data?.type === "SCREENSHOT_DATA") {
         screenshotRef.current = event.data.dataUrl;
+      } else if (event.data?.type === "PREVIEW_READY") {
+        setIsPreviewLoading(false);
       }
     };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-}, []);
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
-  // SMART AST-based Secret Detector — runs 1.5s after code changes
+  // Secret detector
   useEffect(() => {
     const timer = setTimeout(() => {
-      const code = creationMode === 'react'
-        ? reactFiles.map(f => f.content).join('\n')
-        : htmlCode + jsCode;
+      const code = creationMode === "react" ? reactFiles.map((f) => f.content).join("\n") : htmlCode + jsCode;
 
       if (!code.trim()) return;
 
       const secrets = detectSecrets(code);
       if (!secrets.length) return;
 
-      // Only truly NEW secrets (not already in active envCode lines)
       const activeKeys = new Set(
-        envCode.split('\n')
-          .map(l => l.trim())
-          .filter(l => l && !l.startsWith('#'))
-          .map(l => l.split('=')[0])
+        envCode
+          .split("\n")
+          .map((l) => l.trim())
+          .filter((l) => l && !l.startsWith("#"))
+          .map((l) => l.split("=")[0])
       );
 
-      const newOnes = secrets.filter(s => !activeKeys.has(s.name));
+      const newOnes = secrets.filter((s) => !activeKeys.has(s.name));
       if (!newOnes.length) return;
 
-      // Deduplicate
-      const unique = newOnes.filter((s, i, a) => a.findIndex(x => x.name === s.name) === i);
+      const unique = newOnes.filter((s, i, a) => a.findIndex((x) => x.name === s.name) === i);
 
-      setEnvCode(prev => {
+      setEnvCode((prev) => {
         const keysInPrev = new Set(
-          prev.split('\n')
-            .map(l => l.trim())
-            .filter(l => l && !l.startsWith('#'))
-            .map(l => l.split('=')[0])
+          prev
+            .split("\n")
+            .map((l) => l.trim())
+            .filter((l) => l && !l.startsWith("#"))
+            .map((l) => l.split("=")[0])
         );
 
-        const toAdd = unique.filter(s => !keysInPrev.has(s.name));
+        const toAdd = unique.filter((s) => !keysInPrev.has(s.name));
         if (!toAdd.length) return prev;
 
-        // Place detected secrets at TOP (after comments), before user content
-        const lines = prev.split('\n');
+        const lines = prev.split("\n");
         let insertAfter = 0;
         for (let i = 0; i < lines.length; i++) {
           const t = lines[i].trim();
-          if (!t || t.startsWith('#')) {
+          if (!t || t.startsWith("#")) {
             insertAfter = i + 1;
           } else {
             break;
           }
         }
 
-        const header = ['# --- DETECTED (fill values below) ---'];
-        const detected = toAdd.map(s => `${s.name}=`);
+        const header = ["# --- DETECTED (fill values below) ---"];
+        const detected = toAdd.map((s) => `${s.name}=`);
 
-        const next = [
-          ...lines.slice(0, insertAfter),
-          ...header,
-          ...detected,
-          '',
-          ...lines.slice(insertAfter)
-        ].join('\n');
+        const next = [...lines.slice(0, insertAfter), ...header, ...detected, "", ...lines.slice(insertAfter)].join(
+          "\n"
+        );
 
-        toAdd.forEach(s => lastDetectedRef.current.add(s.name));
+        toAdd.forEach((s) => lastDetectedRef.current.add(s.name));
 
-        setDetectedEnvCount(c => c + toAdd.length);
-        setActiveTab('env');
+        setDetectedEnvCount((c) => c + toAdd.length);
+        setActiveTab("env");
 
-        // Auto-clear badge after 5s (user has seen the notification)
         if (clearBadgeTimerRef.current !== null) clearTimeout(clearBadgeTimerRef.current);
         clearBadgeTimerRef.current = setTimeout(() => setDetectedEnvCount(0), 5000);
 
-        toast.success(
-          `🔑 Found ${toAdd.length} secret${toAdd.length > 1 ? 's' : ''}`,
-          { description: toAdd.map(s => s.name).join(', '), duration: 5000 }
-        );
+        toast.success(`Found ${toAdd.length} secret${toAdd.length > 1 ? "s" : ""}`, {
+          description: toAdd.map((s) => s.name).join(", "),
+          duration: 5000,
+        });
 
         return next;
       });
@@ -312,15 +452,15 @@ export default function App() {
     fetchProfile();
   }, [user?.email]);
 
-  // Parse ENV immediately (no debounce for env changes)
+  // Parse ENV immediately
   useEffect(() => {
     const envObj: Record<string, string> = {};
-    envCode.split('\n').forEach(line => {
+    envCode.split("\n").forEach((line) => {
       const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith('#')) {
-        const [key, ...values] = trimmed.split('=');
+      if (trimmed && !trimmed.startsWith("#")) {
+        const [key, ...values] = trimmed.split("=");
         if (key && values.length > 0) {
-          let val = values.join('=').trim();
+          let val = values.join("=").trim();
           if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
             val = val.slice(1, -1);
           }
@@ -331,7 +471,7 @@ export default function App() {
     setParsedEnv(envObj);
   }, [envCode]);
 
-  // Debounce HTML/CSS/JS only (not env)
+  // Debounce HTML/CSS/JS only
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedHtml(htmlCode);
@@ -346,8 +486,8 @@ export default function App() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        if (typeof ev.target?.result === 'string') {
-          setEnvCode(prev => prev + '\n' + ev.target!.result);
+        if (typeof ev.target?.result === "string") {
+          setEnvCode((prev) => prev + "\n" + ev.target!.result);
           toast.success("ENV file loaded");
         }
       };
@@ -355,35 +495,41 @@ export default function App() {
     }
   };
 
+  // Save handler — auth-gated
   const handleSave = async () => {
+    if (!isAuthenticated()) {
+      toast.error("You must be signed in to publish a component");
+      return;
+    }
+
     if (!title.trim()) {
       toast.error("Please enter a title for your component");
       return;
     }
 
     setIsSaving(true);
-    
+
     // Trigger screenshot capture in the active iframe
-    const iframe = document.querySelector('iframe');
+    const iframe = document.querySelector("iframe");
     if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.postMessage({ type: 'CAPTURE_SCREENSHOT' }, '*');
+      iframe.contentWindow.postMessage({ type: "CAPTURE_SCREENSHOT" }, "*");
     }
 
     // Wait for the screenshot to be captured
-    await new Promise(r => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 1200));
 
-    // Upload screenshot to GitHub (free storage)
+    // Upload screenshot to GitHub
     let previewUrl: string | undefined = undefined;
     const rawDataUrl = screenshotRef.current;
     if (rawDataUrl) {
       try {
         if (!isGitHubConfigured()) throw new Error("GitHub is not configured. Check your .env.local");
-        const uploaded = await uploadToGitHub(rawDataUrl, 'previews');
+        const uploaded = await uploadToGitHub(rawDataUrl, "previews");
         previewUrl = uploaded.url;
       } catch (uploadErr: any) {
         toast.error(`GitHub Image Upload Failed: ${uploadErr.message}`);
         setIsSaving(false);
-        return; // STOP IF GITHUB FAILS
+        return;
       }
     }
 
@@ -394,65 +540,66 @@ export default function App() {
       if (!isGitHubConfigured()) throw new Error("GitHub is not configured");
       codeGithubUrl = await uploadComponentCode(componentId, {
         mode: creationMode,
-        react_files: creationMode === 'react' ? reactFiles : undefined,
-        html_code: creationMode === 'classic' ? htmlCode : undefined,
-        css_code: creationMode === 'classic' ? cssCode : undefined,
-        js_code: creationMode === 'classic' ? jsCode : undefined,
+        react_files: creationMode === "react" ? reactFiles : undefined,
+        html_code: creationMode === "classic" ? htmlCode : undefined,
+        css_code: creationMode === "classic" ? cssCode : undefined,
+        js_code: creationMode === "classic" ? jsCode : undefined,
       });
     } catch (codeErr: any) {
       toast.error(`GitHub Code Upload Failed: ${codeErr.message}`);
       setIsSaving(false);
-      return; // STOP IF GITHUB FAILS
+      return;
     }
 
     try {
-      const tagsArray = tags.split(',').map(t => t.trim()).filter(Boolean);
+      const tagsArray = tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
 
-      // Resolve the best avatar URL for saving
-      const resolvedAvatar = profileAvatar
-        || (user?.user_metadata as any)?.avatar_url
-        || userAvatarUrl
-        || getAvatarForUser(user?.email || null);
-
-      // Encrypt env variables before saving to Supabase
-      
+      const resolvedAvatar =
+        profileAvatar || (user?.user_metadata as any)?.avatar_url || userAvatarUrl || getAvatarForUser(user?.email || null);
 
       const payload = {
         title,
         description,
         tags: tagsArray,
-        env_vars: JSON.stringify(parsedEnv) as any, // Save as string to be absolutely safe with Supabase column types
-        
-        html_code: creationMode === 'classic' ? (codeGithubUrl ? '' : htmlCode) : '',
-        css_code: creationMode === 'classic' ? (codeGithubUrl ? '' : cssCode) : '',
-        js_code: creationMode === 'classic' ? (codeGithubUrl ? '' : jsCode) : '',
-        react_files: creationMode === 'react' ? (codeGithubUrl ? [] : reactFiles) : [],
+        env_vars: JSON.stringify(parsedEnv) as any,
+        html_code: creationMode === "classic" ? (codeGithubUrl ? "" : htmlCode) : "",
+        css_code: creationMode === "classic" ? (codeGithubUrl ? "" : cssCode) : "",
+        js_code: creationMode === "classic" ? (codeGithubUrl ? "" : jsCode) : "",
+        react_files: creationMode === "react" ? (codeGithubUrl ? [] : reactFiles) : [],
         preview_url: previewUrl,
         lottie_url: codeGithubUrl,
-        theme: 'light' as const,
+        theme: "light" as const,
         component_type: componentType,
       };
 
+      const authorName =
+        (user?.user_metadata as any)?.full_name || (user?.email ? user.email.split("@")[0] : "Anonymous Maker");
+
       if (isEditMode && editId) {
-        // UPDATE existing component
         await uiComponentsApi.update(String(editId), {
           ...payload,
-          author_name: (user?.user_metadata as any)?.full_name || (user?.email ? user.email.split('@')[0] : 'Anonymous Maker'),
+          author_name: authorName,
           author_avatar: resolvedAvatar,
         });
-        toast.success('Component updated successfully!');
+        toast.success("Component updated successfully!");
+        // Clear draft on successful save
+        localStorage.removeItem(DRAFT_KEY);
         router.push(`/components/${editId}`);
       } else {
-        // CREATE new component
         await uiComponentsApi.create({
           id: componentId,
-          author_name: (user?.user_metadata as any)?.full_name || (user?.email ? user.email.split('@')[0] : 'Anonymous Maker'),
+          author_name: authorName,
           author_avatar: resolvedAvatar,
           author_id: user?.id || undefined,
           ...payload,
         });
-        toast.success('Component published successfully!');
-        router.push('/components');
+        toast.success("Component published successfully!");
+        // Clear draft on successful save
+        localStorage.removeItem(DRAFT_KEY);
+        router.push("/components");
       }
     } catch (e) {
       console.error(e);
@@ -463,9 +610,103 @@ export default function App() {
     }
   };
 
+  // Monaco onMount — configure TypeScript diagnostics
+  const handleEditorMount = useCallback((editor: any, monaco: any) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
 
-    ;
+    // Configure TypeScript compiler options for React JSX
+    monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+      target: monaco.languages.typescript.ScriptTarget.ESNext,
+      module: monaco.languages.typescript.ModuleKind.ESNext,
+      jsx: monaco.languages.typescript.JsxEmit.React,
+      jsxFactory: "React.createElement",
+      jsxFragmentFactory: "React.Fragment",
+      strict: true,
+      esModuleInterop: true,
+      allowSyntheticDefaultImports: true,
+      moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+      noEmit: true,
+      allowJs: true,
+      typeRoots: ["node_modules/@types"],
+    });
 
+    // Enable diagnostics — ignore module-not-found (2307) and implicit any (7016)
+    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: false,
+      noSyntaxValidation: false,
+      diagnosticCodesToIgnore: [2307, 7016, 2304, 2686],
+    });
+
+    // Add type declarations for common globals
+    monaco.languages.typescript.typescriptDefaults.addExtraLib(
+      `
+      declare var window: Window & typeof globalThis;
+      declare var document: Document;
+      declare var console: Console;
+      declare var setTimeout: typeof globalThis.setTimeout;
+      declare var clearTimeout: typeof globalThis.clearTimeout;
+      declare var setInterval: typeof globalThis.setInterval;
+      declare var clearInterval: typeof globalThis.clearInterval;
+      declare var fetch: typeof globalThis.fetch;
+      declare var alert: (message?: any) => void;
+      declare var confirm: (message?: string) => boolean;
+      declare var prompt: (message?: string, _default?: string) => string | null;
+      declare var localStorage: Storage;
+      declare var sessionStorage: Storage;
+      declare var ENV: Record<string, string>;
+      declare var process: { env: Record<string, string> };
+      `,
+      "ts:global.d.ts"
+    );
+
+    // JavaScript diagnostics for classic mode
+    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: true,
+      noSyntaxValidation: false,
+    });
+
+    // Listen for marker changes
+    const updateMarkers = () => {
+      const model = editor.getModel();
+      if (!model) return;
+      const currentMarkers = monaco.editor.getModelMarkers({ resource: model.uri });
+      setMarkers(
+        currentMarkers.map((m: any) => ({
+          severity: m.severity,
+          message: m.message,
+          startLineNumber: m.startLineNumber,
+          startColumn: m.startColumn,
+          source: m.source || "",
+        }))
+      );
+    };
+
+    monaco.editor.onDidChangeMarkers(updateMarkers);
+    // Initial markers
+    setTimeout(updateMarkers, 1000);
+  }, []);
+
+  // Jump to line in editor
+  const handleMarkerClick = useCallback(
+    (line: number, column: number) => {
+      if (editorRef.current) {
+        editorRef.current.revealLineInCenter(line);
+        editorRef.current.setPosition({ lineNumber: line, column });
+        editorRef.current.focus();
+      }
+    },
+    []
+  );
+
+  // Format code
+  const handleFormatCode = useCallback(() => {
+    if (editorRef.current) {
+      editorRef.current.getAction("editor.action.formatDocument")?.run();
+    }
+  }, []);
+
+  // Classic iframe srcdoc
   const iframeSrcDoc = `
     <!DOCTYPE html>
     <html lang="en">
@@ -487,7 +728,7 @@ export default function App() {
           window.process = window.process || {};
           window.process.env = window.ENV;
           try { ${debouncedJs} } catch (e) { console.error(e); }
-
+          window.parent.postMessage({ type: 'PREVIEW_READY' }, '*');
           window.addEventListener('message', (e) => {
             if (e.data.type === 'CAPTURE_SCREENSHOT') {
               html2canvas(document.body, { backgroundColor: null, logging: false }).then(canvas => {
@@ -500,57 +741,73 @@ export default function App() {
     </html>
   `;
 
+  // Smart entry-point detection
+  const ENTRY_PRIORITY = [
+    "App.tsx",
+    "App.jsx",
+    "App.ts",
+    "App.js",
+    "index.tsx",
+    "index.jsx",
+    "index.ts",
+    "index.js",
+    "main.tsx",
+    "main.jsx",
+  ];
 
-  // Smart entry-point detection: App.tsx > App.jsx > index.tsx > index.jsx > index.js > first file
-  const ENTRY_PRIORITY = ['App.tsx','App.jsx','App.ts','App.js','index.tsx','index.jsx','index.ts','index.js','main.tsx','main.jsx'];
-
-  function getEntryCode(files: {name:string,content:string}[]): string {
-    const map: Record<string,string> = {};
-    files.forEach(f => { map[f.name] = f.content; });
-    for (const name of ENTRY_PRIORITY) { if (map[name]) return map[name]; }
+  function getEntryCode(files: { name: string; content: string }[]): string {
+    const map: Record<string, string> = {};
+    files.forEach((f) => {
+      map[f.name] = f.content;
+    });
+    for (const name of ENTRY_PRIORITY) {
+      if (map[name]) return map[name];
+    }
     return files[0]?.content || 'export default function App() { return <div>No Code Found</div>; }';
   }
 
   // Detect language for Monaco from file extension
   const getMonacoLang = (fileName: string) => {
-    if (fileName.endsWith('.tsx') || fileName.endsWith('.ts')) return 'typescript';
-    if (fileName.endsWith('.jsx') || fileName.endsWith('.js')) return 'javascript';
-    if (fileName.endsWith('.css')) return 'css';
-    if (fileName.endsWith('.json')) return 'json';
-    return 'typescript';
+    if (fileName.endsWith(".tsx") || fileName.endsWith(".ts")) return "typescript";
+    if (fileName.endsWith(".jsx") || fileName.endsWith(".js")) return "javascript";
+    if (fileName.endsWith(".css")) return "css";
+    if (fileName.endsWith(".json")) return "json";
+    return "typescript";
   };
 
-  // Real-time React Bundling logic for the iframe using Babel
+  // React preview doc
   const [reactPreviewDoc, setReactPreviewDoc] = useState("");
 
   useEffect(() => {
-    if (creationMode !== 'react') return;
+    if (creationMode !== "react") return;
+
+    // Show skeleton when code changes
+    setIsPreviewLoading(true);
 
     const appCode = getEntryCode(reactFiles);
 
-    // Build the srcdoc using the robust logic from [id]/page.tsx
     const filesMap: Record<string, string> = {};
-    reactFiles.forEach(f => { filesMap[f.name] = f.content; });
+    reactFiles.forEach((f) => {
+      filesMap[f.name] = f.content;
+    });
 
-    // Collect external package names
     const esmPackages: string[] = [];
     const importRegex = /import\s+(?:.*?\s+from\s+)?['"]([^'"./][^'"]*)['"]/g;
     let m: RegExpExecArray | null;
     while ((m = importRegex.exec(appCode)) !== null) {
-      const pkg = m[1].split('/')[0];
-      if (pkg !== 'react' && pkg !== 'react-dom' && !esmPackages.includes(pkg)) {
+      const pkg = m[1].split("/")[0];
+      if (pkg !== "react" && pkg !== "react-dom" && !esmPackages.includes(pkg)) {
         esmPackages.push(m[1]);
       }
     }
 
-    // Build importmap
     const importmapEntries: Record<string, string> = {
-      "react": "https://esm.sh/react@18",
+      react: "https://esm.sh/react@18",
       "react-dom": "https://esm.sh/react-dom@18",
       "react-dom/client": "https://esm.sh/react-dom@18/client",
       "react/jsx-runtime": "https://esm.sh/react@18/jsx-runtime",
     };
-    esmPackages.forEach(pkg => {
+    esmPackages.forEach((pkg) => {
       if (!importmapEntries[pkg]) {
         importmapEntries[pkg] = `https://esm.sh/${pkg}?external=react,react-dom`;
       }
@@ -558,12 +815,9 @@ export default function App() {
 
     const importmapJson = JSON.stringify({ imports: importmapEntries });
 
-    // Use the raw code for Babel transform
     let rawCode = appCode;
-    // Replace import.meta.env with window.process.env to prevent Babel crashes
-    rawCode = rawCode.replace(/import\.meta\.env/g, 'window.process.env');
+    rawCode = rawCode.replace(/import\.meta\.env/g, "window.process.env");
 
-    // Create env object for preview
     const envObject = parsedEnv;
 
     const doc = `<!DOCTYPE html>
@@ -574,36 +828,17 @@ export default function App() {
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script type="importmap">${importmapJson}</script>
   <script>
-    // Inject environment variables for the preview
-    // Make available as window.ENV, process.env, and direct property access
     (function() {
       var env = ${JSON.stringify(envObject)};
-      console.log('ENV loaded:', JSON.stringify(env));
       window.ENV = env;
       window.process = window.process || {};
       window.process.env = env;
       window.importMeta = { env: env };
-      
-      // Define getter for each env key to work with const declarations
-      // This allows both window.API_KEY and direct const API_KEY to work
       for (var key in env) {
         if (env.hasOwnProperty(key) && env[key] && env[key].length > 0) {
-          // Set as window property
           window[key] = env[key];
-          console.log('Exposed window.' + key + ' = ' + env[key].substring(0, 8) + '...');
-          
-          // Also try to override any const in global scope
-          try {
-            eval('var ' + key + ' = "' + env[key] + '"');
-          } catch(e) {}
+          try { eval('var ' + key + ' = "' + env[key] + '"'); } catch(e) {}
         }
-      }
-      
-      // Log a summary
-      if (Object.keys(env).length > 0) {
-        console.log('All env vars loaded successfully!');
-      } else {
-        console.log('No env vars found!');
       }
     })();
   </script>
@@ -614,96 +849,9 @@ export default function App() {
     #root { width:100%; display:flex; align-items:center; justify-content:center; }
     ::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-thumb { background:rgba(128,128,128,0.3); border-radius:3px; }
     .preview-error { background:#fee2e2; border:1px solid #fca5a5; border-radius:8px; padding:16px; color:#dc2626; font-family:monospace; font-size:13px; white-space:pre-wrap; }
-
-    /* -- Build Phase Overlay -- */
-    #build-overlay {
-      position: fixed; inset: 0;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: rgba(10,10,15,0.92);
-      backdrop-filter: blur(12px);
-      z-index: 9999;
-      transition: opacity 0.5s ease, visibility 0.5s ease;
-      gap: 20px;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-    }
-    #build-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
-
-    .build-logo {
-      width: 52px; height: 52px;
-      border: 3px solid rgba(99,102,241,0.3);
-      border-top-color: #6366f1;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .build-step-label {
-      font-size: 13px; font-weight: 700;
-      color: #a5b4fc;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      min-width: 220px; text-align: center;
-    }
-    .build-step-sub {
-      font-size: 11px; color: rgba(148,163,184,0.7);
-      letter-spacing: 0.05em;
-      text-align: center;
-    }
-
-    .build-steps {
-      display: flex; flex-direction: column; gap: 6px; width: 220px;
-    }
-    .step {
-      display: flex; align-items: center; gap: 10px;
-      font-size: 11px; color: rgba(148,163,184,0.4);
-      transition: color 0.3s ease;
-    }
-    .step.active { color: #e2e8f0; }
-    .step.done { color: #4ade80; }
-    .step-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: currentColor; flex-shrink: 0;
-      transition: background 0.3s ease;
-    }
-    .step.active .step-dot { animation: pulse-dot 1s ease-in-out infinite; }
-    @keyframes pulse-dot {
-      0%, 100% { transform: scale(1); opacity:1; }
-      50% { transform: scale(1.6); opacity:0.6; }
-    }
-
-    .build-bar-track {
-      width: 220px; height: 3px;
-      background: rgba(99,102,241,0.15);
-      border-radius: 999px;
-      overflow: hidden;
-    }
-    .build-bar-fill {
-      height: 100%; width: 0%;
-      background: linear-gradient(90deg, #6366f1, #8b5cf6, #6366f1);
-      background-size: 200% 100%;
-      border-radius: 999px;
-      transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
-      animation: shimmer 1.5s linear infinite;
-    }
-    @keyframes shimmer { to { background-position: -200% 0; } }
   </style>
 </head>
 <body>
-  <!-- Real Build Phase Overlay -->
-  <div id="build-overlay">
-    <div class="build-logo"></div>
-    <div class="build-step-label" id="phase-label">Initializing...</div>
-    <div class="build-steps">
-      <div class="step" id="s-babel"><div class="step-dot"></div> Loading Babel Compiler</div>
-      <div class="step" id="s-parse"><div class="step-dot"></div> Parsing Imports</div>
-      <div class="step" id="s-compile"><div class="step-dot"></div> Compiling TSX to JS</div>
-      <div class="step" id="s-resolve"><div class="step-dot"></div> Resolving Modules</div>
-      <div class="step" id="s-render"><div class="step-dot"></div> Rendering Component</div>
-    </div>
-    <div class="build-bar-track"><div class="build-bar-fill" id="build-bar"></div></div>
-    <div class="build-step-sub" id="phase-sub">Setting up environment...</div>
-  </div>
-
   <div id="root"></div>
   <script>
     (function(){
@@ -720,9 +868,9 @@ export default function App() {
           orig.apply(console,arguments);
         };
       });
-      window.onerror=function(msg,_u,line){ 
+      window.onerror=function(msg,_u,line){
         if (msg === "Script error.") return;
-        window.parent.postMessage({type:'CONSOLE_LOG',logType:'error',message:msg+' (line '+line+')'},'*'); 
+        window.parent.postMessage({type:'CONSOLE_LOG',logType:'error',message:msg+' (line '+line+')'},'*');
       };
       window.addEventListener('message', (e) => {
         if (e.data.type === 'CAPTURE_SCREENSHOT') {
@@ -732,24 +880,6 @@ export default function App() {
         }
       });
     })();
-
-    // -- Build Phase Helpers --
-    function setPhase(id, label, sub, progress) {
-      var steps = ['s-babel','s-parse','s-compile','s-resolve','s-render'];
-      var idx = steps.indexOf(id);
-      steps.forEach(function(s, i) {
-        var el = document.getElementById(s);
-        if (!el) return;
-        el.className = 'step' + (i < idx ? ' done' : i === idx ? ' active' : '');
-      });
-      document.getElementById('phase-label').textContent = label;
-      document.getElementById('phase-sub').textContent = sub;
-      document.getElementById('build-bar').style.width = progress + '%';
-    }
-    function hideBuildOverlay() {
-      var ov = document.getElementById('build-overlay');
-      if (ov) ov.classList.add('hidden');
-    }
   </script>
   <script type="module">
     import React from 'react';
@@ -769,49 +899,25 @@ export default function App() {
     async function run() {
       const root = document.getElementById('root');
       try {
-        // Phase 1: Load Babel
-        window.setPhase('s-babel', 'Loading Compiler', 'Fetching @babel/standalone...', 10);
         const Babel = await loadBabel();
-
-        // Phase 2: Parse
-        window.setPhase('s-parse', 'Parsing Imports', 'Scanning import statements...', 30);
         let rawCode = ${JSON.stringify(rawCode)};
-        
-        // Replace placeholder values with actual env values
         const env = ${JSON.stringify(envObject)};
-        console.log('ENV for replacement:', JSON.stringify(env));
-        
-        // Get all unique placeholder patterns from the code
-        // We want to replace strings that look like placeholders
+
         if (Object.keys(env).length > 0) {
-          // Simple string replacement - replace any string containing placeholder patterns
-          // with the actual env value if the key matches
-          
-          // Create a list of all possible placeholder prefixes
           const prefixes = ['PASTE_YOUR_', 'YOUR_', 'EXAMPLE_', 'INSERT_', 'REPLACE_'];
           const suffixes = ['_HERE', ''];
-          
           for (const key in env) {
             const value = env[key];
             if (!value) continue;
-            
-            // Try all combinations of prefix + key + suffix
             for (let pi = 0; pi < prefixes.length; pi++) {
               for (let si = 0; si < suffixes.length; si++) {
                 const placeholder = prefixes[pi] + key + suffixes[si];
-                // Use direct string replacement (case insensitive)
                 const regex = new RegExp('([=!]==?\\\\s*)?("' + placeholder + '")', 'gi');
-                const before = rawCode;
                 rawCode = rawCode.replace(regex, function(m, p1) {
                   return p1 ? m : '"' + value + '"';
                 });
-                if (rawCode !== before) {
-                  console.log('Replaced "' + placeholder + '" with actual value');
-                }
               }
             }
-            
-            // Also try without suffix
             for (let pi = 0; pi < prefixes.length; pi++) {
               const placeholderNoSuffix = prefixes[pi] + key;
               const regex2 = new RegExp('([=!]==?\\\\s*)?("' + placeholderNoSuffix + '")', 'gi');
@@ -820,15 +926,12 @@ export default function App() {
               });
             }
           }
-          
-          // Final pass: replace any remaining PASTE_YOUR_ strings
           for (const key in env) {
             if (env[key]) {
               const regex3 = new RegExp('([=!]==?\\\\s*)?("PASTE_YOUR_[^"]+")', 'gi');
               rawCode = rawCode.replace(regex3, function(m, p1, p2) {
                 if (p1) return m;
                 if (p2.toLowerCase().includes(key.toLowerCase())) {
-                  console.log('Replaced remaining placeholder ' + p2 + ' with actual value');
                   return '"' + env[key] + '"';
                 }
                 return m;
@@ -836,14 +939,7 @@ export default function App() {
             }
           }
         }
-        
-        console.log('Final code sample:', rawCode.substring(0, 100));
-        
-        await new Promise(r => setTimeout(r, 60));
-        
-        // Phase 3: Compile
-        window.setPhase('s-compile', 'Compiling TSX to JS', 'Running Babel transform...', 55);
-        await new Promise(r => setTimeout(r, 30));
+
         const transformed = Babel.transform(rawCode, {
           presets: [
             ['env', { modules: 'commonjs' }],
@@ -853,8 +949,6 @@ export default function App() {
           filename: 'App.tsx',
         }).code;
 
-        // Phase 4: Resolve modules
-        window.setPhase('s-resolve', 'Resolving Modules', 'Mapping ESM imports...', 75);
         const esmMap = ${JSON.stringify(importmapEntries)};
         const fixedCode = transformed.replace(
           /require\\(["']([^"']+)["']\\)/g,
@@ -863,14 +957,11 @@ export default function App() {
             return 'await import("' + url + '")';
           }
         );
-        await new Promise(r => setTimeout(r, 40));
 
-        // Phase 5: Execute + Render
-        window.setPhase('s-render', 'Rendering Component', 'Mounting React tree...', 90);
         const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
         const mod = { exports: {} };
         const fn = new AsyncFunction('React', 'require', 'module', 'exports', fixedCode + '\\nreturn module.exports;');
-        
+
         const requires = {};
         const fakeRequire = async (pkg) => {
           const url = esmMap[pkg] || ('https://esm.sh/' + pkg + '?external=react,react-dom');
@@ -885,18 +976,14 @@ export default function App() {
 
         if (typeof App === 'function' || (typeof App === 'object' && App !== null)) {
           createRoot(root).render(React.createElement(App));
-          // Done - animate bar to 100% then hide overlay
-          document.getElementById('build-bar').style.width = '100%';
-          document.getElementById('phase-label').textContent = 'Ready!';
-          document.getElementById('phase-sub').textContent = 'Component rendered successfully';
-          setTimeout(() => window.hideBuildOverlay(), 600);
+          window.parent.postMessage({ type: 'PREVIEW_READY' }, '*');
         } else {
-          window.hideBuildOverlay();
           root.innerHTML = '<div class="preview-error">Warning: No default export found or App is not a component.</div>';
+          window.parent.postMessage({ type: 'PREVIEW_READY' }, '*');
         }
       } catch (err) {
-        window.hideBuildOverlay();
         root.innerHTML = '<div class="preview-error"><b>Runtime Error:</b><br/>'+err.message+'</div>';
+        window.parent.postMessage({ type: 'PREVIEW_READY' }, '*');
       }
     }
     run();
@@ -906,18 +993,21 @@ export default function App() {
 
     const timeout = setTimeout(() => setReactPreviewDoc(doc), 500);
     return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reactFiles, creationMode, JSON.stringify(parsedEnv)]);
 
   // Helper to determine the language for Monaco (classic tabs)
   const getLanguage = (tab: string) => {
-    if (tab === 'js') return 'javascript';
-    if (tab === 'react') return 'typescript';
-    if (tab === 'env') return 'shell';
+    if (tab === "js") return "javascript";
+    if (tab === "react") return "typescript";
+    if (tab === "env") return "shell";
     return tab;
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-[#1e1e1e] text-gray-100 font-sans">
+      {/* Auth Gate Overlay */}
+      {!authLoading && !isAuthenticated() && <AuthGateOverlay />}
 
       {/* Edit Mode Banner */}
       {isEditMode && (
@@ -926,7 +1016,7 @@ export default function App() {
             <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
             <Pencil size={14} className="text-amber-400" />
             <span className="text-amber-300 font-bold text-sm tracking-wide">EDIT MODE</span>
-            <span className="text-amber-400/60 text-xs">You are editing an existing component - saving will update it</span>
+            <span className="text-amber-400/60 text-xs">You are editing an existing component — saving will update it</span>
           </div>
           <button
             onClick={() => router.push(`/components/${editId}`)}
@@ -937,20 +1027,17 @@ export default function App() {
         </div>
       )}
 
-      {/* Top Navbar — Premium Studio */}
-      <div className="h-14 border-b border-white/5 flex items-center justify-between px-3 sm:px-5 bg-gradient-to-r from-[#0d0d12] via-[#13131a] to-[#0d0d12] shrink-0 relative">
-        {/* subtle glow line */}
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent pointer-events-none" />
-
+      {/* Top Navbar — VS Code / Cursor Style */}
+      <div className="h-14 border-b border-white/5 flex items-center justify-between px-3 sm:px-5 bg-[#252526] shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Link href="/components" className="p-2 hover:bg-white/5 rounded-lg transition-colors text-gray-500 hover:text-gray-200 flex-shrink-0">
             <ArrowLeft size={16} />
           </Link>
           <div className="h-5 w-px bg-white/10 hidden sm:block" />
 
-          {/* Brand badge */}
+          {/* Brand badge — flat blue */}
           <div className="hidden sm:flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-5 h-5 rounded-md bg-[#007acc] flex items-center justify-center flex-shrink-0">
               <Layers size={11} className="text-white" />
             </div>
             <span className="text-[11px] font-black text-white/80 tracking-widest uppercase">Studio</span>
@@ -958,25 +1045,41 @@ export default function App() {
 
           <div className="h-5 w-px bg-white/10 hidden sm:block" />
 
-          {/* Mode switcher */}
+          {/* Mode switcher — flat active state */}
           <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/8 gap-0.5">
             <button
-              onClick={() => { setCreationMode('classic'); setActiveTab('html'); }}
-              className={"flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold rounded-md transition-all " + (creationMode === 'classic' ? "bg-[#007acc] text-white shadow-lg shadow-blue-500/20" : "text-gray-500 hover:text-gray-300")}
+              onClick={() => {
+                setCreationMode("classic");
+                setActiveTab("html");
+              }}
+              className={
+                "flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold rounded-md transition-all " +
+                (creationMode === "classic"
+                  ? "bg-[#007acc] text-white"
+                  : "text-gray-500 hover:text-gray-300")
+              }
             >
               <span className="hidden xs:inline">HTML/CSS</span>
               <span className="xs:hidden">HTML</span>
             </button>
             <button
-              onClick={() => { setCreationMode('react'); setActiveTab('react'); }}
-              className={"flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold rounded-md transition-all " + (creationMode === 'react' ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25" : "text-gray-500 hover:text-gray-300")}
+              onClick={() => {
+                setCreationMode("react");
+                setActiveTab("react");
+              }}
+              className={
+                "flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold rounded-md transition-all " +
+                (creationMode === "react"
+                  ? "bg-[#007acc] text-white"
+                  : "text-gray-500 hover:text-gray-300")
+              }
             >
               <span>React</span>
             </button>
           </div>
         </div>
 
-        {/* Title in center (hidden on small) */}
+        {/* Title in center */}
         <div className="absolute left-1/2 -translate-x-1/2 hidden md:block pointer-events-none">
           <span className="text-xs text-gray-600 font-mono truncate max-w-[200px] block text-center">
             {title || "untitled-component"}
@@ -990,55 +1093,54 @@ export default function App() {
             <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Live</span>
           </div>
 
-          <button
+          <Button
+            size="sm"
             onClick={() => setShowPublishModal(true)}
             disabled={isSaving}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-3 sm:px-4 py-1.5 rounded-lg transition-all text-xs font-bold disabled:opacity-50 shadow-lg shadow-indigo-500/25"
+            className="gap-1.5"
           >
             <Save size={13} />
             <span className="hidden sm:inline">Publish</span>
-          </button>
+            <kbd className="hidden sm:inline ml-1 text-[9px] opacity-60 border border-white/20 rounded px-1 py-0.5">
+              Ctrl+S
+            </kbd>
+          </Button>
         </div>
       </div>
 
       {/* Editor Main Area */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-
         {/* Left Side: Code Editor */}
         <div className={"flex flex-col border-r border-white/5 bg-[#0d0d12] " + (isFullscreen ? "hidden" : "w-full lg:w-1/2 flex")}>
-          {/* Tabs */}
+          {/* Tabs — VS Code style */}
           <div className="flex bg-[#0a0a0f] shrink-0 overflow-x-auto no-scrollbar border-b border-white/5">
-            {(creationMode === 'classic' ? ['html', 'css', 'js', 'env'] : ['react', 'env']).map(tab => {
-              const colors: Record<string, string> = {
-                html: 'text-orange-400', css: 'text-blue-400', js: 'text-yellow-400',
-                react: 'text-cyan-400', env: 'text-emerald-400',
-              };
-              const activeBg: Record<string, string> = {
-                html: 'border-orange-500', css: 'border-blue-500', js: 'border-yellow-500',
-                react: 'border-cyan-500', env: 'border-emerald-500',
-              };
-              return (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab as any)}
-                  className={"flex items-center gap-1.5 px-4 py-3 text-[10px] font-bold uppercase tracking-wider transition-all border-b-2 whitespace-nowrap " + (activeTab === tab ? (activeBg[tab] || 'border-indigo-500') + ' ' + (colors[tab] || 'text-white') + ' bg-[#1a1a24]' : 'border-transparent text-gray-600 hover:text-gray-400')}
-                >
-                  {tab === 'env' && <Settings size={11} />}
-                  {tab === 'react' && <Layers size={11} className="text-cyan-400" />}
-                  {tab}
-                  {tab === 'env' && detectedEnvCount > 0 && (
-                    <span className="ml-1 px-1.5 py-0.5 bg-blue-500 text-white text-[8px] rounded-full font-bold animate-pulse">
-                      {detectedEnvCount}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            {(creationMode === "classic" ? ["html", "css", "js", "env"] : ["react", "env"]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab as any)}
+                className={
+                  "flex items-center gap-1.5 px-4 py-3 text-[10px] font-bold uppercase tracking-wider transition-all border-b-2 whitespace-nowrap " +
+                  (activeTab === tab
+                    ? "bg-[#1e1e1e] text-white border-[#007acc]"
+                    : "border-transparent text-gray-500 hover:text-gray-300")
+                }
+              >
+                {tab === "env" && <Settings size={11} />}
+                {tab === "react" && <Layers size={11} className="text-gray-400" />}
+                {tab}
+                {tab === "env" && detectedEnvCount > 0 && (
+                  <Badge variant="destructive" className="h-4 px-1.5 text-[8px] font-bold animate-pulse">
+                    {detectedEnvCount}
+                  </Badge>
+                )}
+              </button>
+            ))}
           </div>
 
           {/* Editor Container */}
           <div className="flex-1 relative bg-[#0d0d12] flex flex-col">
-            {activeTab === 'react' && (
+            {/* React file sub-tabs */}
+            {activeTab === "react" && (
               <div className="flex bg-[#0a0a0f] border-b border-white/5 shrink-0 overflow-x-auto no-scrollbar items-stretch">
                 {reactFiles.map((file, idx) => (
                   <div key={idx} className="flex items-center group border-r border-white/5">
@@ -1046,7 +1148,7 @@ export default function App() {
                       <input
                         autoFocus
                         value={renameValue}
-                        onChange={e => setRenameValue(e.target.value)}
+                        onChange={(e) => setRenameValue(e.target.value)}
                         onBlur={() => {
                           if (renameValue.trim()) {
                             const updated = [...reactFiles];
@@ -1055,8 +1157,8 @@ export default function App() {
                           }
                           setRenamingIdx(null);
                         }}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
                             if (renameValue.trim()) {
                               const updated = [...reactFiles];
                               updated[idx] = { ...updated[idx], name: renameValue.trim() };
@@ -1064,18 +1166,26 @@ export default function App() {
                             }
                             setRenamingIdx(null);
                           }
-                          if (e.key === 'Escape') setRenamingIdx(null);
+                          if (e.key === "Escape") setRenamingIdx(null);
                         }}
                         className="bg-[#007acc] text-white text-[10px] font-bold px-3 py-2 outline-none w-28 rounded"
                       />
                     ) : (
                       <button
                         onClick={() => setActiveReactFile(idx)}
-                        onDoubleClick={() => { setRenamingIdx(idx); setRenameValue(file.name); }}
+                        onDoubleClick={() => {
+                          setRenamingIdx(idx);
+                          setRenameValue(file.name);
+                        }}
                         title="Double-click to rename"
-                        className={"flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold transition-all " + (activeReactFile === idx ? "text-cyan-400 bg-[#0d0d12]" : "text-gray-600 hover:text-gray-300")}
+                        className={
+                          "flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold transition-all " +
+                          (activeReactFile === idx ? "text-white bg-[#1e1e1e]" : "text-gray-500 hover:text-gray-300")
+                        }
                       >
-                        <span className="opacity-40 text-[9px]">{file.name.endsWith('.tsx') || file.name.endsWith('.ts') ? 'TS' : 'JS'}</span>
+                        <span className="opacity-40 text-[9px]">
+                          {file.name.endsWith(".tsx") || file.name.endsWith(".ts") ? "TS" : "JS"}
+                        </span>
                         {file.name}
                       </button>
                     )}
@@ -1096,17 +1206,28 @@ export default function App() {
                   </div>
                 ))}
                 <button
-                  onClick={() => { setNewFileName(''); setShowNewFileDialog(true); }}
-                  className="px-4 py-2 text-[10px] font-bold text-gray-600 hover:text-cyan-400 transition-all shrink-0 flex items-center gap-1"
+                  onClick={() => {
+                    setNewFileName("");
+                    setShowNewFileDialog(true);
+                  }}
+                  className="px-4 py-2 text-[10px] font-bold text-gray-500 hover:text-white transition-all shrink-0 flex items-center gap-1"
                   title="Add new file"
                 >
                   + New File
                 </button>
+                {/* Format button */}
+                <button
+                  onClick={handleFormatCode}
+                  className="px-3 py-2 text-[10px] font-bold text-gray-500 hover:text-white transition-all shrink-0 flex items-center gap-1 ml-auto"
+                  title="Format Code"
+                >
+                  <Wand2 size={11} />
+                </button>
               </div>
             )}
-            
+
             <div className="flex-1 relative">
-              {activeTab === 'env' && (
+              {activeTab === "env" && (
                 <div className="absolute top-2 right-4 z-10 flex gap-2">
                   <label className="flex items-center gap-2 cursor-pointer bg-[#333] hover:bg-[#444] text-xs px-3 py-1.5 rounded border border-[#555] transition text-gray-300">
                     <Upload size={12} /> Upload .env
@@ -1114,68 +1235,118 @@ export default function App() {
                   </label>
                 </div>
               )}
-              {activeTab === 'env' && detectedEnvCount > 0 && (
+              {activeTab === "env" && detectedEnvCount > 0 && (
                 <div className="absolute top-2 left-4 z-10 flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 border border-blue-500/40 rounded text-blue-300 text-[11px] font-medium">
                   <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-                  {detectedEnvCount} secret{detectedEnvCount > 1 ? 's' : ''} detected — fill values below
+                  {detectedEnvCount} secret{detectedEnvCount > 1 ? "s" : ""} detected — fill values below
                 </div>
               )}
               <div className="absolute inset-0 pt-2">
                 <Editor
                   height="100%"
                   theme="vs-dark"
-                  language={activeTab === 'react' ? getMonacoLang(reactFiles[activeReactFile]?.name || 'App.tsx') : getLanguage(activeTab)}
+                  language={
+                    activeTab === "react"
+                      ? getMonacoLang(reactFiles[activeReactFile]?.name || "App.tsx")
+                      : getLanguage(activeTab)
+                  }
                   value={
-                    activeTab === 'html' ? htmlCode
-                      : activeTab === 'css' ? cssCode
-                        : activeTab === 'js' ? jsCode
-                          : activeTab === 'react' ? reactFiles[activeReactFile]?.content
+                    activeTab === "html"
+                      ? htmlCode
+                      : activeTab === "css"
+                        ? cssCode
+                        : activeTab === "js"
+                          ? jsCode
+                          : activeTab === "react"
+                            ? reactFiles[activeReactFile]?.content
                             : envCode
                   }
                   onChange={(val) => {
                     if (val === undefined) return;
-                    if (activeTab === 'html') setHtmlCode(val);
-                    else if (activeTab === 'css') setCssCode(val);
-                    else if (activeTab === 'js') setJsCode(val);
-                    else if (activeTab === 'react') {
+                    if (activeTab === "html") setHtmlCode(val);
+                    else if (activeTab === "css") setCssCode(val);
+                    else if (activeTab === "js") setJsCode(val);
+                    else if (activeTab === "react") {
                       const newFiles = [...reactFiles];
                       newFiles[activeReactFile].content = val;
                       setReactFiles(newFiles);
-                    }
-                    else setEnvCode(val);
+                    } else setEnvCode(val);
                   }}
+                  onMount={handleEditorMount}
                   options={{
                     minimap: { enabled: false },
                     fontSize: 14,
-                    wordWrap: 'on',
+                    wordWrap: "on",
                     scrollBeyondLastLine: false,
                     smoothScrolling: true,
-                    cursorBlinking: 'smooth',
-                    cursorSmoothCaretAnimation: 'on',
+                    cursorBlinking: "smooth",
+                    cursorSmoothCaretAnimation: "on",
                     formatOnPaste: true,
+                    suggest: {
+                      showKeywords: true,
+                      showSnippets: true,
+                    },
                   }}
                 />
               </div>
             </div>
+
+            {/* Problems Panel — only in React mode */}
+            {creationMode === "react" && (
+              <ProblemsPanel
+                markers={markers}
+                isOpen={isProblemsOpen}
+                onToggle={() => setIsProblemsOpen(!isProblemsOpen)}
+                onMarkerClick={handleMarkerClick}
+              />
+            )}
           </div>
         </div>
 
         {/* Right Side: Live Preview */}
         <div className={"flex flex-col relative overflow-hidden " + (isFullscreen ? "w-full" : "w-full lg:w-1/2")}>
-          {/* Preview header bar */}
+          {/* Preview header bar — muted chrome */}
           <div className="h-9 bg-[#0a0a0f] border-b border-white/5 flex items-center justify-between px-4 shrink-0">
             <div className="flex items-center gap-2">
-              <div className="flex gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
-                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/60" />
+              <div className="flex gap-1.5 opacity-40">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
               </div>
               <span className="text-[10px] text-gray-600 font-mono ml-2">preview</span>
             </div>
             <div className="flex items-center gap-1.5">
-              {creationMode === 'classic' && (
+              {/* Responsive preview toggle */}
+              <div className="hidden lg:flex items-center gap-0.5 mr-2">
                 <button
-                  onClick={() => { setDebouncedHtml(htmlCode); setDebouncedCss(cssCode); setDebouncedJs(jsCode); }}
+                  onClick={() => setPreviewWidth("100%")}
+                  className={"p-1 rounded transition-all " + (previewWidth === "100%" ? "text-white bg-white/10" : "text-gray-600 hover:text-white")}
+                  title="Desktop"
+                >
+                  <Monitor size={12} />
+                </button>
+                <button
+                  onClick={() => setPreviewWidth("768px")}
+                  className={"p-1 rounded transition-all " + (previewWidth === "768px" ? "text-white bg-white/10" : "text-gray-600 hover:text-white")}
+                  title="Tablet"
+                >
+                  <Tablet size={12} />
+                </button>
+                <button
+                  onClick={() => setPreviewWidth("375px")}
+                  className={"p-1 rounded transition-all " + (previewWidth === "375px" ? "text-white bg-white/10" : "text-gray-600 hover:text-white")}
+                  title="Mobile"
+                >
+                  <Smartphone size={12} />
+                </button>
+              </div>
+              {creationMode === "classic" && (
+                <button
+                  onClick={() => {
+                    setDebouncedHtml(htmlCode);
+                    setDebouncedCss(cssCode);
+                    setDebouncedJs(jsCode);
+                  }}
                   className="p-1 text-gray-600 hover:text-emerald-400 rounded transition-all"
                   title="Rerun"
                 >
@@ -1192,30 +1363,63 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex-1 relative w-full overflow-hidden" style={{ background: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0)', backgroundSize: '20px 20px', backgroundColor: '#0d0d12' }}>
-            {creationMode === 'react' ? (
-              <div className="flex-1 flex flex-col relative w-full h-full bg-[#f8f9fa] rounded-tl-2xl border-t border-l border-gray-200 shadow-inner overflow-hidden">
+          <div
+            className="flex-1 relative w-full overflow-hidden flex justify-center"
+            style={{
+              background:
+                "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0)",
+              backgroundSize: "20px 20px",
+              backgroundColor: "#0d0d12",
+            }}
+          >
+            {creationMode === "react" ? (
+              <div
+                className="flex-1 flex flex-col relative bg-[#f8f9fa] border-t border-l border-gray-200 shadow-inner overflow-hidden transition-all duration-300"
+                style={{ width: previewWidth, maxWidth: "100%" }}
+              >
+                {/* Skeleton overlay */}
+                {isPreviewLoading && <SkeletonPreview />}
+
                 <iframe
                   srcDoc={reactPreviewDoc}
                   title="React Live Preview"
                   sandbox="allow-scripts allow-modals allow-same-origin"
-                  className="w-full h-full flex-1 border-none bg-transparent"
+                  className={"w-full h-full flex-1 border-none bg-transparent transition-opacity duration-500 " + (isPreviewLoading ? "opacity-0" : "opacity-100")}
                 />
-                
+
                 {/* Live Console */}
-                <div className={`absolute bottom-0 left-0 right-0 bg-[#1e1e1e] border-t border-[#333] transition-all duration-300 flex flex-col shadow-[0_-10px_40px_rgba(0,0,0,0.2)] z-20 ${isConsoleOpen ? 'h-64' : 'h-10'}`}>
-                  <div 
+                <div
+                  className={`absolute bottom-0 left-0 right-0 bg-[#1e1e1e] border-t border-[#333] transition-all duration-300 flex flex-col shadow-[0_-10px_40px_rgba(0,0,0,0.2)] z-20 ${isConsoleOpen ? "h-64" : "h-10"}`}
+                >
+                  <div
                     className="h-10 flex items-center justify-between px-4 cursor-pointer hover:bg-[#252526] transition-colors shrink-0"
                     onClick={() => setIsConsoleOpen(!isConsoleOpen)}
                   >
                     <div className="flex items-center gap-2 text-gray-300 text-xs font-bold uppercase tracking-widest">
-                      <Terminal size={14} /> Console {consoleLogs.length > 0 && <span className="bg-blue-500 text-white px-1.5 rounded-full text-[9px]">{consoleLogs.length}</span>}
+                      <Terminal size={14} /> Console{" "}
+                      {consoleLogs.length > 0 && (
+                        <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-bold">
+                          {consoleLogs.length}
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-3">
-                       {isConsoleOpen && (
-                         <button onClick={(e) => { e.stopPropagation(); setConsoleLogs([]); }} className="text-gray-500 hover:text-gray-300 text-xs">Clear</button>
-                       )}
-                       {isConsoleOpen ? <ChevronDown size={16} className="text-gray-500" /> : <ChevronUp size={16} className="text-gray-500" />}
+                      {isConsoleOpen && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConsoleLogs([]);
+                          }}
+                          className="text-gray-500 hover:text-gray-300 text-xs"
+                        >
+                          Clear
+                        </button>
+                      )}
+                      {isConsoleOpen ? (
+                        <ChevronDown size={16} className="text-gray-500" />
+                      ) : (
+                        <ChevronUp size={16} className="text-gray-500" />
+                      )}
                     </div>
                   </div>
                   {isConsoleOpen && (
@@ -1224,7 +1428,16 @@ export default function App() {
                         <div className="text-gray-600 italic">No logs yet...</div>
                       ) : (
                         consoleLogs.map((log, i) => (
-                          <div key={i} className={`flex gap-3 pb-1 border-b border-[#222] ${log.type === 'error' ? 'text-red-400' : log.type === 'warn' ? 'text-yellow-400' : 'text-gray-300'}`}>
+                          <div
+                            key={i}
+                            className={`flex gap-3 pb-1 border-b border-[#222] ${
+                              log.type === "error"
+                                ? "text-red-400"
+                                : log.type === "warn"
+                                  ? "text-yellow-400"
+                                  : "text-gray-300"
+                            }`}
+                          >
                             <span className="text-gray-600 shrink-0">[{log.time}]</span>
                             <span className="break-all whitespace-pre-wrap">{log.message}</span>
                           </div>
@@ -1235,173 +1448,137 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              <iframe
-                srcDoc={iframeSrcDoc}
-                title="Live Preview"
-                sandbox="allow-scripts allow-modals allow-same-origin"
-                className="w-full flex-1 border-none bg-transparent"
-                style={{
-                  backgroundImage: 'radial-gradient(circle, #00000008 1px, transparent 1px)',
-                  backgroundSize: '20px 20px',
-                }}
-              />
+              <div className="w-full h-full flex justify-center transition-all duration-300" style={{ maxWidth: previewWidth }}>
+                <iframe
+                  srcDoc={iframeSrcDoc}
+                  title="Live Preview"
+                  sandbox="allow-scripts allow-modals allow-same-origin"
+                  className="w-full flex-1 border-none bg-transparent"
+                  style={{
+                    backgroundImage: "radial-gradient(circle, #00000008 1px, transparent 1px)",
+                    backgroundSize: "20px 20px",
+                  }}
+                />
+              </div>
             )}
           </div>
         </div>
-
       </div>
 
-      {/* Publish Modal */}
-      {showPublishModal && (
-        <div className="fixed inset-0 z-[999] bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-md">
-          <div className="bg-gradient-to-b from-[#13131a] to-[#0d0d12] border border-white/10 w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300">
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                  <Save size={15} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-base font-black text-white">Publish Component</h2>
-                  <p className="text-[10px] text-gray-600 mt-0.5">Share your creation with the community</p>
-                </div>
-              </div>
-              <button onClick={() => setShowPublishModal(false)} className="p-2 text-gray-600 hover:text-white hover:bg-white/5 rounded-lg transition-all">
-                <X size={18} />
-              </button>
-            </div>
+      {/* Publish Modal — shadcn Dialog */}
+      <PublishModal
+        open={showPublishModal}
+        onOpenChange={setShowPublishModal}
+        title={title}
+        onTitleChange={setTitle}
+        description={description}
+        onDescriptionChange={setDescription}
+        componentType={componentType}
+        onComponentTypeChange={setComponentType}
+        tags={tags}
+        onTagsChange={setTags}
+        isSaving={isSaving}
+        onSave={handleSave}
+      />
 
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Title *</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 placeholder-gray-700 transition-all"
-                  placeholder="e.g., Neon Liquid Button"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Description <span className="text-gray-700 normal-case font-normal">(optional)</span></label>
-                <textarea
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 h-20 resize-none placeholder-gray-700 transition-all"
-                  placeholder="What does this component do?"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Type</label>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => setComponentType('component')}
-                    className={"flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all text-sm font-bold " + (componentType === 'component' ? "border-indigo-500/50 bg-indigo-500/10 text-indigo-400" : "border-white/10 text-gray-600 hover:border-white/20 hover:text-gray-400")}>
-                    <Layers size={15} /> Component
+      {/* New File Dialog — shadcn Dialog */}
+      <Dialog open={showNewFileDialog} onOpenChange={setShowNewFileDialog}>
+        <DialogContent className="sm:max-w-md bg-[#1e1e1e] border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">New File</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-xs text-gray-500">Quick presets:</p>
+            <div className="grid grid-cols-2 gap-2">
+              {["App.tsx", "index.tsx", "Component.tsx", "utils.ts", "helpers.js", "styles.css"].map(
+                (preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => setNewFileName(preset)}
+                    className={
+                      "text-left px-3 py-2 rounded-lg text-[11px] font-mono transition-all " +
+                      (newFileName === preset
+                        ? "bg-[#007acc]/20 text-[#007acc] border border-[#007acc]/30"
+                        : "bg-[#2d2d2d] text-gray-400 hover:bg-[#333] hover:text-white border border-transparent")
+                    }
+                  >
+                    {preset}
                   </button>
-                  <button type="button" onClick={() => setComponentType('template')}
-                    className={"flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all text-sm font-bold " + (componentType === 'template' ? "border-purple-500/50 bg-purple-500/10 text-purple-400" : "border-white/10 text-gray-600 hover:border-white/20 hover:text-gray-400")}>
-                    <Layers size={15} /> Template
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tags</label>
-                <input
-                  type="text"
-                  value={tags}
-                  onChange={e => setTags(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 placeholder-gray-700 transition-all"
-                  placeholder="button, neon, hover, 3d"
-                />
-              </div>
-
-              <div className="flex items-start gap-2 p-3 bg-amber-500/5 border border-amber-500/15 rounded-xl">
-                <span className="text-amber-500/60 mt-0.5 text-sm">🔒</span>
-                <p className="text-[11px] text-amber-500/60 leading-relaxed">ENV variables are encrypted and never shown publicly.</p>
-              </div>
+                )
+              )}
             </div>
-
-            <div className="px-6 pb-6 flex gap-3">
-              <button onClick={() => setShowPublishModal(false)}
-                className="flex-1 px-4 py-3 rounded-xl text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-all text-sm font-medium border border-white/5">
-                Cancel
-              </button>
-              <button onClick={handleSave} disabled={isSaving}
-                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-4 py-3 rounded-xl transition-all font-bold text-sm disabled:opacity-50 shadow-lg shadow-indigo-500/25">
-                {isSaving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Publish Now'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* New File Dialog */}
-      {showNewFileDialog && (
-        <div className="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-[#1e1e1e] border border-[#333] w-full max-w-sm rounded-2xl shadow-2xl p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-bold text-white">New File</h3>
-              <button onClick={() => setShowNewFileDialog(false)} className="text-gray-400 hover:text-white p-1"><X size={16} /></button>
-            </div>
-            <p className="text-xs text-gray-500 mb-3">Quick presets:</p>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              {['App.tsx','index.tsx','Component.tsx','utils.ts','helpers.js','styles.css'].map(preset => (
-                <button key={preset} onClick={() => setNewFileName(preset)}
-                  className={"text-left px-3 py-2 rounded-lg text-[11px] font-mono transition-all " + (newFileName === preset ? 'bg-[#007acc]/20 text-[#007acc] border border-[#007acc]/30' : 'bg-[#2d2d2d] text-gray-400 hover:bg-[#333] hover:text-white border border-transparent')}>
-                  {preset}
-                </button>
-              ))}
-            </div>
-            <input
+            <Input
               autoFocus
               type="text"
               placeholder="Header.tsx, utils.ts, styles.css..."
               value={newFileName}
-              onChange={e => setNewFileName(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && newFileName.trim()) {
+              onChange={(e) => setNewFileName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newFileName.trim()) {
                   const name = newFileName.trim();
-                  const ext = name.split('.').pop() || '';
-                  const base = name.replace(/\.[^.]+$/, '');
-                  const template = ext === 'css' ? `/* ${name} */\n` : ext === 'json' ? '{}\n' : ext === 'ts' || ext === 'js' ? `// ${name}\n\nexport function ${base}() { return ''; }\n` : `import React from 'react';\n\nexport default function ${base}() {\n  return <div className="p-4">${base}</div>;\n}\n`;
-                  setReactFiles(prev => [...prev, { name, content: template }]);
+                  const ext = name.split(".").pop() || "";
+                  const base = name.replace(/\.[^.]+$/, "");
+                  const template =
+                    ext === "css"
+                      ? `/* ${name} */\n`
+                      : ext === "json"
+                        ? "{}\n"
+                        : ext === "ts" || ext === "js"
+                          ? `// ${name}\n\nexport function ${base}() { return ''; }\n`
+                          : `import React from 'react';\n\nexport default function ${base}() {\n  return <div className="p-4">${base}</div>;\n}\n`;
+                  setReactFiles((prev) => [...prev, { name, content: template }]);
                   setActiveReactFile(reactFiles.length);
                   setShowNewFileDialog(false);
                 }
-                if (e.key === 'Escape') setShowNewFileDialog(false);
               }}
-              className="w-full bg-[#2d2d2d] border border-[#444] rounded-lg px-3 py-2.5 text-white text-sm font-mono focus:outline-none focus:border-[#007acc] focus:ring-1 focus:ring-[#007acc] placeholder-gray-600"
+              className="bg-[#2d2d2d] border-[#444] text-white font-mono focus:border-[#007acc] focus:ring-[#007acc]"
             />
-            <div className="mt-5 flex justify-end gap-3">
-              <button onClick={() => setShowNewFileDialog(false)} className="px-4 py-2 text-gray-400 hover:text-white text-sm transition">Cancel</button>
-              <button
-                disabled={!newFileName.trim()}
-                onClick={() => {
-                  const name = newFileName.trim();
-                  const ext = name.split('.').pop() || '';
-                  const base = name.replace(/\.[^.]+$/, '');
-                  const template = ext === 'css' ? `/* ${name} */\n` : ext === 'json' ? '{}\n' : ext === 'ts' || ext === 'js' ? `// ${name}\n\nexport function ${base}() { return ''; }\n` : `import React from 'react';\n\nexport default function ${base}() {\n  return <div className="p-4">${base}</div>;\n}\n`;
-                  setReactFiles(prev => [...prev, { name, content: template }]);
-                  setActiveReactFile(reactFiles.length);
-                  setShowNewFileDialog(false);
-                }}
-                className="px-4 py-2 bg-[#007acc] hover:bg-[#005c99] text-white rounded-lg text-sm font-medium transition disabled:opacity-40"
-              >Create File</button>
-            </div>
           </div>
-        </div>
-      )}
-
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setShowNewFileDialog(false)}
+              className="text-gray-400 hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!newFileName.trim()}
+              onClick={() => {
+                const name = newFileName.trim();
+                const ext = name.split(".").pop() || "";
+                const base = name.replace(/\.[^.]+$/, "");
+                const template =
+                  ext === "css"
+                    ? `/* ${name} */\n`
+                    : ext === "json"
+                      ? "{}\n"
+                      : ext === "ts" || ext === "js"
+                        ? `// ${name}\n\nexport function ${base}() { return ''; }\n`
+                        : `import React from 'react';\n\nexport default function ${base}() {\n  return <div className="p-4">${base}</div>;\n}\n`;
+                setReactFiles((prev) => [...prev, { name, content: template }]);
+                setActiveReactFile(reactFiles.length);
+                setShowNewFileDialog(false);
+              }}
+            >
+              Create File
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 export default function CreateComponentPage() {
   return (
-    <React.Suspense fallback={<div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">Loading...</div>}>
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">
+          Loading...
+        </div>
+      }
+    >
       <CreateComponentContent />
     </React.Suspense>
   );
