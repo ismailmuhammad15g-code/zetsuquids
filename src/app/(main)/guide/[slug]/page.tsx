@@ -316,40 +316,62 @@ export default function GuidePage() {
         return readingTimeMinutes;
     }, [guide]);
 
-    // Extract Table of Contents from rendered DOM (matches rehype-slug IDs exactly)
+    // Generate slug from heading text — matches rehype-slug algorithm exactly
+    function slugify(text: string): string {
+        return text
+            .toLowerCase()
+            .trim()
+            .replace(/<[^>]*>/g, "")        // strip HTML tags
+            .replace(/[^\w\s-]/g, "")        // remove non-word chars
+            .replace(/\s+/g, "-")            // spaces to hyphens
+            .replace(/-+/g, "-")             // collapse multiple hyphens
+            .replace(/^-+|-+$/g, "");        // trim leading/trailing hyphens
+    }
+
+    // Extract TOC directly from raw markdown — no DOM dependency
     useEffect(() => {
         if (!guideMarkdown || guideContentType === "html" || (guideHtmlContent && guideHtmlContent.trim())) {
             setTableOfContents([]);
             setContentWithAnchors(null);
             return;
         }
+
         setContentWithAnchors(guideMarkdown);
-    }, [guideMarkdown, guideContentType, guideHtmlContent]);
 
-    // Extract TOC from rendered headings after markdown renders
-    useEffect(() => {
-        if (!contentRef.current) return;
+        // Extract h1 and h2 headings from markdown
+        const headingRegex = /^(#{1,2})\s+(.+)$/gm;
+        const items: TocItem[] = [];
+        const idCounts = new Map<string, number>();
+        let match;
 
-        const timer = setTimeout(() => {
-            const headings = contentRef.current?.querySelectorAll("h1[id], h2[id]");
-            if (!headings || headings.length === 0) return;
+        while ((match = headingRegex.exec(guideMarkdown)) !== null) {
+            const level = match[1].length as 1 | 2;
+            // Strip markdown formatting from heading text
+            const rawText = match[2]
+                .replace(/\*\*(.*?)\*\*/g, "$1")   // bold
+                .replace(/\*(.*?)\*/g, "$1")         // italic
+                .replace(/`([^`]*)`/g, "$1")          // inline code
+                .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // links
+                .replace(/#{1,6}\s*/g, "")            // nested headings
+                .trim();
 
-            const items: TocItem[] = [];
-            headings.forEach((el) => {
-                const id = el.getAttribute("id");
-                if (!id) return;
-                const level = el.tagName === "H1" ? 1 : 2;
-                const text = el.textContent?.trim() || "";
-                if (text) items.push({ id, text, level });
-            });
+            let id = slugify(rawText);
+            if (!id) continue;
 
-            if (items.length > 0) {
-                setTableOfContents(items);
+            // Handle duplicate IDs — match rehype-slug behavior
+            const count = idCounts.get(id);
+            if (count !== undefined) {
+                idCounts.set(id, count + 1);
+                id = `${id}-${count + 1}`;
+            } else {
+                idCounts.set(id, 0);
             }
-        }, 500);
 
-        return () => clearTimeout(timer);
-    }, [contentWithAnchors, processedContent]);
+            items.push({ id, text: rawText, level });
+        }
+
+        setTableOfContents(items);
+    }, [guideMarkdown, guideContentType, guideHtmlContent]);
 
     // Scroll Spy is now handled by GuideTOC component via IntersectionObserver
 
