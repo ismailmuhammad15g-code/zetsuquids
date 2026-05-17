@@ -46,6 +46,10 @@ ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS readme_content TEXT;
 ALTER TABLE marketplace_purchases ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE marketplace_purchases ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'completed';
 ALTER TABLE marketplace_purchases ADD COLUMN IF NOT EXISTS amount NUMERIC(10,2) DEFAULT 0;
+ALTER TABLE marketplace_purchases ADD COLUMN IF NOT EXISTS license_type TEXT DEFAULT 'regular';
+
+-- Add license pricing to marketplace_scripts
+ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS extended_price NUMERIC(10,2) DEFAULT 0;
 ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS version TEXT DEFAULT '1.0.0';
 ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS features TEXT[] DEFAULT '{}';
 ALTER TABLE marketplace_scripts ADD COLUMN IF NOT EXISTS github_repo_url TEXT;

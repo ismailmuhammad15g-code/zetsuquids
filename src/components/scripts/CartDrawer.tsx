@@ -100,6 +100,9 @@ export default function CartDrawer() {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-gray-900 truncate">{item.title}</h3>
                     <p className="text-sm text-gray-500">by {item.author_name}</p>
+                    <span className="inline-block mt-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold uppercase rounded">
+                      {item.license_type || 'regular'} License
+                    </span>
                     <p className="text-lg font-bold text-indigo-600 mt-1">
                       ${item.price.toFixed(2)}
                     </p>

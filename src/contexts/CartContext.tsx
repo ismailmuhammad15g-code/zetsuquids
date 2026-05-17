@@ -7,6 +7,7 @@ interface CartItem {
   price: number;
   thumbnail_url: string | null;
   author_name: string;
+  license_type?: 'regular' | 'extended';
 }
 
 interface CartContextType {

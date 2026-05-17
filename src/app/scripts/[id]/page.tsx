@@ -40,6 +40,7 @@ export default function ScriptDetailsPage() {
 
   const [hasPurchased, setHasPurchased] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [selectedLicense, setSelectedLicense] = useState<'regular' | 'extended'>('regular');
 
   // Tabs Data
   const [comments, setComments] = useState<any[]>([]);
@@ -301,14 +302,18 @@ export default function ScriptDetailsPage() {
 
   const handleAddToCart = () => {
     if (!script) return;
+    const price = selectedLicense === 'extended'
+      ? Number(script.extended_price || script.price * 5)
+      : Number(script.price);
     addToCart({
       id: script.id,
       title: script.title,
-      price: Number(script.price),
+      price: price,
       thumbnail_url: script.thumbnail_url,
-      author_name: script.author_name
+      author_name: script.author_name,
+      license_type: selectedLicense
     });
-    toast.success('Added to cart!');
+    toast.success(`Added to cart with ${selectedLicense} license!`);
   };
 
   if (loading) {
@@ -758,14 +763,59 @@ export default function ScriptDetailsPage() {
 
           {/* Sidebar / Checkout */}
           <div className="lg:col-span-1 space-y-6">
-            
+
             {/* Purchase Box */}
             <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sticky top-24">
-              <div className="flex items-end gap-2 mb-6">
-                <span className="text-4xl font-extrabold text-gray-900">${Number(script.price).toFixed(2)}</span>
-                <span className="text-gray-500 mb-1">/ Regular License</span>
+              <div className="flex items-end gap-2 mb-4">
+                <span className="text-4xl font-extrabold text-gray-900">
+                  ${selectedLicense === 'extended' ? Number(script.extended_price || script.price * 5).toFixed(2) : Number(script.price).toFixed(2)}
+                </span>
+                <span className="text-gray-500 mb-1">/ {selectedLicense === 'extended' ? 'Extended' : 'Regular'} License</span>
               </div>
-              
+
+              {/* License Selection */}
+              <div className="space-y-3 mb-6">
+                <label className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedLicense === 'regular' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="license"
+                      value="regular"
+                      checked={selectedLicense === 'regular'}
+                      onChange={() => setSelectedLicense('regular')}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-gray-900">Regular License</span>
+                        <span className="font-extrabold text-gray-900">${Number(script.price).toFixed(2)}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Use, by you or one client, in a single end product which end users are not charged for.</p>
+                    </div>
+                  </div>
+                </label>
+
+                <label className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedLicense === 'extended' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="license"
+                      value="extended"
+                      checked={selectedLicense === 'extended'}
+                      onChange={() => setSelectedLicense('extended')}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-gray-900">Extended License</span>
+                        <span className="font-extrabold text-gray-900">${Number(script.extended_price || script.price * 5).toFixed(2)}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Use, by you or one client, in a single end product which end users can be charged for.</p>
+                    </div>
+                  </div>
+                </label>
+              </div>
+
               <ul className="space-y-3 mb-6 text-sm text-gray-600">
                 <li className="flex items-start gap-2">
                   <Check size={16} className="text-green-500 mt-0.5 shrink-0" />
@@ -779,6 +829,18 @@ export default function ScriptDetailsPage() {
                   <Check size={16} className="text-green-500 mt-0.5 shrink-0" />
                   <span>6 months support from {script.author_name}</span>
                 </li>
+                {selectedLicense === 'extended' && (
+                  <>
+                    <li className="flex items-start gap-2">
+                      <Check size={16} className="text-green-500 mt-0.5 shrink-0" />
+                      <span>Use in paid products</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check size={16} className="text-green-500 mt-0.5 shrink-0" />
+                      <span>Charge end users for access</span>
+                    </li>
+                  </>
+                )}
               </ul>
 
               {isAuthor ? (

@@ -141,6 +141,7 @@ function CheckoutContent() {
               script_id: item.id,
               buyer_id: user.id,
               amount: item.price,
+              license_type: item.license_type || 'regular',
               status: 'completed'
             });
           }
@@ -394,6 +395,9 @@ function CheckoutContent() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
                         <p className="text-xs text-gray-500">by {item.author_name}</p>
+                        <span className="inline-block mt-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold uppercase rounded">
+                          {item.license_type || 'regular'}
+                        </span>
                       </div>
                       <p className="text-sm font-bold text-gray-900">${item.price.toFixed(2)}</p>
                     </div>
