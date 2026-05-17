@@ -70,6 +70,8 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
               Category
             </label>
             <select
+              value={formData.category || "Development"}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all text-sm bg-white"
             >
               <option value="Development">Development</option>
@@ -92,7 +94,13 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
                 <button
                   key={level}
                   type="button"
-                  className="flex-1 py-2 text-xs font-semibold rounded-lg border border-gray-200 hover:border-black transition-all bg-white"
+                  onClick={() => setFormData({ ...formData, difficulty: level.toLowerCase() })}
+                  className={
+                    "flex-1 py-2 text-xs font-semibold rounded-lg border transition-all " +
+                    ((formData.difficulty || "beginner") === level.toLowerCase()
+                      ? "border-black bg-black text-white"
+                      : "border-gray-200 hover:border-black bg-white")
+                  }
                 >
                   {level}
                 </button>

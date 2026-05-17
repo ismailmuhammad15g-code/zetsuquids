@@ -7,6 +7,8 @@ export interface FormData {
   html_content: string;
   css_content: string;
   cover_image: string;
+  category: string;
+  difficulty: string;
 }
 
 export type MainTab = "editor" | "preview" | "details";

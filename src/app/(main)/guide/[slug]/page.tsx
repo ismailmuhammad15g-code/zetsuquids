@@ -316,49 +316,40 @@ export default function GuidePage() {
         return readingTimeMinutes;
     }, [guide]);
 
-    // Extract Table of Contents — only depends on markdown text (primitive)
+    // Extract Table of Contents from rendered DOM (matches rehype-slug IDs exactly)
     useEffect(() => {
         if (!guideMarkdown || guideContentType === "html" || (guideHtmlContent && guideHtmlContent.trim())) {
             setTableOfContents([]);
             setContentWithAnchors(null);
             return;
         }
-
-        try {
-            const headingRegex = /^(#{1,2})\s+(.+)$/gm;
-            const tocItems: TocItem[] = [];
-            const idMap = new Map<string, number>();
-            let match;
-
-            while ((match = headingRegex.exec(guideMarkdown)) !== null) {
-                const level = match[1].length as 1 | 2;
-                const text = match[2].trim().replace(/[*_`~\[\]]/g, "");
-                let baseId = text
-                    .toLowerCase()
-                    .trim()
-                    .replace(/[^\w\s-]/g, "")
-                    .replace(/\s+/g, "-")
-                    .replace(/-+/g, "-");
-                
-                let id = baseId;
-                if (idMap.has(baseId)) {
-                    const count = idMap.get(baseId)! + 1;
-                    idMap.set(baseId, count);
-                    id = `${baseId}-${count}`;
-                } else {
-                    idMap.set(baseId, 0); // first instance has no suffix usually, but rehype-slug uses -1 for the second instance. Wait, first is "id", second is "id-1" or "id-2"?
-                    // Rehype-slug: first is `id`, second is `id-1`, third is `id-2`.
-                }
-
-                tocItems.push({ id, text, level });
-            }
-
-            setTableOfContents(tocItems);
-            setContentWithAnchors(guideMarkdown);
-        } catch (e) {
-            // silent
-        }
+        setContentWithAnchors(guideMarkdown);
     }, [guideMarkdown, guideContentType, guideHtmlContent]);
+
+    // Extract TOC from rendered headings after markdown renders
+    useEffect(() => {
+        if (!contentRef.current) return;
+
+        const timer = setTimeout(() => {
+            const headings = contentRef.current?.querySelectorAll("h1[id], h2[id]");
+            if (!headings || headings.length === 0) return;
+
+            const items: TocItem[] = [];
+            headings.forEach((el) => {
+                const id = el.getAttribute("id");
+                if (!id) return;
+                const level = el.tagName === "H1" ? 1 : 2;
+                const text = el.textContent?.trim() || "";
+                if (text) items.push({ id, text, level });
+            });
+
+            if (items.length > 0) {
+                setTableOfContents(items);
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [contentWithAnchors, processedContent]);
 
     // Scroll Spy is now handled by GuideTOC component via IntersectionObserver
 

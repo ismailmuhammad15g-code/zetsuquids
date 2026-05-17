@@ -175,6 +175,8 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
     html_content: "",
     css_content: "",
     cover_image: "",
+    category: "Development",
+    difficulty: "beginner",
   });
 
   const [slugValue, setSlugValue] = useState("");
