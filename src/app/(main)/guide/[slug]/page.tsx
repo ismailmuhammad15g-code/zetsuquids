@@ -316,62 +316,87 @@ export default function GuidePage() {
         return readingTimeMinutes;
     }, [guide]);
 
-    // Generate slug from heading text — matches rehype-slug algorithm exactly
-    function slugify(text: string): string {
-        return text
-            .toLowerCase()
-            .trim()
-            .replace(/<[^>]*>/g, "")        // strip HTML tags
-            .replace(/[^\w\s-]/g, "")        // remove non-word chars
-            .replace(/\s+/g, "-")            // spaces to hyphens
-            .replace(/-+/g, "-")             // collapse multiple hyphens
-            .replace(/^-+|-+$/g, "");        // trim leading/trailing hyphens
-    }
-
-    // Extract TOC directly from raw markdown — no DOM dependency
+    // Set content for rendering
     useEffect(() => {
         if (!guideMarkdown || guideContentType === "html" || (guideHtmlContent && guideHtmlContent.trim())) {
             setTableOfContents([]);
             setContentWithAnchors(null);
             return;
         }
-
         setContentWithAnchors(guideMarkdown);
+    }, [guideMarkdown, guideContentType, guideHtmlContent]);
 
-        // Extract h1 and h2 headings from markdown
-        const headingRegex = /^(#{1,2})\s+(.+)$/gm;
-        const items: TocItem[] = [];
-        const idCounts = new Map<string, number>();
-        let match;
+    // Extract TOC from rendered DOM — reads actual IDs that rehype-slug generates
+    useEffect(() => {
+        if (!contentRef.current || !contentWithAnchors) return;
 
-        while ((match = headingRegex.exec(guideMarkdown)) !== null) {
-            const level = match[1].length as 1 | 2;
-            // Strip markdown formatting from heading text
-            const rawText = match[2]
-                .replace(/\*\*(.*?)\*\*/g, "$1")   // bold
-                .replace(/\*(.*?)\*/g, "$1")         // italic
-                .replace(/`([^`]*)`/g, "$1")          // inline code
-                .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // links
-                .replace(/#{1,6}\s*/g, "")            // nested headings
-                .trim();
+        let stopped = false;
 
-            let id = slugify(rawText);
-            if (!id) continue;
+        function extractFromDOM(): boolean {
+            const el = contentRef.current;
+            if (!el || stopped) return false;
+            const headings = el.querySelectorAll("h1[id], h2[id], h3[id]");
+            if (headings.length === 0) return false;
 
-            // Handle duplicate IDs — match rehype-slug behavior
-            const count = idCounts.get(id);
-            if (count !== undefined) {
-                idCounts.set(id, count + 1);
-                id = `${id}-${count + 1}`;
-            } else {
-                idCounts.set(id, 0);
+            const items: TocItem[] = [];
+            headings.forEach((h) => {
+                const id = h.getAttribute("id");
+                if (!id) return;
+                const tag = h.tagName;
+                const level: 1 | 2 = tag === "H1" ? 1 : 2;
+                const text = h.textContent?.trim() || "";
+                if (text) items.push({ id, text, level });
+            });
+
+            if (items.length > 0) {
+                setTableOfContents(items);
+                return true;
             }
-
-            items.push({ id, text: rawText, level });
+            return false;
         }
 
-        setTableOfContents(items);
-    }, [guideMarkdown, guideContentType, guideHtmlContent]);
+        // Wait for React to render, then rehype-slug to add IDs
+        // Use requestAnimationFrame to wait for paint, then try
+        const tryExtract = () => {
+            if (stopped) return;
+            if (extractFromDOM()) return;
+            // If not ready, try again with requestAnimationFrame
+            requestAnimationFrame(() => {
+                if (stopped) return;
+                if (extractFromDOM()) return;
+                // Final fallback: short timeout
+                setTimeout(() => {
+                    if (!stopped) extractFromDOM();
+                }, 300);
+            });
+        };
+
+        // Delay to let ReactMarkdown + rehype-slug process
+        const initialTimer = setTimeout(tryExtract, 200);
+
+        // MutationObserver catches when rehype-slug adds id attributes
+        const el = contentRef.current;
+        const observer = new MutationObserver(() => {
+            if (!stopped) extractFromDOM();
+        });
+        observer.observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ["id"] });
+
+        // Polling backup every 1s for 10s
+        const poll = setInterval(() => {
+            if (stopped || extractFromDOM()) {
+                clearInterval(poll);
+            }
+        }, 1000);
+        const maxTimer = setTimeout(() => { clearInterval(poll); }, 10000);
+
+        return () => {
+            stopped = true;
+            clearTimeout(initialTimer);
+            clearTimeout(maxTimer);
+            clearInterval(poll);
+            observer.disconnect();
+        };
+    }, [contentWithAnchors, guideMarkdown]);
 
     // Scroll Spy is now handled by GuideTOC component via IntersectionObserver
 
@@ -1004,7 +1029,7 @@ export default function GuidePage() {
                 <div className="absolute left-0 top-0 h-24 w-full bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl [-webkit-mask-image:linear-gradient(to_bottom,black,transparent)]" />
                 {/* Focus Mode Overlay */}
                 {isFocusMode && (
-                    <div className="fixed inset-0 z-[200] bg-white dark:bg-gray-900 pointer-events-auto overflow-y-auto animate-in fade-in duration-300">
+                    <div className="fixed inset-0 z-[200] bg-white dark:bg-gray-900 pointer-events-auto overflow-y-auto">
                         <div className="max-w-3xl mx-auto px-6 py-12">
                             <button
                                 onClick={() => setIsFocusMode(false)}
@@ -1084,14 +1109,15 @@ export default function GuidePage() {
                                 </div>
                             )}
 
-                            {/* Premium Guide Cover Image */}
+                            {/* Cover Image */}
                             {guide.cover_image && (
-                                <div className="mb-8 w-full group">
-                                    <div className="aspect-[16/9] md:aspect-[21/9] w-full overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-800 transition-all duration-300">
+                                <div className="mb-8 w-full">
+                                    <div className="w-full overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-800">
                                         <img
                                             src={guide.cover_image}
                                             alt={guide.title}
-                                            className="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-105"
+                                            className="w-full h-auto block"
+                                            loading="eager"
                                         />
                                     </div>
                                 </div>
@@ -1676,7 +1702,7 @@ export default function GuidePage() {
             {guide && !guide.cover_image && (isOwner || isAdmin) && (
                 <button
                     onClick={() => setShowCoverBot(true)}
-                    className="fixed bottom-24 right-8 w-14 h-14 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:scale-105 transition-all z-50 overflow-hidden border-2 border-white group"
+                    className="fixed bottom-24 right-8 w-14 h-14 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:opacity-90 transition-opacity z-50 overflow-hidden border-2 border-white group"
                     title="Generate Cover Image"
                 >
                     <img
