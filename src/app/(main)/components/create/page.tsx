@@ -20,6 +20,9 @@ import {
   Wand2,
   Sun,
   Moon,
+  Search,
+  Replace,
+  PanelRight,
 } from "lucide-react";
 
 import dynamic from "next/dynamic";
@@ -161,6 +164,22 @@ export default function App() {
   const [previewWidth, setPreviewWidth] = useState<"100%" | "768px" | "375px">("100%");
   const [previewTheme, setPreviewTheme] = useState<"dark" | "light">("dark");
 
+  // Search & Replace panel
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [replaceText, setReplaceText] = useState("");
+  const [searchResults, setSearchResults] = useState<{ fileIndex: number; fileName: string; line: number; column: number; text: string; matchLen: number }[]>([]);
+  const [currentMatchIdx, setCurrentMatchIdx] = useState(0);
+
+  // Split editor view
+  const [isSplitView, setIsSplitView] = useState(false);
+  const [splitFileIndex, setSplitFileIndex] = useState(1);
+  const splitEditorRef = useRef<any>(null);
+  const splitMonacoRef = useRef<any>(null);
+
+  // Error lens decorations
+  const errorLensDecorationsRef = useRef<string[]>([]);
+
   const screenshotRef = React.useRef<string | null>(null);
 
   // Secret detection state
@@ -237,16 +256,31 @@ export default function App() {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
         if (showPublishModal) {
-          // If modal is open, trigger save
           handleSave();
         } else {
           setShowPublishModal(true);
         }
       }
-      // Escape → close modals
+      // Ctrl+F → open search panel
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        setIsSearchOpen(true);
+        setTimeout(() => {
+          const input = document.getElementById("search-input") as HTMLInputElement;
+          input?.focus();
+          input?.select();
+        }, 100);
+      }
+      // Ctrl+H → open search with replace visible
+      if ((e.ctrlKey || e.metaKey) && e.key === "h") {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+      // Escape → close modals/panels
       if (e.key === "Escape") {
-        if (showPublishModal) setShowPublishModal(false);
-        if (showNewFileDialog) setShowNewFileDialog(false);
+        if (isSearchOpen) setIsSearchOpen(false);
+        else if (showPublishModal) setShowPublishModal(false);
+        else if (showNewFileDialog) setShowNewFileDialog(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -637,11 +671,11 @@ export default function App() {
       typeRoots: ["node_modules/@types"],
     });
 
-    // Enable diagnostics — ignore module-not-found (2307) and implicit any (7016)
+    // Enable diagnostics — only ignore module-not-found (2307) and implicit any on params (7016)
     monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
       noSemanticValidation: false,
       noSyntaxValidation: false,
-      diagnosticCodesToIgnore: [2307, 7016, 2304, 2686],
+      diagnosticCodesToIgnore: [2307, 7016],
     });
 
     // Add type declarations for common globals
@@ -672,10 +706,119 @@ export default function App() {
       noSyntaxValidation: false,
     });
 
-    // Listen for marker changes
-    const updateMarkers = () => {
+    // Register React/component code snippets
+    monaco.languages.registerCompletionItemProvider("typescript", {
+      triggerCharacters: [">", " "],
+      provideCompletionItems: (model: any, position: any) => {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn,
+        };
+        const suggestions = [
+          {
+            label: "rafce",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "import React from 'react';\n\nconst ${1:Component} = () => {\n  return (\n    <div>\n      $0\n    </div>\n  );\n};\n\nexport default ${1:Component};",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: "React Arrow Function Component with Export",
+            range,
+          },
+          {
+            label: "rfce",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "import React from 'react';\n\nfunction ${1:Component}() {\n  return (\n    <div>\n      $0\n    </div>\n  );\n}\n\nexport default ${1:Component};",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: "React Function Component with Export",
+            range,
+          },
+          {
+            label: "us",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "const [${1:state}, set${1/(.*)/${1:/capitalize}/}] = useState(${2:initialValue});",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: "useState hook",
+            range,
+          },
+          {
+            label: "ue",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "useEffect(() => {\n  $0\n}, [${1:deps}]);",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: "useEffect hook",
+            range,
+          },
+          {
+            label: "ur",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "const ${1:ref} = useRef(${2:null});",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: "useRef hook",
+            range,
+          },
+          {
+            label: "ucb",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "const ${1:memoized} = useCallback(() => {\n  $0\n}, [${2:deps}]);",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: "useCallback hook",
+            range,
+          },
+          {
+            label: "um",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "const ${1:memoized} = useMemo(() => {\n  return $0\n}, [${2:deps}]);",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: "useMemo hook",
+            range,
+          },
+          {
+            label: "nfn",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "const ${1:name} = (${2:params}) => {\n  $0\n};",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: "Named arrow function",
+            range,
+          },
+          {
+            label: "clg",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "console.log($0);",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: "console.log",
+            range,
+          },
+        ];
+        return { suggestions };
+      },
+    });
+
+    // Error lens: update inline decorations when markers change
+    const updateErrorLens = () => {
       const model = editor.getModel();
       if (!model) return;
+      const allMarkers = monaco.editor.getModelMarkers({ resource: model.uri });
+      const decorations = allMarkers
+        .filter((m: any) => m.severity === 1 || m.severity === 8) // Error
+        .map((m: any) => ({
+          range: new monaco.Range(m.startLineNumber, m.startColumn, m.startLineNumber, 1000),
+          options: {
+            after: {
+              content: `  ⚠ ${m.message.slice(0, 80)}${m.message.length > 80 ? "..." : ""}`,
+              inlineClassName: m.severity === 8 ? "errorLensErrorMessage" : "errorLensWarningMessage",
+            },
+          },
+        }));
+      errorLensDecorationsRef.current = editor.deltaDecorations(
+        errorLensDecorationsRef.current,
+        decorations
+      );
+    };
+
+    // Listen for marker changes
+    const updateMarkers = () => {
       const allMarkers = monaco.editor.getModelMarkers({});
       setMarkers(
         allMarkers.map((m: any) => ({
@@ -686,6 +829,7 @@ export default function App() {
           source: m.source || "",
         }))
       );
+      updateErrorLens();
     };
 
     // Store in ref so polling always uses latest callback
@@ -702,6 +846,18 @@ export default function App() {
     const pollInterval = setInterval(() => {
       updateMarkersRef.current();
     }, 3000);
+
+    // Inject error lens CSS
+    const styleId = "error-lens-styles";
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
+        .errorLensErrorMessage { color: #f87171; font-size: 11px; font-style: italic; opacity: 0.8; margin-left: 16px; }
+        .errorLensWarningMessage { color: #fbbf24; font-size: 11px; font-style: italic; opacity: 0.8; margin-left: 16px; }
+      `;
+      document.head.appendChild(style);
+    }
 
     return () => clearInterval(pollInterval);
   }, []);
@@ -733,6 +889,123 @@ export default function App() {
       editorRef.current.getAction("editor.action.formatDocument")?.run();
     }
   }, []);
+
+  // Multi-file search
+  const performSearch = useCallback(
+    (query: string) => {
+      if (!query.trim()) {
+        setSearchResults([]);
+        return;
+      }
+      const results: typeof searchResults = [];
+      const files = creationMode === "react" ? reactFiles : [{ name: activeTab === "html" ? "index.html" : activeTab === "css" ? "styles.css" : activeTab === "js" ? "script.js" : "env", content: activeTab === "html" ? htmlCode : activeTab === "css" ? cssCode : activeTab === "js" ? jsCode : envCode }];
+      const lowerQuery = query.toLowerCase();
+      files.forEach((file, fileIndex) => {
+        const lines = file.content.split("\n");
+        lines.forEach((line, lineIdx) => {
+          let searchFrom = 0;
+          const lowerLine = line.toLowerCase();
+          while (true) {
+            const idx = lowerLine.indexOf(lowerQuery, searchFrom);
+            if (idx === -1) break;
+            results.push({
+              fileIndex,
+              fileName: file.name,
+              line: lineIdx + 1,
+              column: idx + 1,
+              text: line.trim(),
+              matchLen: query.length,
+            });
+            searchFrom = idx + 1;
+          }
+        });
+      });
+      setSearchResults(results);
+      setCurrentMatchIdx(0);
+    },
+    [creationMode, reactFiles, activeTab, htmlCode, cssCode, jsCode, envCode]
+  );
+
+  // Replace current match
+  const replaceCurrentMatch = useCallback(() => {
+    if (searchResults.length === 0 || currentMatchIdx >= searchResults.length) return;
+    const match = searchResults[currentMatchIdx];
+    const files = creationMode === "react" ? [...reactFiles] : null;
+    if (!files) return;
+    const file = files[match.fileIndex];
+    if (!file) return;
+    const lines = file.content.split("\n");
+    const lineIdx = match.line - 1;
+    const line = lines[lineIdx];
+    if (!line) return;
+    lines[lineIdx] =
+      line.substring(0, match.column - 1) +
+      replaceText +
+      line.substring(match.column - 1 + match.matchLen);
+    const newFiles = [...files];
+    newFiles[match.fileIndex] = { ...newFiles[match.fileIndex], content: lines.join("\n") };
+    setReactFiles(newFiles);
+    // Re-search
+    setTimeout(() => performSearch(searchQuery), 100);
+  }, [searchResults, currentMatchIdx, replaceText, creationMode, reactFiles, searchQuery, performSearch]);
+
+  // Replace all matches
+  const replaceAllMatches = useCallback(() => {
+    if (searchResults.length === 0) return;
+    const files = creationMode === "react" ? [...reactFiles] : null;
+    if (!files) return;
+    // Group by file
+    const byFile: Record<number, typeof searchResults> = {};
+    searchResults.forEach((r) => {
+      if (!byFile[r.fileIndex]) byFile[r.fileIndex] = [];
+      byFile[r.fileIndex].push(r);
+    });
+    const newFiles = [...files];
+    Object.entries(byFile).forEach(([fi, matches]) => {
+      const fileIndex = Number(fi);
+      const file = newFiles[fileIndex];
+      if (!file) return;
+      // Process matches in reverse order to preserve positions
+      const sorted = [...matches].sort((a, b) => b.line - a.line || b.column - a.column);
+      const lines = file.content.split("\n");
+      sorted.forEach((match) => {
+        const lineIdx = match.line - 1;
+        const line = lines[lineIdx];
+        if (!line) return;
+        lines[lineIdx] =
+          line.substring(0, match.column - 1) +
+          replaceText +
+          line.substring(match.column - 1 + match.matchLen);
+      });
+      newFiles[fileIndex] = { ...newFiles[fileIndex], content: lines.join("\n") };
+    });
+    setReactFiles(newFiles);
+    toast.success(`Replaced ${searchResults.length} occurrence(s)`);
+    setTimeout(() => performSearch(searchQuery), 100);
+  }, [searchResults, replaceText, creationMode, reactFiles, searchQuery, performSearch]);
+
+  // Navigate search results
+  const goToMatch = useCallback(
+    (idx: number) => {
+      if (searchResults.length === 0) return;
+      const match = searchResults[idx];
+      // Switch to the file
+      if (creationMode === "react") {
+        setActiveReactFile(match.fileIndex);
+        setActiveTab("react");
+      }
+      setCurrentMatchIdx(idx);
+      // Jump to line in editor
+      setTimeout(() => {
+        if (editorRef.current) {
+          editorRef.current.revealLineInCenter(match.line);
+          editorRef.current.setPosition({ lineNumber: match.line, column: match.column });
+          editorRef.current.focus();
+        }
+      }, 200);
+    },
+    [searchResults, creationMode]
+  );
 
   // Classic iframe srcdoc
   const iframeSrcDoc = `
@@ -1167,6 +1440,117 @@ export default function App() {
 
           {/* Editor Container */}
           <div className="flex-1 relative bg-[#0d0d12] flex flex-col">
+            {/* Search & Replace Panel */}
+            {isSearchOpen && (
+              <div className="shrink-0 bg-[#252526] border-b border-white/5 p-2 space-y-1.5 animate-in slide-in-from-top-2 duration-150">
+                {/* Search row */}
+                <div className="flex items-center gap-2">
+                  <Search size={13} className="text-gray-500 shrink-0" />
+                  <input
+                    id="search-input"
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      performSearch(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (e.shiftKey) {
+                          goToMatch((currentMatchIdx - 1 + searchResults.length) % Math.max(searchResults.length, 1));
+                        } else {
+                          goToMatch((currentMatchIdx + 1) % Math.max(searchResults.length, 1));
+                        }
+                      }
+                      if (e.key === "Escape") setIsSearchOpen(false);
+                    }}
+                    placeholder="Search across files..."
+                    className="flex-1 h-7 bg-[#1e1e1e] border border-white/10 rounded px-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#007acc]"
+                    autoFocus
+                  />
+                  <span className="text-[10px] text-gray-500 shrink-0">
+                    {searchResults.length > 0 ? `${currentMatchIdx + 1}/${searchResults.length}` : "No results"}
+                  </span>
+                  <button
+                    onClick={() => goToMatch((currentMatchIdx - 1 + searchResults.length) % Math.max(searchResults.length, 1))}
+                    className="p-1 text-gray-500 hover:text-white rounded transition-colors"
+                    title="Previous match"
+                  >
+                    <ChevronUp size={13} />
+                  </button>
+                  <button
+                    onClick={() => goToMatch((currentMatchIdx + 1) % Math.max(searchResults.length, 1))}
+                    className="p-1 text-gray-500 hover:text-white rounded transition-colors"
+                    title="Next match"
+                  >
+                    <ChevronDown size={13} />
+                  </button>
+                  <button
+                    onClick={() => setIsSearchOpen(false)}
+                    className="p-1 text-gray-500 hover:text-white rounded transition-colors"
+                    title="Close"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+                {/* Replace row */}
+                <div className="flex items-center gap-2">
+                  <Replace size={13} className="text-gray-500 shrink-0" />
+                  <input
+                    type="text"
+                    value={replaceText}
+                    onChange={(e) => setReplaceText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") replaceCurrentMatch();
+                      if (e.key === "Escape") setIsSearchOpen(false);
+                    }}
+                    placeholder="Replace..."
+                    className="flex-1 h-7 bg-[#1e1e1e] border border-white/10 rounded px-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#007acc]"
+                  />
+                  <button
+                    onClick={replaceCurrentMatch}
+                    disabled={searchResults.length === 0}
+                    className="px-2 py-1 text-[10px] font-medium text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Replace current match"
+                  >
+                    Replace
+                  </button>
+                  <button
+                    onClick={replaceAllMatches}
+                    disabled={searchResults.length === 0}
+                    className="px-2 py-1 text-[10px] font-medium text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Replace all matches"
+                  >
+                    All
+                  </button>
+                </div>
+                {/* Search results list */}
+                {searchResults.length > 0 && (
+                  <div className="max-h-32 overflow-auto bg-[#1e1e1e] rounded border border-white/5">
+                    {searchResults.slice(0, 50).map((r, i) => (
+                      <button
+                        key={i}
+                        onClick={() => goToMatch(i)}
+                        className={
+                          "w-full text-left px-3 py-1.5 text-[11px] font-mono flex items-center gap-2 hover:bg-white/5 transition-colors " +
+                          (currentMatchIdx === i ? "bg-[#007acc]/10 text-[#007acc]" : "text-gray-400")
+                        }
+                      >
+                        <span className="text-gray-600 shrink-0 w-20 truncate">{r.fileName}</span>
+                        <span className="text-gray-600 shrink-0">Ln {r.line}</span>
+                        <span className="truncate">{r.text}</span>
+                      </button>
+                    ))}
+                    {searchResults.length > 50 && (
+                      <div className="px-3 py-1.5 text-[10px] text-gray-600">
+                        ...and {searchResults.length - 50} more matches
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* React file sub-tabs */}
             {activeTab === "react" && (
               <div className="flex bg-[#0a0a0f] border-b border-white/5 shrink-0 overflow-x-auto no-scrollbar items-stretch">
@@ -1243,34 +1627,61 @@ export default function App() {
                 >
                   + New File
                 </button>
-                {/* Format button */}
-                <button
-                  onClick={handleFormatCode}
-                  className="px-3 py-2 text-[10px] font-bold text-gray-500 hover:text-white transition-all shrink-0 flex items-center gap-1 ml-auto"
-                  title="Format Code"
-                >
-                  <Wand2 size={11} />
-                </button>
+                {/* Format + Split + Search buttons */}
+                <div className="ml-auto flex items-center">
+                  <button
+                    onClick={handleFormatCode}
+                    className="px-3 py-2 text-[10px] font-bold text-gray-500 hover:text-white transition-all shrink-0 flex items-center gap-1"
+                    title="Format Code"
+                  >
+                    <Wand2 size={11} />
+                  </button>
+                  <button
+                    onClick={() => setIsSplitView(!isSplitView)}
+                    className={
+                      "px-3 py-2 text-[10px] font-bold transition-all shrink-0 flex items-center gap-1 " +
+                      (isSplitView ? "text-[#007acc]" : "text-gray-500 hover:text-white")
+                    }
+                    title="Toggle Split View"
+                  >
+                    <PanelRight size={11} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsSearchOpen(true);
+                      setTimeout(() => {
+                        const input = document.getElementById("search-input") as HTMLInputElement;
+                        input?.focus();
+                      }, 100);
+                    }}
+                    className="px-3 py-2 text-[10px] font-bold text-gray-500 hover:text-white transition-all shrink-0 flex items-center gap-1"
+                    title="Search (Ctrl+F)"
+                  >
+                    <Search size={11} />
+                  </button>
+                </div>
               </div>
             )}
 
-            <div className="flex-1 relative">
-              {activeTab === "env" && (
-                <div className="absolute top-2 right-4 z-10 flex gap-2">
-                  <label className="flex items-center gap-2 cursor-pointer bg-[#333] hover:bg-[#444] text-xs px-3 py-1.5 rounded border border-[#555] transition text-gray-300">
-                    <Upload size={12} /> Upload .env
-                    <input type="file" className="hidden" accept=".env, .txt" onChange={handleEnvUpload} />
-                  </label>
-                </div>
-              )}
-              {activeTab === "env" && detectedEnvCount > 0 && (
-                <div className="absolute top-2 left-4 z-10 flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 border border-blue-500/40 rounded text-blue-300 text-[11px] font-medium">
-                  <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-                  {detectedEnvCount} secret{detectedEnvCount > 1 ? "s" : ""} detected — fill values below
-                </div>
-              )}
-              <div className="absolute inset-0 pt-2">
-                <Editor
+            <div className="flex-1 flex relative">
+              {/* First editor pane */}
+              <div className={"flex-1 relative flex flex-col" + (isSplitView ? " border-r border-white/5" : "")}>
+                {activeTab === "env" && (
+                  <div className="absolute top-2 right-4 z-10 flex gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer bg-[#333] hover:bg-[#444] text-xs px-3 py-1.5 rounded border border-[#555] transition text-gray-300">
+                      <Upload size={12} /> Upload .env
+                      <input type="file" className="hidden" accept=".env, .txt" onChange={handleEnvUpload} />
+                    </label>
+                  </div>
+                )}
+                {activeTab === "env" && detectedEnvCount > 0 && (
+                  <div className="absolute top-2 left-4 z-10 flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 border border-blue-500/40 rounded text-blue-300 text-[11px] font-medium">
+                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+                    {detectedEnvCount} secret{detectedEnvCount > 1 ? "s" : ""} detected — fill values below
+                  </div>
+                )}
+                <div className="flex-1 relative">
+                  <Editor
                   height="100%"
                   theme="vs-dark"
                   language={
@@ -1302,7 +1713,7 @@ export default function App() {
                   }}
                   onMount={handleEditorMount}
                   options={{
-                    minimap: { enabled: false },
+                    minimap: { enabled: true, scale: 2, showSlider: "mouseover" },
                     fontSize: 14,
                     wordWrap: "on",
                     scrollBeyondLastLine: false,
@@ -1310,13 +1721,84 @@ export default function App() {
                     cursorBlinking: "smooth",
                     cursorSmoothCaretAnimation: "on",
                     formatOnPaste: true,
+                    bracketPairColorization: { enabled: true },
+                    stickyScroll: { enabled: true },
+                    guides: {
+                      bracketPairs: true,
+                      indentation: true,
+                    },
                     suggest: {
                       showKeywords: true,
                       showSnippets: true,
+                      showMethods: true,
+                      showFunctions: true,
+                      showVariables: true,
+                      showClasses: true,
                     },
+                    quickSuggestions: true,
+                    parameterHints: { enabled: true },
+                    tabSize: 2,
                   }}
                 />
+                </div>
               </div>
+
+              {/* Second editor pane (split view) */}
+              {isSplitView && creationMode === "react" && (
+                <div className="flex-1 relative flex flex-col">
+                  {/* Split file selector */}
+                  <div className="flex bg-[#0a0a0f] border-b border-white/5 shrink-0">
+                    {reactFiles.map((file, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSplitFileIndex(idx)}
+                        className={
+                          "px-3 py-1.5 text-[10px] font-bold transition-all " +
+                          (splitFileIndex === idx
+                            ? "text-white bg-[#1e1e1e] border-b-2 border-[#007acc]"
+                            : "text-gray-500 hover:text-gray-300")
+                        }
+                      >
+                        {file.name}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex-1 relative">
+                    <Editor
+                      height="100%"
+                      theme="vs-dark"
+                      language={getMonacoLang(reactFiles[splitFileIndex]?.name || "App.tsx")}
+                      value={reactFiles[splitFileIndex]?.content || ""}
+                      onChange={(val) => {
+                        if (val === undefined) return;
+                        const newFiles = [...reactFiles];
+                        newFiles[splitFileIndex].content = val;
+                        setReactFiles(newFiles);
+                      }}
+                      onMount={(editor: any, monaco: any) => {
+                        splitEditorRef.current = editor;
+                        splitMonacoRef.current = monaco;
+                      }}
+                      options={{
+                        minimap: { enabled: true, scale: 2, showSlider: "mouseover" },
+                        fontSize: 14,
+                        wordWrap: "on",
+                        scrollBeyondLastLine: false,
+                        smoothScrolling: true,
+                        cursorBlinking: "smooth",
+                        cursorSmoothCaretAnimation: "on",
+                        bracketPairColorization: { enabled: true },
+                        stickyScroll: { enabled: true },
+                        guides: { bracketPairs: true, indentation: true },
+                        suggest: { showKeywords: true, showSnippets: true },
+                        quickSuggestions: true,
+                        parameterHints: { enabled: true },
+                        tabSize: 2,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Problems Panel — only in React mode */}
@@ -1410,8 +1892,13 @@ export default function App() {
           >
             {creationMode === "react" ? (
               <div
-                className="flex-1 flex flex-col relative bg-[#f8f9fa] border-t border-l border-gray-200 shadow-inner overflow-hidden transition-all duration-300"
-                style={{ width: previewWidth, maxWidth: "100%" }}
+                className="flex-1 flex flex-col relative border-t border-l shadow-inner overflow-hidden transition-all duration-300"
+                style={{
+                  width: previewWidth,
+                  maxWidth: "100%",
+                  backgroundColor: previewTheme === "dark" ? "#0d0d12" : "#f8f9fa",
+                  borderColor: previewTheme === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.1)",
+                }}
               >
                 {/* Skeleton overlay */}
                 {isPreviewLoading && <SkeletonPreview />}
