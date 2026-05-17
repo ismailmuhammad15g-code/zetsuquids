@@ -4,7 +4,8 @@ import Link from 'next/link';
 import {
   BarChart3, Package, DollarSign,
   PlusCircle, Settings, Bell, Search,
-  Edit, Trash2, Eye, TrendingUp, AlertCircle, Loader2, X
+  Edit, Trash2, Eye, TrendingUp, AlertCircle, Loader2, X,
+  User, ShoppingCart
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -342,10 +343,88 @@ export default function CreatorConsole() {
           )}
 
           {activeTab === 'earnings' && (
-            <div className="text-center py-16 bg-white border border-gray-200 rounded-xl shadow-sm">
-              <DollarSign size={48} className="mx-auto text-gray-300 mb-4" />
-              <h3 className="text-lg font-bold text-gray-900">Earnings Dashboard</h3>
-              <p className="text-gray-500 mt-2">Detailed charts and payout history will appear here once you make sales.</p>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <p className="text-sm text-gray-500">Total Revenue</p>
+                  <p className="text-3xl font-extrabold text-gray-900 mt-1">${stats.totalRevenue.toFixed(2)}</p>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <p className="text-sm text-gray-500">Total Sales</p>
+                  <p className="text-3xl font-extrabold text-gray-900 mt-1">{stats.totalSales}</p>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <p className="text-sm text-gray-500">Avg per Sale</p>
+                  <p className="text-3xl font-extrabold text-gray-900 mt-1">${stats.totalSales > 0 ? (stats.totalRevenue / stats.totalSales).toFixed(2) : '0.00'}</p>
+                </div>
+              </div>
+
+              {/* Sales Breakdown */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="font-bold text-gray-900 mb-4">Sales Breakdown by Script</h3>
+                {items.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No sales yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {items.filter((i: any) => i.sales_count > 0).map((item: any) => (
+                      <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">{item.title}</p>
+                          <p className="text-sm text-gray-500">{item.sales_count} sale{item.sales_count !== 1 ? 's' : ''}</p>
+                        </div>
+                        <p className="font-bold text-green-600">${(item.real_revenue || 0).toFixed(2)}</p>
+                      </div>
+                    ))}
+                    {items.filter((i: any) => i.sales_count > 0).length === 0 && (
+                      <p className="text-gray-500 text-center py-4">No sales recorded yet</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="font-bold text-gray-900 mb-4">Account Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <label className="text-sm text-gray-500">Email</label>
+                    <p className="font-medium text-gray-900">{user?.email}</p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <label className="text-sm text-gray-500">Name</label>
+                    <p className="font-medium text-gray-900">{String(user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Creator')}</p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <label className="text-sm text-gray-500">Total Scripts</label>
+                    <p className="font-medium text-gray-900">{items.length}</p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <label className="text-sm text-gray-500">Total Sales</label>
+                    <p className="font-medium text-gray-900">{stats.totalSales}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="font-bold text-gray-900 mb-4">Quick Actions</h3>
+                <div className="flex flex-wrap gap-4">
+                  <Link href="/scripts/console/upload" className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors">
+                    <PlusCircle size={18} />
+                    Upload New Script
+                  </Link>
+                  <Link href="/scripts/dashboard" className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                    <User size={18} />
+                    User Dashboard
+                  </Link>
+                  <Link href="/scripts" className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                    <ShoppingCart size={18} />
+                    Browse Marketplace
+                  </Link>
+                </div>
+              </div>
             </div>
           )}
 

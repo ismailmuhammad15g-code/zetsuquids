@@ -148,6 +148,11 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'view_purchases' AND tablename = 'marketplace_purchases') THEN
     CREATE POLICY "view_purchases" ON marketplace_purchases FOR SELECT USING (auth.uid() = buyer_id);
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'authors_view_purchases' AND tablename = 'marketplace_purchases') THEN
+    CREATE POLICY "authors_view_purchases" ON marketplace_purchases FOR SELECT USING (
+      EXISTS (SELECT 1 FROM marketplace_scripts WHERE marketplace_scripts.id = marketplace_purchases.script_id AND marketplace_scripts.author_id = auth.uid())
+    );
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'insert_purchases' AND tablename = 'marketplace_purchases') THEN
     CREATE POLICY "insert_purchases" ON marketplace_purchases FOR INSERT WITH CHECK (auth.uid() = buyer_id);
   END IF;
