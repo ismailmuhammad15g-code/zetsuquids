@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
   ArrowRight,
-  Brain,
+  AtSign,
   Clock,
   Command,
   CreditCard,
@@ -11,28 +11,49 @@ import {
   Home,
   LayoutGrid,
   Loader2,
+  MessageSquare,
   Plus,
   Search,
-  Sparkles,
-  Wand2,
+  User,
   X,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { basicSearch, getAIEnhancement, isAIConfigured } from "../lib/ai";
+import { basicSearch, searchPeople, searchPosts } from "../lib/ai";
 import { guidesApi } from "../lib/api";
-import AnimatedLoadingSkeleton from "./ui/animated-loading-skeleton";
 import { useRouter } from "next/navigation";
 
-type SearchFilter = "all" | "guides" | "actions";
-type AiState = "idle" | "thinking" | "ready";
+type SearchFilter = "all" | "guides" | "people" | "posts" | "actions";
 
 interface SearchGuide {
   id: string | number;
   title: string;
   slug: string;
   keywords?: string[];
-  isAIResult?: boolean;
+  score?: number;
+  matchReason?: string;
+}
+
+interface SearchPerson {
+  user_id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  bio?: string;
+  [key: string]: unknown;
+}
+
+interface SearchPost {
+  id: string | number;
+  content: string;
+  user_id: string;
+  created_at?: string;
+  author?: {
+    display_name: string;
+    username: string;
+    avatar_url: string | null;
+  };
+  [key: string]: unknown;
 }
 
 interface SearchAction {
@@ -46,86 +67,39 @@ interface SearchAction {
   keywords?: string[];
 }
 
-type SearchResultItem = SearchGuide | SearchAction;
-
-interface AiEnhancementResult {
-  aiInsight?: string;
-  results?: SearchGuide[];
-}
-
-function isSearchAction(item: SearchResultItem): item is SearchAction {
-  return (item as SearchAction).isAction === true;
-}
+type SearchResultItem =
+  | { type: "guide"; data: SearchGuide }
+  | { type: "person"; data: SearchPerson }
+  | { type: "post"; data: SearchPost }
+  | { type: "action"; data: SearchAction };
 
 // Blacklisted words - inappropriate content
 const BLACKLIST = [
-  // English inappropriate words
-  "vagina",
-  "penis",
-  "sex",
-  "nik",
-  "fuck",
-  "shit",
-  "ass",
-  "bitch",
-  "dick",
-  "pussy",
-  "cock",
-  "cum",
-  "porn",
-  "nude",
-  "naked",
-  "xxx",
-  "horny",
-  "slut",
-  "whore",
-  // Arabic inappropriate words
-  "??",
-  "??",
-  "???",
-  "?????",
-  "????",
-  "???",
-  "???",
-  "?????",
-  "???",
-  "???",
-  "?????",
-  "?????",
-  "???",
-  "??? ?????",
-  "????",
-  "???",
-  "????",
-  "???",
-  "????",
+  "vagina", "penis", "sex", "nik", "fuck", "shit", "ass", "bitch", "dick",
+  "pussy", "cock", "cum", "porn", "nude", "naked", "xxx", "horny", "slut", "whore",
+  "??", "??", "???", "?????", "????", "???", "???", "?????", "???", "???",
+  "?????", "?????", "???", "???", "?????", "????", "???", "????", "???", "????",
 ];
 
-// Check if query contains blacklisted words
 function checkBlacklist(text: string): string[] {
   const words = text.toLowerCase().split(/\s+/);
-  const violations = [];
-
+  const violations: string[] = [];
   for (const word of words) {
     for (const banned of BLACKLIST) {
       if (
         word.includes(banned.toLowerCase()) ||
         banned.toLowerCase().includes(word)
       ) {
-        if (word.length >= 2) {
-          violations.push(word);
-        }
+        if (word.length >= 2) violations.push(word);
       }
     }
   }
-
   return [...new Set(violations)];
 }
 
 export default function SearchModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResultItem[]>([]);
@@ -133,18 +107,10 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [recentSearches, setRecentSearches] = useState<SearchGuide[]>([]);
   const [allGuides, setAllGuides] = useState<SearchGuide[]>([]);
+  const [activeFilter, setActiveFilter] = useState<SearchFilter>("all");
+  const [violations, setViolations] = useState<string[]>([]);
 
-  // Quick Actions Definition
   const QUICK_ACTIONS: SearchAction[] = [
-    {
-      id: "action-ai",
-      title: "Ask ZetsuGuide AI",
-      icon: Brain,
-      path: "/zetsuguide-ai",
-      color: "text-indigo-500",
-      bg: "bg-indigo-50",
-      isAction: true,
-    },
     {
       id: "action-add",
       title: "Add New Guide",
@@ -174,12 +140,8 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
     },
   ];
 
-  // Filter State
-  const [activeFilter, setActiveFilter] = useState<SearchFilter>("all"); // all, guides, actions
-
   function handleActionClick(action: SearchAction): void {
     if (action.path === "modal:add") {
-      // Dispatch event for Layout to handle
       window.dispatchEvent(new CustomEvent("open-add-guide"));
       onClose();
     } else {
@@ -187,14 +149,6 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
       onClose();
     }
   }
-
-  // Blacklist violation state
-  const [violations, setViolations] = useState<string[]>([]);
-
-  // AI States
-  const [aiState, setAiState] = useState<AiState>("idle"); // idle, thinking, ready
-  const [aiResults, setAiResults] = useState<AiEnhancementResult | null>(null);
-  const [showAiPanel, setShowAiPanel] = useState(false);
 
   // Load guides on mount
   useEffect(() => {
@@ -213,15 +167,11 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  // Handle query change with blacklist check
   function handleQueryChange(e: React.ChangeEvent<HTMLInputElement>): void {
     const newQuery = e.target.value;
     setQuery(newQuery);
-
-    // Check for blacklisted words when space is pressed
     if (newQuery.endsWith(" ") || newQuery.includes(" ")) {
-      const foundViolations = checkBlacklist(newQuery);
-      setViolations(foundViolations);
+      setViolations(checkBlacklist(newQuery));
     } else {
       setViolations([]);
     }
@@ -229,173 +179,134 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
 
   // Search when query changes
   useEffect(() => {
-    if (aiTimeoutRef.current) {
-      clearTimeout(aiTimeoutRef.current);
-    }
-
-    // Don't search if there are violations
     if (violations.length > 0) {
       setResults([]);
       setLoading(false);
       return;
     }
-
     const timer = setTimeout(() => {
       performSearch(query);
     }, 300);
-
     return () => clearTimeout(timer);
   }, [query, allGuides, violations]);
 
   async function performSearch(searchQuery: string): Promise<void> {
     if (!searchQuery.trim()) {
       setResults([]);
-      setAiState("idle");
-      setAiResults(null);
-      setShowAiPanel(false);
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    setAiState("idle");
-    setAiResults(null);
-    setShowAiPanel(false);
 
     try {
-      // Step 1: Basic search (instant)
-      let basicResults = basicSearch(searchQuery, allGuides) as SearchGuide[];
+      const q = searchQuery.toLowerCase().trim();
 
-      // Search Actions
-      const actionResults = QUICK_ACTIONS.filter((action) =>
-        action.title.toLowerCase().includes(searchQuery.toLowerCase()),
-      ).map((action) => ({
-        ...action,
-        isAction: true as const,
-        keywords: ["shortcut", "action"],
+      // 1. Search guides (instant client-side)
+      const guideResults = basicSearch(q, allGuides) as SearchGuide[];
+      const guideItems: SearchResultItem[] = guideResults.map((g) => ({
+        type: "guide" as const,
+        data: g,
       }));
 
-      // Combine (Actions first if they match)
-      const mergedResults: SearchResultItem[] = [
-        ...actionResults,
-        ...basicResults,
+      // 2. Search quick actions
+      const actionItems: SearchResultItem[] = QUICK_ACTIONS.filter((action) =>
+        action.title.toLowerCase().includes(q),
+      ).map((action) => ({
+        type: "action" as const,
+        data: action,
+      }));
+
+      // 3. Search people and posts from database (parallel)
+      const [peopleResults, postResults] = await Promise.all([
+        searchPeople(q),
+        searchPosts(q),
+      ]);
+
+      const peopleItems: SearchResultItem[] = (peopleResults as SearchPerson[]).map((p) => ({
+        type: "person" as const,
+        data: p,
+      }));
+
+      const postItems: SearchResultItem[] = (postResults as SearchPost[]).map((p) => ({
+        type: "post" as const,
+        data: p,
+      }));
+
+      // Merge: actions first, then guides, then people, then posts
+      const merged: SearchResultItem[] = [
+        ...actionItems,
+        ...guideItems,
+        ...peopleItems,
+        ...postItems,
       ];
 
-      setResults(mergedResults);
+      setResults(merged);
       setSelectedIndex(0);
-      setLoading(false);
-
-      // Step 2: If no results, trigger AI after 2 seconds
-      if (
-        mergedResults.length === 0 &&
-        isAIConfigured() &&
-        allGuides.length > 0
-      ) {
-        aiTimeoutRef.current = setTimeout(() => {
-          triggerAISearch(searchQuery);
-        }, 2000);
-      }
-      // Step 3: If results found but AI configured, enhance after 1.5 seconds
-      else if (mergedResults.length > 0 && isAIConfigured()) {
-        aiTimeoutRef.current = setTimeout(() => {
-          enhanceWithAI(searchQuery);
-        }, 1500);
-      }
     } catch (err) {
       console.error("Search error:", err);
       setResults([]);
+    } finally {
       setLoading(false);
     }
   }
 
-  async function triggerAISearch(searchQuery: string): Promise<void> {
-    setAiState("thinking");
-    setShowAiPanel(true);
-
-    try {
-      const aiData = (await getAIEnhancement(
-        searchQuery,
-        allGuides,
-      )) as AiEnhancementResult | null;
-
-      if (aiData) {
-        setAiResults(aiData);
-        setAiState("ready");
-
-        // If AI found results, add them
-        if (aiData.results && aiData.results.length > 0) {
-          setResults(aiData.results as SearchResultItem[]);
-        }
-      } else {
-        setAiState("idle");
-      }
-    } catch (err) {
-      console.error("AI search error:", err);
-      setAiState("idle");
-    }
-  }
-
-  async function enhanceWithAI(searchQuery: string): Promise<void> {
-    setAiState("thinking");
-    setShowAiPanel(true); // Show skeleton immediately while thinking
-
-    try {
-      const aiData = (await getAIEnhancement(
-        searchQuery,
-        allGuides,
-      )) as AiEnhancementResult | null;
-
-      if (aiData && aiData.aiInsight) {
-        setAiResults(aiData);
-        setAiState("ready");
-        // setShowAiPanel(true) is already true
-
-        // Merge AI results with basic results
-        if (aiData.results && aiData.results.length > 0) {
-          setResults((prev) => {
-            const existingIds = new Set(prev.map((r) => r.id));
-            const uniqueNewResults = aiData.results!.filter(
-              (r) => !existingIds.has(r.id),
-            );
-            return [...prev, ...uniqueNewResults];
-          });
-        }
-      }
-    } catch (err) {
-      console.error("AI enhancement error:", err);
-      setAiState("idle");
-    }
-  }
-
-  function handleSelect(guide: SearchGuide): void {
+  function handleGuideSelect(guide: SearchGuide): void {
     const recent = JSON.parse(localStorage.getItem("recentSearches") || "[]") as SearchGuide[];
     const updated = [
       { id: guide.id, title: guide.title, slug: guide.slug },
       ...recent.filter((r) => r.id !== guide.id),
     ].slice(0, 5);
     localStorage.setItem("recentSearches", JSON.stringify(updated));
-
     onClose();
     router.push(`/guide/${guide.slug}`);
   }
 
+  function handlePersonSelect(person: SearchPerson): void {
+    onClose();
+    router.push(`/community/profile/${person.username}`);
+  }
+
+  function handlePostSelect(post: SearchPost): void {
+    onClose();
+    router.push(`/community/explore`);
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
+    const filtered = getFilteredResults();
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedIndex((i) => Math.min(i + 1, results.length - 1));
+      setSelectedIndex((i) => Math.min(i + 1, filtered.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setSelectedIndex((i) => Math.max(i - 1, 0));
-    } else if (e.key === "Enter" && results[selectedIndex]) {
-      const selectedItem = results[selectedIndex];
-      if (isSearchAction(selectedItem)) {
-        handleActionClick(selectedItem);
-      } else {
-        handleSelect(selectedItem);
-      }
+    } else if (e.key === "Enter" && filtered[selectedIndex]) {
+      handleResultClick(filtered[selectedIndex]);
     } else if (e.key === "Escape") {
       onClose();
     }
+  }
+
+  function handleResultClick(item: SearchResultItem): void {
+    switch (item.type) {
+      case "action":
+        handleActionClick(item.data as SearchAction);
+        break;
+      case "guide":
+        handleGuideSelect(item.data as SearchGuide);
+        break;
+      case "person":
+        handlePersonSelect(item.data as SearchPerson);
+        break;
+      case "post":
+        handlePostSelect(item.data as SearchPost);
+        break;
+    }
+  }
+
+  function getFilteredResults(): SearchResultItem[] {
+    if (activeFilter === "all") return results;
+    return results.filter((r) => r.type === activeFilter);
   }
 
   function highlightMatch(text: string, searchQuery: string): ReactNode {
@@ -420,34 +331,29 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  // AI Results Panel Component
-  const AIResultsPanel = () => {
-    if (!aiResults) return null;
+  function getFilterCount(filter: SearchFilter): number {
+    if (filter === "all") return results.length;
+    return results.filter((r) => r.type === filter).length;
+  }
 
-    return (
-      <div className="mx-4 mt-4 p-4 bg-gray-50 border border-gray-300 rounded-xl">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center flex-shrink-0">
-            <Wand2 className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="font-bold text-black">AI Assistant</span>
-              <span className="px-2 py-0.5 bg-black text-white text-xs rounded-full">
-                AI
-              </span>
-            </div>
+  function truncateText(text: string, maxLen: number): string {
+    if (!text) return "";
+    return text.length > maxLen ? text.substring(0, maxLen) + "..." : text;
+  }
 
-            {aiResults.aiInsight && (
-              <p className="text-gray-700 text-sm leading-relaxed">
-                {aiResults.aiInsight}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  function timeAgo(dateStr?: string): string {
+    if (!dateStr) return "";
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
+
+  const filteredResults = getFilteredResults();
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -466,7 +372,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
           className="relative bg-white w-full max-w-2xl shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200"
           onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}
         >
-          {/* Header: Search Input + Tabs */}
+          {/* Header: Search Input */}
           <div className="border-b border-gray-100 bg-white z-10">
             <div
               className={`flex items-center gap-3 px-5 py-4 ${violations.length > 0 ? "bg-red-50" : ""}`}
@@ -483,7 +389,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                 onChange={handleQueryChange}
                 onKeyDown={handleKeyDown}
                 className={`flex-1 text-xl outline-none placeholder:text-gray-300 bg-transparent font-medium ${violations.length > 0 ? "text-red-600" : "text-gray-900"}`}
-                placeholder="what would you like to search?"
+                placeholder="Search guides, people, posts..."
               />
               {query && (
                 <button
@@ -503,21 +409,32 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
 
-            {/* Filter Tabs (Only show when searching) */}
+            {/* Filter Tabs */}
             {query && !violations.length && (
               <div className="flex items-center gap-1 px-4 pb-0 overflow-x-auto scrollbar-hide">
-                {["all", "guides", "actions"].map((filter) => (
-                  <button
-                    key={filter}
-                    onClick={() => setActiveFilter(filter as SearchFilter)}
-                    className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeFilter === filter
-                      ? "border-black text-black"
-                      : "border-transparent text-gray-500 hover:text-gray-800"
-                      }`}
-                  >
-                    {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                  </button>
-                ))}
+                {(["all", "guides", "people", "posts", "actions"] as SearchFilter[]).map((filter) => {
+                  const count = getFilterCount(filter);
+                  return (
+                    <button
+                      key={filter}
+                      onClick={() => {
+                        setActiveFilter(filter);
+                        setSelectedIndex(0);
+                      }}
+                      className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${activeFilter === filter
+                        ? "border-black text-black"
+                        : "border-transparent text-gray-500 hover:text-gray-800"
+                        }`}
+                    >
+                      {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                      {count > 0 && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeFilter === filter ? "bg-black text-white" : "bg-gray-100 text-gray-500"}`}>
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -530,9 +447,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                   <AlertTriangle className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-bold text-red-700 mb-1">
-                    Content Policy Violation
-                  </h4>
+                  <h4 className="font-bold text-red-700 mb-1">Content Policy Violation</h4>
                   <p className="text-red-600 text-sm mb-2">
                     The following word(s) violate our privacy policy:
                   </p>
@@ -564,20 +479,8 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                   <div className="w-12 h-12 border-4 border-gray-200 rounded-full"></div>
                   <div className="absolute inset-0 w-12 h-12 border-4 border-black rounded-full border-t-transparent animate-spin"></div>
                 </div>
-                <p className="mt-4 text-gray-500">Searching...</p>
+                <p className="mt-4 text-gray-500">Searching guides, people, and posts...</p>
               </div>
-            )}
-
-            {/* AI Thinking Panel - Replaced with AnimatedLoadingSkeleton */}
-            {!loading && aiState === "thinking" && showAiPanel && (
-              <div className="py-8">
-                <AnimatedLoadingSkeleton />
-              </div>
-            )}
-
-            {/* AI Results Panel */}
-            {!loading && aiState === "ready" && showAiPanel && aiResults && (
-              <AIResultsPanel />
             )}
 
             {/* No Query - Show Quick Actions & Recent */}
@@ -589,7 +492,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                     <LayoutGrid size={14} />
                     Quick Actions
                   </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {QUICK_ACTIONS.map((action) => (
                       <button
                         key={action.id}
@@ -620,7 +523,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                       {recentSearches.map((item) => (
                         <button
                           key={item.id}
-                          onClick={() => handleSelect(item)}
+                          onClick={() => handleGuideSelect(item)}
                           className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors group text-left"
                         >
                           <Clock
@@ -642,156 +545,171 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
             )}
 
             {/* Search Results */}
-            {!loading &&
-              query &&
-              results.length > 0 &&
-              violations.length === 0 && (
-                <div className="p-2 space-y-1">
-                  {results.filter((item) => {
-                    if (activeFilter === "all") return true;
-                    if (activeFilter === "guides") return !isSearchAction(item);
-                    if (activeFilter === "actions") return isSearchAction(item);
-                    return true;
-                  }).length > 0 ? (
-                    results
-                      .filter((item) => {
-                        if (activeFilter === "all") return true;
-                        if (activeFilter === "guides") return !isSearchAction(item);
-                        if (activeFilter === "actions") return isSearchAction(item);
-                        return true;
-                      })
-                      .map((item, i) => (
-                        <button
-                          key={String(item.id)}
-                          onClick={() =>
-                            isSearchAction(item)
-                              ? handleActionClick(item)
-                              : handleSelect(item)
-                          }
-                          className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all ${i === selectedIndex
-                            ? "bg-indigo-50/50 border border-indigo-100 shadow-sm"
-                            : "hover:bg-gray-50 border border-transparent"
-                            }`}
-                        >
-                          {/* Icon Box */}
-                          <div
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${isSearchAction(item)
-                              ? "bg-amber-100 text-amber-600"
-                              : item.isAIResult
-                                ? "bg-indigo-100 text-indigo-600"
-                                : "bg-gray-100 text-gray-500"
-                              }`}
-                          >
-                            {isSearchAction(item) ? (
-                              <Command size={20} />
-                            ) : item.isAIResult ? (
-                              <Sparkles size={20} />
-                            ) : (
-                              <FileText size={20} />
-                            )}
-                          </div>
-
-                          {/* Text Content */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h4
-                                className={`font-semibold truncate ${i === selectedIndex ? "text-indigo-900" : "text-gray-900"}`}
-                              >
-                                {highlightMatch(item.title, query)}
-                              </h4>
-                              {!isSearchAction(item) && item.isAIResult && (
-                                <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold uppercase rounded">
-                                  AI
-                                </span>
-                              )}
-                              {isSearchAction(item) && (
-                                <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold uppercase rounded">
-                                  Command
-                                </span>
-                              )}
-                            </div>
-                            {!isSearchAction(item) && item.keywords && (
-                              <p className="text-sm text-gray-500 truncate mt-0.5">
-                                {item.keywords.slice(0, 3).join(", ")}
-                              </p>
-                            )}
-                            {isSearchAction(item) && (
-                              <p className="text-sm text-gray-400 mt-0.5">
-                                Quick Action
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Enter Hint */}
-                          {i === selectedIndex && (
-                            <div className="flex items-center gap-2 text-indigo-400 text-sm font-medium animate-in fade-in duration-200">
-                              <span>Open</span>
-                              <kbd className="hidden sm:inline-flex items-center justify-center h-5 w-5 bg-white rounded border border-indigo-200 text-xs shadow-sm">
-                                ?
-                              </kbd>
-                            </div>
-                          )}
-                        </button>
-                      ))
-                  ) : (
-                    <div className="text-center py-12">
-                      <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <Search size={32} className="text-gray-300" />
+            {!loading && query && filteredResults.length > 0 && violations.length === 0 && (
+              <div className="p-2 space-y-1">
+                {filteredResults.map((item, i) => (
+                  <button
+                    key={`${item.type}-${item.type === "action" ? (item.data as SearchAction).id : item.type === "guide" ? (item.data as SearchGuide).id : item.type === "person" ? (item.data as SearchPerson).user_id : (item.data as SearchPost).id}`}
+                    onClick={() => handleResultClick(item)}
+                    className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all ${i === selectedIndex
+                      ? "bg-indigo-50/50 border border-indigo-100 shadow-sm"
+                      : "hover:bg-gray-50 border border-transparent"
+                      }`}
+                  >
+                    {/* Icon / Avatar */}
+                    {item.type === "person" ? (
+                      (item.data as SearchPerson).avatar_url ? (
+                        <img
+                          src={(item.data as SearchPerson).avatar_url!}
+                          alt=""
+                          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                          <User size={20} />
+                        </div>
+                      )
+                    ) : (
+                      <div
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${item.type === "action"
+                          ? "bg-amber-100 text-amber-600"
+                          : item.type === "post"
+                            ? "bg-green-100 text-green-600"
+                            : "bg-gray-100 text-gray-500"
+                          }`}
+                      >
+                        {item.type === "action" ? (
+                          <Command size={20} />
+                        ) : item.type === "post" ? (
+                          <MessageSquare size={20} />
+                        ) : (
+                          <FileText size={20} />
+                        )}
                       </div>
-                      <p className="text-gray-900 font-medium">
-                        No matches in this category
-                      </p>
+                    )}
+
+                    {/* Text Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        {item.type === "person" ? (
+                          <>
+                            <h4
+                              className={`font-semibold truncate ${i === selectedIndex ? "text-indigo-900" : "text-gray-900"}`}
+                            >
+                              {highlightMatch((item.data as SearchPerson).display_name || (item.data as SearchPerson).username, query)}
+                            </h4>
+                            <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold uppercase rounded">
+                              <AtSign size={10} className="inline" /> {highlightMatch((item.data as SearchPerson).username, query)}
+                            </span>
+                          </>
+                        ) : item.type === "post" ? (
+                          <h4
+                            className={`font-medium text-sm truncate ${i === selectedIndex ? "text-indigo-900" : "text-gray-900"}`}
+                          >
+                            {highlightMatch(truncateText((item.data as SearchPost).content, 80), query)}
+                          </h4>
+                        ) : item.type === "action" ? (
+                          <>
+                            <h4
+                              className={`font-semibold truncate ${i === selectedIndex ? "text-indigo-900" : "text-gray-900"}`}
+                            >
+                              {highlightMatch((item.data as SearchAction).title, query)}
+                            </h4>
+                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold uppercase rounded">
+                              Command
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <h4
+                              className={`font-semibold truncate ${i === selectedIndex ? "text-indigo-900" : "text-gray-900"}`}
+                            >
+                              {highlightMatch((item.data as SearchGuide).title, query)}
+                            </h4>
+                            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase rounded">
+                              Guide
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Subtitle */}
+                      {item.type === "guide" && (item.data as SearchGuide).keywords && (
+                        <p className="text-sm text-gray-500 truncate mt-0.5">
+                          {(item.data as SearchGuide).keywords!.slice(0, 3).join(", ")}
+                        </p>
+                      )}
+                      {item.type === "person" && (item.data as SearchPerson).bio && (
+                        <p className="text-sm text-gray-500 truncate mt-0.5">
+                          {truncateText((item.data as SearchPerson).bio || "", 60)}
+                        </p>
+                      )}
+                      {item.type === "post" && (item.data as SearchPost).author && (
+                        <p className="text-sm text-gray-500 truncate mt-0.5">
+                          <AtSign size={12} className="inline" />
+                          {(item.data as SearchPost).author!.username}
+                          {(item.data as SearchPost).created_at && (
+                            <span className="ml-2 text-gray-400">
+                              {timeAgo((item.data as SearchPost).created_at)}
+                            </span>
+                          )}
+                        </p>
+                      )}
+                      {item.type === "action" && (
+                        <p className="text-sm text-gray-400 mt-0.5">Quick Action</p>
+                      )}
                     </div>
-                  )}
-                </div>
-              )}
+
+                    {/* Enter Hint */}
+                    {i === selectedIndex && (
+                      <div className="flex items-center gap-2 text-indigo-400 text-sm font-medium animate-in fade-in duration-200">
+                        <span>Open</span>
+                        <kbd className="hidden sm:inline-flex items-center justify-center h-5 w-5 bg-white rounded border border-indigo-200 text-xs shadow-sm">
+                          ?
+                        </kbd>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* No Results State */}
-            {!loading &&
-              query &&
-              results.length === 0 &&
-              violations.length === 0 &&
-              aiState !== "thinking" &&
-              !aiResults && (
-                <div className="flex flex-col items-center justify-center py-12 px-4">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                    <Search size={28} className="text-gray-400" />
-                  </div>
-                  <h4 className="text-lg font-bold mb-2">No Results</h4>
-                  <p className="text-gray-500 text-center mb-4">
-                    No results found for "{query}"
-                  </p>
-                  {isAIConfigured() && (
-                    <p className="text-sm text-indigo-500 flex items-center gap-2">
-                      <Brain size={16} className="animate-pulse" />
-                      AI assistant will start searching soon...
-                    </p>
-                  )}
-                  {allGuides.length === 0 && (
-                    <p className="text-sm text-amber-600 mt-4 bg-amber-50 px-4 py-2 rounded-lg">
-                      ?? Database is empty - Add new guides!
-                    </p>
-                  )}
+            {!loading && query && filteredResults.length === 0 && violations.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 px-4">
+                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                  <Search size={28} className="text-gray-400" />
                 </div>
-              )}
+                <h4 className="text-lg font-bold mb-2">No Results</h4>
+                <p className="text-gray-500 text-center mb-4">
+                  No results found for &quot;{query}&quot;
+                </p>
+                <p className="text-sm text-gray-400 text-center">
+                  Try different keywords or check your spelling
+                </p>
+                {allGuides.length === 0 && (
+                  <p className="text-sm text-amber-600 mt-4 bg-amber-50 px-4 py-2 rounded-lg">
+                    Database is empty - Add new guides!
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Footer */}
           <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50/50 text-sm text-gray-500">
             <div className="flex items-center gap-3">
-              {isAIConfigured() && (
-                <span className="flex items-center gap-1.5 text-indigo-500">
-                  <Sparkles size={14} />
-                  AI
-                </span>
-              )}
+              <span className="flex items-center gap-1.5 text-gray-400">
+                <Search size={14} />
+                Search guides, people & posts
+              </span>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
                 <kbd className="px-1.5 py-0.5 bg-white border rounded text-xs">
                   ??
                 </kbd>
-                <span className="text-xs">toggle</span>
+                <span className="text-xs">navigate</span>
               </div>
               <div className="flex items-center gap-1">
                 <kbd className="px-1.5 py-0.5 bg-white border rounded text-xs">
@@ -803,14 +721,6 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       </div>
-
-      {/* Custom Animations */}
-      <style>{`
-                @keyframes shimmer {
-                    0% { transform: translateX(-100%); }
-                    100% { transform: translateX(200%); }
-                }
-            `}</style>
     </div>
   );
 }
