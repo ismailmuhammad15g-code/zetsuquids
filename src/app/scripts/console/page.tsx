@@ -201,7 +201,8 @@ export default function CreatorConsole() {
               <DollarSign size={18} /> Earnings & Payouts
             </button>
             <button
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors`}
+              onClick={() => setActiveTab('settings')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'settings' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
             >
               <Settings size={18} /> Settings
             </button>

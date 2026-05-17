@@ -102,7 +102,7 @@ function ScriptsLayoutInner({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-3 flex-1">
               <span className="bg-white text-red-600 font-bold text-xs px-2 py-0.5 rounded-full shrink-0">DEMO</span>
               <p className="text-sm font-medium text-center flex-1">
-                الخدمة قيد الإنشاء - يرجى معرفة أن كل شيء موجود في الصفحة هو демо وليس حقيقي، لذا يرجى الحذر عند القيام بأي شيء. عندما يكون جاهزاً سنتمكن من بيع سكريبتات والكثير من الأمور الرائعة. انتظرونا!
+                Service Under Construction - Please note that everything on this page is a demo and not real, so please be careful when doing anything. When it is ready, you will be able to sell scripts and many other amazing things. Stay tuned!
               </p>
             </div>
             <button onClick={() => setShowBanner(false)} className="text-white hover:text-red-200 transition-colors shrink-0 ml-4">
