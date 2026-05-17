@@ -267,7 +267,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
     router.push(`/community/profile/${person.username}`);
   }
 
-  function handlePostSelect(post: SearchPost): void {
+  function handlePostSelect(_post: SearchPost): void {
     onClose();
     router.push(`/community/explore`);
   }
