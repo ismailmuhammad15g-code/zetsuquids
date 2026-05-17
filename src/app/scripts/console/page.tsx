@@ -45,37 +45,41 @@ export default function CreatorConsole() {
       }
       if (error) throw error;
 
-      // Fetch real sales data for each script
-      const enrichedScripts = await Promise.all(
-        (scripts || []).map(async (script: any) => {
-          try {
-            const { count: salesCount } = await supabase
-              .from('marketplace_purchases')
-              .select('*', { count: 'exact', head: true })
-              .eq('script_id', script.id);
+      // Fetch all purchases for this author's scripts
+      const scriptIds = (scripts || []).map((s: any) => s.id);
 
-            return { ...script, sales_count: salesCount || 0 };
-          } catch {
-            return script;
-          }
-        })
-      );
+      let allPurchases: any[] = [];
+      if (scriptIds.length > 0) {
+        const { data: purchasesData } = await supabase
+          .from('marketplace_purchases')
+          .select('*')
+          .in('script_id', scriptIds);
+        allPurchases = purchasesData || [];
+      }
+
+      // Enrich scripts with real sales data
+      const enrichedScripts = (scripts || []).map((script: any) => {
+        const scriptPurchases = allPurchases.filter(p => p.script_id === script.id);
+        const salesCount = scriptPurchases.length;
+        const revenue = scriptPurchases.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+        return { ...script, sales_count: salesCount, real_revenue: revenue };
+      });
 
       setItems(enrichedScripts);
 
-      let rev = 0;
-      let sales = 0;
+      let totalRev = 0;
+      let totalSales = 0;
       let active = 0;
 
       enrichedScripts.forEach((script: any) => {
-        sales += script.sales_count;
-        rev += (script.sales_count * script.price);
+        totalSales += script.sales_count;
+        totalRev += script.real_revenue;
         if (script.status === 'Active') active++;
       });
 
       setStats({
-        totalRevenue: rev,
-        totalSales: sales,
+        totalRevenue: totalRev,
+        totalSales: totalSales,
         activeItems: active
       });
 
@@ -301,7 +305,7 @@ export default function CreatorConsole() {
                             </td>
                             <td className="p-4 text-gray-700">${Number(item.price).toFixed(2)}</td>
                             <td className="p-4 text-gray-700">{item.sales_count}</td>
-                            <td className="p-4 font-medium text-gray-900">${(item.sales_count * item.price).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                            <td className="p-4 font-medium text-gray-900">${(item.real_revenue || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                             <td className="p-4">
                               <button
                                 onClick={() => handleToggleStatus(item)}

@@ -15,6 +15,7 @@ interface ScriptDetails {
   title: string;
   description: string;
   price: number;
+  extended_price?: number;
   thumbnail_url: string | null;
   author_name: string;
   category: string;
@@ -48,6 +49,7 @@ function CheckoutContent() {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank' | 'paypal'>('card');
   const [purchasedCount, setPurchasedCount] = useState(0);
   const [purchasedTotal, setPurchasedTotal] = useState(0);
+  const [selectedLicense, setSelectedLicense] = useState<'regular' | 'extended'>('regular');
 
   // Card form state
   const [cardNumber, setCardNumber] = useState('');
@@ -99,7 +101,11 @@ function CheckoutContent() {
     if (isCartCheckout) {
       return cartItems.reduce((sum, item) => sum + item.price, 0);
     }
-    return script?.price || 0;
+    if (!script) return 0;
+    if (selectedLicense === 'extended') {
+      return Number(script.extended_price || script.price * 5);
+    }
+    return Number(script.price);
   };
 
   const getItemCount = () => {
@@ -167,10 +173,17 @@ function CheckoutContent() {
           return;
         }
 
+        const purchaseAmount = selectedLicense === 'extended'
+          ? Number(script.extended_price || script.price * 5)
+          : Number(script.price);
+        setPurchasedCount(1);
+        setPurchasedTotal(purchaseAmount);
+
         const { error } = await supabase.from('marketplace_purchases').insert({
           script_id: script.id,
           buyer_id: user.id,
-          amount: script.price,
+          amount: purchaseAmount,
+          license_type: selectedLicense,
           status: 'completed'
         });
 
@@ -233,7 +246,7 @@ function CheckoutContent() {
           <p className="text-gray-500 mb-6">
             {isCartCheckout
               ? `You have successfully purchased ${purchasedCount} item${purchasedCount !== 1 ? 's' : ''} for $${purchasedTotal.toFixed(2)}.`
-              : `You now own "${script?.title}".`
+              : `You now own "${script?.title}" for $${purchasedTotal.toFixed(2)}.`
             }
           </p>
           <div className="space-y-3">
@@ -404,16 +417,39 @@ function CheckoutContent() {
                   ))}
                 </div>
               ) : script ? (
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg mb-6">
-                  <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <ShoppingCart size={20} className="text-gray-400" />
+                <>
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg mb-4">
+                    <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                      <ShoppingCart size={20} className="text-gray-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">{script.title}</p>
+                      <p className="text-sm text-gray-500">by {script.author_name}</p>
+                      <p className="text-xs text-gray-400">{script.category}</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{script.title}</p>
-                    <p className="text-sm text-gray-500">by {script.author_name}</p>
-                    <p className="text-xs text-gray-400">{script.category}</p>
+                  {/* License Selection */}
+                  <div className="space-y-3 mb-6">
+                    <label className={`block p-3 rounded-lg border-2 cursor-pointer transition-all ${selectedLicense === 'regular' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                      <div className="flex items-center gap-2">
+                        <input type="radio" name="license" value="regular" checked={selectedLicense === 'regular'} onChange={() => setSelectedLicense('regular')} className="w-4 h-4 text-indigo-600" />
+                        <div className="flex-1 flex items-center justify-between">
+                          <span className="font-bold text-gray-900 text-sm">Regular License</span>
+                          <span className="font-extrabold text-gray-900">${Number(script.price).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </label>
+                    <label className={`block p-3 rounded-lg border-2 cursor-pointer transition-all ${selectedLicense === 'extended' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                      <div className="flex items-center gap-2">
+                        <input type="radio" name="license" value="extended" checked={selectedLicense === 'extended'} onChange={() => setSelectedLicense('extended')} className="w-4 h-4 text-indigo-600" />
+                        <div className="flex-1 flex items-center justify-between">
+                          <span className="font-bold text-gray-900 text-sm">Extended License</span>
+                          <span className="font-extrabold text-gray-900">${Number(script.extended_price || script.price * 5).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </label>
                   </div>
-                </div>
+                </>
               ) : null}
 
               <div className="border-t border-gray-200 pt-4 space-y-2">
