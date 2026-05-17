@@ -306,7 +306,15 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
 
   function getFilteredResults(): SearchResultItem[] {
     if (activeFilter === "all") return results;
-    return results.filter((r) => r.type === activeFilter);
+    const typeMap: Record<SearchFilter, string> = {
+      all: "all",
+      guides: "guide",
+      people: "person",
+      posts: "post",
+      actions: "action",
+    };
+    const targetType = typeMap[activeFilter];
+    return results.filter((r) => r.type === targetType);
   }
 
   function highlightMatch(text: string, searchQuery: string): ReactNode {
@@ -333,7 +341,10 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
 
   function getFilterCount(filter: SearchFilter): number {
     if (filter === "all") return results.length;
-    return results.filter((r) => r.type === filter).length;
+    const typeMap: Record<string, string> = {
+      guides: "guide", people: "person", posts: "post", actions: "action",
+    };
+    return results.filter((r) => r.type === typeMap[filter]).length;
   }
 
   function truncateText(text: string, maxLen: number): string {
