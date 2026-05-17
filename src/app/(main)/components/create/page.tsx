@@ -18,6 +18,8 @@ import {
   Tablet,
   Smartphone,
   Wand2,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 import dynamic from "next/dynamic";
@@ -157,6 +159,7 @@ export default function App() {
 
   // Responsive preview
   const [previewWidth, setPreviewWidth] = useState<"100%" | "768px" | "375px">("100%");
+  const [previewTheme, setPreviewTheme] = useState<"dark" | "light">("dark");
 
   const screenshotRef = React.useRef<string | null>(null);
 
@@ -610,6 +613,9 @@ export default function App() {
     }
   };
 
+  // Ref for marker update callback (avoids stale closure)
+  const updateMarkersRef = useRef<() => void>(() => {});
+
   // Monaco onMount — configure TypeScript diagnostics
   const handleEditorMount = useCallback((editor: any, monaco: any) => {
     editorRef.current = editor;
@@ -670,9 +676,9 @@ export default function App() {
     const updateMarkers = () => {
       const model = editor.getModel();
       if (!model) return;
-      const currentMarkers = monaco.editor.getModelMarkers({ resource: model.uri });
+      const allMarkers = monaco.editor.getModelMarkers({});
       setMarkers(
-        currentMarkers.map((m: any) => ({
+        allMarkers.map((m: any) => ({
           severity: m.severity,
           message: m.message,
           startLineNumber: m.startLineNumber,
@@ -682,10 +688,32 @@ export default function App() {
       );
     };
 
-    monaco.editor.onDidChangeMarkers(updateMarkers);
-    // Initial markers
-    setTimeout(updateMarkers, 1000);
+    // Store in ref so polling always uses latest callback
+    updateMarkersRef.current = updateMarkers;
+
+    monaco.editor.onDidChangeMarkers(() => {
+      updateMarkersRef.current();
+    });
+
+    // Initial markers after a short delay
+    setTimeout(updateMarkers, 1500);
+
+    // Polling fallback — catches markers that onDidChangeMarkers misses
+    const pollInterval = setInterval(() => {
+      updateMarkersRef.current();
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
   }, []);
+
+  // Update markers when switching files/tabs
+  useEffect(() => {
+    // Short delay to let Monaco load the new model
+    const timer = setTimeout(() => {
+      updateMarkersRef.current();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [activeTab, activeReactFile]);
 
   // Jump to line in editor
   const handleMarkerClick = useCallback(
@@ -1354,6 +1382,13 @@ export default function App() {
                 </button>
               )}
               <button
+                onClick={() => setPreviewTheme(previewTheme === "dark" ? "light" : "dark")}
+                className="p-1 text-gray-600 hover:text-white rounded transition-all"
+                title={`Preview background: ${previewTheme}`}
+              >
+                {previewTheme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
+              </button>
+              <button
                 onClick={() => setIsFullscreen(!isFullscreen)}
                 className="p-1 text-gray-600 hover:text-white rounded transition-all hidden lg:block"
                 title="Toggle Fullscreen"
@@ -1364,12 +1399,13 @@ export default function App() {
           </div>
 
           <div
-            className="flex-1 relative w-full overflow-hidden flex justify-center"
+            className="flex-1 relative w-full overflow-hidden flex justify-center transition-colors duration-300"
             style={{
               background:
-                "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0)",
+                previewTheme === "dark"
+                  ? "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0), #0d0d12"
+                  : "radial-gradient(circle at 1px 1px, rgba(0,0,0,0.05) 1px, transparent 0), #f5f5f5",
               backgroundSize: "20px 20px",
-              backgroundColor: "#0d0d12",
             }}
           >
             {creationMode === "react" ? (
@@ -1448,17 +1484,22 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              <div className="w-full h-full flex justify-center transition-all duration-300" style={{ maxWidth: previewWidth }}>
-                <iframe
-                  srcDoc={iframeSrcDoc}
-                  title="Live Preview"
-                  sandbox="allow-scripts allow-modals allow-same-origin"
-                  className="w-full flex-1 border-none bg-transparent"
-                  style={{
-                    backgroundImage: "radial-gradient(circle, #00000008 1px, transparent 1px)",
-                    backgroundSize: "20px 20px",
-                  }}
-                />
+              <div className="w-full h-full flex justify-center transition-all duration-300">
+                <div
+                  className="flex-1 flex flex-col transition-all duration-300 overflow-hidden"
+                  style={{ width: previewWidth, maxWidth: "100%" }}
+                >
+                  <iframe
+                    srcDoc={iframeSrcDoc}
+                    title="Live Preview"
+                    sandbox="allow-scripts allow-modals allow-same-origin"
+                    className="w-full flex-1 border-none bg-transparent"
+                    style={{
+                      backgroundImage: "radial-gradient(circle, #00000008 1px, transparent 1px)",
+                      backgroundSize: "20px 20px",
+                    }}
+                  />
+                </div>
               </div>
             )}
           </div>
