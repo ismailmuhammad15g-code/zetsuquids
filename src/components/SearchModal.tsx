@@ -4,22 +4,36 @@ import {
   AlertTriangle,
   ArrowRight,
   AtSign,
+  BadgeCheck,
   Clock,
   Command,
   CreditCard,
+  Eye,
   FileText,
+  Flame,
+  Hash,
   Home,
   LayoutGrid,
   Loader2,
   MessageSquare,
   Plus,
   Search,
+  Tag,
+  TrendingUp,
   User,
   X,
+  Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { basicSearch, searchPeople, searchPosts } from "../lib/ai";
+import {
+  basicSearch,
+  searchPeople,
+  searchPosts,
+  getTrendingGuides,
+  getTrendingTags,
+  getFuzzySuggestions,
+} from "../lib/ai";
 import { guidesApi } from "../lib/api";
 import { useRouter } from "next/navigation";
 
@@ -32,6 +46,15 @@ interface SearchGuide {
   keywords?: string[];
   score?: number;
   matchReason?: string;
+  content?: string;
+  markdown?: string;
+  html_content?: string;
+  views_count?: number;
+  created_at?: string;
+  difficulty?: string;
+  category?: string;
+  cover_image?: string | null;
+  author_name?: string;
 }
 
 interface SearchPerson {
@@ -40,6 +63,8 @@ interface SearchPerson {
   display_name: string;
   avatar_url: string | null;
   bio?: string;
+  user_email?: string;
+  is_verified?: boolean;
   [key: string]: unknown;
 }
 
@@ -67,18 +92,21 @@ interface SearchAction {
   keywords?: string[];
 }
 
+interface TrendingTag {
+  tag: string;
+  posts_count: number;
+}
+
 type SearchResultItem =
   | { type: "guide"; data: SearchGuide }
   | { type: "person"; data: SearchPerson }
   | { type: "post"; data: SearchPost }
   | { type: "action"; data: SearchAction };
 
-// Blacklisted words - inappropriate content
+// Blacklisted words
 const BLACKLIST = [
   "vagina", "penis", "sex", "nik", "fuck", "shit", "ass", "bitch", "dick",
   "pussy", "cock", "cum", "porn", "nude", "naked", "xxx", "horny", "slut", "whore",
-  "??", "??", "???", "?????", "????", "???", "???", "?????", "???", "???",
-  "?????", "?????", "???", "???", "?????", "????", "???", "????", "???", "????",
 ];
 
 function checkBlacklist(text: string): string[] {
@@ -86,15 +114,49 @@ function checkBlacklist(text: string): string[] {
   const violations: string[] = [];
   for (const word of words) {
     for (const banned of BLACKLIST) {
-      if (
-        word.includes(banned.toLowerCase()) ||
-        banned.toLowerCase().includes(word)
-      ) {
+      if (word.includes(banned) || banned.includes(word)) {
         if (word.length >= 2) violations.push(word);
       }
     }
   }
   return [...new Set(violations)];
+}
+
+// Extract a clean snippet from guide content
+function getContentSnippet(guide: SearchGuide, query: string): string {
+  const raw = guide.markdown || guide.content || guide.html_content || "";
+  const clean = raw.replace(/[#*`\[\]()>_~]/g, " ").replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+
+  const q = query.toLowerCase().trim();
+  const idx = clean.toLowerCase().indexOf(q);
+
+  if (idx >= 0) {
+    const start = Math.max(0, idx - 40);
+    const end = Math.min(clean.length, idx + q.length + 80);
+    let snippet = clean.substring(start, end);
+    if (start > 0) snippet = "..." + snippet;
+    if (end < clean.length) snippet = snippet + "...";
+    return snippet;
+  }
+
+  return clean.substring(0, 120) + (clean.length > 120 ? "..." : "");
+}
+
+// Match reason display config
+function getMatchReasonLabel(reason?: string): { label: string; color: string } | null {
+  if (!reason) return null;
+  const map: Record<string, { label: string; color: string }> = {
+    "exact title": { label: "Exact match", color: "bg-green-100 text-green-700" },
+    "title contains": { label: "Title match", color: "bg-blue-100 text-blue-700" },
+    "title starts with": { label: "Title match", color: "bg-blue-100 text-blue-700" },
+    "fuzzy title": { label: "Close match", color: "bg-amber-100 text-amber-700" },
+    "exact keyword": { label: "Keyword match", color: "bg-purple-100 text-purple-700" },
+    "keyword partial": { label: "Keyword match", color: "bg-purple-100 text-purple-700" },
+    "fuzzy keyword": { label: "Close match", color: "bg-amber-100 text-amber-700" },
+    "content match": { label: "Content match", color: "bg-gray-100 text-gray-600" },
+  };
+  return map[reason] || null;
 }
 
 export default function SearchModal({ onClose }: { onClose: () => void }) {
@@ -109,6 +171,9 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
   const [allGuides, setAllGuides] = useState<SearchGuide[]>([]);
   const [activeFilter, setActiveFilter] = useState<SearchFilter>("all");
   const [violations, setViolations] = useState<string[]>([]);
+  const [trendingGuides, setTrendingGuides] = useState<SearchGuide[]>([]);
+  const [trendingTags, setTrendingTags] = useState<TrendingTag[]>([]);
+  const [fuzzySuggestions, setFuzzySuggestions] = useState<SearchGuide[]>([]);
 
   const QUICK_ACTIONS: SearchAction[] = [
     {
@@ -150,22 +215,23 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  // Load guides on mount
+  // Load data on mount
   useEffect(() => {
     inputRef.current?.focus();
     const recent = JSON.parse(localStorage.getItem("recentSearches") || "[]") as SearchGuide[];
     setRecentSearches(recent);
-    loadGuides();
-  }, []);
 
-  async function loadGuides() {
-    try {
-      const guides = await guidesApi.getAll();
+    // Load all data in parallel
+    Promise.all([
+      guidesApi.getAll(),
+      getTrendingGuides(5),
+      getTrendingTags(8),
+    ]).then(([guides, trending, tags]) => {
       setAllGuides(guides as SearchGuide[]);
-    } catch (err) {
-      console.error("Failed to load guides:", err);
-    }
-  }
+      setTrendingGuides(trending as SearchGuide[]);
+      setTrendingTags(tags as TrendingTag[]);
+    }).catch(err => console.error("Failed to load search data:", err));
+  }, []);
 
   function handleQueryChange(e: React.ChangeEvent<HTMLInputElement>): void {
     const newQuery = e.target.value;
@@ -181,6 +247,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (violations.length > 0) {
       setResults([]);
+      setFuzzySuggestions([]);
       setLoading(false);
       return;
     }
@@ -193,11 +260,13 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
   async function performSearch(searchQuery: string): Promise<void> {
     if (!searchQuery.trim()) {
       setResults([]);
+      setFuzzySuggestions([]);
       setLoading(false);
       return;
     }
 
     setLoading(true);
+    setFuzzySuggestions([]);
 
     try {
       const q = searchQuery.toLowerCase().trim();
@@ -243,6 +312,12 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
 
       setResults(merged);
       setSelectedIndex(0);
+
+      // 4. If no results, get fuzzy suggestions
+      if (merged.length === 0 && allGuides.length > 0) {
+        const fuzzy = getFuzzySuggestions(q, allGuides, 3) as SearchGuide[];
+        setFuzzySuggestions(fuzzy);
+      }
     } catch (err) {
       console.error("Search error:", err);
       setResults([]);
@@ -267,21 +342,25 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
     router.push(`/community/profile/${person.username}`);
   }
 
-  function handlePostSelect(_post: SearchPost): void {
+  function handlePostSelect(): void {
     onClose();
     router.push(`/community/explore`);
   }
 
+  function handleTrendingTagClick(tag: string): void {
+    setQuery(tag);
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
-    const filtered = getFilteredResults();
+    const flatList = getFlatResultList();
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedIndex((i) => Math.min(i + 1, filtered.length - 1));
+      setSelectedIndex((i) => Math.min(i + 1, flatList.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setSelectedIndex((i) => Math.max(i - 1, 0));
-    } else if (e.key === "Enter" && filtered[selectedIndex]) {
-      handleResultClick(filtered[selectedIndex]);
+    } else if (e.key === "Enter" && flatList[selectedIndex]) {
+      handleResultClick(flatList[selectedIndex]);
     } else if (e.key === "Escape") {
       onClose();
     }
@@ -299,7 +378,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
         handlePersonSelect(item.data as SearchPerson);
         break;
       case "post":
-        handlePostSelect(item.data as SearchPost);
+        handlePostSelect();
         break;
     }
   }
@@ -315,6 +394,11 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
     };
     const targetType = typeMap[activeFilter];
     return results.filter((r) => r.type === targetType);
+  }
+
+  // Flat list for keyboard navigation (includes all visible items)
+  function getFlatResultList(): SearchResultItem[] {
+    return getFilteredResults();
   }
 
   function highlightMatch(text: string, searchQuery: string): ReactNode {
@@ -361,10 +445,77 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24);
-    return `${days}d ago`;
+    if (days < 30) return `${days}d ago`;
+    const months = Math.floor(days / 30);
+    return `${months}mo ago`;
+  }
+
+  function formatViews(count?: number): string {
+    if (!count) return "";
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+    return String(count);
+  }
+
+  // Group results by type for section headers
+  function getGroupedResults(): { type: string; label: string; icon: LucideIcon; items: SearchResultItem[] }[] {
+    const filtered = getFilteredResults();
+    if (activeFilter !== "all") {
+      const labels: Record<string, string> = {
+        guides: "Guides", people: "People", posts: "Posts", actions: "Actions",
+      };
+      const icons: Record<string, LucideIcon> = {
+        guides: FileText, people: User, posts: MessageSquare, actions: Command,
+      };
+      return [{
+        type: activeFilter,
+        label: labels[activeFilter] || activeFilter,
+        icon: icons[activeFilter] || FileText,
+        items: filtered,
+      }];
+    }
+
+    const groups: Record<string, SearchResultItem[]> = {};
+    for (const item of filtered) {
+      const key = item.type;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(item);
+    }
+
+    const order = ["action", "guide", "person", "post"];
+    const labels: Record<string, string> = {
+      action: "Actions", guide: "Guides", person: "People", post: "Posts",
+    };
+    const icons: Record<string, LucideIcon> = {
+      action: Command, guide: FileText, person: User, post: MessageSquare,
+    };
+
+    return order
+      .filter(key => groups[key] && groups[key].length > 0)
+      .map(key => ({
+        type: key,
+        label: labels[key],
+        icon: icons[key],
+        items: groups[key],
+      }));
   }
 
   const filteredResults = getFilteredResults();
+  const groupedResults = getGroupedResults();
+  const hasQuery = query.trim().length > 0;
+  const hasResults = filteredResults.length > 0;
+
+  // Get flat index for a specific item in grouped results
+  function getFlatIndex(itemType: string, itemIndex: number): number {
+    let flatIdx = 0;
+    for (const group of groupedResults) {
+      if (group.type === itemType) {
+        return flatIdx + itemIndex;
+      }
+      flatIdx += group.items.length;
+    }
+    return flatIdx;
+  }
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -407,21 +558,20 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                   onClick={() => {
                     setQuery("");
                     setViolations([]);
+                    setFuzzySuggestions([]);
                   }}
                   className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   <X size={18} />
                 </button>
               )}
-              <div className="flex items-center gap-2">
-                <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-md">
-                  <kbd className="text-xs font-semibold text-gray-500">ESC</kbd>
-                </div>
+              <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-md">
+                <kbd className="text-xs font-semibold text-gray-500">ESC</kbd>
               </div>
             </div>
 
             {/* Filter Tabs */}
-            {query && !violations.length && (
+            {hasQuery && !violations.length && (
               <div className="flex items-center gap-1 px-4 pb-0 overflow-x-auto scrollbar-hide">
                 {(["all", "guides", "people", "posts", "actions"] as SearchFilter[]).map((filter) => {
                   const count = getFilterCount(filter);
@@ -473,9 +623,6 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                       </span>
                     ))}
                   </div>
-                  <p className="text-xs text-red-500 mt-3">
-                    Please use appropriate search terms to continue.
-                  </p>
                 </div>
               </div>
             </div>
@@ -483,45 +630,94 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
 
           {/* Content Area */}
           <div className="max-h-[65vh] overflow-y-auto">
-            {/* Loading State */}
-            {loading && query && violations.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="relative">
-                  <div className="w-12 h-12 border-4 border-gray-200 rounded-full"></div>
-                  <div className="absolute inset-0 w-12 h-12 border-4 border-black rounded-full border-t-transparent animate-spin"></div>
-                </div>
-                <p className="mt-4 text-gray-500">Searching guides, people, and posts...</p>
-              </div>
-            )}
 
-            {/* No Query - Show Quick Actions & Recent */}
-            {!query && !loading && (
-              <div className="p-4 space-y-8">
+            {/* === EMPTY STATE: Trending + Quick Actions + Recent === */}
+            {!hasQuery && !loading && (
+              <div className="p-4 space-y-6">
+
                 {/* Quick Actions */}
                 <div>
-                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                     <LayoutGrid size={14} />
                     Quick Actions
                   </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     {QUICK_ACTIONS.map((action) => (
                       <button
                         key={action.id}
                         onClick={() => handleActionClick(action)}
-                        className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-gray-200 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group"
+                        className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-gray-200 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group"
                       >
-                        <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center ${action.bg} ${action.color} group-hover:scale-110 transition-transform`}
-                        >
-                          <action.icon size={24} />
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${action.bg} ${action.color} group-hover:scale-110 transition-transform`}>
+                          <action.icon size={20} />
                         </div>
-                        <span className="text-sm font-semibold text-gray-700 group-hover:text-black">
+                        <span className="text-xs font-semibold text-gray-700 group-hover:text-black">
                           {action.title}
                         </span>
                       </button>
                     ))}
                   </div>
                 </div>
+
+                {/* Trending Guides */}
+                {trendingGuides.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <TrendingUp size={14} />
+                      Trending Guides
+                    </h3>
+                    <div className="space-y-1">
+                      {trendingGuides.map((guide, i) => (
+                        <button
+                          key={guide.id}
+                          onClick={() => handleGuideSelect(guide)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors group text-left"
+                        >
+                          <span className="w-6 h-6 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                            {i + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm text-gray-800 truncate group-hover:text-black">
+                              {guide.title}
+                            </p>
+                            {guide.views_count !== undefined && guide.views_count > 0 && (
+                              <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                                <Eye size={10} />
+                                {formatViews(guide.views_count)} views
+                              </p>
+                            )}
+                          </div>
+                          <ArrowRight size={14} className="text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Trending Tags */}
+                {trendingTags.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <Flame size={14} />
+                      Trending Topics
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {trendingTags.map((trend) => (
+                        <button
+                          key={trend.tag}
+                          onClick={() => handleTrendingTagClick(trend.tag)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-sm text-gray-600 hover:bg-gray-100 hover:border-gray-300 transition-colors"
+                        >
+                          <Hash size={12} className="text-gray-400" />
+                          <span className="font-medium">{trend.tag}</span>
+                          {trend.posts_count > 0 && (
+                            <span className="text-xs text-gray-400">{trend.posts_count}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Recent Searches */}
                 {recentSearches.length > 0 && (
@@ -535,18 +731,13 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                         <button
                           key={item.id}
                           onClick={() => handleGuideSelect(item)}
-                          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors group text-left"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors group text-left"
                         >
-                          <Clock
-                            size={18}
-                            className="text-gray-400 group-hover:text-gray-600"
-                          />
-                          <span className="font-medium text-gray-600 group-hover:text-gray-900">
+                          <Clock size={16} className="text-gray-300" />
+                          <span className="text-sm font-medium text-gray-600 group-hover:text-gray-900 truncate">
                             {item.title}
                           </span>
-                          <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                            <ArrowRight size={16} className="text-gray-400" />
-                          </div>
+                          <ArrowRight size={14} className="text-gray-300 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                         </button>
                       ))}
                     </div>
@@ -555,152 +746,327 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
               </div>
             )}
 
-            {/* Search Results */}
-            {!loading && query && filteredResults.length > 0 && violations.length === 0 && (
-              <div className="p-2 space-y-1">
-                {filteredResults.map((item, i) => (
-                  <button
-                    key={`${item.type}-${item.type === "action" ? (item.data as SearchAction).id : item.type === "guide" ? (item.data as SearchGuide).id : item.type === "person" ? (item.data as SearchPerson).user_id : (item.data as SearchPost).id}`}
-                    onClick={() => handleResultClick(item)}
-                    className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all ${i === selectedIndex
-                      ? "bg-indigo-50/50 border border-indigo-100 shadow-sm"
-                      : "hover:bg-gray-50 border border-transparent"
-                      }`}
-                  >
-                    {/* Icon / Avatar */}
-                    {item.type === "person" ? (
-                      (item.data as SearchPerson).avatar_url ? (
-                        <img
-                          src={(item.data as SearchPerson).avatar_url!}
-                          alt=""
-                          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">
-                          <User size={20} />
-                        </div>
-                      )
-                    ) : (
-                      <div
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${item.type === "action"
-                          ? "bg-amber-100 text-amber-600"
-                          : item.type === "post"
-                            ? "bg-green-100 text-green-600"
-                            : "bg-gray-100 text-gray-500"
-                          }`}
-                      >
-                        {item.type === "action" ? (
-                          <Command size={20} />
-                        ) : item.type === "post" ? (
-                          <MessageSquare size={20} />
-                        ) : (
-                          <FileText size={20} />
-                        )}
-                      </div>
-                    )}
+            {/* === LOADING STATE === */}
+            {loading && hasQuery && violations.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="relative">
+                  <div className="w-12 h-12 border-4 border-gray-200 rounded-full"></div>
+                  <div className="absolute inset-0 w-12 h-12 border-4 border-black rounded-full border-t-transparent animate-spin"></div>
+                </div>
+                <p className="mt-4 text-gray-500 text-sm">Searching guides, people, and posts...</p>
+              </div>
+            )}
 
-                    {/* Text Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        {item.type === "person" ? (
-                          <>
-                            <h4
-                              className={`font-semibold truncate ${i === selectedIndex ? "text-indigo-900" : "text-gray-900"}`}
-                            >
-                              {highlightMatch((item.data as SearchPerson).display_name || (item.data as SearchPerson).username, query)}
-                            </h4>
-                            <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold uppercase rounded">
-                              <AtSign size={10} className="inline" /> {highlightMatch((item.data as SearchPerson).username, query)}
-                            </span>
-                          </>
-                        ) : item.type === "post" ? (
-                          <h4
-                            className={`font-medium text-sm truncate ${i === selectedIndex ? "text-indigo-900" : "text-gray-900"}`}
-                          >
-                            {highlightMatch(truncateText((item.data as SearchPost).content, 80), query)}
-                          </h4>
-                        ) : item.type === "action" ? (
-                          <>
-                            <h4
-                              className={`font-semibold truncate ${i === selectedIndex ? "text-indigo-900" : "text-gray-900"}`}
-                            >
-                              {highlightMatch((item.data as SearchAction).title, query)}
-                            </h4>
-                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold uppercase rounded">
-                              Command
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <h4
-                              className={`font-semibold truncate ${i === selectedIndex ? "text-indigo-900" : "text-gray-900"}`}
-                            >
-                              {highlightMatch((item.data as SearchGuide).title, query)}
-                            </h4>
-                            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase rounded">
-                              Guide
-                            </span>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Subtitle */}
-                      {item.type === "guide" && (item.data as SearchGuide).keywords && (
-                        <p className="text-sm text-gray-500 truncate mt-0.5">
-                          {(item.data as SearchGuide).keywords!.slice(0, 3).join(", ")}
-                        </p>
-                      )}
-                      {item.type === "person" && (item.data as SearchPerson).bio && (
-                        <p className="text-sm text-gray-500 truncate mt-0.5">
-                          {truncateText((item.data as SearchPerson).bio || "", 60)}
-                        </p>
-                      )}
-                      {item.type === "post" && (item.data as SearchPost).author && (
-                        <p className="text-sm text-gray-500 truncate mt-0.5">
-                          <AtSign size={12} className="inline" />
-                          {(item.data as SearchPost).author!.username}
-                          {(item.data as SearchPost).created_at && (
-                            <span className="ml-2 text-gray-400">
-                              {timeAgo((item.data as SearchPost).created_at)}
-                            </span>
-                          )}
-                        </p>
-                      )}
-                      {item.type === "action" && (
-                        <p className="text-sm text-gray-400 mt-0.5">Quick Action</p>
+            {/* === SEARCH RESULTS (Grouped) === */}
+            {!loading && hasQuery && hasResults && violations.length === 0 && (
+              <div className="p-2">
+                {groupedResults.map((group) => (
+                  <div key={group.type} className="mb-2 last:mb-0">
+                    {/* Section Header */}
+                    <div className="flex items-center gap-2 px-4 py-2">
+                      <group.icon size={14} className="text-gray-400" />
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        {group.label}
+                      </span>
+                      <span className="text-xs text-gray-300 bg-gray-100 px-1.5 py-0.5 rounded-full">
+                        {group.items.length}
+                      </span>
+                      {activeFilter === "all" && group.items.length > 3 && (
+                        <button
+                          onClick={() => {
+                            setActiveFilter(group.type === "guide" ? "guides" : group.type === "person" ? "people" : group.type === "post" ? "posts" : "actions" as SearchFilter);
+                            setSelectedIndex(0);
+                          }}
+                          className="ml-auto text-xs text-indigo-500 hover:text-indigo-700 font-medium"
+                        >
+                          See all
+                        </button>
                       )}
                     </div>
 
-                    {/* Enter Hint */}
-                    {i === selectedIndex && (
-                      <div className="flex items-center gap-2 text-indigo-400 text-sm font-medium animate-in fade-in duration-200">
-                        <span>Open</span>
-                        <kbd className="hidden sm:inline-flex items-center justify-center h-5 w-5 bg-white rounded border border-indigo-200 text-xs shadow-sm">
-                          ?
-                        </kbd>
-                      </div>
-                    )}
-                  </button>
+                    {/* Items in this group */}
+                    {group.items.map((item, itemIdx) => {
+                      const flatIdx = getFlatIndex(group.type, itemIdx);
+                      const isSelected = flatIdx === selectedIndex;
+
+                      return (
+                        <button
+                          key={`${item.type}-${item.type === "action" ? (item.data as SearchAction).id : item.type === "guide" ? (item.data as SearchGuide).id : item.type === "person" ? (item.data as SearchPerson).user_id : (item.data as SearchPost).id}`}
+                          onClick={() => handleResultClick(item)}
+                          onMouseEnter={() => setSelectedIndex(flatIdx)}
+                          className={`w-full flex items-start gap-3 px-4 py-3 rounded-xl text-left transition-all ${isSelected
+                            ? "bg-indigo-50/70 border border-indigo-100 shadow-sm"
+                            : "hover:bg-gray-50 border border-transparent"
+                            }`}
+                        >
+                          {/* Icon / Avatar */}
+                          {item.type === "person" ? (
+                            (item.data as SearchPerson).avatar_url ? (
+                              <img
+                                src={(item.data as SearchPerson).avatar_url!}
+                                alt=""
+                                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                                <User size={20} />
+                              </div>
+                            )
+                          ) : (
+                            <div
+                              className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${item.type === "action"
+                                ? "bg-amber-100 text-amber-600"
+                                : item.type === "post"
+                                  ? "bg-green-100 text-green-600"
+                                  : "bg-gray-100 text-gray-500"
+                                }`}
+                            >
+                              {item.type === "action" ? (
+                                <Command size={20} />
+                              ) : item.type === "post" ? (
+                                <MessageSquare size={20} />
+                              ) : (
+                                <FileText size={20} />
+                              )}
+                            </div>
+                          )}
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            {/* Title Row */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {item.type === "person" ? (
+                                <>
+                                  <h4 className={`font-semibold truncate ${isSelected ? "text-indigo-900" : "text-gray-900"}`}>
+                                    {highlightMatch((item.data as SearchPerson).display_name || (item.data as SearchPerson).username, query)}
+                                  </h4>
+                                  {(item.data as SearchPerson).user_email && (
+                                    <span className="inline-flex items-center">
+                                      {/* VerifiedBadge would need async check, show simple badge instead */}
+                                      {(item.data as SearchPerson).is_verified && (
+                                        <BadgeCheck size={14} className="text-blue-500" />
+                                      )}
+                                    </span>
+                                  )}
+                                  <span className="text-xs text-gray-400">
+                                    <AtSign size={10} className="inline" />
+                                    {highlightMatch((item.data as SearchPerson).username, query)}
+                                  </span>
+                                </>
+                              ) : item.type === "post" ? (
+                                <h4 className={`font-medium text-sm truncate ${isSelected ? "text-indigo-900" : "text-gray-900"}`}>
+                                  {highlightMatch(truncateText((item.data as SearchPost).content, 80), query)}
+                                </h4>
+                              ) : item.type === "action" ? (
+                                <>
+                                  <h4 className={`font-semibold truncate ${isSelected ? "text-indigo-900" : "text-gray-900"}`}>
+                                    {highlightMatch((item.data as SearchAction).title, query)}
+                                  </h4>
+                                  <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold uppercase rounded">
+                                    Command
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <h4 className={`font-semibold truncate ${isSelected ? "text-indigo-900" : "text-gray-900"}`}>
+                                    {highlightMatch((item.data as SearchGuide).title, query)}
+                                  </h4>
+                                  {/* Match Reason Badge */}
+                                  {(item.data as SearchGuide).matchReason && (() => {
+                                    const badge = getMatchReasonLabel((item.data as SearchGuide).matchReason);
+                                    return badge ? (
+                                      <span className={`px-1.5 py-0.5 text-[10px] font-bold uppercase rounded ${badge.color}`}>
+                                        {badge.label}
+                                      </span>
+                                    ) : null;
+                                  })()}
+                                </>
+                              )}
+                            </div>
+
+                            {/* Guide: Content Snippet */}
+                            {item.type === "guide" && (() => {
+                              const guide = item.data as SearchGuide;
+                              const snippet = getContentSnippet(guide, query);
+                              return snippet ? (
+                                <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">
+                                  {highlightMatch(snippet, query)}
+                                </p>
+                              ) : null;
+                            })()}
+
+                            {/* Guide: Meta Row */}
+                            {item.type === "guide" && (() => {
+                              const guide = item.data as SearchGuide;
+                              const hasMeta = guide.views_count || guide.category || guide.difficulty || guide.created_at;
+                              if (!hasMeta) return null;
+                              return (
+                                <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                  {guide.category && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
+                                      <Tag size={10} />
+                                      {guide.category}
+                                    </span>
+                                  )}
+                                  {guide.difficulty && (
+                                    <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${guide.difficulty === "beginner" ? "bg-green-50 text-green-600" :
+                                      guide.difficulty === "intermediate" ? "bg-yellow-50 text-yellow-600" :
+                                        guide.difficulty === "advanced" ? "bg-red-50 text-red-600" :
+                                          "bg-gray-50 text-gray-500"
+                                      }`}>
+                                      {guide.difficulty}
+                                    </span>
+                                  )}
+                                  {guide.views_count !== undefined && guide.views_count > 0 && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
+                                      <Eye size={10} />
+                                      {formatViews(guide.views_count)}
+                                    </span>
+                                  )}
+                                  {guide.created_at && (
+                                    <span className="text-[11px] text-gray-400">
+                                      {timeAgo(guide.created_at)}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
+
+                            {/* Guide: Keywords */}
+                            {item.type === "guide" && (item.data as SearchGuide).keywords && (item.data as SearchGuide).keywords!.length > 0 && (
+                              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                {(item.data as SearchGuide).keywords!.slice(0, 3).map((kw, i) => (
+                                  <span key={i} className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded">
+                                    {kw}
+                                  </span>
+                                ))}
+                                {(item.data as SearchGuide).keywords!.length > 3 && (
+                                  <span className="text-[10px] text-gray-400">
+                                    +{(item.data as SearchGuide).keywords!.length - 3}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Person: Bio */}
+                            {item.type === "person" && (item.data as SearchPerson).bio && (
+                              <p className="text-xs text-gray-500 truncate mt-0.5">
+                                {truncateText((item.data as SearchPerson).bio || "", 80)}
+                              </p>
+                            )}
+
+                            {/* Post: Author + Time */}
+                            {item.type === "post" && (item.data as SearchPost).author && (
+                              <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                                <AtSign size={10} />
+                                <span>{(item.data as SearchPost).author!.username}</span>
+                                {(item.data as SearchPost).created_at && (
+                                  <span className="text-gray-300">· {timeAgo((item.data as SearchPost).created_at)}</span>
+                                )}
+                              </p>
+                            )}
+
+                            {/* Action: Subtitle */}
+                            {item.type === "action" && (
+                              <p className="text-xs text-gray-400 mt-0.5">Quick Action</p>
+                            )}
+                          </div>
+
+                          {/* Enter Hint */}
+                          {isSelected && (
+                            <div className="flex items-center gap-1.5 text-indigo-400 text-xs font-medium animate-in fade-in duration-200 flex-shrink-0 mt-1">
+                              <span>Open</span>
+                              <kbd className="hidden sm:inline-flex items-center justify-center h-4 w-4 bg-white rounded border border-indigo-200 text-[10px] shadow-sm">
+                                ?
+                              </kbd>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 ))}
               </div>
             )}
 
-            {/* No Results State */}
-            {!loading && query && filteredResults.length === 0 && violations.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 px-4">
-                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                  <Search size={28} className="text-gray-400" />
+            {/* === NO RESULTS: Fuzzy Suggestions === */}
+            {!loading && hasQuery && !hasResults && violations.length === 0 && (
+              <div className="p-4 space-y-6">
+                {/* No Results Message */}
+                <div className="flex flex-col items-center justify-center py-6">
+                  <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mb-3">
+                    <Search size={24} className="text-gray-400" />
+                  </div>
+                  <h4 className="text-base font-bold text-gray-800 mb-1">No results for &quot;{query}&quot;</h4>
+                  <p className="text-sm text-gray-500">Try different keywords or check your spelling</p>
                 </div>
-                <h4 className="text-lg font-bold mb-2">No Results</h4>
-                <p className="text-gray-500 text-center mb-4">
-                  No results found for &quot;{query}&quot;
-                </p>
-                <p className="text-sm text-gray-400 text-center">
-                  Try different keywords or check your spelling
-                </p>
+
+                {/* Fuzzy Suggestions */}
+                {fuzzySuggestions.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <Zap size={14} />
+                      Did you mean?
+                    </h3>
+                    <div className="space-y-1">
+                      {fuzzySuggestions.map((guide) => (
+                        <button
+                          key={guide.id}
+                          onClick={() => handleGuideSelect(guide)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors group text-left"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-500 flex items-center justify-center flex-shrink-0">
+                            <Search size={14} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800 truncate group-hover:text-black">
+                              {guide.title}
+                            </p>
+                            {guide.keywords && guide.keywords.length > 0 && (
+                              <p className="text-xs text-gray-400 truncate">
+                                {guide.keywords.slice(0, 2).join(", ")}
+                              </p>
+                            )}
+                          </div>
+                          <ArrowRight size={14} className="text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Popular Guides */}
+                {trendingGuides.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <TrendingUp size={14} />
+                      Popular Guides
+                    </h3>
+                    <div className="space-y-1">
+                      {trendingGuides.slice(0, 3).map((guide, i) => (
+                        <button
+                          key={guide.id}
+                          onClick={() => handleGuideSelect(guide)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors group text-left"
+                        >
+                          <span className="w-6 h-6 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                            {i + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800 truncate group-hover:text-black">
+                              {guide.title}
+                            </p>
+                          </div>
+                          <ArrowRight size={14} className="text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {allGuides.length === 0 && (
-                  <p className="text-sm text-amber-600 mt-4 bg-amber-50 px-4 py-2 rounded-lg">
-                    Database is empty - Add new guides!
+                  <p className="text-sm text-amber-600 text-center bg-amber-50 px-4 py-2 rounded-lg">
+                    Database is empty — add new guides to search!
                   </p>
                 )}
               </div>
@@ -710,23 +1076,19 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
           {/* Footer */}
           <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50/50 text-sm text-gray-500">
             <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1.5 text-gray-400">
-                <Search size={14} />
-                Search guides, people & posts
+              <span className="flex items-center gap-1.5 text-gray-400 text-xs">
+                <Search size={12} />
+                {hasQuery && hasResults ? `${filteredResults.length} results` : "Search guides, people & posts"}
               </span>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 bg-white border rounded text-xs">
-                  ??
-                </kbd>
-                <span className="text-xs">navigate</span>
+                <kbd className="px-1.5 py-0.5 bg-white border rounded text-[10px]">??</kbd>
+                <span className="text-[10px]">navigate</span>
               </div>
               <div className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 bg-white border rounded text-xs">
-                  ?
-                </kbd>
-                <span className="text-xs">select</span>
+                <kbd className="px-1.5 py-0.5 bg-white border rounded text-[10px]">?</kbd>
+                <span className="text-[10px]">select</span>
               </div>
             </div>
           </div>

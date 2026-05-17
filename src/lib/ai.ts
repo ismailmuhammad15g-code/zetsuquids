@@ -206,6 +206,63 @@ export async function searchPosts(query: string): Promise<unknown[]> {
     }
 }
 
+// Get trending guides sorted by views
+export async function getTrendingGuides(limit: number = 5): Promise<unknown[]> {
+    try {
+        const { guidesApi } = await import("./api");
+        const allGuides = await guidesApi.getAll();
+        return (allGuides as { views_count?: number }[])
+            .sort((a, b) => (b.views_count || 0) - (a.views_count || 0))
+            .slice(0, limit);
+    } catch (err) {
+        console.error("Trending guides error:", err);
+        return [];
+    }
+}
+
+// Get trending hashtags from community
+export async function getTrendingTags(limit: number = 8): Promise<{ tag: string; posts_count: number }[]> {
+    try {
+        const trends = await communityApi.getTrends(limit);
+        return (trends || []).map((t: { tag: string; posts_count?: number }) => ({
+            tag: t.tag,
+            posts_count: t.posts_count || 0,
+        }));
+    } catch (err) {
+        console.error("Trending tags error:", err);
+        return [];
+    }
+}
+
+// Fuzzy suggestion: find close matches when no results
+export function getFuzzySuggestions(query: string, guides: unknown[], limit: number = 3): unknown[] {
+    if (!query || !guides || guides.length === 0) return [];
+    const q = query.toLowerCase().trim();
+    const suggestions: { guide: unknown; distance: number }[] = [];
+
+    for (const guide of guides as { title?: string }[]) {
+        const title = (guide.title || "").toLowerCase();
+        if (title.length < 2) continue;
+        const words = title.split(/\s+/);
+        let minDist = Infinity;
+        for (const word of words) {
+            const dist = levenshtein(word, q);
+            if (dist < minDist) minDist = dist;
+        }
+        // Also check full title
+        const fullDist = levenshtein(title, q);
+        minDist = Math.min(minDist, fullDist);
+        if (minDist <= Math.max(3, Math.floor(q.length / 2))) {
+            suggestions.push({ guide, distance: minDist });
+        }
+    }
+
+    return suggestions
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, limit)
+        .map(s => s.guide);
+}
+
 // isAIConfigured kept for backward compatibility with Chatbot.tsx
 export function isAIConfigured(): boolean {
     return true;
