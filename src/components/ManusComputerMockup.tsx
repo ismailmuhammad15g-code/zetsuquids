@@ -1,5 +1,5 @@
 "use client";
-import { CheckCircle2, ChevronRight, Loader2, Maximize, Minus, PauseCircle, Terminal, X } from "lucide-react";
+import { CheckCircle2, ChevronRight, ListChecks, Loader2, Maximize, Minus, PauseCircle, Terminal, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
@@ -11,29 +11,45 @@ export type AgentLogEntry = {
     isLive?: boolean;
 };
 
+export interface AgentTask {
+    id: string;
+    label: string;
+    status: "pending" | "in_progress" | "completed";
+}
+
 interface ManusComputerMockupProps {
     logs: AgentLogEntry[];
     isActive: boolean;
-    currentCode?: string; // If the AI is writing code/markdown currently
+    currentCode?: string;
     filename?: string;
+    plan?: string[];
+    tasks?: AgentTask[];
+    currentStep?: number;
+    maxSteps?: number;
 }
 
-export default function ManusComputerMockup({ logs, isActive, currentCode, filename = "task_workflow.md" }: ManusComputerMockupProps) {
+export default function ManusComputerMockup({
+    logs,
+    isActive,
+    currentCode,
+    filename = "task_workflow.md",
+    plan = [],
+    tasks = [],
+    currentStep = 0,
+    maxSteps = 25,
+}: ManusComputerMockupProps) {
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const [elapsed, setElapsed] = useState(0);
     const startTime = useRef(Date.now());
-    
-    // Get the latest log entry for real-time display
+
     const latestLog = logs.length > 0 ? logs[logs.length - 1] : null;
 
-    // Auto-scroll to bottom of logs
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [logs]);
+    }, [logs, tasks]);
 
-    // Elapsed time counter
     useEffect(() => {
         if (!isActive) { setElapsed(0); return; }
         startTime.current = Date.now();
@@ -43,155 +59,229 @@ export default function ManusComputerMockup({ logs, isActive, currentCode, filen
         return () => clearInterval(interval);
     }, [isActive]);
 
+    const completedCount = tasks.filter(t => t.status === "completed").length;
+    const totalTasks = tasks.length;
+    const progressPct = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+
     return (
         <div className="flex flex-col w-[600px] h-[700px] max-h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200 animate-in slide-in-from-right-4 zoom-in-95 duration-500 font-sans">
             {/* macOS Title Bar */}
-            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 select-none">
+            <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200 select-none cursor-default flex-shrink-0">
                 <div className="flex items-center gap-2">
-                    {/* Mac Buttons */}
-                    <div className="flex gap-1.5 group">
-                        <div className="w-3 h-3 rounded-full bg-red-400 border border-red-500 flex items-center justify-center">
-                            <X size={8} className="text-red-900 opacity-0 group-hover:opacity-100" />
-                        </div>
-                        <div className="w-3 h-3 rounded-full bg-yellow-400 border border-yellow-500 flex items-center justify-center">
-                            <Minus size={8} className="text-yellow-900 opacity-0 group-hover:opacity-100" />
-                        </div>
-                        <div className="w-3 h-3 rounded-full bg-green-400 border border-green-500 flex items-center justify-center">
-                            <Maximize size={8} className="text-green-900 opacity-0 group-hover:opacity-100" />
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 ml-2">
-                        <span className="font-semibold text-slate-700 text-sm">ZetsuGuide AI Workstation</span>
-                        {isActive && (
-                            <div className="flex items-center gap-1 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 animate-pulse">
-                                <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
-                                <span className="text-[8px] font-bold text-red-600 uppercase">Live</span>
-                            </div>
-                        )}
+                    <div className="flex gap-2">
+                        <div className="w-3 h-3 rounded-full bg-red-400 hover:bg-red-500 transition-colors shadow-sm" />
+                        <div className="w-3 h-3 rounded-full bg-yellow-400 hover:bg-yellow-500 transition-colors shadow-sm" />
+                        <div className="w-3 h-3 rounded-full bg-green-400 hover:bg-green-500 transition-colors shadow-sm" />
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <Terminal size={14} className="text-slate-400" />
-                </div>
-            </div>
-
-            {/* Real-time Operation Status Bar */}
-            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 border-b border-slate-200">
-                <div className="flex items-center gap-1.5 text-slate-400">
+                <div className="absolute left-1/2 -translate-x-1/2 text-xs font-medium text-slate-400 tracking-wide flex items-center gap-2">
                     <Terminal size={12} />
+                    Zetsu Agent
                 </div>
-                <div className="flex-1 bg-slate-900 border border-slate-800 rounded-md py-1.5 px-3 flex items-center gap-2 shadow-inner">
-                    <span className="text-emerald-500 text-[10px] font-mono font-bold select-none whitespace-nowrap">bash ~ agent:</span>
-                    <span className="text-slate-300 text-[11px] font-mono truncate">
-                        {isActive ? (latestLog?.text || "Initializing kernel...") : "Session terminated (idle)"}
-                    </span>
-                    {isActive && <span className="w-1.5 h-3 bg-emerald-500 animate-pulse"></span>}
-                </div>
-                <div className="text-[10px] font-bold text-slate-500 font-mono">
-                    PID: {isActive ? '8842' : '----'}
+                <div className="flex items-center gap-3 text-slate-400">
+                    <Minus size={14} className="cursor-pointer hover:text-slate-600" />
+                    <Maximize size={14} className="cursor-pointer hover:text-slate-600" />
+                    <X size={14} className="cursor-pointer hover:text-slate-600" />
                 </div>
             </div>
 
-            {/* Task Context Bar */}
-            <div className="flex items-center justify-between px-4 py-1.5 bg-indigo-600 text-white shadow-lg">
-                <div className="flex items-center gap-2 overflow-hidden">
-                    <Loader2 size={12} className={`animate-spin ${isActive ? 'opacity-100' : 'opacity-0'}`} />
-                    <span className="text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">
-                        {isActive ? 'Processing Autonomous Task' : 'Task Successfully Completed'}
+            {/* Live Status Bar */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-slate-900 text-xs font-mono flex-shrink-0">
+                {isActive ? (
+                    <span className="flex items-center gap-1.5 text-emerald-400">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        Processing
                     </span>
-                    <span className="text-indigo-300">|</span>
-                    <span className="text-[11px] font-medium truncate italic opacity-90">
-                        Target: {filename}
+                ) : (
+                    <span className="flex items-center gap-1.5 text-slate-500">
+                        <PauseCircle size={10} />
+                        Idle
                     </span>
+                )}
+                <span className="text-slate-600">|</span>
+                <span className="text-slate-400 truncate flex-1">
+                    {latestLog ? latestLog.text : "Waiting for instructions..."}
+                </span>
+                <span className="text-slate-600 tabular-nums">{elapsed}s</span>
+            </div>
+
+            {/* Context Bar */}
+            <div className={`flex items-center justify-between px-4 py-2 border-b flex-shrink-0 ${isActive ? "bg-indigo-50/50 border-indigo-100" : "bg-emerald-50/50 border-emerald-100"}`}>
+                <div className="flex items-center gap-2 text-sm font-medium">
+                    {isActive ? (
+                        <>
+                            <Loader2 size={14} className="text-indigo-500 animate-spin" />
+                            <span className="text-indigo-700">Processing Autonomous Task</span>
+                            {totalTasks > 0 && (
+                                <span className="text-xs text-indigo-400 ml-2">
+                                    ({completedCount}/{totalTasks} tasks)
+                                </span>
+                            )}
+                            {currentStep > 0 && (
+                                <span className="text-[10px] text-indigo-300 ml-1">
+                                    Step {currentStep}/{maxSteps}
+                                </span>
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            <CheckCircle2 size={14} className="text-emerald-500" />
+                            <span className="text-emerald-700">Task Successfully Completed</span>
+                        </>
+                    )}
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="w-1 h-1 rounded-full bg-white/50"></div>
-                    <span className="text-[9px] font-mono opacity-70">CPU: {isActive ? '12%' : '0%'}</span>
+                    {isActive && (
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded text-xs font-medium">
+                            <span className="relative flex h-1.5 w-1.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500"></span>
+                            </span>
+                            Live
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 bg-slate-50 relative overflow-hidden flex flex-col">
-                {/* Editor Tab */}
-                <div className="mx-4 mt-4 bg-white border border-slate-200 rounded-t-lg shadow-sm flex-1 flex flex-col overflow-hidden">
-                    <div className="px-4 py-2 bg-slate-100 border-b border-slate-200 text-xs font-mono text-slate-500 flex justify-center font-semibold">
-                        {filename}
-                    </div>
-                    <div className="p-6 overflow-y-auto flex-1 prose prose-sm max-w-none text-slate-700 font-mono text-sm leading-relaxed">
-                        {currentCode ? (
-                            <ReactMarkdown>{currentCode}</ReactMarkdown>
-                        ) : (
-                            <div className="flex flex-col gap-4 text-slate-300 mt-4 animate-pulse">
-                                {isActive && (
-                                    <>
-                                        <div className="h-4 bg-slate-200 rounded w-3/4"></div>
-                                        <div className="h-4 bg-slate-200 rounded w-full"></div>
-                                        <div className="h-4 bg-slate-200 rounded w-5/6"></div>
-                                        <div className="h-4 bg-slate-200 rounded w-1/2"></div>
-                                    </>
+            <div className="flex-1 overflow-hidden flex flex-col bg-slate-50/30">
+                <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
+
+                    {/* Plan Section */}
+                    {plan.length > 0 && (
+                        <div className="bg-white rounded-lg border border-indigo-200 shadow-sm overflow-hidden">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border-b border-indigo-100">
+                                <ListChecks size={14} className="text-indigo-500" />
+                                <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Plan</span>
+                            </div>
+                            <div className="p-2 space-y-1">
+                                {plan.map((step, i) => (
+                                    <div key={i} className="flex items-start gap-2 px-2 py-1.5 text-sm">
+                                        <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">
+                                            {i + 1}
+                                        </span>
+                                        <span className="text-slate-700">{step}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Tasks Section */}
+                    {tasks.length > 0 && (
+                        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+                            <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-100">
+                                <div className="flex items-center gap-2">
+                                    <CheckCircle2 size={14} className="text-slate-500" />
+                                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Tasks</span>
+                                </div>
+                                {totalTasks > 0 && (
+                                    <span className="text-[10px] text-slate-400">
+                                        {completedCount}/{totalTasks}
+                                    </span>
                                 )}
                             </div>
-                        )}
-                    </div>
-                </div>
+                            <div className="p-2 space-y-1">
+                                {tasks.map((task) => (
+                                    <div key={task.id} className={`flex items-center gap-2 px-2 py-1.5 text-sm rounded transition-colors ${task.status === "completed" ? "bg-emerald-50" : task.status === "in_progress" ? "bg-indigo-50" : ""}`}>
+                                        {task.status === "completed" ? (
+                                            <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
+                                        ) : task.status === "in_progress" ? (
+                                            <Loader2 size={14} className="text-indigo-500 animate-spin flex-shrink-0" />
+                                        ) : (
+                                            <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 flex-shrink-0" />
+                                        )}
+                                        <span className={`${task.status === "completed" ? "text-slate-400 line-through" : "text-slate-700"}`}>
+                                            {task.label}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                            {/* Progress bar */}
+                            <div className="h-1 bg-slate-100">
+                                <div
+                                    className="h-full bg-emerald-500 transition-all duration-500"
+                                    style={{ width: `${progressPct}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
 
-                {/* Progress Bar overlay at the bottom of the editor */}
-                <div className="absolute bottom-4 left-4 right-4 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-slate-200 shadow-sm flex flex-col gap-1 z-10">
-                    <div className="flex items-center justify-between text-xs text-slate-500">
-                        <div className="flex items-center gap-2">
-                            <ChevronRight size={14} />
-                            <ChevronRight size={14} className="-ml-3" />
+                    {/* Code/Editor Display */}
+                    {currentCode && (
+                        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border-b border-slate-100">
+                                <span className="w-3 h-3 rounded-full bg-red-300" />
+                                <span className="w-3 h-3 rounded-full bg-yellow-300" />
+                                <span className="w-3 h-3 rounded-full bg-green-300" />
+                                <span className="ml-2 text-xs text-slate-400 font-mono">{filename}</span>
+                            </div>
+                            <div className="p-3 max-h-[200px] overflow-y-auto">
+                                <div className="prose prose-xs prose-slate max-w-none text-xs leading-relaxed">
+                                    <ReactMarkdown>{currentCode.replace(/\[\s*ACTION\s*:[^\]]+\]/gi, "").trim()}</ReactMarkdown>
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-1 font-medium">
-                            <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`}></div>
-                            {isActive ? 'live' : 'done'}
+                    )}
+
+                    {/* Empty State */}
+                    {!currentCode && logs.length === 0 && plan.length === 0 && tasks.length === 0 && (
+                        <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                            <Terminal size={32} className="mb-2 opacity-40" />
+                            <p className="text-sm">Agent workstation ready</p>
                         </div>
-                    </div>
-                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden flex">
-                        <div className={`h-full bg-blue-500 rounded-full transition-all duration-300 ${isActive ? 'w-2/3 animate-pulse' : 'w-full'}`}></div>
-                    </div>
+                    )}
                 </div>
             </div>
 
-            {/* Bottom Log Panel like the screenshot */}
-            <div className="h-28 bg-white border-t border-slate-200 p-4 flex flex-col justify-between">
-                <div ref={scrollRef} className="flex-1 overflow-hidden relative">
-                    <div className="absolute bottom-0 w-full flex flex-col gap-1 justify-end transition-all duration-300">
-                        {logs.slice(-3).map((log, idx, arr) => (
-                            <div key={log.id} className={`flex items-start gap-3 transition-opacity ${idx === arr.length - 1 ? 'opacity-100' : 'opacity-40'}`}>
-                                <div className="mt-1 flex-shrink-0">
-                                    {log.type === 'done' ? (
-                                        <CheckCircle2 size={14} className="text-green-500" />
-                                    ) : (
-                                        <div className="w-3 h-3 rounded-full bg-blue-500 border-2 border-blue-200 shadow-[0_0_8px_rgba(59,130,246,0.6)] animate-pulse"></div>
-                                    )}
-                                </div>
-                                <div className="flex flex-col -mt-0.5">
-                                    <span className="text-sm font-medium text-slate-700">{log.text}</span>
-                                    {idx === arr.length - 1 && isActive && (
-                                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5 font-mono">
-                                            <span>0:{elapsed.toString().padStart(2, '0')}</span>
-                                            <span className="flex items-center gap-1">
-                                                <Loader2 size={10} className="animate-spin" />
-                                                {log.type === 'thought' ? 'Thinking' : log.type === 'search' ? 'Searching internet' : 'Working'}...
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                        {logs.length === 0 && (
-                            <div className="flex items-start gap-3 opacity-100">
-                                <div className="mt-1 flex-shrink-0">
-                                    <PauseCircle size={14} className="text-slate-400" />
-                                </div>
-                                <div className="flex flex-col -mt-0.5">
-                                    <span className="text-sm font-medium text-slate-500">Awaiting task...</span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+            {/* Logs Panel */}
+            <div className="flex flex-col border-t border-slate-200 bg-slate-50 flex-shrink-0 max-h-[150px]">
+                <div className="flex items-center gap-2 px-4 py-1.5 border-b border-slate-200/50">
+                    <ChevronRight size={10} className="text-slate-400" />
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Activity Log</span>
+                    {logs.length > 0 && <span className="text-[10px] text-slate-400 ml-auto">{logs.length} entries</span>}
                 </div>
+                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                    {logs.length === 0 && (
+                        <div className="text-xs text-slate-400 px-2 py-1">No activity recorded yet.</div>
+                    )}
+                    {logs.slice(-3).map((log) => (
+                        <div key={log.id} className={`flex items-start gap-2 px-2 py-1 rounded text-xs ${log.isLive ? "bg-indigo-50" : ""}`}>
+                            <span className="text-slate-300 mt-0.5 flex-shrink-0">
+                                {log.type === "thought" && <span className="text-indigo-400">?</span>}
+                                {log.type === "step" && <span className="text-indigo-400">?</span>}
+                                {log.type === "action" && <span className="text-amber-500">?</span>}
+                                {log.type === "result" && <span className="text-emerald-500">?</span>}
+                                {log.type === "error" && <span className="text-red-500">?</span>}
+                                {log.type === "search" && <span className="text-blue-400">?</span>}
+                                {log.type === "write" && <span className="text-emerald-400">?</span>}
+                                {log.type === "done" && <span className="text-emerald-600">?</span>}
+                            </span>
+                            <span className="text-slate-600 flex-1">{log.text}</span>
+                            {log.isLive && (
+                                <span className="flex items-center gap-1 text-indigo-400 flex-shrink-0">
+                                    <span className="relative flex h-1.5 w-1.5">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500"></span>
+                                    </span>
+                                </span>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Bottom Elapsed Bar */}
+            <div className="w-full h-1 bg-slate-100 flex-shrink-0 overflow-hidden">
+                {isActive && (
+                    <div
+                        className="h-full bg-indigo-200 transition-all duration-1000"
+                        style={{ width: `${Math.min((elapsed / 120) * 100, 100)}%` }}
+                    />
+                )}
             </div>
         </div>
     );

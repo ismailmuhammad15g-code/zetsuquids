@@ -298,6 +298,17 @@ export default function Chatbot() {
   const [agentLogs, setAgentLogs] = useState<AgentLogEntry[]>([]);
   const [agentIsActive, setAgentIsActive] = useState(false);
 
+  // Agent plan & task tracking
+  interface AgentTask {
+    id: string;
+    label: string;
+    status: "pending" | "in_progress" | "completed";
+  }
+  const [agentPlan, setAgentPlan] = useState<string[]>([]);
+  const [agentTasks, setAgentTasks] = useState<AgentTask[]>([]);
+  const agentStepCount = useRef(0);
+  const MAX_AGENT_STEPS = 25;
+
   const pushLog = (type: AgentLogEntry["type"], text: string, isLive = false) => {
     const entry: AgentLogEntry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -556,8 +567,14 @@ export default function Chatbot() {
       
       // Smart Auto-Completion: If AI forgot finish tag but is active and didn't use ANY progress tags, it's done naturally (e.g. just gave final code)
       const usedProgressTag = /\[\s*ACTION\s*:\s*(STEP|THOUGHT|SEARCH|WRITE|RESULT|SAVE_GUIDE)/i.test(rawText);
-      const isFinished = explicitFinish || codeFinish || (agentIsActive && !usedProgressTag && !shouldContinue && !justOpened);
-      
+
+      // MAX STEPS GUARD: Force-finish if agent exceeded max steps
+      const exceededMaxSteps = agentIsActive && agentStepCount.current >= MAX_AGENT_STEPS;
+      if (exceededMaxSteps) {
+        console.warn(`🤖 Agent exceeded max steps (${MAX_AGENT_STEPS}). Force finishing.`);
+      }
+      const isFinished = explicitFinish || codeFinish || exceededMaxSteps || (agentIsActive && !usedProgressTag && !shouldContinue && !justOpened);
+
       let contentToClean = lastMsg.content;
       let hasChanges = false;
 
@@ -644,6 +661,9 @@ export default function Chatbot() {
       // 5.5. Action COMPUTER_OPEN (Explicitly show workstation)
       if (/\[ACTION:COMPUTER_OPEN\]/i.test(contentToClean)) {
         setAgentIsActive(true);
+        agentStepCount.current = 0;
+        setAgentPlan([]);
+        setAgentTasks([]);
         hasChanges = true;
         contentToClean = contentToClean.replace(/\[ACTION:COMPUTER_OPEN\]/gi, "").trim();
         pushLog("action", "Initializing AI Workstation...");
@@ -756,8 +776,50 @@ export default function Chatbot() {
         }
       }
 
+      // 11.1. Action PLAN (parse plan items from AI response)
+      const planRegex = /\[ACTION:PLAN:([\s\S]*?)\]/gi;
+      let plMatch;
+      while ((plMatch = planRegex.exec(contentToClean)) !== null) {
+        const planText = plMatch[1].trim();
+        hasChanges = true;
+        setAgentPlan((prev) => {
+          if (!prev.includes(planText)) return [...prev, planText];
+          return prev;
+        });
+        // Create a pending task for each plan item
+        const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        setAgentTasks((prev) => {
+          if (prev.some(t => t.label === planText)) return prev;
+          return [...prev, { id: taskId, label: planText, status: "pending" }];
+        });
+        pushLog("step", `Plan: ${planText}`);
+        contentToClean = contentToClean.replace(plMatch[0], "").trim();
+      }
+
+      // 11.2. Action TASK_DONE (mark a task as completed)
+      const taskDoneRegex = /\[ACTION:TASK_DONE:(.+?)\]/gi;
+      let tdMatch;
+      while ((tdMatch = taskDoneRegex.exec(contentToClean)) !== null) {
+        const taskLabel = tdMatch[1].trim();
+        hasChanges = true;
+        setAgentTasks((prev) =>
+          prev.map(t =>
+            t.label.toLowerCase().includes(taskLabel.toLowerCase()) || taskLabel.toLowerCase().includes(t.label.toLowerCase())
+              ? { ...t, status: "completed" as const }
+              : t
+          )
+        );
+        pushLog("done", `Completed: ${taskLabel}`);
+        contentToClean = contentToClean.replace(tdMatch[0], "").trim();
+      }
+
+      // 11.3. Track step count for max-steps guard
+      if (usedProgressTag || shouldContinue) {
+        agentStepCount.current += 1;
+      }
+
       // 11.5. Clean Finished Tags
-      if (explicitFinish || codeFinish) {
+      if (explicitFinish || codeFinish || exceededMaxSteps) {
         hasChanges = true;
         contentToClean = contentToClean.replace(/\[\s*ACTION\s*:\s*(WORK_FINISHED|WORK-FINISHED|WORKFINISHED|COMPUTER_CLOSE|FINISHED|FINISH|DONE|COMPLETE|COMPLETED|SUCCESS)\s*\]/gi, "").trim();
       }
@@ -787,10 +849,14 @@ export default function Chatbot() {
 
       // Final Decision Phase (Infinite Autonomy)
       if (isFinished) {
-        console.log(`🤖 Task finished (${explicitFinish ? 'explicit tag' : 'smart auto-detect'}).`);
+        const reason = exceededMaxSteps ? `max steps (${MAX_AGENT_STEPS}) reached` : explicitFinish ? 'explicit tag' : 'smart auto-detect';
+        console.log(`🤖 Task finished (${reason}).`);
         setAgentIsActive(false);
+        agentStepCount.current = 0;
+        // Mark all remaining pending tasks as completed
+        setAgentTasks((prev) => prev.map(t => t.status === "pending" ? { ...t, status: "completed" as const } : t));
         if (agentLogs.length > 0 && !justOpened) {
-          pushLog("done", "Task completed successfully.");
+          pushLog("done", exceededMaxSteps ? `Task force-completed after ${MAX_AGENT_STEPS} steps.` : "Task completed successfully.");
         }
       } else if (shouldContinue) {
         setTriggerContinue(true);
@@ -1273,6 +1339,9 @@ export default function Chatbot() {
     if (!isHidden) {
       setAgentLogs([]);
       setAgentSteps([]);
+      setAgentPlan([]);
+      setAgentTasks([]);
+      agentStepCount.current = 0;
     }
 
     // Optimistic UI update (Only for non-system messages)
@@ -1570,6 +1639,10 @@ export default function Chatbot() {
                 logs={agentLogs}
                 isActive={agentIsActive}
                 currentCode={messages[messages.length - 1]?.role === "bot" ? messages[messages.length - 1].content : ""}
+                plan={agentPlan}
+                tasks={agentTasks}
+                currentStep={agentStepCount.current}
+                maxSteps={MAX_AGENT_STEPS}
               />
             </div>
           )}

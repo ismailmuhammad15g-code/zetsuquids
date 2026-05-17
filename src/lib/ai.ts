@@ -332,29 +332,50 @@ ${relevantGuidesText}
    - Open specific page: \`\`\`json {"action": "redirect", "url": "/guides"} \`\`\`
 
 4. Autonomous Execution Loop (REAL-TIME AGENT - CRITICAL):
-   When the user asks a complex task:
-   - You MUST first emit [ACTION:COMPUTER_OPEN] to show the workstation.
-   - Break the task into atomic steps and work through each step automatically.
+   When the user asks a complex task, follow this EXACT sequence:
 
-   AVAILABLE ACTION TAGS (Emit at the START of each step):
-    - [ACTION:COMPUTER_OPEN] - use this FIRST to show the workstation panel.
-    - [ACTION:COMPUTER_CLOSE] - use this LAST when the entire complex task is finished.
-    - [ACTION:THOUGHT:your plan] - emit this after COMPUTER_OPEN to show reasoning.
-    - [ACTION:SEARCH:query] - when gathering information.
-    - [ACTION:WRITE:section] - when writing a section.
-    - [ACTION:RESULT:summary] - summarize the key results.
-    - [ACTION:STEP:label] - short label for the current step.
-    - [ACTION:CONTINUE] - signal "I am not done, keep going automatically".
-    - [ACTION:SAVE_GUIDE:Title] - save the guide (ONLY WHEN ASKED).
-    - [ACTION:PUBLISH] - save/publish (only in editor).
-    - [ACTION:WORK_FINISHED] - signal that the task is complete.
+   STEP 1 - OPEN & PLAN (FIRST response):
+   - Emit [ACTION:COMPUTER_OPEN] to show the workstation.
+   - Emit [ACTION:THOUGHT:reasoning about the task] to explain your approach.
+   - Emit ONE [ACTION:PLAN:step description] for EACH planned step. Example:
+     [ACTION:PLAN:Research latest AI tools for 2026]
+     [ACTION:PLAN:Compile findings into a structured list]
+     [ACTION:PLAN:Present results to the user]
+   - Then emit [ACTION:STEP:first step label] and do the first step.
+   - End with [ACTION:CONTINUE].
 
-   AGENTIC LOOP RULE (STRICT):
-   - DO NOT perform multiple steps in a single response.
-   - Emit ONE thought, ONE step, ONE action/result.
-   - The system will AUTOMATICALLY trigger the next step for you as long as you are in Agent Mode.
-   - To STOP the loop and finish the task, you MUST emit exactly [ACTION:WORK_FINISHED] at the very end of your final message.
-   - FAILURE TO EMIT [ACTION:WORK_FINISHED] WILL CAUSE AN INFINITE LOOP. YOU MUST INCLUDE IT.`;
+   STEP 2+ - EXECUTE (subsequent responses):
+   - Complete ONE atomic action per response.
+   - After completing a step, emit [ACTION:TASK_DONE:step description] to mark it complete.
+   - Then emit [ACTION:STEP:next step label] for the next step.
+   - End with [ACTION:CONTINUE] to proceed.
+
+   FINAL STEP - FINISH (LAST response):
+   - After ALL tasks are done, emit [ACTION:TASK_DONE:last task].
+   - Then emit [ACTION:RESULT:final summary of what was accomplished].
+   - FINALLY emit [ACTION:WORK_FINISHED] as the ABSOLUTE LAST tag.
+   - NEVER forget [ACTION:WORK_FINISHED] - the system will loop infinitely without it.
+
+   AVAILABLE ACTION TAGS:
+    - [ACTION:COMPUTER_OPEN] - show the workstation panel (use FIRST).
+    - [ACTION:COMPUTER_CLOSE] - close workstation (alternative to WORK_FINISHED).
+    - [ACTION:PLAN:description] - declare a planned task step (shown in UI task list).
+    - [ACTION:TASK_DONE:description] - mark a planned task as completed.
+    - [ACTION:THOUGHT:reasoning] - show your reasoning.
+    - [ACTION:STEP:label] - label for the current step.
+    - [ACTION:SEARCH:query] - when searching for information.
+    - [ACTION:WRITE:section] - when writing content.
+    - [ACTION:RESULT:summary] - summarize results.
+    - [ACTION:CONTINUE] - signal "I am not done, proceed to next step".
+    - [ACTION:SAVE_GUIDE:Title] - save a guide (ONLY WHEN ASKED).
+    - [ACTION:WORK_FINISHED] - signal task is COMPLETE (MANDATORY last tag).
+
+   CRITICAL RULES:
+   - Always emit PLAN tags before starting execution.
+   - Always emit TASK_DONE after completing each planned step.
+   - Always emit WORK_FINISHED at the very end. NO EXCEPTIONS.
+   - ONE action per response. The system auto-triggers the next step.
+   - Maximum 25 steps. Finish before hitting the limit.`;
 
         const response = await fetch('/api/ai', {
             method: 'POST',
