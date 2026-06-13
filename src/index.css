@@ -3,15 +3,9 @@
 @tailwind utilities;
 
 html {
-  font-size: 12.5px; /* Slightly increased to ~78% scale */
+  font-size: 16px;
   scroll-behavior: smooth;
-  -webkit-text-size-adjust: 100%; /* Prevent automatic text resizing */
-}
-
-@media (min-width: 1024px) {
-  html {
-    zoom: 0.9; /* Increased from 0.85 to 0.9 for a 5% bump */
-  }
+  -webkit-text-size-adjust: 100%;
 }
 
 * {
@@ -117,70 +111,254 @@ body {
   animation-name: slide-in-from-top-4;
 }
 
-/* Guide Content Styles */
+/* ─── Guide Markdown Prose ─────────────────────────────────────────────────── */
+
 .guide-content {
-  @apply text-gray-800;
+  font-size: 1rem;
+  line-height: 1.8;
+  word-break: break-word;
+}
+
+.guide-content h1,
+.guide-content h2,
+.guide-content h3,
+.guide-content h4,
+.guide-content h5,
+.guide-content h6 {
+  font-weight: 700;
+  line-height: 1.3;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  scroll-margin-top: 5rem;
 }
 
 .guide-content h1 {
-  @apply text-3xl font-black mt-8 mb-4;
+  font-size: 2rem;
 }
 
 .guide-content h2 {
-  @apply text-2xl font-bold mt-6 mb-3;
+  font-size: 1.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dark .guide-content h2 {
+  border-bottom-color: #374151;
 }
 
 .guide-content h3 {
-  @apply text-xl font-bold mt-4 mb-2;
+  font-size: 1.25rem;
+}
+
+.guide-content h4 {
+  font-size: 1.1rem;
 }
 
 .guide-content p {
-  @apply mb-4 leading-relaxed;
+  margin-bottom: 1.25rem;
+  color: #374151;
 }
 
-.guide-content ul,
-.guide-content ol {
-  @apply mb-4 pl-6;
-}
-
-.guide-content li {
-  @apply mb-2;
-}
-
-.guide-content ul li {
-  @apply list-disc;
-}
-
-.guide-content ol li {
-  @apply list-decimal;
-}
-
-.guide-content code {
-  @apply bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono;
-}
-
-.guide-content pre {
-  @apply bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto mb-4;
-}
-
-.guide-content pre code {
-  @apply bg-transparent p-0 text-inherit;
+.dark .guide-content p {
+  color: #d1d5db;
 }
 
 .guide-content a {
-  @apply text-blue-600 underline hover:text-blue-800;
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: opacity 0.15s ease;
 }
 
+.dark .guide-content a {
+  color: #60a5fa;
+}
+
+.guide-content a:hover {
+  opacity: 0.75;
+}
+
+.guide-content strong {
+  font-weight: 700;
+  color: #111827;
+}
+
+.dark .guide-content strong {
+  color: #ffffff;
+}
+
+.guide-content em {
+  font-style: italic;
+}
+
+/* Lists */
+.guide-content ul,
+.guide-content ol {
+  padding-left: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.guide-content ul {
+  list-style-type: disc;
+}
+
+.guide-content ol {
+  list-style-type: decimal;
+}
+
+.guide-content li {
+  margin-bottom: 0.4rem;
+  color: #374151;
+}
+
+.dark .guide-content li {
+  color: #d1d5db;
+}
+
+.guide-content li > p {
+  margin-bottom: 0.25rem;
+}
+
+/* Blockquote */
 .guide-content blockquote {
-  @apply border-l-4 border-black pl-4 italic my-4 text-gray-600;
+  border-left: 3px solid #3b82f6;
+  padding: 0.75rem 1.25rem;
+  margin: 1.5rem 0;
+  background-color: #f8fafc;
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: #64748b;
+  font-style: italic;
 }
 
-.guide-content img {
-  @apply max-w-full h-auto rounded my-4;
+.dark .guide-content blockquote {
+  background-color: rgba(30, 41, 59, 0.5);
+  color: #94a3b8;
 }
 
+.guide-content blockquote p {
+  margin-bottom: 0;
+  color: inherit;
+}
+
+/* Inline code */
+.guide-content code:not(pre > code) {
+  background-color: #f1f5f9;
+  color: #2563eb;
+  border: 1px solid #e2e8f0;
+  padding: 0.15em 0.4em;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace;
+}
+
+.dark .guide-content code:not(pre > code) {
+  background-color: #1e293b;
+  color: #60a5fa;
+  border-color: #334155;
+}
+
+/* Code blocks */
+.guide-content pre {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.guide-content pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #e2e8f0;
+  font-size: inherit;
+}
+
+/* Tables */
 .guide-content table {
-  @apply w-full border-collapse mb-4;
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.9rem;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+.dark .guide-content table {
+  border-color: #334155;
+}
+
+.guide-content thead {
+  background-color: #f8fafc;
+}
+
+.dark .guide-content thead {
+  background-color: #1e293b;
+}
+
+.guide-content th {
+  text-align: left;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  color: #111827;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dark .guide-content th {
+  color: #f1f5f9;
+  border-bottom-color: #334155;
+}
+
+.guide-content td {
+  padding: 0.6rem 1rem;
+  color: #374151;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dark .guide-content td {
+  color: #d1d5db;
+  border-bottom-color: #334155;
+}
+
+.guide-content tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.guide-content tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.dark .guide-content tbody tr:hover {
+  background-color: rgba(30, 41, 59, 0.5);
+}
+
+/* Horizontal rule */
+.guide-content hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 2rem 0;
+}
+
+.dark .guide-content hr {
+  border-top-color: #374151;
+}
+
+/* Images */
+.guide-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  margin: 1.5rem auto;
+  display: block;
+}
+
+.dark .guide-content img {
+  border-color: #334155;
 }
 
 /* Callout boxes inserted via editor */
@@ -366,32 +544,15 @@ kbd {
   color: #111827;
   text-decoration: underline;
 }
-.guide-content th,
-.guide-content td {
-  @apply border border-gray-300 px-4 py-2 text-left;
-}
-
-.guide-content th {
-  @apply bg-gray-100 font-bold;
-}
-
-/* Prose overrides for better styling */
-.prose {
-  @apply max-w-none;
-}
-
-.prose pre {
-  @apply bg-gray-900;
-}
-
-.prose code::before,
-.prose code::after {
+/* Ensure highlight.js code pseudo-elements are suppressed */
+.guide-content code::before,
+.guide-content code::after {
   content: none;
 }
 
-/* Ensure highlight.js colors are not overridden by Tailwind typography */
+/* Ensure highlight.js colors are not overridden */
 .hljs {
-  background: transparent !important; /* let prose-pre handle background */
+  background: transparent !important;
 }
 
 

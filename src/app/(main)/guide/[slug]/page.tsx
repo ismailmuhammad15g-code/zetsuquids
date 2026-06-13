@@ -30,7 +30,6 @@ import {
 } from "lucide-react";
 
 
-import "highlight.js/styles/github-dark.css";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
