@@ -3,8 +3,9 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft, CreditCard, Building2, Loader2, Check, Shield, Lock, ShoppingCart
+  ArrowLeft, CreditCard, Building2, Check, Shield, Lock, ShoppingCart
 } from 'lucide-react';
+import Loading from '@/components/scripts/Loading';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -25,7 +26,7 @@ export default function CheckoutPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 size={48} className="animate-spin text-indigo-600" />
+        <Loading size={48} />
       </div>
     }>
       <CheckoutContent />
@@ -474,7 +475,7 @@ function CheckoutContent() {
               >
                 {processing ? (
                   <>
-                    <Loader2 size={20} className="animate-spin" />
+                    <Loading size={20} />
                     Processing...
                   </>
                 ) : (

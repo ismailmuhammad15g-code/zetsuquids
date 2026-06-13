@@ -5,8 +5,9 @@ import { useParams } from 'next/navigation';
 import {
   Star, ShoppingCart, Check, Shield, Monitor,
   FileCode, Clock, ChevronRight, LayoutTemplate,
-  Heart, Loader2, Github, X, Send, Settings
+  Heart, Github, X, Send, Settings
 } from 'lucide-react';
+import Loading from '@/components/scripts/Loading';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -307,7 +308,7 @@ export default function ScriptDetailsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#fefefe] flex items-center justify-center">
-        <Loader2 size={32} className="animate-spin text-[#c8b6a6]" />
+        <Loading size={32} />
       </div>
     );
   }
@@ -593,7 +594,7 @@ export default function ScriptDetailsPage() {
                                 disabled={submittingComment || !newComment.trim()}
                                 className="bg-[#2d3436] text-[#fefefe] px-5 py-2 rounded-[2px] font-medium text-xs hover:bg-[#636e72] disabled:opacity-50 transition-colors flex items-center gap-2"
                               >
-                                {submittingComment ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                                {submittingComment ? <Loading size={14} /> : <Send size={14} />}
                                 Post Comment
                               </button>
                             </div>
@@ -663,7 +664,7 @@ export default function ScriptDetailsPage() {
                             disabled={submittingReview || !newReviewText.trim()}
                             className="bg-[#2d3436] text-[#fefefe] px-5 py-2 rounded-[2px] font-medium text-xs hover:bg-[#636e72] disabled:opacity-50 transition-colors flex items-center gap-2"
                           >
-                            {submittingReview ? <Loader2 size={14} className="animate-spin" /> : <Star size={14} />}
+                            {submittingReview ? <Loading size={14} /> : <Star size={14} />}
                             Submit Review
                           </button>
                         </div>
@@ -870,7 +871,7 @@ export default function ScriptDetailsPage() {
                   }`}
                 >
                   {favoriting ? (
-                    <Loader2 size={16} className="animate-spin" />
+                    <Loading size={16} />
                   ) : (
                     <Heart size={16} className={isFavorited ? 'fill-[#c8b6a6] text-[#c8b6a6]' : 'text-[#636e72]/40'} />
                   )}

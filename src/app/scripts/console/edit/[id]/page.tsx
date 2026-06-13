@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { uploadToGitHub } from '@/lib/github-assets';
-import { ArrowLeft, Save, Loader2, Github, Send, X, Image, Eye, EyeOff, HelpCircle, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Save, Github, Send, X, Image, Eye, EyeOff, HelpCircle, ExternalLink } from 'lucide-react';
+import Loading from '@/components/scripts/Loading';
 import { toast } from 'sonner';
 
 export default function EditScriptPage() {
@@ -236,7 +237,7 @@ export default function EditScriptPage() {
   if (fetching) {
     return (
       <div className="min-h-screen bg-[#fefefe] flex items-center justify-center">
-        <Loader2 size={32} className="animate-spin text-[#c8b6a6]" />
+        <Loading size={32} />
       </div>
     );
   }
@@ -412,7 +413,7 @@ export default function EditScriptPage() {
                           />
                           {uploadingScreenshot === index && (
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <Loader2 size={18} className="animate-spin text-[#636e72]" />
+                              <Loading size={16} />
                             </div>
                           )}
                           <button type="button" onClick={() => removeScreenshot(index, false)} className="absolute top-1 right-1 bg-[#2d3436] text-[#fefefe] rounded-[2px] p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -466,7 +467,7 @@ export default function EditScriptPage() {
               <div className="bg-[#f8f6f4] border border-[#c8b6a6]/20 rounded-[2px] p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <Loader2 size={16} className="animate-spin text-[#636e72]" />
+                    <Loading size={16} />
                     <p className="text-[#2d3436] font-medium text-sm">{uploadProgress || 'Preparing...'}</p>
                   </div>
                   <span className="text-[#2d3436] font-heading font-semibold text-sm">{uploadPercent}%</span>
@@ -485,7 +486,7 @@ export default function EditScriptPage() {
                 Cancel
               </Link>
               <button disabled={loading} type="submit" className="px-8 py-2.5 rounded-[2px] font-medium text-[#fefefe] bg-[#2d3436] hover:bg-[#636e72] transition-colors flex items-center gap-2 disabled:opacity-50 text-sm">
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                {loading ? <Loading size={16} /> : <Save size={16} />}
                 Save Changes
               </button>
             </div>

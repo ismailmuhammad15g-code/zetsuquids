@@ -4,9 +4,10 @@ import Link from 'next/link';
 import {
   BarChart3, Package, DollarSign,
   PlusCircle, Settings, Bell, Search,
-  Edit, Trash2, Eye, TrendingUp, AlertCircle, Loader2, X,
+  Edit, Trash2, Eye, TrendingUp, AlertCircle, X,
   User, ShoppingCart
 } from 'lucide-react';
+import Loading from '@/components/scripts/Loading';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -167,7 +168,7 @@ export default function CreatorConsole() {
                 disabled={deleting}
                 className="flex-1 px-4 py-2 bg-[#2d3436] text-[#fefefe] rounded-[2px] font-medium text-sm hover:bg-[#636e72] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                {deleting ? <Loading size={16} /> : <Trash2 size={16} />}
                 Delete
               </button>
             </div>
@@ -265,7 +266,7 @@ export default function CreatorConsole() {
 
               <div className="bg-[#fefefe] border border-[#c8b6a6]/20 rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] overflow-hidden">
                 {loading ? (
-                  <div className="flex justify-center p-12"><Loader2 size={28} className="animate-spin text-[#c8b6a6]" /></div>
+                  <div className="flex justify-center p-12"><Loading size={28} /></div>
                 ) : items.length === 0 ? (
                   <div className="text-center p-12">
                     <Package size={36} className="mx-auto text-[#c8b6a6]/30 mb-4" />

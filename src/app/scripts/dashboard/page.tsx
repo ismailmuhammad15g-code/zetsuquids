@@ -3,8 +3,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   User, Heart, ShoppingCart, Package, Star,
-  Settings, LogOut, Loader2, TrendingUp, ExternalLink
+  Settings, LogOut, TrendingUp, ExternalLink
 } from 'lucide-react';
+import Loading from '@/components/scripts/Loading';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAvatarForUser } from '@/lib/avatar';
@@ -341,7 +342,7 @@ export default function UserDashboard() {
           <div className="flex-1">
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <Loader2 size={32} className="animate-spin text-[#c8b6a6]" />
+                <Loading size={32} />
               </div>
             ) : (
               <>

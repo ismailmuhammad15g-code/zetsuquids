@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { uploadToGitHub } from '@/lib/github-assets';
-import { ArrowLeft, Upload, Loader2, Github, CheckCircle2, Send, X, Image, Eye, EyeOff, HelpCircle, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Upload, Github, CheckCircle2, Send, X, Image, Eye, EyeOff, HelpCircle, ExternalLink } from 'lucide-react';
+import Loading from '@/components/scripts/Loading';
 import { toast } from 'sonner';
 
 const STORAGE_KEY = 'zetsumarket_upload_draft';
@@ -217,7 +218,7 @@ export default function UploadScriptPage() {
           <CheckCircle2 size={48} className="mx-auto text-[#636e72] mb-4" />
           <h2 className="font-heading text-lg font-semibold text-[#2d3436] mb-2">Upload Successful!</h2>
           <p className="text-[#636e72] text-sm mb-6">Your script has been published to the marketplace.</p>
-          <Loader2 className="animate-spin mx-auto text-[#c8b6a6]" size={20} />
+          <Loading size={20} />
           <p className="text-xs text-[#636e72]/60 mt-2">Redirecting to console...</p>
         </div>
       </div>
@@ -403,7 +404,7 @@ export default function UploadScriptPage() {
                           />
                           {uploadingScreenshot === index && (
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <Loader2 size={18} className="animate-spin text-[#636e72]" />
+                              <Loading size={16} />
                             </div>
                           )}
                           <button
@@ -467,7 +468,7 @@ export default function UploadScriptPage() {
               <div className="bg-[#f8f6f4] border border-[#c8b6a6]/20 rounded-[2px] p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <Loader2 size={16} className="animate-spin text-[#636e72]" />
+                    <Loading size={16} />
                     <p className="text-[#2d3436] font-medium text-sm">{uploadProgress || 'Preparing...'}</p>
                   </div>
                   <span className="text-[#2d3436] font-heading font-semibold text-sm">{uploadPercent}%</span>
@@ -490,7 +491,7 @@ export default function UploadScriptPage() {
                   Cancel
                 </Link>
                 <button disabled={loading} type="submit" className="px-8 py-2.5 rounded-[2px] font-medium text-[#fefefe] bg-[#2d3436] hover:bg-[#636e72] transition-colors flex items-center gap-2 disabled:opacity-50 text-sm">
-                  {loading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                  {loading ? <Loading size={16} /> : <Upload size={16} />}
                   Publish Script
                 </button>
               </div>

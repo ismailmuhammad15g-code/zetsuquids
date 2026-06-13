@@ -1,12 +1,14 @@
 'use client';
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { Star, Download, Code2, Cpu, LayoutTemplate, ShieldCheck, Loader2, LogIn, UserPlus, X, User, ShoppingCart, Search, ChevronDown, Tag } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Star, Download, Code2, Cpu, LayoutTemplate, ShieldCheck, LogIn, UserPlus, X, User, ShoppingCart, Search, ChevronDown, Tag } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { getAvatarForUser } from '@/lib/avatar';
 import { toast } from 'sonner';
+import Loading from '@/components/scripts/Loading';
 
 interface ScriptItem {
   id: string;
@@ -35,11 +37,12 @@ function isValidImageUrl(url: string | null | undefined): boolean {
 }
 
 function ScriptsContent() {
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { addToCart } = useCart();
   const [scripts, setScripts] = useState<ScriptItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [hasConfirmedAccount, setHasConfirmedAccount] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -49,10 +52,9 @@ function ScriptsContent() {
   const tagDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const q = params.get('search') || '';
-    if (q) setSearchQuery(q);
-  }, []);
+    const q = searchParams.get('search') || '';
+    setSearchQuery(q);
+  }, [searchParams]);
 
   useEffect(() => {
     fetchScripts();
@@ -353,7 +355,7 @@ function ScriptsContent() {
                     onClick={() => { setShowSearchResults(false); }}
                     className="w-full px-4 py-3 text-center text-sm text-[#c8b6a6] hover:text-[#2d3436] hover:bg-[#f8f6f4] font-medium transition-colors"
                   >
-                    View all results for "{searchQuery}"
+                    View all results for &quot;{searchQuery}&quot;
                   </button>
                 )}
               </div>
@@ -361,12 +363,12 @@ function ScriptsContent() {
             {showSearchResults && searchQuery.trim() && searchResults.length === 0 && !loading && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-[#fefefe] border border-[#c8b6a6]/30 rounded-[2px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.08)] z-50 p-6 text-center">
                 <Search size={24} className="mx-auto text-[#c8b6a6]/30 mb-2" />
-                <p className="text-sm text-[#636e72]">No results for "{searchQuery}"</p>
+                <p className="text-sm text-[#636e72]">No results for &quot;{searchQuery}&quot;</p>
               </div>
             )}
           </div>
 
-          {/* Tag Dropdown (قائمه منسدله) */}
+          {/* Tag Dropdown */}
           <div className="relative" ref={tagDropdownRef}>
             <button
               onClick={() => setShowTagDropdown(!showTagDropdown)}
@@ -406,7 +408,6 @@ function ScriptsContent() {
             )}
           </div>
 
-          {/* Active tag clear */}
           {activeTag && (
             <button
               onClick={() => setActiveTag(null)}
@@ -430,9 +431,7 @@ function ScriptsContent() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center py-24">
-            <Loader2 size={32} className="animate-spin text-[#c8b6a6]" />
-          </div>
+          <Loading size={48} />
         ) : filteredScripts.length === 0 ? (
           <div className="text-center py-24 bg-[#f8f6f4] rounded-[2px] border border-[#c8b6a6]/20">
             <Code2 size={40} className="mx-auto text-[#c8b6a6]/40 mb-4" />
@@ -536,6 +535,8 @@ function ScriptsContent() {
 
 export default function ScriptsMarketplace() {
   return (
-    <ScriptsContent />
+    <Suspense fallback={<Loading size={48} />}>
+      <ScriptsContent />
+    </Suspense>
   );
 }
