@@ -1040,7 +1040,7 @@ export default function GuidePage() {
                             <h1 className="text-4xl font-black mb-12 text-center text-black dark:text-white">
                                 {guide.title}
                             </h1>
-                            <div className="guide-content prose md:prose-xl max-w-none prose-headings:font-black prose-a:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white dark:prose-invert dark:prose-a:text-blue-400 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-800">
+                            <div className="guide-content">
                                 {renderContent()}
                             </div>
                             <div className="mt-20 text-center text-gray-400 dark:text-gray-500 text-sm">
