@@ -1,7 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Star, Download, Code2, Cpu, LayoutTemplate, ShieldCheck, Loader2, LogIn, UserPlus, X, User, ShoppingCart } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Star, Download, Code2, Cpu, LayoutTemplate, ShieldCheck, Loader2, LogIn, UserPlus, X, User, ShoppingCart, Search } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -37,15 +38,36 @@ function isValidImageUrl(url: string | null | undefined): boolean {
 export default function ScriptsMarketplace() {
   const { user } = useAuth();
   const { addToCart } = useCart();
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
   const [scripts, setScripts] = useState<ScriptItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [hasConfirmedAccount, setHasConfirmedAccount] = useState(false);
 
   useEffect(() => {
     fetchScripts();
   }, [activeCategory]);
+
+  // Sync search from URL
+  useEffect(() => {
+    const q = searchParams.get('search') || '';
+    setSearchQuery(q);
+  }, [searchParams]);
+
+  const filteredScripts = useMemo(() => {
+    if (!searchQuery.trim()) return scripts;
+    const q = searchQuery.toLowerCase();
+    return scripts.filter(s =>
+      s.title.toLowerCase().includes(q) ||
+      s.description.toLowerCase().includes(q) ||
+      s.category.toLowerCase().includes(q) ||
+      s.author_name.toLowerCase().includes(q) ||
+      (s.tags && s.tags.some((t: string) => t.toLowerCase().includes(q)))
+    );
+  }, [scripts, searchQuery]);
 
   useEffect(() => {
     if (user && !hasConfirmedAccount) {
@@ -256,10 +278,36 @@ export default function ScriptsMarketplace() {
 
       {/* Scripts Grid */}
       <div id="scripts-grid" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#636e72]/40" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search scripts by name, category, author..."
+              className="w-full pl-10 pr-4 py-2.5 border border-[#c8b6a6]/30 rounded-[2px] text-sm bg-[#fefefe] placeholder-[#636e72]/40 focus:outline-none focus:ring-1 focus:ring-[#c8b6a6] focus:border-[#c8b6a6] transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#636e72]/40 hover:text-[#2d3436] transition-colors"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="flex justify-between items-end mb-8">
           <div>
-            <h2 className="font-heading text-xl font-semibold text-[#2d3436]">{activeCategory || 'Latest'} Scripts</h2>
-            <p className="text-[#636e72] text-sm mt-1">Verified scripts from our creator community.</p>
+            <h2 className="font-heading text-xl font-semibold text-[#2d3436]">
+              {searchQuery ? `Results for "${searchQuery}"` : activeCategory ? `${activeCategory} Scripts` : 'Latest Scripts'}
+            </h2>
+            <p className="text-[#636e72] text-sm mt-1">
+              {filteredScripts.length} script{filteredScripts.length !== 1 ? 's' : ''} found
+            </p>
           </div>
         </div>
 
@@ -267,23 +315,35 @@ export default function ScriptsMarketplace() {
           <div className="flex justify-center items-center py-24">
             <Loader2 size={32} className="animate-spin text-[#c8b6a6]" />
           </div>
-        ) : scripts.length === 0 ? (
+        ) : filteredScripts.length === 0 ? (
           <div className="text-center py-24 bg-[#f8f6f4] rounded-[2px] border border-[#c8b6a6]/20">
             <Code2 size={40} className="mx-auto text-[#c8b6a6]/40 mb-4" />
             <h3 className="font-heading text-base font-semibold text-[#2d3436]">No scripts found</h3>
-            <p className="text-[#636e72] text-sm mt-2">There are no scripts available in this category yet.</p>
-            {activeCategory && (
-              <button
-                onClick={() => setActiveCategory(null)}
-                className="mt-4 text-[#c8b6a6] font-medium text-sm hover:text-[#2d3436] transition-colors"
-              >
-                Clear Filters
-              </button>
-            )}
+            <p className="text-[#636e72] text-sm mt-2">
+              {searchQuery ? `No scripts match "${searchQuery}"` : 'There are no scripts available in this category yet.'}
+            </p>
+            <div className="flex justify-center gap-3 mt-4">
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-[#c8b6a6] font-medium text-sm hover:text-[#2d3436] transition-colors"
+                >
+                  Clear Search
+                </button>
+              )}
+              {activeCategory && (
+                <button
+                  onClick={() => setActiveCategory(null)}
+                  className="text-[#c8b6a6] font-medium text-sm hover:text-[#2d3436] transition-colors"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {scripts.map((script) => (
+            {filteredScripts.map((script) => (
               <Link href={`/scripts/${script.id}`} key={script.id} className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 overflow-hidden hover:shadow-[0px_4px_0px_0px_rgba(0,0,0,0.08)] transition-all duration-300 group flex flex-col">
                 <div className="h-44 w-full overflow-hidden relative bg-[#f8f6f4] flex items-center justify-center">
                   {isValidImageUrl(script.thumbnail_url) ? (

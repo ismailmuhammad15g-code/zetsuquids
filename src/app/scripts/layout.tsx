@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ShoppingCart, Code, Search, Monitor, LogIn, User, LogOut, Bell, Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CartProvider, useCart } from '@/contexts/CartContext';
@@ -19,9 +20,12 @@ interface Notification {
 function ScriptsLayoutInner({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { setIsOpen, itemCount } = useCart();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [navSearchQuery, setNavSearchQuery] = useState(searchParams.get('search') || '');
   const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -90,6 +94,15 @@ function ScriptsLayoutInner({ children }: { children: React.ReactNode }) {
     window.location.href = '/scripts';
   };
 
+  const handleNavSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (navSearchQuery.trim()) {
+      router.push(`/scripts?search=${encodeURIComponent(navSearchQuery.trim())}`);
+    } else {
+      router.push('/scripts');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#fefefe] text-[#2d3436] font-body">
       {/* Navbar */}
@@ -116,16 +129,18 @@ function ScriptsLayoutInner({ children }: { children: React.ReactNode }) {
 
             {/* Search Bar */}
             <div className="flex-1 max-w-md mx-8 hidden lg:block">
-              <div className="relative">
+              <form onSubmit={handleNavSearch} className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search size={16} className="text-[#636e72]/50" />
                 </div>
                 <input
                   type="text"
+                  value={navSearchQuery}
+                  onChange={(e) => setNavSearchQuery(e.target.value)}
                   className="block w-full pl-10 pr-3 py-2 border border-[#c8b6a6]/40 rounded-[2px] leading-5 bg-[#f8f6f4] placeholder-[#636e72]/50 focus:outline-none focus:bg-[#fefefe] focus:ring-1 focus:ring-[#c8b6a6] focus:border-[#c8b6a6] text-sm transition-all duration-200"
                   placeholder="Search scripts, templates, and plugins..."
                 />
-              </div>
+              </form>
             </div>
 
             {/* Right Actions */}
