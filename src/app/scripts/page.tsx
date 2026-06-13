@@ -1,7 +1,7 @@
 'use client';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { Star, Download, Code2, Cpu, LayoutTemplate, ShieldCheck, Loader2, LogIn, UserPlus, X, User, ShoppingCart, Search } from 'lucide-react';
+import { Star, Download, Code2, Cpu, LayoutTemplate, ShieldCheck, Loader2, LogIn, UserPlus, X, User, ShoppingCart, Search, ChevronDown, Tag } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -39,10 +39,14 @@ function ScriptsContent() {
   const { addToCart } = useCart();
   const [scripts, setScripts] = useState<ScriptItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [hasConfirmedAccount, setHasConfirmedAccount] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const tagDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -52,7 +56,7 @@ function ScriptsContent() {
 
   useEffect(() => {
     fetchScripts();
-  }, [activeCategory]);
+  }, []);
 
   useEffect(() => {
     if (user && !hasConfirmedAccount) {
@@ -64,6 +68,19 @@ function ScriptsContent() {
       }
     }
   }, [user, hasConfirmedAccount]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(event.target as Node)) {
+        setShowTagDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleConfirmAccount = () => {
     sessionStorage.setItem('scripts_account_confirmed', 'true');
@@ -85,10 +102,6 @@ function ScriptsContent() {
         .from('marketplace_scripts')
         .select('*')
         .eq('status', 'Active');
-
-      if (activeCategory) {
-        query = query.eq('category', activeCategory);
-      }
 
       const { data, error } = await query;
 
@@ -133,6 +146,51 @@ function ScriptsContent() {
     }
   };
 
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    scripts.forEach(s => {
+      if (s.tags && Array.isArray(s.tags)) {
+        s.tags.forEach((t: string) => { if (t?.trim()) tagSet.add(t.trim()); });
+      }
+      if (s.category) tagSet.add(s.category);
+    });
+    return Array.from(tagSet).sort();
+  }, [scripts]);
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    return scripts.filter(s =>
+      s.title.toLowerCase().includes(q) ||
+      s.description.toLowerCase().includes(q) ||
+      s.category.toLowerCase().includes(q) ||
+      s.author_name.toLowerCase().includes(q) ||
+      (s.tags && s.tags.some((t: string) => t.toLowerCase().includes(q)))
+    ).slice(0, 5);
+  }, [scripts, searchQuery]);
+
+  const filteredScripts = useMemo(() => {
+    let result = scripts;
+    if (activeTag) {
+      const tagLower = activeTag.toLowerCase();
+      result = result.filter(s =>
+        s.category.toLowerCase() === tagLower ||
+        (s.tags && s.tags.some((t: string) => t.toLowerCase() === tagLower))
+      );
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(s =>
+        s.title.toLowerCase().includes(q) ||
+        s.description.toLowerCase().includes(q) ||
+        s.category.toLowerCase().includes(q) ||
+        s.author_name.toLowerCase().includes(q) ||
+        (s.tags && s.tags.some((t: string) => t.toLowerCase().includes(q)))
+      );
+    }
+    return result;
+  }, [scripts, searchQuery, activeTag]);
+
   const getCategoryIcon = (category: string) => {
     switch (category.toLowerCase()) {
       case 'react':
@@ -147,23 +205,8 @@ function ScriptsContent() {
     }
   };
 
-  const categories = ['All', 'React', 'Next.js', 'PHP', 'Python', 'Vue', 'Node.js', 'HTML5', 'WordPress'];
-
-  const filteredScripts = useMemo(() => {
-    if (!searchQuery.trim()) return scripts;
-    const q = searchQuery.toLowerCase();
-    return scripts.filter(s =>
-      s.title.toLowerCase().includes(q) ||
-      s.description.toLowerCase().includes(q) ||
-      s.category.toLowerCase().includes(q) ||
-      s.author_name.toLowerCase().includes(q) ||
-      (s.tags && s.tags.some((t: string) => t.toLowerCase().includes(q)))
-    );
-  }, [scripts, searchQuery]);
-
   return (
     <div className="bg-[#fefefe] min-h-screen">
-      {/* Account Confirmation Modal */}
       {showAccountModal && user && (
         <div className="fixed inset-0 z-[9999] bg-[#2d3436]/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#fefefe] rounded-[2px] max-w-md w-full p-8 text-center shadow-[0px_4px_0px_0px_rgba(0,0,0,0.08)] border border-[#c8b6a6]/30 relative animate-in zoom-in-95 duration-200">
@@ -252,55 +295,133 @@ function ScriptsContent() {
         </div>
       </div>
 
-      {/* Categories Filter */}
-      <div className="bg-[#fefefe] border-b border-[#c8b6a6]/20 py-4 sticky top-16 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat === 'All' ? null : cat)}
-                className={`px-5 py-2 rounded-[2px] font-medium text-xs transition-colors duration-200 whitespace-nowrap border ${
-                  (cat === 'All' && !activeCategory) || activeCategory === cat
-                    ? 'bg-[#2d3436] text-[#fefefe] border-[#2d3436]'
-                    : 'bg-[#fefefe] text-[#636e72] border-[#c8b6a6]/30 hover:bg-[#f8f6f4] hover:text-[#2d3436]'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Scripts Grid */}
       <div id="scripts-grid" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative max-w-md">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#636e72]/40" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search scripts by name, category, author..."
-              className="w-full pl-10 pr-4 py-2.5 border border-[#c8b6a6]/30 rounded-[2px] text-sm bg-[#fefefe] placeholder-[#636e72]/40 focus:outline-none focus:ring-1 focus:ring-[#c8b6a6] focus:border-[#c8b6a6] transition-all"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#636e72]/40 hover:text-[#2d3436] transition-colors"
-              >
-                <X size={14} />
-              </button>
+        {/* Search + Tag Filter Row */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          {/* Search Bar with Dropdown Results */}
+          <div className="relative flex-1 max-w-md" ref={searchRef}>
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#636e72]/40" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowSearchResults(e.target.value.trim().length > 0);
+                }}
+                onFocus={() => { if (searchQuery.trim()) setShowSearchResults(true); }}
+                placeholder="Search scripts..."
+                className="w-full pl-10 pr-10 py-2.5 border border-[#c8b6a6]/30 rounded-[2px] text-sm bg-[#fefefe] placeholder-[#636e72]/40 focus:outline-none focus:ring-1 focus:ring-[#c8b6a6] focus:border-[#c8b6a6] transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(''); setShowSearchResults(false); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#636e72]/40 hover:text-[#2d3436] transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Search Results Dropdown */}
+            {showSearchResults && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-[#fefefe] border border-[#c8b6a6]/30 rounded-[2px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.08)] z-50 max-h-80 overflow-y-auto">
+                {searchResults.map((script) => (
+                  <Link
+                    href={`/scripts/${script.id}`}
+                    key={script.id}
+                    onClick={() => setShowSearchResults(false)}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#f8f6f4] transition-colors border-b border-[#c8b6a6]/10 last:border-0"
+                  >
+                    <div className="w-10 h-10 rounded-[2px] bg-[#f8f6f4] flex items-center justify-center flex-shrink-0 overflow-hidden border border-[#c8b6a6]/20">
+                      {isValidImageUrl(script.thumbnail_url) ? (
+                        <img src={script.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Code2 size={16} className="text-[#c8b6a6]/50" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#2d3436] truncate">{script.title}</p>
+                      <p className="text-xs text-[#636e72]">{script.category} &middot; ${script.price.toFixed(2)}</p>
+                    </div>
+                    <Star size={12} className={script.rating > 0 ? "text-[#c8b6a6] fill-[#c8b6a6]" : "text-[#c8b6a6]/30"} />
+                  </Link>
+                ))}
+                {searchQuery.trim() && (
+                  <button
+                    onClick={() => { setShowSearchResults(false); }}
+                    className="w-full px-4 py-3 text-center text-sm text-[#c8b6a6] hover:text-[#2d3436] hover:bg-[#f8f6f4] font-medium transition-colors"
+                  >
+                    View all results for "{searchQuery}"
+                  </button>
+                )}
+              </div>
+            )}
+            {showSearchResults && searchQuery.trim() && searchResults.length === 0 && !loading && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-[#fefefe] border border-[#c8b6a6]/30 rounded-[2px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.08)] z-50 p-6 text-center">
+                <Search size={24} className="mx-auto text-[#c8b6a6]/30 mb-2" />
+                <p className="text-sm text-[#636e72]">No results for "{searchQuery}"</p>
+              </div>
             )}
           </div>
+
+          {/* Tag Dropdown (قائمه منسدله) */}
+          <div className="relative" ref={tagDropdownRef}>
+            <button
+              onClick={() => setShowTagDropdown(!showTagDropdown)}
+              className={`flex items-center gap-2 px-4 py-2.5 border rounded-[2px] text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                activeTag
+                  ? 'bg-[#2d3436] text-[#fefefe] border-[#2d3436]'
+                  : 'bg-[#fefefe] text-[#636e72] border-[#c8b6a6]/30 hover:bg-[#f8f6f4] hover:text-[#2d3436]'
+              }`}
+            >
+              <Tag size={14} />
+              {activeTag || 'All Tags'}
+              <ChevronDown size={14} className={`transition-transform duration-200 ${showTagDropdown ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showTagDropdown && (
+              <div className="absolute top-full left-0 mt-1 w-56 bg-[#fefefe] border border-[#c8b6a6]/30 rounded-[2px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.08)] z-50 max-h-72 overflow-y-auto">
+                <button
+                  onClick={() => { setActiveTag(null); setShowTagDropdown(false); }}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors border-b border-[#c8b6a6]/10 ${
+                    !activeTag ? 'bg-[#f8f6f4] text-[#2d3436] font-medium' : 'text-[#636e72] hover:bg-[#f8f6f4]'
+                  }`}
+                >
+                  All Tags
+                </button>
+                {allTags.map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => { setActiveTag(tag); setShowTagDropdown(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors border-b border-[#c8b6a6]/10 last:border-0 ${
+                      activeTag === tag ? 'bg-[#f8f6f4] text-[#2d3436] font-medium' : 'text-[#636e72] hover:bg-[#f8f6f4]'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Active tag clear */}
+          {activeTag && (
+            <button
+              onClick={() => setActiveTag(null)}
+              className="flex items-center gap-1 px-3 py-2.5 text-xs text-[#c8b6a6] hover:text-[#2d3436] font-medium transition-colors"
+            >
+              <X size={12} />
+              Clear
+            </button>
+          )}
         </div>
 
         <div className="flex justify-between items-end mb-8">
           <div>
             <h2 className="font-heading text-xl font-semibold text-[#2d3436]">
-              {searchQuery ? `Results for "${searchQuery}"` : activeCategory ? `${activeCategory} Scripts` : 'Latest Scripts'}
+              {searchQuery ? `Results for "${searchQuery}"` : activeTag ? `${activeTag}` : 'All Scripts'}
             </h2>
             <p className="text-[#636e72] text-sm mt-1">
               {filteredScripts.length} script{filteredScripts.length !== 1 ? 's' : ''} found
@@ -317,7 +438,7 @@ function ScriptsContent() {
             <Code2 size={40} className="mx-auto text-[#c8b6a6]/40 mb-4" />
             <h3 className="font-heading text-base font-semibold text-[#2d3436]">No scripts found</h3>
             <p className="text-[#636e72] text-sm mt-2">
-              {searchQuery ? `No scripts match "${searchQuery}"` : 'There are no scripts available in this category yet.'}
+              {searchQuery ? `No scripts match "${searchQuery}"` : activeTag ? `No scripts with tag "${activeTag}"` : 'No scripts available yet.'}
             </p>
             <div className="flex justify-center gap-3 mt-4">
               {searchQuery && (
@@ -328,12 +449,12 @@ function ScriptsContent() {
                   Clear Search
                 </button>
               )}
-              {activeCategory && (
+              {activeTag && (
                 <button
-                  onClick={() => setActiveCategory(null)}
+                  onClick={() => setActiveTag(null)}
                   className="text-[#c8b6a6] font-medium text-sm hover:text-[#2d3436] transition-colors"
                 >
-                  Clear Filters
+                  Clear Filter
                 </button>
               )}
             </div>

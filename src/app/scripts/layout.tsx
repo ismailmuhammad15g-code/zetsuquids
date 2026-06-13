@@ -118,12 +118,7 @@ function ScriptsLayoutInner({ children }: { children: React.ReactNode }) {
                 <span className="font-heading text-xl font-semibold text-[#2d3436] tracking-tight">ZetsuMarket</span>
               </Link>
 
-              <div className="hidden md:flex items-center gap-8">
-                <Link href="/scripts" className="text-[#636e72] hover:text-[#2d3436] font-medium text-sm transition-colors duration-200">All Scripts</Link>
-                <Link href="/scripts?category=react" className="text-[#636e72] hover:text-[#2d3436] font-medium text-sm transition-colors duration-200">React</Link>
-                <Link href="/scripts?category=php" className="text-[#636e72] hover:text-[#2d3436] font-medium text-sm transition-colors duration-200">PHP</Link>
-                <Link href="/scripts?category=python" className="text-[#636e72] hover:text-[#2d3436] font-medium text-sm transition-colors duration-200">Python</Link>
-              </div>
+
             </div>
 
             {/* Search Bar */}
