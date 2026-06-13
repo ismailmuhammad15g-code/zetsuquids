@@ -266,7 +266,7 @@ export default function CreatorConsole() {
 
               <div className="bg-[#fefefe] border border-[#c8b6a6]/20 rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] overflow-hidden">
                 {loading ? (
-                  <div className="flex justify-center p-12"><Loading size={28} /></div>
+                  <div className="flex justify-center p-12"><Loading size={64} /></div>
                 ) : items.length === 0 ? (
                   <div className="text-center p-12">
                     <Package size={36} className="mx-auto text-[#c8b6a6]/30 mb-4" />

@@ -342,7 +342,7 @@ export default function UserDashboard() {
           <div className="flex-1">
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <Loading size={32} />
+                <Loading size={64} />
               </div>
             ) : (
               <>

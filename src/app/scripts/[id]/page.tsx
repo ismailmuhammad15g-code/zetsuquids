@@ -308,7 +308,7 @@ export default function ScriptDetailsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#fefefe] flex items-center justify-center">
-        <Loading size={32} />
+        <Loading size={64} />
       </div>
     );
   }

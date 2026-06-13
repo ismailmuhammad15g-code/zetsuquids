@@ -431,7 +431,7 @@ function ScriptsContent() {
         </div>
 
         {loading ? (
-          <Loading size={48} />
+          <Loading size={64} />
         ) : filteredScripts.length === 0 ? (
           <div className="text-center py-24 bg-[#f8f6f4] rounded-[2px] border border-[#c8b6a6]/20">
             <Code2 size={40} className="mx-auto text-[#c8b6a6]/40 mb-4" />
@@ -535,7 +535,7 @@ function ScriptsContent() {
 
 export default function ScriptsMarketplace() {
   return (
-    <Suspense fallback={<Loading size={48} />}>
+    <Suspense fallback={<Loading size={64} />}>
       <ScriptsContent />
     </Suspense>
   );

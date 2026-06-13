@@ -6,7 +6,7 @@ interface LoadingProps {
   fullScreen?: boolean;
 }
 
-export default function Loading({ size = 48, text, fullScreen = false }: LoadingProps) {
+export default function Loading({ size = 64, text, fullScreen = false }: LoadingProps) {
   const content = (
     <div className="flex flex-col items-center justify-center gap-3">
       <Image
@@ -16,6 +16,7 @@ export default function Loading({ size = 48, text, fullScreen = false }: Loading
         height={size}
         unoptimized
         priority
+        className="block"
       />
       {text && <p className="text-[#636e72] text-sm">{text}</p>}
     </div>

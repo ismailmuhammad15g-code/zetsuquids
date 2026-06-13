@@ -218,7 +218,7 @@ export default function UploadScriptPage() {
           <CheckCircle2 size={48} className="mx-auto text-[#636e72] mb-4" />
           <h2 className="font-heading text-lg font-semibold text-[#2d3436] mb-2">Upload Successful!</h2>
           <p className="text-[#636e72] text-sm mb-6">Your script has been published to the marketplace.</p>
-          <Loading size={20} />
+          <Loading size={48} />
           <p className="text-xs text-[#636e72]/60 mt-2">Redirecting to console...</p>
         </div>
       </div>

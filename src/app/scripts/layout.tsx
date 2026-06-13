@@ -1,7 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { ShoppingCart, Code, Search, Monitor, LogIn, User, LogOut, Bell, Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CartProvider, useCart } from '@/contexts/CartContext';
@@ -20,7 +19,6 @@ interface Notification {
 function ScriptsLayoutInner({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { setIsOpen, itemCount } = useCart();
-  const router = useRouter();
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -96,9 +94,9 @@ function ScriptsLayoutInner({ children }: { children: React.ReactNode }) {
   const handleNavSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (navSearchQuery.trim()) {
-      router.push(`/scripts?search=${encodeURIComponent(navSearchQuery.trim())}`);
+      window.location.href = `/scripts?search=${encodeURIComponent(navSearchQuery.trim())}`;
     } else {
-      router.push('/scripts');
+      window.location.href = '/scripts';
     }
   };
 

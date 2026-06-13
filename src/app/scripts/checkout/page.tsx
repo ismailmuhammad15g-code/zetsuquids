@@ -26,7 +26,7 @@ export default function CheckoutPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loading size={48} />
+        <Loading size={64} />
       </div>
     }>
       <CheckoutContent />
@@ -475,7 +475,7 @@ function CheckoutContent() {
               >
                 {processing ? (
                   <>
-                    <Loading size={20} />
+                    <Loading size={48} />
                     Processing...
                   </>
                 ) : (
