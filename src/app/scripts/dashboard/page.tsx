@@ -62,7 +62,6 @@ export default function UserDashboard() {
   const fetchAllData = async () => {
     if (!user) return;
     setLoading(true);
-
     try {
       await Promise.all([
         fetchPurchases(),
@@ -85,14 +84,11 @@ export default function UserDashboard() {
         .eq('buyer_id', user.id);
 
       if (error) {
-        // Silently handle if table doesn't exist
         if (error.code === '42P01' || error.code === '42703' || error.message?.includes('400') || error.message?.includes('404')) {
-          console.warn('marketplace_purchases table issue:', error.message);
           setPurchases([]);
           setTablesExist(false);
           return;
         }
-        console.error('Purchases fetch error:', error);
         return;
       }
 
@@ -141,13 +137,10 @@ export default function UserDashboard() {
         .eq('user_id', user.id);
 
       if (error) {
-        // Silently handle if table doesn't exist
         if (error.code === '42P01' || error.code === '42703' || error.message?.includes('400') || error.message?.includes('404')) {
-          console.warn('marketplace_favorites table issue:', error.message);
           setFavorites([]);
           return;
         }
-        console.error('Favorites fetch error:', error);
         return;
       }
 
@@ -198,13 +191,10 @@ export default function UserDashboard() {
         .eq('reviewer_id', user.id);
 
       if (error) {
-        // Silently handle if table doesn't exist
         if (error.code === '42P01' || error.code === '42703' || error.message?.includes('400') || error.message?.includes('404')) {
-          console.warn('marketplace_reviews table issue:', error.message);
           setReviews([]);
           return;
         }
-        console.error('Reviews fetch error:', error);
         return;
       }
 
@@ -249,11 +239,11 @@ export default function UserDashboard() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#fefefe] flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Please Login</h1>
-          <p className="text-gray-500 mb-6">You need to be logged in to view your dashboard.</p>
-          <Link href="/auth" className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors">
+          <h1 className="font-heading text-xl font-semibold text-[#2d3436] mb-4">Please Login</h1>
+          <p className="text-[#636e72] text-sm mb-6">You need to be logged in to view your dashboard.</p>
+          <Link href="/auth" className="bg-[#2d3436] text-[#fefefe] px-6 py-2 rounded-[2px] font-medium text-sm hover:bg-[#636e72] transition-colors">
             Login / Sign Up
           </Link>
         </div>
@@ -265,39 +255,39 @@ export default function UserDashboard() {
   const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#fefefe]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-[#f8f6f4] border-b border-[#c8b6a6]/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-6">
             <img
               src={getAvatarForUser(user.email, user.user_metadata?.avatar_url as string | null)}
               alt="Avatar"
-              className="w-20 h-20 rounded-full object-cover border-4 border-indigo-100 shadow-lg"
+              className="w-16 h-16 rounded-full object-cover border border-[#c8b6a6]/30"
               onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`; }}
             />
             <div>
-              <h1 className="text-3xl font-extrabold text-gray-900">
+              <h1 className="font-heading text-xl font-semibold text-[#2d3436]">
                 {String(user.user_metadata?.full_name || user.email?.split('@')[0] || 'User')}
               </h1>
-              <p className="text-gray-500">{user.email}</p>
-              <p className="text-sm text-gray-400 mt-1">Member since {new Date(user.created_at || '').toLocaleDateString()}</p>
+              <p className="text-[#636e72] text-sm">{user.email}</p>
+              <p className="text-xs text-[#636e72]/60 mt-1">Member since {new Date(user.created_at || '').toLocaleDateString()}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Warning Banner if tables are missing */}
+      {/* Warning Banner */}
       {!tablesExist && (
-        <div className="bg-yellow-50 border-b border-yellow-200">
+        <div className="bg-[#f8f6f4] border-b border-[#c8b6a6]/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                <span className="text-yellow-600 font-bold">!</span>
+              <div className="w-8 h-8 bg-[#c8b6a6]/20 rounded-[2px] flex items-center justify-center">
+                <span className="text-[#636e72] font-medium text-sm">!</span>
               </div>
               <div>
-                <p className="font-medium text-yellow-800">Database tables not found</p>
-                <p className="text-sm text-yellow-700">Run <code className="bg-yellow-100 px-1 rounded">SQLs/MARKETPLACE_ALL_IN_ONE.sql</code> in Supabase SQL Editor to create the marketplace tables.</p>
+                <p className="font-medium text-[#2d3436] text-sm">Database tables not found</p>
+                <p className="text-xs text-[#636e72]">Run <code className="bg-[#c8b6a6]/15 px-1 rounded-[2px]">SQLs/MARKETPLACE_ALL_IN_ONE.sql</code> in Supabase SQL Editor.</p>
               </div>
             </div>
           </div>
@@ -307,8 +297,8 @@ export default function UserDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Sidebar */}
-          <div className="lg:w-64 shrink-0">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="lg:w-56 shrink-0">
+            <div className="bg-[#f8f6f4] rounded-[2px] border border-[#c8b6a6]/20 overflow-hidden">
               <nav className="p-2">
                 {[
                   { id: 'overview', label: 'Overview', icon: User },
@@ -320,27 +310,27 @@ export default function UserDashboard() {
                   <button
                     key={item.id}
                     onClick={() => setActiveTab(item.id as any)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-[2px] text-sm font-medium transition-colors duration-200 ${
                       activeTab === item.id
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'text-gray-600 hover:bg-gray-50'
+                        ? 'bg-[#2d3436] text-[#fefefe]'
+                        : 'text-[#636e72] hover:bg-[#fefefe] hover:text-[#2d3436]'
                     }`}
                   >
-                    <item.icon size={20} />
+                    <item.icon size={16} />
                     {item.label}
                     {item.id === 'purchases' && purchases.length > 0 && (
-                      <span className="ml-auto bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full">{purchases.length}</span>
+                      <span className="ml-auto bg-[#c8b6a6]/20 text-[#2d3436] text-[10px] font-medium px-1.5 py-0.5 rounded-[2px]">{purchases.length}</span>
                     )}
                     {item.id === 'favorites' && favorites.length > 0 && (
-                      <span className="ml-auto bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">{favorites.length}</span>
+                      <span className="ml-auto bg-[#c8b6a6]/20 text-[#2d3436] text-[10px] font-medium px-1.5 py-0.5 rounded-[2px]">{favorites.length}</span>
                     )}
                   </button>
                 ))}
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors mt-2 border-t border-gray-100 pt-4"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-[2px] text-sm font-medium text-[#636e72] hover:bg-[#fefefe] transition-colors duration-200 mt-2 border-t border-[#c8b6a6]/15 pt-4"
                 >
-                  <LogOut size={20} />
+                  <LogOut size={16} />
                   Logout
                 </button>
               </nav>
@@ -351,93 +341,65 @@ export default function UserDashboard() {
           <div className="flex-1">
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <Loader2 size={48} className="animate-spin text-indigo-600" />
+                <Loader2 size={32} className="animate-spin text-[#c8b6a6]" />
               </div>
             ) : (
               <>
                 {/* Overview Tab */}
                 {activeTab === 'overview' && (
                   <div className="space-y-6">
-                    {/* Stats Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-                            <Package size={24} className="text-indigo-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Total Purchases</p>
-                            <p className="text-2xl font-extrabold text-gray-900">{purchases.length}</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                            <TrendingUp size={24} className="text-green-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Total Spent</p>
-                            <p className="text-2xl font-extrabold text-gray-900">${totalSpent.toFixed(2)}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      {[
+                        { label: 'Total Purchases', value: purchases.length, icon: Package, color: '#636e72' },
+                        { label: 'Total Spent', value: `$${totalSpent.toFixed(2)}`, icon: TrendingUp, color: '#636e72' },
+                        { label: 'Favorites', value: favorites.length, icon: Heart, color: '#636e72' },
+                        { label: 'Reviews Given', value: reviews.length, icon: Star, color: '#636e72' },
+                      ].map((stat, i) => (
+                        <div key={i} className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-5">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-[#f8f6f4] rounded-[2px] flex items-center justify-center border border-[#c8b6a6]/15">
+                              <stat.icon size={18} className="text-[#636e72]" />
+                            </div>
+                            <div>
+                              <p className="text-[11px] text-[#636e72] font-medium">{stat.label}</p>
+                              <p className="font-heading text-lg font-semibold text-[#2d3436]">{stat.value}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-                            <Heart size={24} className="text-red-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Favorites</p>
-                            <p className="text-2xl font-extrabold text-gray-900">{favorites.length}</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                            <Star size={24} className="text-yellow-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Reviews Given</p>
-                            <p className="text-2xl font-extrabold text-gray-900">{reviews.length}</p>
-                          </div>
-                        </div>
-                      </div>
+                      ))}
                     </div>
 
-                    {/* Recent Purchases */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-bold text-gray-900">Recent Purchases</h2>
-                        <button onClick={() => setActiveTab('purchases')} className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                        <h2 className="font-heading font-semibold text-[#2d3436] text-sm">Recent Purchases</h2>
+                        <button onClick={() => setActiveTab('purchases')} className="text-xs text-[#c8b6a6] hover:text-[#2d3436] font-medium transition-colors">
                           View All
                         </button>
                       </div>
                       {purchases.length === 0 ? (
                         <div className="text-center py-8">
-                          <Package size={40} className="mx-auto text-gray-300 mb-3" />
-                          <p className="text-gray-500">No purchases yet</p>
-                          <Link href="/scripts" className="text-indigo-600 hover:text-indigo-700 font-medium text-sm mt-2 inline-block">
+                          <Package size={32} className="mx-auto text-[#c8b6a6]/30 mb-3" />
+                          <p className="text-[#636e72] text-sm">No purchases yet</p>
+                          <Link href="/scripts" className="text-[#c8b6a6] hover:text-[#2d3436] font-medium text-xs mt-2 inline-block transition-colors">
                             Browse Marketplace
                           </Link>
                         </div>
                       ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           {purchases.slice(0, 5).map((purchase) => (
-                            <div key={purchase.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                              <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
-                                <Package size={20} className="text-gray-400" />
+                            <div key={purchase.id} className="flex items-center gap-4 p-4 bg-[#f8f6f4] rounded-[2px]">
+                              <div className="w-10 h-10 bg-[#fefefe] rounded-[2px] flex items-center justify-center border border-[#c8b6a6]/15">
+                                <Package size={16} className="text-[#c8b6a6]/40" />
                               </div>
-                              <div className="flex-1">
-                                <Link href={`/scripts/${purchase.script_id}`} className="font-medium text-gray-900 hover:text-indigo-600">
+                              <div className="flex-1 min-w-0">
+                                <Link href={`/scripts/${purchase.script_id}`} className="font-medium text-[#2d3436] hover:text-[#c8b6a6] text-sm transition-colors block truncate">
                                   {purchase.script_title}
                                 </Link>
-                                <p className="text-sm text-gray-500">by {purchase.script_author}</p>
+                                <p className="text-[11px] text-[#636e72]">by {purchase.script_author}</p>
                               </div>
-                              <div className="text-right">
-                                <p className="font-bold text-gray-900">${Number(purchase.amount).toFixed(2)}</p>
-                                <p className="text-xs text-gray-400">{new Date(purchase.created_at).toLocaleDateString()}</p>
+                              <div className="text-right shrink-0">
+                                <p className="font-heading font-semibold text-[#2d3436] text-sm">${Number(purchase.amount).toFixed(2)}</p>
+                                <p className="text-[10px] text-[#636e72]">{new Date(purchase.created_at).toLocaleDateString()}</p>
                               </div>
                             </div>
                           ))}
@@ -445,37 +407,36 @@ export default function UserDashboard() {
                       )}
                     </div>
 
-                    {/* Recent Favorites */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-bold text-gray-900">Recent Favorites</h2>
-                        <button onClick={() => setActiveTab('favorites')} className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                        <h2 className="font-heading font-semibold text-[#2d3436] text-sm">Recent Favorites</h2>
+                        <button onClick={() => setActiveTab('favorites')} className="text-xs text-[#c8b6a6] hover:text-[#2d3436] font-medium transition-colors">
                           View All
                         </button>
                       </div>
                       {favorites.length === 0 ? (
                         <div className="text-center py-8">
-                          <Heart size={40} className="mx-auto text-gray-300 mb-3" />
-                          <p className="text-gray-500">No favorites yet</p>
-                          <Link href="/scripts" className="text-indigo-600 hover:text-indigo-700 font-medium text-sm mt-2 inline-block">
+                          <Heart size={32} className="mx-auto text-[#c8b6a6]/30 mb-3" />
+                          <p className="text-[#636e72] text-sm">No favorites yet</p>
+                          <Link href="/scripts" className="text-[#c8b6a6] hover:text-[#2d3436] font-medium text-xs mt-2 inline-block transition-colors">
                             Browse Marketplace
                           </Link>
                         </div>
                       ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           {favorites.slice(0, 5).map((fav) => (
-                            <div key={fav.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                              <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
-                                <Heart size={20} className="text-red-400" />
+                            <div key={fav.id} className="flex items-center gap-4 p-4 bg-[#f8f6f4] rounded-[2px]">
+                              <div className="w-10 h-10 bg-[#fefefe] rounded-[2px] flex items-center justify-center border border-[#c8b6a6]/15">
+                                <Heart size={16} className="text-[#c8b6a6]/40" />
                               </div>
-                              <div className="flex-1">
-                                <Link href={`/scripts/${fav.script_id}`} className="font-medium text-gray-900 hover:text-indigo-600">
+                              <div className="flex-1 min-w-0">
+                                <Link href={`/scripts/${fav.script_id}`} className="font-medium text-[#2d3436] hover:text-[#c8b6a6] text-sm transition-colors block truncate">
                                   {fav.script_title}
                                 </Link>
-                                <p className="text-sm text-gray-500">by {fav.script_author}</p>
+                                <p className="text-[11px] text-[#636e72]">by {fav.script_author}</p>
                               </div>
-                              <div className="text-right">
-                                <p className="font-bold text-gray-900">${(fav.script_price || 0).toFixed(2)}</p>
+                              <div className="text-right shrink-0">
+                                <p className="font-heading font-semibold text-[#2d3436] text-sm">${(fav.script_price || 0).toFixed(2)}</p>
                               </div>
                             </div>
                           ))}
@@ -487,43 +448,43 @@ export default function UserDashboard() {
 
                 {/* Purchases Tab */}
                 {activeTab === 'purchases' && (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-6">My Purchases ({purchases.length})</h2>
+                  <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6">
+                    <h2 className="font-heading font-semibold text-[#2d3436] mb-6 text-sm">My Purchases ({purchases.length})</h2>
                     {purchases.length === 0 ? (
                       <div className="text-center py-12">
-                        <Package size={48} className="mx-auto text-gray-300 mb-4" />
-                        <p className="text-gray-500 font-medium">No purchases yet</p>
-                        <Link href="/scripts" className="text-indigo-600 hover:text-indigo-700 font-medium mt-2 inline-block">
+                        <Package size={36} className="mx-auto text-[#c8b6a6]/30 mb-4" />
+                        <p className="text-[#636e72] font-medium text-sm">No purchases yet</p>
+                        <Link href="/scripts" className="text-[#c8b6a6] hover:text-[#2d3436] font-medium mt-2 inline-block text-xs transition-colors">
                           Browse Marketplace
                         </Link>
                       </div>
                     ) : (
-                      <div className="space-y-4">
+                      <div className="space-y-3">
                         {purchases.map((purchase) => (
-                          <div key={purchase.id} className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-                            <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                              <Package size={24} className="text-gray-400" />
+                          <div key={purchase.id} className="flex items-center gap-4 p-4 border border-[#c8b6a6]/20 rounded-[2px] hover:bg-[#f8f6f4] transition-colors">
+                            <div className="w-12 h-12 bg-[#f8f6f4] rounded-[2px] flex items-center justify-center shrink-0 border border-[#c8b6a6]/15">
+                              <Package size={18} className="text-[#c8b6a6]/40" />
                             </div>
-                            <div className="flex-1">
-                              <Link href={`/scripts/${purchase.script_id}`} className="font-bold text-gray-900 hover:text-indigo-600 text-lg">
+                            <div className="flex-1 min-w-0">
+                              <Link href={`/scripts/${purchase.script_id}`} className="font-medium text-[#2d3436] hover:text-[#c8b6a6] text-sm transition-colors block truncate">
                                 {purchase.script_title}
                               </Link>
-                              <p className="text-sm text-gray-500">by {purchase.script_author}</p>
-                              <p className="text-xs text-gray-400 mt-1">{purchase.script_category}</p>
+                              <p className="text-[11px] text-[#636e72]">by {purchase.script_author}</p>
+                              <p className="text-[10px] text-[#636e72]/60 mt-0.5">{purchase.script_category}</p>
                             </div>
-                            <div className="text-right">
-                              <p className="font-bold text-lg text-gray-900">${Number(purchase.amount).toFixed(2)}</p>
-                              <p className="text-xs text-gray-400">{new Date(purchase.created_at).toLocaleDateString()}</p>
-                              <span className="inline-block mt-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                            <div className="text-right shrink-0">
+                              <p className="font-heading font-semibold text-[#2d3436] text-sm">${Number(purchase.amount).toFixed(2)}</p>
+                              <p className="text-[10px] text-[#636e72]">{new Date(purchase.created_at).toLocaleDateString()}</p>
+                              <span className="inline-block mt-1 px-1.5 py-0.5 bg-[#f8f6f4] text-[#636e72] text-[10px] font-medium rounded-[2px] border border-[#c8b6a6]/15">
                                 {purchase.status}
                               </span>
                             </div>
                             <Link
                               href={`/scripts/${purchase.script_id}`}
-                              className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              className="p-1.5 text-[#636e72]/40 hover:text-[#2d3436] rounded-[2px] transition-colors"
                               title="View Script"
                             >
-                              <ExternalLink size={18} />
+                              <ExternalLink size={14} />
                             </Link>
                           </div>
                         ))}
@@ -534,37 +495,37 @@ export default function UserDashboard() {
 
                 {/* Favorites Tab */}
                 {activeTab === 'favorites' && (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-6">My Favorites ({favorites.length})</h2>
+                  <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6">
+                    <h2 className="font-heading font-semibold text-[#2d3436] mb-6 text-sm">My Favorites ({favorites.length})</h2>
                     {favorites.length === 0 ? (
                       <div className="text-center py-12">
-                        <Heart size={48} className="mx-auto text-gray-300 mb-4" />
-                        <p className="text-gray-500 font-medium">No favorites yet</p>
-                        <Link href="/scripts" className="text-indigo-600 hover:text-indigo-700 font-medium mt-2 inline-block">
+                        <Heart size={36} className="mx-auto text-[#c8b6a6]/30 mb-4" />
+                        <p className="text-[#636e72] font-medium text-sm">No favorites yet</p>
+                        <Link href="/scripts" className="text-[#c8b6a6] hover:text-[#2d3436] font-medium mt-2 inline-block text-xs transition-colors">
                           Browse Marketplace
                         </Link>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {favorites.map((fav) => (
-                          <div key={fav.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
-                            <div className="flex items-start gap-4">
-                              <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center shrink-0">
-                                <Heart size={24} className="text-red-400" />
+                          <div key={fav.id} className="border border-[#c8b6a6]/20 rounded-[2px] p-4 hover:shadow-[0px_2px_0px_0px_rgba(0,0,0,0.06)] transition-shadow">
+                            <div className="flex items-start gap-3">
+                              <div className="w-12 h-12 bg-[#f8f6f4] rounded-[2px] flex items-center justify-center shrink-0 border border-[#c8b6a6]/15">
+                                <Heart size={18} className="text-[#c8b6a6]/40" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <Link href={`/scripts/${fav.script_id}`} className="font-bold text-gray-900 hover:text-indigo-600 block truncate">
+                                <Link href={`/scripts/${fav.script_id}`} className="font-medium text-[#2d3436] hover:text-[#c8b6a6] block truncate text-sm transition-colors">
                                   {fav.script_title}
                                 </Link>
-                                <p className="text-sm text-gray-500">by {fav.script_author}</p>
-                                <p className="text-lg font-bold text-indigo-600 mt-2">${(fav.script_price || 0).toFixed(2)}</p>
+                                <p className="text-[11px] text-[#636e72]">by {fav.script_author}</p>
+                                <p className="font-heading font-semibold text-[#2d3436] text-sm mt-1">${(fav.script_price || 0).toFixed(2)}</p>
                               </div>
                               <button
                                 onClick={() => handleRemoveFavorite(fav.id)}
-                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                className="p-1.5 text-[#636e72]/40 hover:text-[#2d3436] rounded-[2px] transition-colors"
                                 title="Remove from favorites"
                               >
-                                <Heart size={18} className="fill-current" />
+                                <Heart size={14} className="fill-current" />
                               </button>
                             </div>
                           </div>
@@ -576,36 +537,36 @@ export default function UserDashboard() {
 
                 {/* Reviews Tab */}
                 {activeTab === 'reviews' && (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-6">My Reviews ({reviews.length})</h2>
+                  <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6">
+                    <h2 className="font-heading font-semibold text-[#2d3436] mb-6 text-sm">My Reviews ({reviews.length})</h2>
                     {reviews.length === 0 ? (
                       <div className="text-center py-12">
-                        <Star size={48} className="mx-auto text-gray-300 mb-4" />
-                        <p className="text-gray-500 font-medium">No reviews yet</p>
-                        <p className="text-sm text-gray-400 mt-1">Purchase a script and leave a review</p>
+                        <Star size={36} className="mx-auto text-[#c8b6a6]/30 mb-4" />
+                        <p className="text-[#636e72] font-medium text-sm">No reviews yet</p>
+                        <p className="text-xs text-[#636e72]/60 mt-1">Purchase a script and leave a review</p>
                       </div>
                     ) : (
-                      <div className="space-y-4">
+                      <div className="space-y-3">
                         {reviews.map((review) => (
-                          <div key={review.id} className="border border-gray-200 rounded-xl p-4">
+                          <div key={review.id} className="border border-[#c8b6a6]/20 rounded-[2px] p-4">
                             <div className="flex items-start justify-between mb-2">
-                              <Link href={`/scripts/${review.script_id}`} className="font-bold text-gray-900 hover:text-indigo-600">
+                              <Link href={`/scripts/${review.script_id}`} className="font-medium text-[#2d3436] hover:text-[#c8b6a6] text-sm transition-colors">
                                 {review.script_title}
                               </Link>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-0.5">
                                 {[1, 2, 3, 4, 5].map((star) => (
                                   <Star
                                     key={star}
-                                    size={16}
-                                    className={star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                                    size={12}
+                                    className={star <= review.rating ? 'fill-[#c8b6a6] text-[#c8b6a6]' : 'text-[#c8b6a6]/20'}
                                   />
                                 ))}
                               </div>
                             </div>
                             {review.comment && (
-                              <p className="text-gray-600 text-sm mt-2">{review.comment}</p>
+                              <p className="text-[#636e72] text-xs mt-2 leading-relaxed">{review.comment}</p>
                             )}
-                            <p className="text-xs text-gray-400 mt-2">{new Date(review.created_at).toLocaleDateString()}</p>
+                            <p className="text-[10px] text-[#636e72]/60 mt-2">{new Date(review.created_at).toLocaleDateString()}</p>
                           </div>
                         ))}
                       </div>
@@ -615,61 +576,50 @@ export default function UserDashboard() {
 
                 {/* Settings Tab */}
                 {activeTab === 'settings' && (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-6">Account Settings</h2>
+                  <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6">
+                    <h2 className="font-heading font-semibold text-[#2d3436] mb-6 text-sm">Account Settings</h2>
                     <div className="space-y-6">
-                      <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-xl">
+                      <div className="flex items-center gap-6 p-6 bg-[#f8f6f4] rounded-[2px]">
                         <img
                           src={getAvatarForUser(user.email, user.user_metadata?.avatar_url as string | null)}
                           alt="Avatar"
-                          className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg"
+                          className="w-16 h-16 rounded-full object-cover border border-[#c8b6a6]/30"
                           onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`; }}
                         />
                         <div>
-                          <p className="font-bold text-gray-900">{String(user.user_metadata?.full_name || 'User')}</p>
-                          <p className="text-gray-500">{user.email}</p>
+                          <p className="font-medium text-[#2d3436] text-sm">{String(user.user_metadata?.full_name || 'User')}</p>
+                          <p className="text-[#636e72] text-xs">{user.email}</p>
                         </div>
                       </div>
 
-                      <div className="border-t border-gray-200 pt-6">
-                        <h3 className="font-bold text-gray-900 mb-4">Account Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="p-4 bg-gray-50 rounded-lg">
-                            <label className="text-sm text-gray-500">Email</label>
-                            <p className="font-medium text-gray-900">{user.email}</p>
-                          </div>
-                          <div className="p-4 bg-gray-50 rounded-lg">
-                            <label className="text-sm text-gray-500">Member Since</label>
-                            <p className="font-medium text-gray-900">{new Date(user.created_at || '').toLocaleDateString()}</p>
-                          </div>
-                          <div className="p-4 bg-gray-50 rounded-lg">
-                            <label className="text-sm text-gray-500">Total Purchases</label>
-                            <p className="font-medium text-gray-900">{purchases.length}</p>
-                          </div>
-                          <div className="p-4 bg-gray-50 rounded-lg">
-                            <label className="text-sm text-gray-500">Total Spent</label>
-                            <p className="font-medium text-gray-900">${totalSpent.toFixed(2)}</p>
-                          </div>
-                          <div className="p-4 bg-gray-50 rounded-lg">
-                            <label className="text-sm text-gray-500">Reviews Given</label>
-                            <p className="font-medium text-gray-900">{reviews.length}</p>
-                          </div>
-                          <div className="p-4 bg-gray-50 rounded-lg">
-                            <label className="text-sm text-gray-500">Average Rating Given</label>
-                            <p className="font-medium text-gray-900">{avgRating > 0 ? avgRating.toFixed(1) : 'N/A'}</p>
-                          </div>
+                      <div className="border-t border-[#c8b6a6]/15 pt-6">
+                        <h3 className="font-heading font-semibold text-[#2d3436] mb-4 text-sm">Account Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {[
+                            { label: 'Email', value: user.email },
+                            { label: 'Member Since', value: new Date(user.created_at || '').toLocaleDateString() },
+                            { label: 'Total Purchases', value: purchases.length },
+                            { label: 'Total Spent', value: `$${totalSpent.toFixed(2)}` },
+                            { label: 'Reviews Given', value: reviews.length },
+                            { label: 'Average Rating Given', value: avgRating > 0 ? avgRating.toFixed(1) : 'N/A' },
+                          ].map((item, i) => (
+                            <div key={i} className="p-4 bg-[#f8f6f4] rounded-[2px]">
+                              <label className="text-[11px] text-[#636e72] font-medium">{item.label}</label>
+                              <p className="font-medium text-[#2d3436] text-sm">{item.value}</p>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
-                      <div className="border-t border-gray-200 pt-6">
-                        <h3 className="font-bold text-gray-900 mb-4">Quick Actions</h3>
-                        <div className="flex flex-wrap gap-4">
-                          <Link href="/scripts" className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors">
-                            <ShoppingCart size={18} />
+                      <div className="border-t border-[#c8b6a6]/15 pt-6">
+                        <h3 className="font-heading font-semibold text-[#2d3436] mb-4 text-sm">Quick Actions</h3>
+                        <div className="flex flex-wrap gap-3">
+                          <Link href="/scripts" className="flex items-center gap-2 bg-[#2d3436] text-[#fefefe] px-4 py-2 rounded-[2px] font-medium text-xs hover:bg-[#636e72] transition-colors">
+                            <ShoppingCart size={14} />
                             Browse Marketplace
                           </Link>
-                          <Link href="/scripts/console" className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors">
-                            <Package size={18} />
+                          <Link href="/scripts/console" className="flex items-center gap-2 bg-[#f8f6f4] text-[#636e72] px-4 py-2 rounded-[2px] font-medium text-xs hover:bg-[#fefefe] transition-colors border border-[#c8b6a6]/20">
+                            <Package size={14} />
                             Creator Console
                           </Link>
                         </div>
