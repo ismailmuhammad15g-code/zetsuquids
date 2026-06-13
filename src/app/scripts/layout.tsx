@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { ShoppingCart, Code, Search, Monitor, LogIn, User, LogOut, Bell, Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CartProvider, useCart } from '@/contexts/CartContext';
@@ -21,11 +21,10 @@ function ScriptsLayoutInner({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { setIsOpen, itemCount } = useCart();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [navSearchQuery, setNavSearchQuery] = useState(searchParams.get('search') || '');
+  const [navSearchQuery, setNavSearchQuery] = useState('');
   const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
