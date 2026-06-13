@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { Star, Download, Code2, Cpu, LayoutTemplate, ShieldCheck, Loader2, LogIn, UserPlus, X, User, ShoppingCart, Search } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,39 +34,25 @@ function isValidImageUrl(url: string | null | undefined): boolean {
   }
 }
 
-export default function ScriptsMarketplace() {
+function ScriptsContent() {
   const { user } = useAuth();
   const { addToCart } = useCart();
-  const searchParams = useSearchParams();
-  const initialSearch = searchParams.get('search') || '';
   const [scripts, setScripts] = useState<ScriptItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [hasConfirmedAccount, setHasConfirmedAccount] = useState(false);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('search') || '';
+    if (q) setSearchQuery(q);
+  }, []);
+
+  useEffect(() => {
     fetchScripts();
   }, [activeCategory]);
-
-  // Sync search from URL
-  useEffect(() => {
-    const q = searchParams.get('search') || '';
-    setSearchQuery(q);
-  }, [searchParams]);
-
-  const filteredScripts = useMemo(() => {
-    if (!searchQuery.trim()) return scripts;
-    const q = searchQuery.toLowerCase();
-    return scripts.filter(s =>
-      s.title.toLowerCase().includes(q) ||
-      s.description.toLowerCase().includes(q) ||
-      s.category.toLowerCase().includes(q) ||
-      s.author_name.toLowerCase().includes(q) ||
-      (s.tags && s.tags.some((t: string) => t.toLowerCase().includes(q)))
-    );
-  }, [scripts, searchQuery]);
 
   useEffect(() => {
     if (user && !hasConfirmedAccount) {
@@ -163,6 +148,18 @@ export default function ScriptsMarketplace() {
   };
 
   const categories = ['All', 'React', 'Next.js', 'PHP', 'Python', 'Vue', 'Node.js', 'HTML5', 'WordPress'];
+
+  const filteredScripts = useMemo(() => {
+    if (!searchQuery.trim()) return scripts;
+    const q = searchQuery.toLowerCase();
+    return scripts.filter(s =>
+      s.title.toLowerCase().includes(q) ||
+      s.description.toLowerCase().includes(q) ||
+      s.category.toLowerCase().includes(q) ||
+      s.author_name.toLowerCase().includes(q) ||
+      (s.tags && s.tags.some((t: string) => t.toLowerCase().includes(q)))
+    );
+  }, [scripts, searchQuery]);
 
   return (
     <div className="bg-[#fefefe] min-h-screen">
@@ -413,5 +410,11 @@ export default function ScriptsMarketplace() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ScriptsMarketplace() {
+  return (
+    <ScriptsContent />
   );
 }
