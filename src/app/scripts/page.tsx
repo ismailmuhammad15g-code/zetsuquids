@@ -21,11 +21,9 @@ interface ScriptItem {
   tags: string[];
 }
 
-// Validate image URL - reject broken data URLs
 function isValidImageUrl(url: string | null | undefined): boolean {
   if (!url) return false;
   if (url.startsWith('data:')) {
-    // Only allow properly formed data URLs (must have base64 content)
     return /^data:image\/[a-z]+;base64,[A-Za-z0-9+/=]{100,}$/.test(url);
   }
   try {
@@ -49,7 +47,6 @@ export default function ScriptsMarketplace() {
     fetchScripts();
   }, [activeCategory]);
 
-  // Show account confirmation modal when user first arrives and is logged in
   useEffect(() => {
     if (user && !hasConfirmedAccount) {
       const confirmed = sessionStorage.getItem('scripts_account_confirmed');
@@ -90,17 +87,14 @@ export default function ScriptsMarketplace() {
 
       if (error) throw error;
 
-      // Fetch real sales and review counts for each script
       const enrichedScripts = await Promise.all(
         (data || []).map(async (script: any) => {
           try {
-            // Get actual sales count
             const { count: salesCount } = await supabase
               .from('marketplace_purchases')
               .select('*', { count: 'exact', head: true })
               .eq('script_id', script.id);
 
-            // Get actual reviews
             const { data: reviewsData } = await supabase
               .from('marketplace_reviews')
               .select('rating')
@@ -136,61 +130,61 @@ export default function ScriptsMarketplace() {
     switch (category.toLowerCase()) {
       case 'react':
       case 'next.js':
-        return <Code2 className="text-indigo-500" size={16} />;
+        return <Code2 className="text-[#636e72]" size={14} />;
       case 'php':
-        return <ShieldCheck className="text-purple-500" size={16} />;
+        return <ShieldCheck className="text-[#636e72]" size={14} />;
       case 'python':
-        return <Cpu className="text-green-500" size={16} />;
+        return <Cpu className="text-[#636e72]" size={14} />;
       default:
-        return <LayoutTemplate className="text-blue-500" size={16} />;
+        return <LayoutTemplate className="text-[#636e72]" size={14} />;
     }
   };
 
   const categories = ['All', 'React', 'Next.js', 'PHP', 'Python', 'Vue', 'Node.js', 'HTML5', 'WordPress'];
 
   return (
-    <div>
+    <div className="bg-[#fefefe] min-h-screen">
       {/* Account Confirmation Modal */}
       {showAccountModal && user && (
-        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-8 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <button onClick={() => setShowAccountModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black">
-              <X size={20} />
+        <div className="fixed inset-0 z-[9999] bg-[#2d3436]/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#fefefe] rounded-[2px] max-w-md w-full p-8 text-center shadow-[0px_4px_0px_0px_rgba(0,0,0,0.08)] border border-[#c8b6a6]/30 relative animate-in zoom-in-95 duration-200">
+            <button onClick={() => setShowAccountModal(false)} className="absolute top-4 right-4 text-[#636e72] hover:text-[#2d3436] transition-colors">
+              <X size={18} />
             </button>
-            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200">
-              <span className="text-white font-black text-3xl">Z</span>
+            <div className="w-14 h-14 bg-[#2d3436] rounded-[2px] flex items-center justify-center mx-auto mb-4">
+              <span className="text-[#fefefe] font-heading text-2xl font-semibold">Z</span>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back!</h3>
-            <p className="text-gray-500 mb-6">You are logged in as:</p>
+            <h3 className="font-heading text-xl font-semibold text-[#2d3436] mb-2">Welcome Back</h3>
+            <p className="text-[#636e72] text-sm mb-6">You are logged in as</p>
 
-            <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-4 mb-6 border border-gray-200">
+            <div className="flex items-center gap-3 bg-[#f8f6f4] rounded-[2px] p-4 mb-6 border border-[#c8b6a6]/20">
               <img
                 src={getAvatarForUser(user.email, user.user_metadata?.avatar_url as string | null)}
                 alt="Avatar"
-                className="w-12 h-12 rounded-full object-cover border-2 border-indigo-200"
+                className="w-10 h-10 rounded-full object-cover border border-[#c8b6a6]/30"
                 onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`; }}
               />
               <div className="text-left">
-                <p className="font-bold text-gray-900">{String(user.user_metadata?.full_name || user.email?.split('@')[0] || 'User')}</p>
-                <p className="text-sm text-gray-500">{user.email}</p>
+                <p className="font-medium text-[#2d3436] text-sm">{String(user.user_metadata?.full_name || user.email?.split('@')[0] || 'User')}</p>
+                <p className="text-xs text-[#636e72]">{user.email}</p>
               </div>
             </div>
 
-            <p className="text-sm text-gray-500 mb-6">Do you want to continue with this account for all your scripts and purchases?</p>
+            <p className="text-xs text-[#636e72] mb-6">Do you want to continue with this account for all your scripts and purchases?</p>
 
             <div className="space-y-3">
               <button
                 onClick={handleConfirmAccount}
-                className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all shadow-lg flex items-center justify-center gap-2"
+                className="w-full bg-[#2d3436] text-[#fefefe] font-medium py-3 rounded-[2px] hover:bg-[#636e72] transition-colors duration-200 flex items-center justify-center gap-2 text-sm"
               >
-                <User size={18} />
+                <User size={16} />
                 Continue with this Account
               </button>
               <button
                 onClick={handleSwitchAccount}
-                className="w-full bg-white text-gray-700 border border-gray-300 font-bold py-3 rounded-xl hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                className="w-full bg-[#fefefe] text-[#636e72] border border-[#c8b6a6]/40 font-medium py-3 rounded-[2px] hover:bg-[#f8f6f4] transition-colors duration-200 flex items-center justify-center gap-2 text-sm"
               >
-                <LogIn size={18} />
+                <LogIn size={16} />
                 Switch Account
               </button>
             </div>
@@ -199,37 +193,39 @@ export default function ScriptsMarketplace() {
       )}
 
       {/* Hero Section */}
-      <div className="bg-indigo-600 py-16 sm:py-24 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-6">
-            Discover the Best Scripts & Code
+      <div className="bg-[#f8f6f4] border-b border-[#c8b6a6]/20 py-16 sm:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="inline-block mb-6">
+            <span className="text-[#c8b6a6] text-xs font-medium tracking-[0.2em] uppercase">Marketplace</span>
+          </div>
+          <h1 className="font-heading text-3xl sm:text-4xl md:text-5xl font-semibold text-[#2d3436] mb-6 leading-tight">
+            Discover the Best Scripts<br className="hidden sm:block" /> & Code
           </h1>
-          <p className="text-xl text-indigo-100 max-w-2xl mx-auto mb-10">
-            Thousands of high-quality scripts, plugins, and templates. Stored securely on GitHub, delivered instantly to you.
+          <p className="text-[#636e72] text-base sm:text-lg max-w-xl mx-auto mb-10 leading-relaxed">
+            High-quality scripts, plugins, and templates. Stored securely on GitHub, delivered instantly.
           </p>
           <div className="flex justify-center gap-4 flex-wrap">
             <button
               onClick={() => {
                 document.getElementById('scripts-grid')?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="bg-white text-indigo-600 hover:bg-gray-50 px-8 py-3 rounded-lg font-bold text-lg shadow-lg transition-all transform hover:-translate-y-1"
+              className="bg-[#2d3436] text-[#fefefe] hover:bg-[#636e72] px-8 py-3 rounded-[2px] font-medium text-sm transition-colors duration-200"
             >
               Browse All
             </button>
             {!user ? (
               <>
-                <Link href="/auth" className="bg-indigo-500 text-white border border-indigo-400 hover:bg-indigo-400 px-8 py-3 rounded-lg font-bold text-lg shadow-lg transition-all transform hover:-translate-y-1 flex items-center gap-2">
-                  <LogIn size={18} />
+                <Link href="/auth" className="bg-[#fefefe] text-[#2d3436] border border-[#c8b6a6]/40 hover:bg-[#f8f6f4] px-8 py-3 rounded-[2px] font-medium text-sm transition-colors duration-200 flex items-center gap-2">
+                  <LogIn size={16} />
                   Login
                 </Link>
-                <Link href="/auth" className="bg-white text-indigo-600 border border-white hover:bg-gray-50 px-8 py-3 rounded-lg font-bold text-lg shadow-lg transition-all transform hover:-translate-y-1 flex items-center gap-2">
-                  <UserPlus size={18} />
+                <Link href="/auth" className="text-[#636e72] hover:text-[#2d3436] px-8 py-3 rounded-[2px] font-medium text-sm transition-colors duration-200 flex items-center gap-2">
+                  <UserPlus size={16} />
                   Sign Up
                 </Link>
               </>
             ) : (
-              <Link href="/scripts/console" className="bg-indigo-500 text-white border border-indigo-400 hover:bg-indigo-400 px-8 py-3 rounded-lg font-bold text-lg shadow-lg transition-all transform hover:-translate-y-1">
+              <Link href="/scripts/console" className="bg-[#fefefe] text-[#2d3436] border border-[#c8b6a6]/40 hover:bg-[#f8f6f4] px-8 py-3 rounded-[2px] font-medium text-sm transition-colors duration-200">
                 Start Selling
               </Link>
             )}
@@ -237,18 +233,18 @@ export default function ScriptsMarketplace() {
         </div>
       </div>
 
-      {/* Categories Banner */}
-      <div className="bg-white border-b border-gray-200 py-6 sticky top-16 z-40">
+      {/* Categories Filter */}
+      <div className="bg-[#fefefe] border-b border-[#c8b6a6]/20 py-4 sticky top-16 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
             {categories.map(cat => (
-              <button 
-                key={cat} 
+              <button
+                key={cat}
                 onClick={() => setActiveCategory(cat === 'All' ? null : cat)}
-                className={`px-6 py-2 rounded-full font-medium transition-colors whitespace-nowrap border ${
-                  (cat === 'All' && !activeCategory) || activeCategory === cat 
-                    ? 'bg-indigo-600 text-white border-indigo-600' 
-                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-indigo-50 hover:text-indigo-600'
+                className={`px-5 py-2 rounded-[2px] font-medium text-xs transition-colors duration-200 whitespace-nowrap border ${
+                  (cat === 'All' && !activeCategory) || activeCategory === cat
+                    ? 'bg-[#2d3436] text-[#fefefe] border-[#2d3436]'
+                    : 'bg-[#fefefe] text-[#636e72] border-[#c8b6a6]/30 hover:bg-[#f8f6f4] hover:text-[#2d3436]'
                 }`}
               >
                 {cat}
@@ -258,78 +254,78 @@ export default function ScriptsMarketplace() {
         </div>
       </div>
 
-      {/* Featured Scripts */}
+      {/* Scripts Grid */}
       <div id="scripts-grid" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex justify-between items-end mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{activeCategory || 'Latest'} Scripts</h2>
-            <p className="text-gray-500 mt-1">Real scripts from our verified creator community.</p>
+            <h2 className="font-heading text-xl font-semibold text-[#2d3436]">{activeCategory || 'Latest'} Scripts</h2>
+            <p className="text-[#636e72] text-sm mt-1">Verified scripts from our creator community.</p>
           </div>
         </div>
 
         {loading ? (
           <div className="flex justify-center items-center py-24">
-            <Loader2 size={48} className="animate-spin text-indigo-600" />
+            <Loader2 size={32} className="animate-spin text-[#c8b6a6]" />
           </div>
         ) : scripts.length === 0 ? (
-          <div className="text-center py-24 bg-white rounded-xl border border-gray-200 shadow-sm">
-            <Code2 size={48} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-bold text-gray-900">No scripts found</h3>
-            <p className="text-gray-500 mt-2">There are no scripts available in this category yet.</p>
+          <div className="text-center py-24 bg-[#f8f6f4] rounded-[2px] border border-[#c8b6a6]/20">
+            <Code2 size={40} className="mx-auto text-[#c8b6a6]/40 mb-4" />
+            <h3 className="font-heading text-base font-semibold text-[#2d3436]">No scripts found</h3>
+            <p className="text-[#636e72] text-sm mt-2">There are no scripts available in this category yet.</p>
             {activeCategory && (
-              <button 
+              <button
                 onClick={() => setActiveCategory(null)}
-                className="mt-4 text-indigo-600 font-medium hover:underline"
+                className="mt-4 text-[#c8b6a6] font-medium text-sm hover:text-[#2d3436] transition-colors"
               >
                 Clear Filters
               </button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {scripts.map((script) => (
-              <Link href={`/scripts/${script.id}`} key={script.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl transition-all group flex flex-col">
-                <div className="h-48 w-full overflow-hidden relative bg-gray-100 flex items-center justify-center">
+              <Link href={`/scripts/${script.id}`} key={script.id} className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 overflow-hidden hover:shadow-[0px_4px_0px_0px_rgba(0,0,0,0.08)] transition-all duration-300 group flex flex-col">
+                <div className="h-44 w-full overflow-hidden relative bg-[#f8f6f4] flex items-center justify-center">
                   {isValidImageUrl(script.thumbnail_url) ? (
                     <>
                       <img
                         src={script.thumbnail_url}
                         alt={script.title}
                         onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                       />
-                      <Code2 size={64} className="text-gray-300 group-hover:scale-110 transition-transform duration-500 hidden absolute" />
+                      <Code2 size={48} className="text-[#c8b6a6]/30 group-hover:scale-110 transition-transform duration-700 ease-out hidden absolute" />
                     </>
                   ) : (
-                    <Code2 size={64} className="text-gray-300 group-hover:scale-110 transition-transform duration-500" />
+                    <Code2 size={48} className="text-[#c8b6a6]/30 group-hover:scale-110 transition-transform duration-700 ease-out" />
                   )}
-                  <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-gray-800 flex items-center gap-1 shadow-sm">
+                  <div className="absolute top-3 right-3 bg-[#fefefe]/90 backdrop-blur-sm px-3 py-1 rounded-[2px] text-[10px] font-medium text-[#636e72] flex items-center gap-1.5 border border-[#c8b6a6]/20">
                     {getCategoryIcon(script.category)}
                     {script.category}
                   </div>
                 </div>
-                
+
                 <div className="p-5 flex-1 flex flex-col">
-                  <h3 className="font-bold text-lg text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors line-clamp-1">{script.title}</h3>
-                  <p className="text-sm text-gray-500 mb-4 line-clamp-2 flex-1">{script.description}</p>
-                  
+                  <h3 className="font-heading font-semibold text-base text-[#2d3436] mb-2 group-hover:text-[#c8b6a6] transition-colors duration-200 line-clamp-1">{script.title}</h3>
+                  <p className="text-xs text-[#636e72] mb-4 line-clamp-2 flex-1 leading-relaxed">{script.description}</p>
+
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-1 text-sm text-amber-500 font-medium">
-                      <Star size={16} className={script.rating > 0 ? "fill-amber-500" : "text-gray-300"} />
-                      <span className={script.rating > 0 ? "" : "text-gray-400"}>
+                    <div className="flex items-center gap-1 text-xs text-[#c8b6a6] font-medium">
+                      <Star size={14} className={script.rating > 0 ? "fill-[#c8b6a6]" : "text-[#c8b6a6]/30"} />
+                      <span className={script.rating > 0 ? "" : "text-[#636e72]"}>
                         {script.rating > 0 ? script.rating.toFixed(1) : 'New'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
-                      <Download size={14} />
+                    <div className="flex items-center gap-1 text-[11px] text-[#636e72]">
+                      <Download size={12} />
                       {script.sales_count} Sales
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
-                    <span className="text-xs text-gray-500">by <span className="font-semibold text-gray-700 hover:text-indigo-600">{script.author_name}</span></span>
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-xl text-gray-900">${script.price.toFixed(2)}</span>
+                  <div className="pt-4 border-t border-[#c8b6a6]/15 flex items-center justify-between">
+                    <span className="text-[11px] text-[#636e72]">by <span className="font-medium text-[#2d3436]">{script.author_name}</span></span>
+                    <div className="flex items-center gap-3">
+                      <span className="font-heading font-semibold text-lg text-[#2d3436]">${script.price.toFixed(2)}</span>
                       <button
                         onClick={(e) => {
                           e.preventDefault();
@@ -341,12 +337,12 @@ export default function ScriptsMarketplace() {
                             thumbnail_url: script.thumbnail_url,
                             author_name: script.author_name
                           });
-                          toast.success('Added to cart!');
+                          toast.success('Added to cart');
                         }}
-                        className="p-2 bg-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-200 transition-colors"
+                        className="p-2 bg-[#f8f6f4] text-[#636e72] rounded-[2px] hover:bg-[#2d3436] hover:text-[#fefefe] transition-colors duration-200 border border-[#c8b6a6]/20"
                         title="Add to Cart"
                       >
-                        <ShoppingCart size={16} />
+                        <ShoppingCart size={14} />
                       </button>
                     </div>
                   </div>
