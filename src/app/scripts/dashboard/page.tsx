@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   User, Heart, ShoppingCart, Package, Star,
-  Settings, LogOut, TrendingUp, ExternalLink
+  Settings, LogOut, TrendingUp, ExternalLink, Trash2, X, AlertTriangle
 } from 'lucide-react';
 import Loading from '@/components/scripts/Loading';
 import { supabase } from '@/lib/supabase';
@@ -54,6 +54,10 @@ export default function UserDashboard() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [tablesExist, setTablesExist] = useState(true);
+  const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -239,6 +243,36 @@ export default function UserDashboard() {
   const handleLogout = async () => {
     await logout();
     window.location.href = '/scripts';
+  };
+
+  const handleOpenPurchaseSettings = (purchase: Purchase) => {
+    setSelectedPurchase(purchase);
+    setShowPurchaseModal(true);
+    setShowDeleteConfirm(false);
+  };
+
+  const handleDeletePurchase = async () => {
+    if (!selectedPurchase || !user) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('marketplace_purchases')
+        .delete()
+        .eq('id', selectedPurchase.id)
+        .eq('buyer_id', user.id);
+
+      if (error) throw error;
+
+      setPurchases(prev => prev.filter(p => p.id !== selectedPurchase.id));
+      setShowPurchaseModal(false);
+      setShowDeleteConfirm(false);
+      setSelectedPurchase(null);
+      toast.success('Purchase removed from your account');
+    } catch (err: any) {
+      toast.error(`Failed to remove: ${err.message}`);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (!user) {
@@ -500,6 +534,13 @@ export default function UserDashboard() {
                                   View Script Details
                                 </Link>
                               )}
+                              <button
+                                onClick={() => handleOpenPurchaseSettings(purchase)}
+                                className="flex items-center justify-center gap-2 bg-[#f8f6f4] hover:bg-[#fefefe] text-[#636e72] py-2.5 px-3 rounded-[2px] font-medium text-xs transition-colors border border-[#c8b6a6]/30"
+                                title="Purchase Settings"
+                              >
+                                <Settings size={14} />
+                              </button>
                               <Link
                                 href={`/scripts/${purchase.script_id}`}
                                 className="flex items-center justify-center gap-2 bg-[#f8f6f4] hover:bg-[#fefefe] text-[#636e72] py-2.5 px-4 rounded-[2px] font-medium text-xs transition-colors border border-[#c8b6a6]/30"
@@ -654,6 +695,108 @@ export default function UserDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Purchase Settings Modal */}
+      {showPurchaseModal && selectedPurchase && (
+        <div className="fixed inset-0 z-[9999] bg-[#2d3436]/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#fefefe] rounded-[2px] max-w-md w-full shadow-[0px_8px_0px_0px_rgba(0,0,0,0.06)] border border-[#c8b6a6]/20 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#c8b6a6]/15">
+              <h3 className="font-heading font-semibold text-[#2d3436] text-sm">Purchase Details</h3>
+              <button
+                onClick={() => { setShowPurchaseModal(false); setShowDeleteConfirm(false); setSelectedPurchase(null); }}
+                className="text-[#636e72] hover:text-[#2d3436] transition-colors p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {!showDeleteConfirm ? (
+              /* Purchase Info */
+              <div className="p-6">
+                {/* Script Info */}
+                <div className="flex items-start gap-4 p-4 bg-[#f8f6f4] rounded-[2px] mb-5">
+                  <div className="w-12 h-12 bg-[#fefefe] rounded-[2px] flex items-center justify-center shrink-0 border border-[#c8b6a6]/15">
+                    <Package size={18} className="text-[#c8b6a6]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-heading font-semibold text-[#2d3436] text-sm truncate">{selectedPurchase.script_title}</p>
+                    <p className="text-xs text-[#636e72] mt-0.5">by {selectedPurchase.script_author}</p>
+                    <p className="text-[11px] text-[#636e72]/60 mt-0.5">{selectedPurchase.script_category}</p>
+                  </div>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  <div className="p-3 bg-[#f8f6f4] rounded-[2px]">
+                    <p className="text-[10px] text-[#636e72] uppercase tracking-wider font-medium">Amount Paid</p>
+                    <p className="font-heading font-semibold text-[#2d3436] text-sm mt-1">${Number(selectedPurchase.amount).toFixed(2)}</p>
+                  </div>
+                  <div className="p-3 bg-[#f8f6f4] rounded-[2px]">
+                    <p className="text-[10px] text-[#636e72] uppercase tracking-wider font-medium">Purchase Date</p>
+                    <p className="font-medium text-[#2d3436] text-sm mt-1">{new Date(selectedPurchase.created_at).toLocaleDateString()}</p>
+                  </div>
+                  <div className="p-3 bg-[#f8f6f4] rounded-[2px]">
+                    <p className="text-[10px] text-[#636e72] uppercase tracking-wider font-medium">Status</p>
+                    <p className="font-medium text-[#2d3436] text-sm mt-1 capitalize">{selectedPurchase.status}</p>
+                  </div>
+                  <div className="p-3 bg-[#f8f6f4] rounded-[2px]">
+                    <p className="text-[10px] text-[#636e72] uppercase tracking-wider font-medium">License</p>
+                    <p className="font-medium text-[#2d3436] text-sm mt-1 capitalize">{(selectedPurchase as any).license_type || 'Regular'}</p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-[2px] font-medium text-sm transition-colors border border-red-200 text-red-600 hover:bg-red-50"
+                  >
+                    <Trash2 size={16} />
+                    Remove from My Account
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Delete Confirmation */
+              <div className="p-6">
+                <div className="text-center mb-6">
+                  <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+                    <AlertTriangle size={24} className="text-red-500" />
+                  </div>
+                  <h4 className="font-heading font-semibold text-[#2d3436] mb-2">Remove Purchase?</h4>
+                  <p className="text-[#636e72] text-sm leading-relaxed">
+                    You are about to remove <span className="font-medium text-[#2d3436]">{selectedPurchase.script_title}</span> from your account. This action cannot be undone.
+                  </p>
+                </div>
+
+                <div className="bg-red-50 border border-red-100 rounded-[2px] p-4 mb-6">
+                  <p className="text-red-600 text-xs leading-relaxed">
+                    After removal, you will lose access to the script files, downloads, and support. You will need to purchase again to regain access.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="flex-1 px-4 py-3 border border-[#c8b6a6]/40 rounded-[2px] font-medium text-[#636e72] text-sm hover:bg-[#f8f6f4] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeletePurchase}
+                    disabled={deleting}
+                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-[2px] font-medium text-sm hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {deleting ? <Loading size={14} /> : <Trash2 size={14} />}
+                    {deleting ? 'Removing...' : 'Yes, Remove'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
