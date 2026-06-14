@@ -248,12 +248,12 @@ function CheckoutContent() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-extrabold text-[#2d3436] mb-8 font-heading">Checkout</h1>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <h1 className="text-2xl sm:text-3xl font-heading font-semibold text-[#2d3436] mb-8">Checkout</h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-10">
           {/* Payment Form */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-3 space-y-6">
             {/* Payment Method Selection */}
             <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6">
               <h2 className="text-lg font-bold text-[#2d3436] mb-4 font-heading">Payment Method</h2>
@@ -325,92 +325,110 @@ function CheckoutContent() {
           </div>
 
           {/* Order Summary */}
-          <div className="lg:col-span-1">
-            <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6 sticky top-24">
-              <h2 className="text-lg font-bold text-[#2d3436] mb-4 font-heading">Order Summary</h2>
-              {isCartCheckout ? (
-                <div className="space-y-3 mb-6">
-                  {cartItems.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3 p-3 bg-[#f8f6f4] rounded-[2px]">
-                      <div className="w-10 h-10 bg-[#c8b6a6]/20 rounded-[2px] flex items-center justify-center">
-                        <ShoppingCart size={16} className="text-[#636e72]" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[#2d3436] truncate">{item.title}</p>
-                        <p className="text-xs text-[#636e72]">by {item.author_name}</p>
-                        <span className="inline-block mt-1 px-2 py-0.5 bg-[#f8f6f4] text-[#636e72] text-[10px] font-bold uppercase rounded-[2px]">{item.license_type || 'regular'}</span>
-                      </div>
-                      <p className="text-sm font-bold text-[#2d3436]">${item.price.toFixed(2)}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : script ? (
-                <>
-                  <div className="flex items-center gap-3 p-3 bg-[#f8f6f4] rounded-[2px] mb-4">
-                    <div className="w-12 h-12 bg-[#c8b6a6]/20 rounded-[2px] flex items-center justify-center">
-                      <ShoppingCart size={20} className="text-[#636e72]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-[#2d3436] truncate">{script.title}</p>
-                      <p className="text-sm text-[#636e72]">by {script.author_name}</p>
-                      <p className="text-xs text-[#636e72]">{script.category}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-3 mb-6">
-                    <label className={`block p-3 rounded-[2px] border-2 cursor-pointer transition-all ${selectedLicense === 'regular' ? 'border-[#c8b6a6] bg-[#f8f6f4]' : 'border-[#c8b6a6]/20 hover:border-[#c8b6a6]/40'}`}>
-                      <div className="flex items-center gap-2">
-                        <input type="radio" name="license" value="regular" checked={selectedLicense === 'regular'} onChange={() => setSelectedLicense('regular')} className="w-4 h-4 text-[#c8b6a6]" />
-                        <div className="flex-1 flex items-center justify-between">
-                          <span className="font-bold text-[#2d3436] text-sm">Regular License</span>
-                          <span className="font-extrabold text-[#2d3436]">${Number(script.price).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </label>
-                    <label className={`block p-3 rounded-[2px] border-2 cursor-pointer transition-all ${selectedLicense === 'extended' ? 'border-[#c8b6a6] bg-[#f8f6f4]' : 'border-[#c8b6a6]/20 hover:border-[#c8b6a6]/40'}`}>
-                      <div className="flex items-center gap-2">
-                        <input type="radio" name="license" value="extended" checked={selectedLicense === 'extended'} onChange={() => setSelectedLicense('extended')} className="w-4 h-4 text-[#c8b6a6]" />
-                        <div className="flex-1 flex items-center justify-between">
-                          <span className="font-bold text-[#2d3436] text-sm">Extended License</span>
-                          <span className="font-extrabold text-[#2d3436]">${Number(script.extended_price || script.price * 5).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                </>
-              ) : null}
-
-              <div className="border-t border-[#c8b6a6]/20 pt-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#636e72]">Subtotal ({getItemCount()} item{getItemCount() > 1 ? 's' : ''})</span>
-                  <span className="font-medium">${getTotal().toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#636e72]">Processing Fee</span>
-                  <span className="font-medium">$0.00</span>
-                </div>
-                <div className="border-t border-[#c8b6a6]/20 pt-2 flex justify-between">
-                  <span className="font-bold text-[#2d3436]">Total</span>
-                  <span className="text-xl font-extrabold text-[#c8b6a6]">${getTotal().toFixed(2)}</span>
-                </div>
+          <div className="lg:col-span-2">
+            <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 sticky top-24">
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-[#c8b6a6]/15">
+                <h2 className="font-heading text-base font-semibold text-[#2d3436]">Order Summary</h2>
               </div>
 
-              <button onClick={handlePayment} disabled={processing} className="w-full mt-6 bg-[#2d3436] text-[#fefefe] font-bold py-3 rounded-[2px] hover:bg-[#636e72] transition-colors flex items-center justify-center gap-2 disabled:opacity-70">
-                {processing ? (
+              <div className="p-6 space-y-6">
+                {/* Items */}
+                {isCartCheckout ? (
+                  <div className="space-y-3">
+                    {cartItems.map((item) => (
+                      <div key={item.id} className="flex items-start gap-4 p-4 bg-[#f8f6f4] rounded-[2px]">
+                        <div className="w-11 h-11 bg-[#fefefe] rounded-[2px] flex items-center justify-center shrink-0 border border-[#c8b6a6]/15">
+                          <ShoppingCart size={18} className="text-[#c8b6a6]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-[#2d3436] text-sm leading-snug">{item.title}</p>
+                          <p className="text-xs text-[#636e72] mt-0.5">by {item.author_name}</p>
+                          <span className="inline-block mt-1.5 px-2 py-0.5 bg-[#fefefe] text-[#636e72] text-[10px] font-medium rounded-[2px] border border-[#c8b6a6]/15">{item.license_type || 'regular'}</span>
+                        </div>
+                        <p className="font-heading font-semibold text-[#2d3436] text-sm shrink-0">${item.price.toFixed(2)}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : script ? (
                   <>
-                    <Loading size={16} />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Lock size={18} />
-                    Pay ${getTotal().toFixed(2)}
-                  </>
-                )}
-              </button>
+                    {/* Script Info */}
+                    <div className="flex items-start gap-4 p-4 bg-[#f8f6f4] rounded-[2px]">
+                      <div className="w-14 h-14 bg-[#fefefe] rounded-[2px] flex items-center justify-center shrink-0 border border-[#c8b6a6]/15">
+                        <ShoppingCart size={22} className="text-[#c8b6a6]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-heading font-semibold text-[#2d3436] text-sm leading-snug">{script.title}</p>
+                        <p className="text-xs text-[#636e72] mt-1">by {script.author_name}</p>
+                        <p className="text-[11px] text-[#636e72]/70 mt-0.5">{script.category}</p>
+                      </div>
+                    </div>
 
-              <div className="mt-4 flex items-center justify-center gap-2 text-xs text-[#636e72]">
-                <Shield size={14} />
-                <span>Secure payment powered by ZetsuMarket</span>
+                    {/* License Selection */}
+                    <div>
+                      <p className="text-xs font-medium text-[#636e72] mb-3 uppercase tracking-wider">Select License</p>
+                      <div className="space-y-3">
+                        <label className={`block p-4 rounded-[2px] border-2 cursor-pointer transition-all ${selectedLicense === 'regular' ? 'border-[#c8b6a6] bg-[#f8f6f4]' : 'border-[#c8b6a6]/20 hover:border-[#c8b6a6]/40'}`}>
+                          <div className="flex items-center gap-3">
+                            <input type="radio" name="license" value="regular" checked={selectedLicense === 'regular'} onChange={() => setSelectedLicense('regular')} className="w-4 h-4 text-[#c8b6a6] shrink-0" />
+                            <div className="flex-1">
+                              <p className="font-medium text-[#2d3436] text-sm">Regular License</p>
+                              <p className="text-[11px] text-[#636e72] mt-0.5">Use in a single end product</p>
+                            </div>
+                            <p className="font-heading font-semibold text-[#2d3436] text-sm shrink-0">${Number(script.price).toFixed(2)}</p>
+                          </div>
+                        </label>
+                        <label className={`block p-4 rounded-[2px] border-2 cursor-pointer transition-all ${selectedLicense === 'extended' ? 'border-[#c8b6a6] bg-[#f8f6f4]' : 'border-[#c8b6a6]/20 hover:border-[#c8b6a6]/40'}`}>
+                          <div className="flex items-center gap-3">
+                            <input type="radio" name="license" value="extended" checked={selectedLicense === 'extended'} onChange={() => setSelectedLicense('extended')} className="w-4 h-4 text-[#c8b6a6] shrink-0" />
+                            <div className="flex-1">
+                              <p className="font-medium text-[#2d3436] text-sm">Extended License</p>
+                              <p className="text-[11px] text-[#636e72] mt-0.5">Use in unlimited end products</p>
+                            </div>
+                            <p className="font-heading font-semibold text-[#2d3436] text-sm shrink-0">${Number(script.extended_price || script.price * 5).toFixed(2)}</p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+
+                {/* Pricing Breakdown */}
+                <div className="border-t border-[#c8b6a6]/15 pt-5 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-[#636e72]">Subtotal ({getItemCount()} item{getItemCount() > 1 ? 's' : ''})</span>
+                    <span className="font-medium text-[#2d3436] text-sm">${getTotal().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-[#636e72]">Processing fee</span>
+                    <span className="font-medium text-[#2d3436] text-sm">$0.00</span>
+                  </div>
+                  <div className="border-t border-[#c8b6a6]/15 pt-4 flex justify-between items-center">
+                    <span className="font-heading font-semibold text-[#2d3436]">Total</span>
+                    <span className="font-heading text-2xl font-semibold text-[#2d3436]">${getTotal().toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Pay Button */}
+                <button onClick={handlePayment} disabled={processing} className="w-full bg-[#2d3436] text-[#fefefe] font-medium py-4 rounded-[2px] hover:bg-[#636e72] transition-colors flex items-center justify-center gap-2.5 disabled:opacity-70 text-sm">
+                  {processing ? (
+                    <>
+                      <Loading size={16} />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Lock size={16} />
+                      Complete Payment &mdash; ${getTotal().toFixed(2)}
+                    </>
+                  )}
+                </button>
+
+                {/* Trust Badges */}
+                <div className="flex items-center justify-center gap-2 text-xs text-[#636e72]/70 pt-1">
+                  <Shield size={13} />
+                  <span>Secure checkout powered by ZetsuMarket</span>
+                </div>
               </div>
             </div>
           </div>
