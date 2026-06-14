@@ -52,13 +52,15 @@ function SellerSupportContent() {
   const fetchSellerInfo = async () => {
     try {
       // First try to get support settings
-      const { data: supportData } = await supabase
+      const { data: supportData, error: supportError } = await supabase
         .from('seller_support')
         .select('*')
         .eq('seller_id', sellerId)
         .maybeSingle();
 
-      if (supportData) {
+      console.log('Support data:', supportData, 'Error:', supportError);
+
+      if (supportData && !supportError) {
         setSeller(supportData);
         setLoading(false);
         return;
@@ -72,8 +74,9 @@ function SellerSupportContent() {
         .limit(1)
         .maybeSingle();
 
+      console.log('Script data:', scriptData);
+
       if (scriptData) {
-        // Create a basic seller entry from script data
         setSeller({
           id: '',
           seller_id: sellerId,
@@ -84,8 +87,8 @@ function SellerSupportContent() {
           telegram: '',
           twitter: '',
           website: '',
-          custom_message: 'Hello! How can I help you?',
-          response_time: 'Usually responds within 24 hours'
+          custom_message: 'This seller hasn\'t added their contact information yet. Please check back later or contact them through the marketplace.',
+          response_time: 'Contact information pending'
         });
         setLoading(false);
         return;
@@ -98,6 +101,8 @@ function SellerSupportContent() {
         .eq('user_id', sellerId)
         .maybeSingle();
 
+      console.log('Profile data:', profileData);
+
       if (profileData) {
         setSeller({
           id: '',
@@ -109,15 +114,14 @@ function SellerSupportContent() {
           telegram: '',
           twitter: '',
           website: '',
-          custom_message: 'Hello! How can I help you?',
-          response_time: 'Usually responds within 24 hours'
+          custom_message: 'This seller hasn\'t added their contact information yet. Please check back later.',
+          response_time: 'Contact information pending'
         });
         setLoading(false);
         return;
       }
 
-      // Last resort - check if user exists in auth (we can't query auth.users directly)
-      // Just show a generic page with the seller ID
+      // Last resort - show generic page
       setSeller({
         id: '',
         seller_id: sellerId,
@@ -128,7 +132,7 @@ function SellerSupportContent() {
         telegram: '',
         twitter: '',
         website: '',
-        custom_message: 'This seller hasn\'t set up their contact information yet. Please try again later.',
+        custom_message: 'This seller hasn\'t set up their contact information yet.',
         response_time: 'Contact information pending'
       });
     } catch (err) {
