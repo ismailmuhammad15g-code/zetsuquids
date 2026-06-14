@@ -65,11 +65,12 @@ function CheckoutContent() {
     fetchScriptDetails();
   }, [user, scriptId]);
 
-  const sendPurchaseEmail = async (emailAmount: number, emailScriptTitle: string) => {
+  const sendPurchaseEmail = async (emailAmount: number, emailScriptTitle: string, emailScriptId?: string) => {
     console.log('=== EMAIL SENDING START ===');
     console.log('User email:', user?.email);
     console.log('Script title:', emailScriptTitle);
     console.log('Amount:', emailAmount);
+    console.log('Script ID:', emailScriptId);
 
     try {
       const response = await fetch('/api/send-purchase-email', {
@@ -79,7 +80,9 @@ function CheckoutContent() {
           email: user?.email,
           name: user?.user_metadata?.full_name || user?.email?.split('@')[0],
           scriptTitle: emailScriptTitle,
-          amount: emailAmount
+          amount: emailAmount,
+          scriptId: emailScriptId,
+          userId: user?.id
         })
       });
 
@@ -155,6 +158,7 @@ function CheckoutContent() {
     setProcessing(true);
     let emailTitle = '';
     let emailAmount = 0;
+    let emailScriptId = '';
     try {
       if (isCartCheckout) {
         const count = cartItems.length;
@@ -209,13 +213,14 @@ function CheckoutContent() {
         if (error) throw error;
         emailTitle = script.title;
         emailAmount = purchaseAmount;
+        emailScriptId = script.id;
       }
       setSuccess(true);
       toast.success('Purchase successful!');
 
       // Send email immediately with actual values
-      console.log('Triggering email send with title:', emailTitle, 'amount:', emailAmount);
-      sendPurchaseEmail(emailAmount, emailTitle);
+      console.log('Triggering email send with title:', emailTitle, 'amount:', emailAmount, 'scriptId:', emailScriptId);
+      sendPurchaseEmail(emailAmount, emailTitle, emailScriptId);
     } catch (err: any) {
       toast.error(`Payment failed: ${err.message}`);
     } finally {
@@ -314,8 +319,16 @@ function CheckoutContent() {
 
             {/* Actions */}
             <div className="space-y-3">
-              <Link href="/scripts/dashboard" className="w-full bg-[#2d3436] text-[#fefefe] font-medium py-3.5 rounded-[2px] hover:bg-[#636e72] transition-colors flex items-center justify-center gap-2 text-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              {scriptId && user && (
+                <a
+                  href={`/scripts/download?script=${scriptId}&token=${user.id}`}
+                  className="w-full bg-[#2d3436] text-[#fefefe] font-medium py-3.5 rounded-[2px] hover:bg-[#636e72] transition-colors flex items-center justify-center gap-2 text-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Download Your Script
+                </a>
+              )}
+              <Link href="/scripts/dashboard" className="w-full bg-[#f8f6f4] text-[#636e72] font-medium py-3 rounded-[2px] hover:bg-[#fefefe] transition-colors flex items-center justify-center gap-2 text-sm border border-[#c8b6a6]/20">
                 Go to My Purchases
               </Link>
               <Link href="/scripts" className="w-full bg-[#f8f6f4] text-[#636e72] font-medium py-3 rounded-[2px] hover:bg-[#fefefe] transition-colors flex items-center justify-center gap-2 text-sm border border-[#c8b6a6]/20">

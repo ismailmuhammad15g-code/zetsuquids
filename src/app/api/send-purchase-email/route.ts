@@ -47,12 +47,14 @@ export async function POST(request: NextRequest) {
   console.log('=== SERVER EMAIL API CALLED ===');
   try {
     const body = await request.json();
-    const { email, name, scriptTitle, amount } = body;
+    const { email, name, scriptTitle, amount, scriptId, userId } = body;
 
     console.log('Received email:', email);
     console.log('Received name:', name);
     console.log('Received scriptTitle:', scriptTitle);
     console.log('Received amount:', amount);
+    console.log('Received scriptId:', scriptId);
+    console.log('Received userId:', userId);
 
     if (!email) {
       console.log('ERROR: No email provided');
@@ -132,7 +134,7 @@ export async function POST(request: NextRequest) {
           <!-- CTA Button -->
           <tr>
             <td style="padding:0 40px 32px;text-align:center;">
-              <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://zetsuquids.vercel.app'}/scripts/dashboard" style="display:inline-block;background-color:#2d3436;color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:2px;font-size:14px;font-weight:600;letter-spacing:0.3px;">Download Your Script</a>
+              <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://zetsuquids.vercel.app'}/scripts/download?script=${scriptId || ''}&token=${userId || ''}" style="display:inline-block;background-color:#2d3436;color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:2px;font-size:14px;font-weight:600;letter-spacing:0.3px;">Download Your Script</a>
             </td>
           </tr>
 
