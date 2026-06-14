@@ -165,14 +165,21 @@ export default function CreatorConsole() {
   const handleSaveSupport = async () => {
     if (!user?.id) return;
     setSavingSupport(true);
+    console.log('=== SAVING SUPPORT SETTINGS ===');
+    console.log('User ID:', user.id);
+    console.log('Settings:', supportSettings);
     try {
-      const { data: existing } = await supabase
+      const { data: existing, error: checkError } = await supabase
         .from('seller_support')
         .select('id')
         .eq('seller_id', user.id)
         .maybeSingle();
 
+      console.log('Existing entry:', existing);
+      if (checkError) console.log('Check error:', checkError);
+
       if (existing) {
+        console.log('Updating existing entry...');
         const { error } = await supabase
           .from('seller_support')
           .update({
@@ -188,8 +195,13 @@ export default function CreatorConsole() {
             updated_at: new Date().toISOString()
           })
           .eq('seller_id', user.id);
-        if (error) throw error;
+        if (error) {
+          console.error('Update error:', error);
+          throw error;
+        }
+        console.log('Update successful!');
       } else {
+        console.log('Inserting new entry...');
         const { error } = await supabase.from('seller_support').insert({
           seller_id: user.id,
           seller_name: String(user.user_metadata?.full_name || user.email?.split('@')[0] || 'Seller'),
@@ -202,10 +214,15 @@ export default function CreatorConsole() {
           custom_message: supportSettings.custom_message,
           response_time: supportSettings.response_time
         });
-        if (error) throw error;
+        if (error) {
+          console.error('Insert error:', error);
+          throw error;
+        }
+        console.log('Insert successful!');
       }
       toast.success('Support settings saved!');
     } catch (err: any) {
+      console.error('Save failed:', err);
       toast.error(`Failed to save: ${err.message}`);
     } finally {
       setSavingSupport(false);
