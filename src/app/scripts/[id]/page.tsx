@@ -31,7 +31,7 @@ function isValidImageUrl(url: string | null | undefined): boolean {
 export default function ScriptDetailsPage() {
   const params = useParams();
   const id = params.id as string;
-  const { user } = useAuth();
+  const { user, profileAvatar } = useAuth();
   const { addToCart } = useCart();
 
   const [script, setScript] = useState<any>(null);
@@ -185,11 +185,12 @@ export default function ScriptDetailsPage() {
     setSubmittingComment(true);
     try {
       const authorName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
-      const authorAvatar = getAvatarForUser(user.email, user.user_metadata?.avatar_url as string | null);
+      const authorAvatar = getAvatarForUser(user.email, profileAvatar);
 
       const { error } = await supabase.from('marketplace_comments').insert({
         script_id: id,
         user_id: user.id,
+        user_email: user.email,
         author_name: authorName,
         author_avatar: authorAvatar,
         comment_text: newComment
@@ -213,11 +214,12 @@ export default function ScriptDetailsPage() {
     setSubmittingReview(true);
     try {
       const authorName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
-      const authorAvatar = getAvatarForUser(user?.email, user?.user_metadata?.avatar_url as string | null);
+      const authorAvatar = getAvatarForUser(user?.email, profileAvatar);
 
       const { error } = await supabase.from('marketplace_reviews').insert({
         script_id: id,
         reviewer_id: user?.id,
+        user_email: user?.email,
         rating: newReviewRating,
         comment: newReviewText,
         author_name: authorName,
@@ -563,7 +565,7 @@ export default function ScriptDetailsPage() {
                         </div>
                       ) : (
                         <div className="flex gap-4">
-                          <img src={getAvatarForUser(user.email, user.user_metadata?.avatar_url as string | null)} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-[#c8b6a6]/20 shrink-0" />
+                          <img src={getAvatarForUser(user.email, profileAvatar)} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-[#c8b6a6]/20 shrink-0" />
                           <div className="flex-1">
                             <textarea
                               value={newComment}
@@ -592,7 +594,7 @@ export default function ScriptDetailsPage() {
                       ) : (
                         comments.map(comment => (
                           <div key={comment.id} className="flex gap-4">
-                            <img src={isValidImageUrl(comment.author_avatar) ? comment.author_avatar : `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_name}`} alt={comment.author_name} className="w-8 h-8 rounded-full object-cover border border-[#c8b6a6]/20 shrink-0" />
+                            <img src={getAvatarForUser(comment.user_email || null, (isValidImageUrl(comment.author_avatar) && !comment.author_avatar?.includes('dicebear')) ? comment.author_avatar : null)} alt={comment.author_name} className="w-8 h-8 rounded-full object-cover border border-[#c8b6a6]/20 shrink-0" />
                             <div className="flex-1">
                               <div className="bg-[#fefefe] border border-[#c8b6a6]/15 rounded-[2px] p-4 shadow-[0px_1px_0px_0px_rgba(0,0,0,0.03)]">
                                 <div className="flex justify-between items-center mb-2">
@@ -668,7 +670,7 @@ export default function ScriptDetailsPage() {
                           <div key={review.id} className="border-b border-[#c8b6a6]/10 pb-4 last:border-0 last:pb-0">
                             <div className="flex justify-between items-start mb-3">
                               <div className="flex items-center gap-3">
-                                <img src={isValidImageUrl(review.author_avatar) ? review.author_avatar : `https://api.dicebear.com/7.x/avataaars/svg?seed=${review.author_name}`} alt={review.author_name} className="w-8 h-8 rounded-full object-cover border border-[#c8b6a6]/20" />
+                                <img src={getAvatarForUser(review.user_email || null, (isValidImageUrl(review.author_avatar) && !review.author_avatar?.includes('dicebear')) ? review.author_avatar : null)} alt={review.author_name} className="w-8 h-8 rounded-full object-cover border border-[#c8b6a6]/20" />
                                 <div>
                                   <p className="font-medium text-[#2d3436] text-sm">{review.author_name}</p>
                                   <div className="flex items-center gap-0.5 mt-0.5">

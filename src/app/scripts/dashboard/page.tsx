@@ -47,7 +47,7 @@ interface Review {
 }
 
 export default function UserDashboard() {
-  const { user, logout } = useAuth();
+  const { user, profileAvatar, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'purchases' | 'favorites' | 'reviews' | 'settings'>('overview');
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
@@ -299,10 +299,10 @@ export default function UserDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-6">
             <img
-              src={getAvatarForUser(user.email, user.user_metadata?.avatar_url as string | null)}
+              src={getAvatarForUser(user.email, profileAvatar)}
               alt="Avatar"
               className="w-16 h-16 rounded-full object-cover border border-[#c8b6a6]/30"
-              onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`; }}
+              onError={(e) => { e.currentTarget.src = getAvatarForUser(user.email, null); }}
             />
             <div>
               <h1 className="font-heading text-xl font-semibold text-[#2d3436]">
@@ -644,10 +644,10 @@ export default function UserDashboard() {
                     <div className="space-y-6">
                       <div className="flex items-center gap-6 p-6 bg-[#f8f6f4] rounded-[2px]">
                         <img
-                          src={getAvatarForUser(user.email, user.user_metadata?.avatar_url as string | null)}
+                          src={getAvatarForUser(user.email, profileAvatar)}
                           alt="Avatar"
                           className="w-16 h-16 rounded-full object-cover border border-[#c8b6a6]/30"
-                          onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`; }}
+                          onError={(e) => { e.currentTarget.src = getAvatarForUser(user.email, null); }}
                         />
                         <div>
                           <p className="font-medium text-[#2d3436] text-sm">{String(user.user_metadata?.full_name || 'User')}</p>

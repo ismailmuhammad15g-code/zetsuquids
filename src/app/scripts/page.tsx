@@ -38,7 +38,7 @@ function isValidImageUrl(url: string | null | undefined): boolean {
 
 function ScriptsContent() {
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, profileAvatar } = useAuth();
   const { addToCart } = useCart();
   const [scripts, setScripts] = useState<ScriptItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -223,10 +223,10 @@ function ScriptsContent() {
 
             <div className="flex items-center gap-3 bg-[#f8f6f4] rounded-[2px] p-4 mb-6 border border-[#c8b6a6]/20">
               <img
-                src={getAvatarForUser(user.email, user.user_metadata?.avatar_url as string | null)}
+                src={getAvatarForUser(user.email, profileAvatar)}
                 alt="Avatar"
                 className="w-10 h-10 rounded-full object-cover border border-[#c8b6a6]/30"
-                onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`; }}
+                onError={(e) => { e.currentTarget.src = getAvatarForUser(user.email, null); }}
               />
               <div className="text-left">
                 <p className="font-medium text-[#2d3436] text-sm">{String(user.user_metadata?.full_name || user.email?.split('@')[0] || 'User')}</p>
