@@ -3,7 +3,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft, CreditCard, Building2, Check, Shield, Lock, ShoppingCart
+  ArrowLeft, CreditCard, Building2, Check, Shield, Lock, ShoppingCart, Package
 } from 'lucide-react';
 import Loading from '@/components/scripts/Loading';
 import { supabase } from '@/lib/supabase';
@@ -64,6 +64,31 @@ function CheckoutContent() {
     }
     fetchScriptDetails();
   }, [user, scriptId]);
+
+  useEffect(() => {
+    if (success && user) {
+      sendPurchaseEmail();
+    }
+  }, [success, user]);
+
+  const sendPurchaseEmail = async () => {
+    try {
+      await fetch('/api/send-purchase-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user?.email,
+          name: user?.user_metadata?.full_name || user?.email?.split('@')[0],
+          scriptTitle: isCartCheckout ? `${purchasedCount} scripts` : script?.title,
+          amount: purchasedTotal,
+          isCart: isCartCheckout,
+          itemCount: purchasedCount
+        })
+      });
+    } catch (err) {
+      console.error('Email sending failed:', err);
+    }
+  };
 
   const fetchScriptDetails = async () => {
     setLoading(true);
@@ -211,25 +236,74 @@ function CheckoutContent() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-[#f8f6f4] flex items-center justify-center">
-        <div className="max-w-md w-full bg-[#fefefe] rounded-[2px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.08)] p-8 text-center">
-          <div className="w-20 h-20 bg-[#f8f6f4] rounded-full flex items-center justify-center mx-auto mb-6">
-            <Check size={40} className="text-[#c8b6a6]" />
+      <div className="min-h-screen bg-[#f8f6f4] flex items-center justify-center p-4">
+        <div className="max-w-lg w-full bg-[#fefefe] rounded-[2px] shadow-[0px_8px_0px_0px_rgba(0,0,0,0.06)] border border-[#c8b6a6]/20 overflow-hidden">
+          {/* Header */}
+          <div className="bg-[#f8f6f4] border-b border-[#c8b6a6]/15 px-8 py-6 text-center">
+            <div className="w-16 h-16 bg-[#fefefe] rounded-full flex items-center justify-center mx-auto mb-4 border border-[#c8b6a6]/20">
+              <Check size={32} className="text-[#c8b6a6]" />
+            </div>
+            <h1 className="font-heading text-xl font-semibold text-[#2d3436] mb-1">Purchase Confirmed!</h1>
+            <p className="text-[#636e72] text-sm">Your order has been processed successfully.</p>
           </div>
-          <h1 className="text-2xl font-extrabold text-[#2d3436] mb-2 font-heading">Payment Successful!</h1>
-          <p className="text-[#636e72] mb-6">
-            {isCartCheckout
-              ? `You have successfully purchased ${purchasedCount} item${purchasedCount !== 1 ? 's' : ''} for $${purchasedTotal.toFixed(2)}.`
-              : `You now own "${script?.title}" for $${purchasedTotal.toFixed(2)}.`
-            }
-          </p>
-          <div className="space-y-3">
-            <Link href="/scripts/dashboard" className="w-full bg-[#2d3436] text-[#fefefe] font-bold py-3 rounded-[2px] hover:bg-[#636e72] transition-colors flex items-center justify-center gap-2">
-              View My Purchases
-            </Link>
-            <Link href="/scripts" className="w-full bg-[#f8f6f4] text-[#636e72] font-bold py-3 rounded-[2px] hover:bg-[#f8f6f4] transition-colors flex items-center justify-center gap-2">
-              Continue Shopping
-            </Link>
+
+          {/* Body */}
+          <div className="px-8 py-6">
+            {/* Script Details */}
+            <div className="bg-[#f8f6f4] rounded-[2px] p-4 mb-5 border border-[#c8b6a6]/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#fefefe] rounded-[2px] flex items-center justify-center border border-[#c8b6a6]/15 shrink-0">
+                  <Package size={18} className="text-[#c8b6a6]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-heading font-semibold text-[#2d3436] text-sm truncate">
+                    {isCartCheckout ? `${purchasedCount} script${purchasedCount !== 1 ? 's' : ''}` : script?.title}
+                  </p>
+                  <p className="text-xs text-[#636e72]">${purchasedTotal.toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Email notification */}
+            <div className="flex items-start gap-3 p-4 bg-[#f8f6f4] rounded-[2px] mb-5 border border-[#c8b6a6]/10">
+              <div className="w-8 h-8 bg-[#fefefe] rounded-full flex items-center justify-center border border-[#c8b6a6]/15 shrink-0 mt-0.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#c8b6a6]"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[#2d3436]">Confirmation email sent</p>
+                <p className="text-xs text-[#636e72] mt-0.5">A detailed receipt with download instructions has been sent to <span className="font-medium text-[#2d3436]">{user?.email}</span></p>
+              </div>
+            </div>
+
+            {/* What's included */}
+            <div className="mb-6">
+              <p className="text-xs font-medium text-[#636e72] uppercase tracking-wider mb-3">What&apos;s included</p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5 text-sm text-[#636e72]">
+                  <Check size={14} className="text-[#c8b6a6] shrink-0" />
+                  <span>Immediate access to script files</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-sm text-[#636e72]">
+                  <Check size={14} className="text-[#c8b6a6] shrink-0" />
+                  <span>6 months of author support</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-sm text-[#636e72]">
+                  <Check size={14} className="text-[#c8b6a6] shrink-0" />
+                  <span>Future updates included</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-3">
+              <Link href="/scripts/dashboard" className="w-full bg-[#2d3436] text-[#fefefe] font-medium py-3.5 rounded-[2px] hover:bg-[#636e72] transition-colors flex items-center justify-center gap-2 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Go to My Purchases
+              </Link>
+              <Link href="/scripts" className="w-full bg-[#f8f6f4] text-[#636e72] font-medium py-3 rounded-[2px] hover:bg-[#fefefe] transition-colors flex items-center justify-center gap-2 text-sm border border-[#c8b6a6]/20">
+                Continue Shopping
+              </Link>
+            </div>
           </div>
         </div>
       </div>

@@ -22,6 +22,7 @@ interface Purchase {
   script_thumbnail?: string | null;
   script_author?: string;
   script_category?: string;
+  script_download_url?: string;
 }
 
 interface Favorite {
@@ -99,7 +100,7 @@ export default function UserDashboard() {
             try {
               const { data: script } = await supabase
                 .from('marketplace_scripts')
-                .select('title, thumbnail_url, author_name, category')
+                .select('title, thumbnail_url, author_name, category, download_url')
                 .eq('id', p.script_id)
                 .single();
               return {
@@ -107,7 +108,8 @@ export default function UserDashboard() {
                 script_title: script?.title || 'Unknown Script',
                 script_thumbnail: script?.thumbnail_url,
                 script_author: script?.author_name || 'Unknown',
-                script_category: script?.category
+                script_category: script?.category,
+                script_download_url: script?.download_url
               };
             } catch {
               return {
@@ -115,7 +117,8 @@ export default function UserDashboard() {
                 script_title: 'Unknown Script',
                 script_thumbnail: null,
                 script_author: 'Unknown',
-                script_category: undefined
+                script_category: undefined,
+                script_download_url: undefined
               };
             }
           })
@@ -462,31 +465,49 @@ export default function UserDashboard() {
                     ) : (
                       <div className="space-y-3">
                         {purchases.map((purchase) => (
-                          <div key={purchase.id} className="flex items-center gap-4 p-4 border border-[#c8b6a6]/20 rounded-[2px] hover:bg-[#f8f6f4] transition-colors">
-                            <div className="w-12 h-12 bg-[#f8f6f4] rounded-[2px] flex items-center justify-center shrink-0 border border-[#c8b6a6]/15">
-                              <Package size={18} className="text-[#c8b6a6]/40" />
+                          <div key={purchase.id} className="p-5 border border-[#c8b6a6]/20 rounded-[2px] hover:bg-[#f8f6f4]/50 transition-colors">
+                            <div className="flex items-start gap-4">
+                              <div className="w-12 h-12 bg-[#f8f6f4] rounded-[2px] flex items-center justify-center shrink-0 border border-[#c8b6a6]/15">
+                                <Package size={18} className="text-[#c8b6a6]" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <Link href={`/scripts/${purchase.script_id}`} className="font-heading font-semibold text-[#2d3436] hover:text-[#c8b6a6] text-sm transition-colors block truncate">
+                                  {purchase.script_title}
+                                </Link>
+                                <p className="text-xs text-[#636e72] mt-0.5">by {purchase.script_author}</p>
+                                <p className="text-[11px] text-[#636e72]/60 mt-0.5">{purchase.script_category}</p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="font-heading font-semibold text-[#2d3436] text-sm">${Number(purchase.amount).toFixed(2)}</p>
+                                <p className="text-[10px] text-[#636e72] mt-0.5">{new Date(purchase.created_at).toLocaleDateString()}</p>
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <Link href={`/scripts/${purchase.script_id}`} className="font-medium text-[#2d3436] hover:text-[#c8b6a6] text-sm transition-colors block truncate">
-                                {purchase.script_title}
+                            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-[#c8b6a6]/10">
+                              {purchase.script_download_url ? (
+                                <a
+                                  href={purchase.script_download_url}
+                                  download
+                                  className="flex-1 flex items-center justify-center gap-2 bg-[#2d3436] hover:bg-[#636e72] text-[#fefefe] py-2.5 rounded-[2px] font-medium text-xs transition-colors"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                  Download Script
+                                </a>
+                              ) : (
+                                <Link
+                                  href={`/scripts/${purchase.script_id}`}
+                                  className="flex-1 flex items-center justify-center gap-2 bg-[#f8f6f4] hover:bg-[#fefefe] text-[#2d3436] py-2.5 rounded-[2px] font-medium text-xs transition-colors border border-[#c8b6a6]/30"
+                                >
+                                  View Script Details
+                                </Link>
+                              )}
+                              <Link
+                                href={`/scripts/${purchase.script_id}`}
+                                className="flex items-center justify-center gap-2 bg-[#f8f6f4] hover:bg-[#fefefe] text-[#636e72] py-2.5 px-4 rounded-[2px] font-medium text-xs transition-colors border border-[#c8b6a6]/30"
+                              >
+                                <ExternalLink size={14} />
+                                View
                               </Link>
-                              <p className="text-[11px] text-[#636e72]">by {purchase.script_author}</p>
-                              <p className="text-[10px] text-[#636e72]/60 mt-0.5">{purchase.script_category}</p>
                             </div>
-                            <div className="text-right shrink-0">
-                              <p className="font-heading font-semibold text-[#2d3436] text-sm">${Number(purchase.amount).toFixed(2)}</p>
-                              <p className="text-[10px] text-[#636e72]">{new Date(purchase.created_at).toLocaleDateString()}</p>
-                              <span className="inline-block mt-1 px-1.5 py-0.5 bg-[#f8f6f4] text-[#636e72] text-[10px] font-medium rounded-[2px] border border-[#c8b6a6]/15">
-                                {purchase.status}
-                              </span>
-                            </div>
-                            <Link
-                              href={`/scripts/${purchase.script_id}`}
-                              className="p-1.5 text-[#636e72]/40 hover:text-[#2d3436] rounded-[2px] transition-colors"
-                              title="View Script"
-                            >
-                              <ExternalLink size={14} />
-                            </Link>
                           </div>
                         ))}
                       </div>
