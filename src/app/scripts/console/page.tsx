@@ -128,7 +128,33 @@ export default function CreatorConsole() {
           response_time: data.response_time || 'Usually responds within 24 hours'
         });
       } else {
-        setSupportSettings(prev => ({ ...prev, email: user.email || '' }));
+        // Auto-create default support entry
+        const sellerName = String(user.user_metadata?.full_name || user.email?.split('@')[0] || 'Seller');
+        const { error: insertError } = await supabase.from('seller_support').insert({
+          seller_id: user.id,
+          seller_name: sellerName,
+          whatsapp: '',
+          email: user.email || '',
+          discord: '',
+          telegram: '',
+          twitter: '',
+          website: '',
+          custom_message: 'Hello! How can I help you?',
+          response_time: 'Usually responds within 24 hours'
+        });
+
+        if (!insertError) {
+          setSupportSettings({
+            whatsapp: '',
+            email: user.email || '',
+            discord: '',
+            telegram: '',
+            twitter: '',
+            website: '',
+            custom_message: 'Hello! How can I help you?',
+            response_time: 'Usually responds within 24 hours'
+          });
+        }
       }
       setSupportLink(`${window.location.origin}/support/seller/${user.id}`);
     } catch (err) {

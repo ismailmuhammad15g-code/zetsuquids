@@ -41,7 +41,6 @@ function SellerSupportContent() {
 
   const [seller, setSeller] = useState<SellerSupport | null>(null);
   const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,19 +51,88 @@ function SellerSupportContent() {
 
   const fetchSellerInfo = async () => {
     try {
-      const { data, error } = await supabase
+      // First try to get support settings
+      const { data: supportData } = await supabase
         .from('seller_support')
         .select('*')
         .eq('seller_id', sellerId)
         .maybeSingle();
 
-      if (error || !data) {
-        setNotFound(true);
-      } else {
-        setSeller(data);
+      if (supportData) {
+        setSeller(supportData);
+        setLoading(false);
+        return;
       }
+
+      // If no support settings, try to get seller name from their scripts
+      const { data: scriptData } = await supabase
+        .from('marketplace_scripts')
+        .select('author_name, author_email')
+        .eq('author_id', sellerId)
+        .limit(1)
+        .maybeSingle();
+
+      if (scriptData) {
+        // Create a basic seller entry from script data
+        setSeller({
+          id: '',
+          seller_id: sellerId,
+          seller_name: scriptData.author_name || 'Seller',
+          whatsapp: '',
+          email: scriptData.author_email || '',
+          discord: '',
+          telegram: '',
+          twitter: '',
+          website: '',
+          custom_message: 'Hello! How can I help you?',
+          response_time: 'Usually responds within 24 hours'
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Try to get from user profiles table
+      const { data: profileData } = await supabase
+        .from('zetsuguide_user_profiles')
+        .select('user_name, user_email')
+        .eq('user_id', sellerId)
+        .maybeSingle();
+
+      if (profileData) {
+        setSeller({
+          id: '',
+          seller_id: sellerId,
+          seller_name: profileData.user_name || 'Seller',
+          whatsapp: '',
+          email: profileData.user_email || '',
+          discord: '',
+          telegram: '',
+          twitter: '',
+          website: '',
+          custom_message: 'Hello! How can I help you?',
+          response_time: 'Usually responds within 24 hours'
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Last resort - check if user exists in auth (we can't query auth.users directly)
+      // Just show a generic page with the seller ID
+      setSeller({
+        id: '',
+        seller_id: sellerId,
+        seller_name: 'Seller',
+        whatsapp: '',
+        email: '',
+        discord: '',
+        telegram: '',
+        twitter: '',
+        website: '',
+        custom_message: 'This seller hasn\'t set up their contact information yet. Please try again later.',
+        response_time: 'Contact information pending'
+      });
     } catch (err) {
-      setNotFound(true);
+      console.error('Error fetching seller info:', err);
     } finally {
       setLoading(false);
     }
@@ -89,7 +157,7 @@ function SellerSupportContent() {
     );
   }
 
-  if (notFound || !seller) {
+  if (!seller) {
     return (
       <div className="min-h-screen bg-[#f8f6f4] flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-[#fefefe] rounded-[2px] shadow-[0px_8px_0px_0px_rgba(0,0,0,0.06)] border border-[#c8b6a6]/20 overflow-hidden">
@@ -98,15 +166,11 @@ function SellerSupportContent() {
               <Shield size={32} className="text-red-400" />
             </div>
             <h1 className="font-heading text-xl font-semibold text-[#2d3436] mb-2">Seller Not Found</h1>
-            <p className="text-[#636e72] text-sm">This seller hasn&apos;t set up their support page yet, or the link is invalid.</p>
+            <p className="text-[#636e72] text-sm">This seller doesn&apos;t exist or the link is invalid.</p>
           </div>
           <div className="px-8 py-6 space-y-3">
             <Link href="/scripts" className="w-full bg-[#2d3436] text-[#fefefe] font-medium py-3.5 rounded-[2px] hover:bg-[#636e72] transition-colors flex items-center justify-center gap-2 text-sm">
               Browse Marketplace
-            </Link>
-            <Link href="/support" className="w-full bg-[#f8f6f4] text-[#636e72] font-medium py-3 rounded-[2px] hover:bg-[#fefefe] transition-colors flex items-center justify-center gap-2 text-sm border border-[#c8b6a6]/20">
-              <ArrowLeft size={16} />
-              General Support
             </Link>
           </div>
         </div>
@@ -260,7 +324,8 @@ function SellerSupportContent() {
             ) : (
               <div className="text-center py-8">
                 <MessageCircle size={40} className="mx-auto text-[#c8b6a6]/30 mb-3" />
-                <p className="text-[#636e72] text-sm">No contact methods available yet.</p>
+                <p className="text-[#636e72] text-sm mb-2">No contact methods available yet.</p>
+                <p className="text-[#636e72]/60 text-xs">The seller hasn&apos;t added their contact information.</p>
               </div>
             )}
           </div>
