@@ -82,6 +82,24 @@ export default function CreatorConsole() {
 
       setItems(enrichedScripts);
 
+      // Auto-fix author_id mismatch: update scripts where author_email matches but author_id doesn't
+      if (user?.email && user?.id) {
+        const { data: mismatchedScripts } = await supabase
+          .from('marketplace_scripts')
+          .select('id')
+          .eq('author_email', user.email)
+          .neq('author_id', user.id);
+
+        if (mismatchedScripts && mismatchedScripts.length > 0) {
+          console.log(`Fixing ${mismatchedScripts.length} scripts with wrong author_id`);
+          await supabase
+            .from('marketplace_scripts')
+            .update({ author_id: user.id })
+            .eq('author_email', user.email)
+            .neq('author_id', user.id);
+        }
+      }
+
       let totalRev = 0;
       let totalSales = 0;
       let active = 0;
@@ -221,6 +239,23 @@ export default function CreatorConsole() {
         console.log('Insert successful!');
       }
       toast.success('Support settings saved!');
+
+      // Also fix any scripts with wrong author_id
+      if (user?.email && user?.id) {
+        const { data: mismatched } = await supabase
+          .from('marketplace_scripts')
+          .select('id')
+          .eq('author_email', user.email)
+          .neq('author_id', user.id);
+        if (mismatched && mismatched.length > 0) {
+          await supabase
+            .from('marketplace_scripts')
+            .update({ author_id: user.id })
+            .eq('author_email', user.email)
+            .neq('author_id', user.id);
+          toast.success(`Fixed ${mismatched.length} script(s) - support link now works!`);
+        }
+      }
     } catch (err: any) {
       console.error('Save failed:', err);
       toast.error(`Failed to save: ${err.message}`);

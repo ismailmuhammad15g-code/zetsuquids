@@ -51,22 +51,26 @@ function SellerSupportContent() {
 
   const fetchSellerInfo = async () => {
     try {
-      // First try to get support settings
+      console.log('=== FETCHING SELLER INFO ===');
+      console.log('Looking for seller_id:', sellerId);
+
+      // 1. Try direct support lookup
       const { data: supportData, error: supportError } = await supabase
         .from('seller_support')
         .select('*')
         .eq('seller_id', sellerId)
         .maybeSingle();
 
-      console.log('Support data:', supportData, 'Error:', supportError);
+      console.log('Support query result:', supportData);
 
       if (supportData && !supportError) {
+        console.log('Found support data directly!');
         setSeller(supportData);
         setLoading(false);
         return;
       }
 
-      // If no support settings, try to get seller name from their scripts
+      // 2. Get author email from their scripts
       const { data: scriptData } = await supabase
         .from('marketplace_scripts')
         .select('author_name, author_email')
@@ -76,6 +80,27 @@ function SellerSupportContent() {
 
       console.log('Script data:', scriptData);
 
+      const authorEmail = scriptData?.author_email;
+
+      // 3. If we have email, try to find support entry by email
+      if (authorEmail) {
+        const { data: supportByEmail } = await supabase
+          .from('seller_support')
+          .select('*')
+          .eq('email', authorEmail)
+          .maybeSingle();
+
+        console.log('Support by email:', supportByEmail);
+
+        if (supportByEmail) {
+          console.log('Found support data by email!');
+          setSeller(supportByEmail);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 4. No support entry found - show basic info from scripts
       if (scriptData) {
         setSeller({
           id: '',
@@ -94,34 +119,7 @@ function SellerSupportContent() {
         return;
       }
 
-      // Try to get from user profiles table
-      const { data: profileData } = await supabase
-        .from('zetsuguide_user_profiles')
-        .select('user_name, user_email')
-        .eq('user_id', sellerId)
-        .maybeSingle();
-
-      console.log('Profile data:', profileData);
-
-      if (profileData) {
-        setSeller({
-          id: '',
-          seller_id: sellerId,
-          seller_name: profileData.user_name || 'Seller',
-          whatsapp: '',
-          email: profileData.user_email || '',
-          discord: '',
-          telegram: '',
-          twitter: '',
-          website: '',
-          custom_message: 'This seller hasn\'t added their contact information yet. Please check back later.',
-          response_time: 'Contact information pending'
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Last resort - show generic page
+      // 5. Last resort
       setSeller({
         id: '',
         seller_id: sellerId,
