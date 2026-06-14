@@ -1,4 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
+import nodemailer from 'nodemailer';
+
+function createTransporter() {
+  const mailPort = parseInt(process.env.MAIL_PORT || '587', 10);
+  const useTls = String(process.env.MAIL_USE_TLS || 'false').toLowerCase() === 'true';
+  const isSecure = mailPort === 465;
+
+  if (!process.env.MAIL_SERVER || !process.env.MAIL_USERNAME || !process.env.MAIL_PASSWORD) {
+    throw new Error('SMTP configuration is missing. Please set MAIL_SERVER, MAIL_USERNAME, and MAIL_PASSWORD.');
+  }
+
+  return nodemailer.createTransport({
+    host: process.env.MAIL_SERVER,
+    port: mailPort,
+    secure: isSecure,
+    requireTLS: useTls,
+    auth: {
+      user: process.env.MAIL_USERNAME,
+      pass: process.env.MAIL_PASSWORD,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -121,29 +146,18 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-    // For now, log the email (in production, integrate with Resend, SendGrid, etc.)
-    console.log('Purchase confirmation email:', {
+    // Send via SMTP using nodemailer
+    const transporter = createTransporter();
+    const sender = process.env.MAIL_DEFAULT_SENDER || process.env.MAIL_USERNAME;
+
+    await transporter.sendMail({
+      from: `"ZetsuMarket" <${sender}>`,
       to: email,
       subject: `Order Confirmed - ${scriptTitle}`,
-      html: htmlContent
+      html: htmlContent,
     });
 
-    // Try to send via Resend if API key exists
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (resendApiKey) {
-      try {
-        const { Resend } = await import('resend' as any);
-        const resend = new (Resend as any)(resendApiKey);
-        await resend.emails.send({
-          from: 'ZetsuMarket <noreply@zetsuquids.vercel.app>',
-          to: email,
-          subject: `Order Confirmed - ${scriptTitle}`,
-          html: htmlContent
-        });
-      } catch (emailErr) {
-        console.error('Resend email failed:', emailErr);
-      }
-    }
+    console.log('Purchase confirmation email sent to:', email);
 
     return NextResponse.json({ success: true });
   } catch (error) {
