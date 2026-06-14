@@ -25,7 +25,7 @@ interface ScriptDetails {
 export default function CheckoutPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8f6f4] flex items-center justify-center">
         <Loading size={64} />
       </div>
     }>
@@ -52,7 +52,6 @@ function CheckoutContent() {
   const [purchasedTotal, setPurchasedTotal] = useState(0);
   const [selectedLicense, setSelectedLicense] = useState<'regular' | 'extended'>('regular');
 
-  // Card form state
   const [cardNumber, setCardNumber] = useState('');
   const [cardName, setCardName] = useState('');
   const [expiry, setExpiry] = useState('');
@@ -70,23 +69,19 @@ function CheckoutContent() {
     setLoading(true);
     try {
       if (isCartCheckout) {
-        // Cart checkout - no single script to fetch
         setLoading(false);
         return;
       }
-
       if (!scriptId) {
         toast.error('No script selected');
         router.push('/scripts');
         return;
       }
-
       const { data, error } = await supabase
         .from('marketplace_scripts')
         .select('id, title, description, price, thumbnail_url, author_name, category')
         .eq('id', scriptId)
         .single();
-
       if (error) throw error;
       setScript(data);
     } catch (err) {
@@ -118,23 +113,17 @@ function CheckoutContent() {
 
   const handlePayment = async () => {
     if (!user) return;
-
-    // Basic card validation
     if (paymentMethod === 'card') {
       if (!cardNumber || !cardName || !expiry || !cvv) {
         toast.error('Please fill in all card details');
         return;
       }
     }
-
     setProcessing(true);
     try {
       if (isCartCheckout) {
-        // Save count and total before clearing cart
         const count = cartItems.length;
         const total = cartItems.reduce((sum, item) => sum + item.price, 0);
-
-        // Process cart items
         for (const item of cartItems) {
           const { data: existing } = await supabase
             .from('marketplace_purchases')
@@ -142,7 +131,6 @@ function CheckoutContent() {
             .eq('script_id', item.id)
             .eq('buyer_id', user.id)
             .maybeSingle();
-
           if (!existing) {
             await supabase.from('marketplace_purchases').insert({
               script_id: item.id,
@@ -153,33 +141,27 @@ function CheckoutContent() {
             });
           }
         }
-
         setPurchasedCount(count);
         setPurchasedTotal(total);
         clearCart();
       } else {
-        // Process single script
         if (!script) return;
-
         const { data: existing } = await supabase
           .from('marketplace_purchases')
           .select('id')
           .eq('script_id', script.id)
           .eq('buyer_id', user.id)
           .maybeSingle();
-
         if (existing) {
           toast.info('You already own this script!');
           setProcessing(false);
           return;
         }
-
         const purchaseAmount = selectedLicense === 'extended'
           ? Number(script.extended_price || script.price * 5)
           : Number(script.price);
         setPurchasedCount(1);
         setPurchasedTotal(purchaseAmount);
-
         const { error } = await supabase.from('marketplace_purchases').insert({
           script_id: script.id,
           buyer_id: user.id,
@@ -187,10 +169,8 @@ function CheckoutContent() {
           license_type: selectedLicense,
           status: 'completed'
         });
-
         if (error) throw error;
       }
-
       setSuccess(true);
       toast.success('Purchase successful!');
     } catch (err: any) {
@@ -219,48 +199,35 @@ function CheckoutContent() {
     return v;
   };
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-full max-w-md space-y-4">
-          <div className="h-8 bg-gray-200 rounded animate-pulse w-3/4"></div>
-          <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
-          <div className="h-32 bg-gray-200 rounded animate-pulse"></div>
-          <div className="h-12 bg-gray-200 rounded animate-pulse"></div>
-        </div>
+      <div className="min-h-screen bg-[#f8f6f4] flex items-center justify-center">
+        <Loading size={64} />
       </div>
     );
   }
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Check size={40} className="text-green-600" />
+      <div className="min-h-screen bg-[#f8f6f4] flex items-center justify-center">
+        <div className="max-w-md w-full bg-[#fefefe] rounded-[2px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.08)] p-8 text-center">
+          <div className="w-20 h-20 bg-[#f8f6f4] rounded-full flex items-center justify-center mx-auto mb-6">
+            <Check size={40} className="text-[#c8b6a6]" />
           </div>
-          <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Payment Successful!</h1>
-          <p className="text-gray-500 mb-6">
+          <h1 className="text-2xl font-extrabold text-[#2d3436] mb-2 font-heading">Payment Successful!</h1>
+          <p className="text-[#636e72] mb-6">
             {isCartCheckout
               ? `You have successfully purchased ${purchasedCount} item${purchasedCount !== 1 ? 's' : ''} for $${purchasedTotal.toFixed(2)}.`
               : `You now own "${script?.title}" for $${purchasedTotal.toFixed(2)}.`
             }
           </p>
           <div className="space-y-3">
-            <Link
-              href="/scripts/dashboard"
-              className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
-            >
+            <Link href="/scripts/dashboard" className="w-full bg-[#2d3436] text-[#fefefe] font-bold py-3 rounded-[2px] hover:bg-[#636e72] transition-colors flex items-center justify-center gap-2">
               View My Purchases
             </Link>
-            <Link
-              href="/scripts"
-              className="w-full bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-            >
+            <Link href="/scripts" className="w-full bg-[#f8f6f4] text-[#636e72] font-bold py-3 rounded-[2px] hover:bg-[#f8f6f4] transition-colors flex items-center justify-center gap-2">
               Continue Shopping
             </Link>
           </div>
@@ -270,11 +237,11 @@ function CheckoutContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f8f6f4]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-[#fefefe] border-b border-[#c8b6a6]/20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link href="/scripts" className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+          <Link href="/scripts" className="flex items-center gap-2 text-[#636e72] hover:text-[#2d3436] transition-colors">
             <ArrowLeft size={20} />
             <span className="font-medium">Back to Marketplace</span>
           </Link>
@@ -282,33 +249,23 @@ function CheckoutContent() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-extrabold text-gray-900 mb-8">Checkout</h1>
+        <h1 className="text-3xl font-extrabold text-[#2d3436] mb-8 font-heading">Checkout</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Payment Form */}
           <div className="lg:col-span-2 space-y-6">
             {/* Payment Method Selection */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Payment Method</h2>
+            <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6">
+              <h2 className="text-lg font-bold text-[#2d3436] mb-4 font-heading">Payment Method</h2>
               <div className="grid grid-cols-3 gap-4">
                 {[
                   { id: 'card', label: 'Credit Card', icon: CreditCard },
                   { id: 'bank', label: 'Bank Transfer', icon: Building2 },
                   { id: 'paypal', label: 'PayPal', icon: Shield },
                 ].map((method) => (
-                  <button
-                    key={method.id}
-                    onClick={() => setPaymentMethod(method.id as any)}
-                    className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-colors ${
-                      paymentMethod === method.id
-                        ? 'border-indigo-600 bg-indigo-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <method.icon size={24} className={paymentMethod === method.id ? 'text-indigo-600' : 'text-gray-400'} />
-                    <span className={`text-sm font-medium ${paymentMethod === method.id ? 'text-indigo-700' : 'text-gray-600'}`}>
-                      {method.label}
-                    </span>
+                  <button key={method.id} onClick={() => setPaymentMethod(method.id as any)} className={`p-4 border-2 rounded-[2px] flex flex-col items-center gap-2 transition-colors ${paymentMethod === method.id ? 'border-[#c8b6a6] bg-[#f8f6f4]' : 'border-[#c8b6a6]/20 hover:border-[#c8b6a6]/40'}`}>
+                    <method.icon size={24} className={paymentMethod === method.id ? 'text-[#c8b6a6]' : 'text-[#636e72]'} />
+                    <span className={`text-sm font-medium ${paymentMethod === method.id ? 'text-[#c8b6a6]' : 'text-[#636e72]'}`}>{method.label}</span>
                   </button>
                 ))}
               </div>
@@ -316,52 +273,25 @@ function CheckoutContent() {
 
             {/* Card Details Form */}
             {paymentMethod === 'card' && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Card Details</h2>
+              <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6">
+                <h2 className="text-lg font-bold text-[#2d3436] mb-4 font-heading">Card Details</h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
-                    <input
-                      type="text"
-                      value={cardNumber}
-                      onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                      maxLength={19}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      placeholder="1234 5678 9012 3456"
-                    />
+                    <label className="block text-sm font-medium text-[#636e72] mb-1">Card Number</label>
+                    <input type="text" value={cardNumber} onChange={(e) => setCardNumber(formatCardNumber(e.target.value))} maxLength={19} className="w-full px-4 py-3 border border-[#c8b6a6]/30 rounded-[2px] focus:ring-1 focus:ring-[#c8b6a6] focus:border-[#c8b6a6] outline-none" placeholder="1234 5678 9012 3456" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Cardholder Name</label>
-                    <input
-                      type="text"
-                      value={cardName}
-                      onChange={(e) => setCardName(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      placeholder="John Doe"
-                    />
+                    <label className="block text-sm font-medium text-[#636e72] mb-1">Cardholder Name</label>
+                    <input type="text" value={cardName} onChange={(e) => setCardName(e.target.value)} className="w-full px-4 py-3 border border-[#c8b6a6]/30 rounded-[2px] focus:ring-1 focus:ring-[#c8b6a6] focus:border-[#c8b6a6] outline-none" placeholder="John Doe" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
-                      <input
-                        type="text"
-                        value={expiry}
-                        onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-                        maxLength={5}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                        placeholder="MM/YY"
-                      />
+                      <label className="block text-sm font-medium text-[#636e72] mb-1">Expiry Date</label>
+                      <input type="text" value={expiry} onChange={(e) => setExpiry(formatExpiry(e.target.value))} maxLength={5} className="w-full px-4 py-3 border border-[#c8b6a6]/30 rounded-[2px] focus:ring-1 focus:ring-[#c8b6a6] focus:border-[#c8b6a6] outline-none" placeholder="MM/YY" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">CVV</label>
-                      <input
-                        type="text"
-                        value={cvv}
-                        onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))}
-                        maxLength={4}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                        placeholder="123"
-                      />
+                      <label className="block text-sm font-medium text-[#636e72] mb-1">CVV</label>
+                      <input type="text" value={cvv} onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))} maxLength={4} className="w-full px-4 py-3 border border-[#c8b6a6]/30 rounded-[2px] focus:ring-1 focus:ring-[#c8b6a6] focus:border-[#c8b6a6] outline-none" placeholder="123" />
                     </div>
                   </div>
                 </div>
@@ -370,25 +300,25 @@ function CheckoutContent() {
 
             {/* Bank Transfer Details */}
             {paymentMethod === 'bank' && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Bank Transfer</h2>
-                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                  <p className="text-sm text-gray-600"><span className="font-medium">Bank:</span> Example Bank</p>
-                  <p className="text-sm text-gray-600"><span className="font-medium">Account Name:</span> ZetsuMarket Ltd</p>
-                  <p className="text-sm text-gray-600"><span className="font-medium">Account Number:</span> 1234567890</p>
-                  <p className="text-sm text-gray-600"><span className="font-medium">Routing Number:</span> 021000021</p>
+              <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6">
+                <h2 className="text-lg font-bold text-[#2d3436] mb-4 font-heading">Bank Transfer</h2>
+                <div className="bg-[#f8f6f4] rounded-[2px] p-4 space-y-2">
+                  <p className="text-sm text-[#636e72]"><span className="font-medium">Bank:</span> Example Bank</p>
+                  <p className="text-sm text-[#636e72]"><span className="font-medium">Account Name:</span> ZetsuMarket Ltd</p>
+                  <p className="text-sm text-[#636e72]"><span className="font-medium">Account Number:</span> 1234567890</p>
+                  <p className="text-sm text-[#636e72]"><span className="font-medium">Routing Number:</span> 021000021</p>
                 </div>
-                <p className="text-xs text-gray-500 mt-3">Please include your order reference in the transfer description.</p>
+                <p className="text-xs text-[#636e72] mt-3">Please include your order reference in the transfer description.</p>
               </div>
             )}
 
             {/* PayPal Details */}
             {paymentMethod === 'paypal' && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">PayPal</h2>
-                <div className="bg-gray-50 rounded-lg p-4 text-center">
-                  <Shield size={48} className="mx-auto text-blue-500 mb-3" />
-                  <p className="text-gray-600">You will be redirected to PayPal to complete your payment.</p>
+              <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6">
+                <h2 className="text-lg font-bold text-[#2d3436] mb-4 font-heading">PayPal</h2>
+                <div className="bg-[#f8f6f4] rounded-[2px] p-4 text-center">
+                  <Shield size={48} className="mx-auto text-[#c8b6a6] mb-3" />
+                  <p className="text-[#636e72]">You will be redirected to PayPal to complete your payment.</p>
                 </div>
               </div>
             )}
@@ -396,56 +326,52 @@ function CheckoutContent() {
 
           {/* Order Summary */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-24">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Order Summary</h2>
-
+            <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6 sticky top-24">
+              <h2 className="text-lg font-bold text-[#2d3436] mb-4 font-heading">Order Summary</h2>
               {isCartCheckout ? (
                 <div className="space-y-3 mb-6">
                   {cartItems.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
-                        <ShoppingCart size={16} className="text-gray-400" />
+                    <div key={item.id} className="flex items-center gap-3 p-3 bg-[#f8f6f4] rounded-[2px]">
+                      <div className="w-10 h-10 bg-[#c8b6a6]/20 rounded-[2px] flex items-center justify-center">
+                        <ShoppingCart size={16} className="text-[#636e72]" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
-                        <p className="text-xs text-gray-500">by {item.author_name}</p>
-                        <span className="inline-block mt-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold uppercase rounded">
-                          {item.license_type || 'regular'}
-                        </span>
+                        <p className="text-sm font-medium text-[#2d3436] truncate">{item.title}</p>
+                        <p className="text-xs text-[#636e72]">by {item.author_name}</p>
+                        <span className="inline-block mt-1 px-2 py-0.5 bg-[#f8f6f4] text-[#636e72] text-[10px] font-bold uppercase rounded-[2px]">{item.license_type || 'regular'}</span>
                       </div>
-                      <p className="text-sm font-bold text-gray-900">${item.price.toFixed(2)}</p>
+                      <p className="text-sm font-bold text-[#2d3436]">${item.price.toFixed(2)}</p>
                     </div>
                   ))}
                 </div>
               ) : script ? (
                 <>
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg mb-4">
-                    <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
-                      <ShoppingCart size={20} className="text-gray-400" />
+                  <div className="flex items-center gap-3 p-3 bg-[#f8f6f4] rounded-[2px] mb-4">
+                    <div className="w-12 h-12 bg-[#c8b6a6]/20 rounded-[2px] flex items-center justify-center">
+                      <ShoppingCart size={20} className="text-[#636e72]" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{script.title}</p>
-                      <p className="text-sm text-gray-500">by {script.author_name}</p>
-                      <p className="text-xs text-gray-400">{script.category}</p>
+                      <p className="font-medium text-[#2d3436] truncate">{script.title}</p>
+                      <p className="text-sm text-[#636e72]">by {script.author_name}</p>
+                      <p className="text-xs text-[#636e72]">{script.category}</p>
                     </div>
                   </div>
-                  {/* License Selection */}
                   <div className="space-y-3 mb-6">
-                    <label className={`block p-3 rounded-lg border-2 cursor-pointer transition-all ${selectedLicense === 'regular' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <label className={`block p-3 rounded-[2px] border-2 cursor-pointer transition-all ${selectedLicense === 'regular' ? 'border-[#c8b6a6] bg-[#f8f6f4]' : 'border-[#c8b6a6]/20 hover:border-[#c8b6a6]/40'}`}>
                       <div className="flex items-center gap-2">
-                        <input type="radio" name="license" value="regular" checked={selectedLicense === 'regular'} onChange={() => setSelectedLicense('regular')} className="w-4 h-4 text-indigo-600" />
+                        <input type="radio" name="license" value="regular" checked={selectedLicense === 'regular'} onChange={() => setSelectedLicense('regular')} className="w-4 h-4 text-[#c8b6a6]" />
                         <div className="flex-1 flex items-center justify-between">
-                          <span className="font-bold text-gray-900 text-sm">Regular License</span>
-                          <span className="font-extrabold text-gray-900">${Number(script.price).toFixed(2)}</span>
+                          <span className="font-bold text-[#2d3436] text-sm">Regular License</span>
+                          <span className="font-extrabold text-[#2d3436]">${Number(script.price).toFixed(2)}</span>
                         </div>
                       </div>
                     </label>
-                    <label className={`block p-3 rounded-lg border-2 cursor-pointer transition-all ${selectedLicense === 'extended' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <label className={`block p-3 rounded-[2px] border-2 cursor-pointer transition-all ${selectedLicense === 'extended' ? 'border-[#c8b6a6] bg-[#f8f6f4]' : 'border-[#c8b6a6]/20 hover:border-[#c8b6a6]/40'}`}>
                       <div className="flex items-center gap-2">
-                        <input type="radio" name="license" value="extended" checked={selectedLicense === 'extended'} onChange={() => setSelectedLicense('extended')} className="w-4 h-4 text-indigo-600" />
+                        <input type="radio" name="license" value="extended" checked={selectedLicense === 'extended'} onChange={() => setSelectedLicense('extended')} className="w-4 h-4 text-[#c8b6a6]" />
                         <div className="flex-1 flex items-center justify-between">
-                          <span className="font-bold text-gray-900 text-sm">Extended License</span>
-                          <span className="font-extrabold text-gray-900">${Number(script.extended_price || script.price * 5).toFixed(2)}</span>
+                          <span className="font-bold text-[#2d3436] text-sm">Extended License</span>
+                          <span className="font-extrabold text-[#2d3436]">${Number(script.extended_price || script.price * 5).toFixed(2)}</span>
                         </div>
                       </div>
                     </label>
@@ -453,29 +379,25 @@ function CheckoutContent() {
                 </>
               ) : null}
 
-              <div className="border-t border-gray-200 pt-4 space-y-2">
+              <div className="border-t border-[#c8b6a6]/20 pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Subtotal ({getItemCount()} item{getItemCount() > 1 ? 's' : ''})</span>
+                  <span className="text-[#636e72]">Subtotal ({getItemCount()} item{getItemCount() > 1 ? 's' : ''})</span>
                   <span className="font-medium">${getTotal().toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Processing Fee</span>
+                  <span className="text-[#636e72]">Processing Fee</span>
                   <span className="font-medium">$0.00</span>
                 </div>
-                <div className="border-t border-gray-200 pt-2 flex justify-between">
-                  <span className="font-bold text-gray-900">Total</span>
-                  <span className="text-xl font-extrabold text-indigo-600">${getTotal().toFixed(2)}</span>
+                <div className="border-t border-[#c8b6a6]/20 pt-2 flex justify-between">
+                  <span className="font-bold text-[#2d3436]">Total</span>
+                  <span className="text-xl font-extrabold text-[#c8b6a6]">${getTotal().toFixed(2)}</span>
                 </div>
               </div>
 
-              <button
-                onClick={handlePayment}
-                disabled={processing}
-                className="w-full mt-6 bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
-              >
+              <button onClick={handlePayment} disabled={processing} className="w-full mt-6 bg-[#2d3436] text-[#fefefe] font-bold py-3 rounded-[2px] hover:bg-[#636e72] transition-colors flex items-center justify-center gap-2 disabled:opacity-70">
                 {processing ? (
                   <>
-                    <Loading size={48} />
+                    <Loading size={16} />
                     Processing...
                   </>
                 ) : (
@@ -486,7 +408,7 @@ function CheckoutContent() {
                 )}
               </button>
 
-              <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
+              <div className="mt-4 flex items-center justify-center gap-2 text-xs text-[#636e72]">
                 <Shield size={14} />
                 <span>Secure payment powered by ZetsuMarket</span>
               </div>

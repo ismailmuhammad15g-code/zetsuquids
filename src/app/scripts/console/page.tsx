@@ -176,8 +176,24 @@ export default function CreatorConsole() {
         </div>
       )}
 
-      {/* Sidebar Navigation */}
-      <div className="w-full md:w-60 bg-[#f8f6f4] border-r border-[#c8b6a6]/20 shrink-0 hidden md:block">
+      {/* Mobile Tab Bar */}
+      <div className="md:hidden bg-[#f8f6f4] border-b border-[#c8b6a6]/20 overflow-x-auto scrollbar-hide">
+        <div className="flex gap-1 p-2">
+          {[
+            { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+            { id: 'items', label: 'My Items', icon: Package },
+            { id: 'earnings', label: 'Earnings', icon: DollarSign },
+            { id: 'settings', label: 'Settings', icon: Settings },
+          ].map(item => (
+            <button key={item.id} onClick={() => setActiveTab(item.id)} className={`flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-medium whitespace-nowrap transition-colors duration-200 ${activeTab === item.id ? 'bg-[#2d3436] text-[#fefefe]' : 'text-[#636e72] hover:bg-[#fefefe] hover:text-[#2d3436]'}`}>
+              <item.icon size={14} /> {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block w-60 bg-[#f8f6f4] border-r border-[#c8b6a6]/20 shrink-0">
         <div className="p-6">
           <h2 className="text-[10px] font-medium text-[#636e72]/60 uppercase tracking-[0.15em] mb-4">Creator Menu</h2>
           <nav className="space-y-1">
@@ -274,61 +290,82 @@ export default function CreatorConsole() {
                     <p className="text-[#636e72] text-xs mt-2">You haven&apos;t uploaded any scripts to the marketplace.</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-[#f8f6f4] border-b border-[#c8b6a6]/15 text-[10px] uppercase tracking-[0.15em] text-[#636e72] font-medium">
-                          <th className="p-4">Item Name</th>
-                          <th className="p-4">Price</th>
-                          <th className="p-4">Sales</th>
-                          <th className="p-4">Revenue</th>
-                          <th className="p-4">Status</th>
-                          <th className="p-4 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#c8b6a6]/10">
-                        {items.map((item) => (
-                          <tr key={item.id} className="hover:bg-[#f8f6f4]/50 transition-colors">
-                            <td className="p-4">
-                              <div className="font-medium text-[#2d3436] text-sm">{item.title}</div>
-                              <div className="text-[10px] text-[#636e72] mt-0.5">ID: {item.id.substring(0,8)}...</div>
-                            </td>
-                            <td className="p-4 text-[#636e72] text-sm">${Number(item.price).toFixed(2)}</td>
-                            <td className="p-4 text-[#636e72] text-sm">{item.sales_count}</td>
-                            <td className="p-4 font-medium text-[#2d3436] text-sm">${(item.real_revenue || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                            <td className="p-4">
-                              <button
-                                onClick={() => handleToggleStatus(item)}
-                                className={`inline-flex items-center px-2 py-0.5 rounded-[2px] text-[10px] font-medium cursor-pointer hover:opacity-80 transition-opacity border ${
-                                  item.status === 'Active'
-                                    ? 'bg-[#f8f6f4] text-[#2d3436] border-[#c8b6a6]/20'
-                                    : 'bg-[#fefefe] text-[#636e72] border-[#c8b6a6]/30'
-                                }`}
-                              >
-                                {item.status}
-                              </button>
-                            </td>
-                            <td className="p-4">
-                              <div className="flex justify-end gap-1">
-                                <Link href={`/scripts/${item.id}`} className="p-1.5 text-[#636e72]/40 hover:text-[#2d3436] transition-colors" title="View">
-                                  <Eye size={14}/>
-                                </Link>
-                                <Link href={`/scripts/console/edit/${item.id}`} className="p-1.5 text-[#636e72]/40 hover:text-[#2d3436] transition-colors" title="Edit">
-                                  <Edit size={14}/>
-                                </Link>
-                                <button
-                                  onClick={() => setDeleteModal({ show: true, item })}
-                                  className="p-1.5 text-[#636e72]/40 hover:text-[#2d3436] transition-colors"
-                                  title="Delete"
-                                >
-                                  <Trash2 size={14}/>
-                                </button>
-                              </div>
-                            </td>
+                  <div>
+                    {/* Desktop Table */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-[#f8f6f4] border-b border-[#c8b6a6]/15 text-[10px] uppercase tracking-[0.15em] text-[#636e72] font-medium">
+                            <th className="p-4">Item Name</th>
+                            <th className="p-4">Price</th>
+                            <th className="p-4">Sales</th>
+                            <th className="p-4">Revenue</th>
+                            <th className="p-4">Status</th>
+                            <th className="p-4 text-right">Actions</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-[#c8b6a6]/10">
+                          {items.map((item) => (
+                            <tr key={item.id} className="hover:bg-[#f8f6f4]/50 transition-colors">
+                              <td className="p-4">
+                                <div className="font-medium text-[#2d3436] text-sm">{item.title}</div>
+                                <div className="text-[10px] text-[#636e72] mt-0.5">ID: {item.id.substring(0,8)}...</div>
+                              </td>
+                              <td className="p-4 text-[#636e72] text-sm">${Number(item.price).toFixed(2)}</td>
+                              <td className="p-4 text-[#636e72] text-sm">{item.sales_count}</td>
+                              <td className="p-4 font-medium text-[#2d3436] text-sm">${(item.real_revenue || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                              <td className="p-4">
+                                <button onClick={() => handleToggleStatus(item)} className={`inline-flex items-center px-2 py-0.5 rounded-[2px] text-[10px] font-medium cursor-pointer hover:opacity-80 transition-opacity border ${item.status === 'Active' ? 'bg-[#f8f6f4] text-[#2d3436] border-[#c8b6a6]/20' : 'bg-[#fefefe] text-[#636e72] border-[#c8b6a6]/30'}`}>
+                                  {item.status}
+                                </button>
+                              </td>
+                              <td className="p-4">
+                                <div className="flex justify-end gap-1">
+                                  <Link href={`/scripts/${item.id}`} className="p-1.5 text-[#636e72]/40 hover:text-[#2d3436] transition-colors" title="View"><Eye size={14}/></Link>
+                                  <Link href={`/scripts/console/edit/${item.id}`} className="p-1.5 text-[#636e72]/40 hover:text-[#2d3436] transition-colors" title="Edit"><Edit size={14}/></Link>
+                                  <button onClick={() => setDeleteModal({ show: true, item })} className="p-1.5 text-[#636e72]/40 hover:text-[#2d3436] transition-colors" title="Delete"><Trash2 size={14}/></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {/* Mobile Cards */}
+                    <div className="md:hidden space-y-3">
+                      {items.map((item) => (
+                        <div key={item.id} className="bg-[#fefefe] border border-[#c8b6a6]/20 rounded-[2px] p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-[#2d3436] text-sm">{item.title}</p>
+                              <p className="text-[10px] text-[#636e72] mt-0.5">ID: {item.id.substring(0,8)}...</p>
+                            </div>
+                            <button onClick={() => handleToggleStatus(item)} className={`inline-flex items-center px-2 py-0.5 rounded-[2px] text-[10px] font-medium cursor-pointer hover:opacity-80 transition-opacity border ${item.status === 'Active' ? 'bg-[#f8f6f4] text-[#2d3436] border-[#c8b6a6]/20' : 'bg-[#fefefe] text-[#636e72] border-[#c8b6a6]/30'}`}>
+                              {item.status}
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-3 mb-3">
+                            <div>
+                              <p className="text-[10px] text-[#636e72]">Price</p>
+                              <p className="font-medium text-[#2d3436] text-sm">${Number(item.price).toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-[#636e72]">Sales</p>
+                              <p className="font-medium text-[#2d3436] text-sm">{item.sales_count}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-[#636e72]">Revenue</p>
+                              <p className="font-medium text-[#2d3436] text-sm">${(item.real_revenue || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 border-t border-[#c8b6a6]/15 pt-3">
+                            <Link href={`/scripts/${item.id}`} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[#636e72] hover:text-[#2d3436] text-xs font-medium transition-colors"><Eye size={14}/> View</Link>
+                            <Link href={`/scripts/console/edit/${item.id}`} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[#636e72] hover:text-[#2d3436] text-xs font-medium transition-colors"><Edit size={14}/> Edit</Link>
+                            <button onClick={() => setDeleteModal({ show: true, item })} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[#636e72] hover:text-[#2d3436] text-xs font-medium transition-colors"><Trash2 size={14}/> Delete</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
