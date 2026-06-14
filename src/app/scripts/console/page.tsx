@@ -5,7 +5,8 @@ import {
   BarChart3, Package, DollarSign,
   PlusCircle, Settings, Bell, Search,
   Edit, Trash2, Eye, TrendingUp, AlertCircle, X,
-  User, ShoppingCart
+  User, ShoppingCart, Headphones, MessageCircle,
+  Phone, Mail, Globe, Send, ExternalLink, Copy
 } from 'lucide-react';
 import Loading from '@/components/scripts/Loading';
 import { supabase } from '@/lib/supabase';
@@ -26,9 +27,23 @@ export default function CreatorConsole() {
     activeItems: 0
   });
 
+  const [supportSettings, setSupportSettings] = useState({
+    whatsapp: '',
+    email: '',
+    discord: '',
+    telegram: '',
+    twitter: '',
+    website: '',
+    custom_message: 'Hello! How can I help you?',
+    response_time: 'Usually responds within 24 hours'
+  });
+  const [savingSupport, setSavingSupport] = useState(false);
+  const [supportLink, setSupportLink] = useState('');
+
   useEffect(() => {
     if (user?.id) {
       fetchAuthorData();
+      fetchSupportSettings();
     }
   }, [user]);
 
@@ -87,6 +102,87 @@ export default function CreatorConsole() {
       console.error("Error fetching creator data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSupportSettings = async () => {
+    if (!user?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('seller_support')
+        .select('*')
+        .eq('seller_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setSupportSettings({
+          whatsapp: data.whatsapp || '',
+          email: data.email || user.email || '',
+          discord: data.discord || '',
+          telegram: data.telegram || '',
+          twitter: data.twitter || '',
+          website: data.website || '',
+          custom_message: data.custom_message || 'Hello! How can I help you?',
+          response_time: data.response_time || 'Usually responds within 24 hours'
+        });
+      } else {
+        setSupportSettings(prev => ({ ...prev, email: user.email || '' }));
+      }
+      setSupportLink(`${window.location.origin}/support/seller/${user.id}`);
+    } catch (err) {
+      console.error('Error fetching support settings:', err);
+    }
+  };
+
+  const handleSaveSupport = async () => {
+    if (!user?.id) return;
+    setSavingSupport(true);
+    try {
+      const { data: existing } = await supabase
+        .from('seller_support')
+        .select('id')
+        .eq('seller_id', user.id)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('seller_support')
+          .update({
+            seller_name: String(user.user_metadata?.full_name || user.email?.split('@')[0] || 'Seller'),
+            whatsapp: supportSettings.whatsapp,
+            email: supportSettings.email,
+            discord: supportSettings.discord,
+            telegram: supportSettings.telegram,
+            twitter: supportSettings.twitter,
+            website: supportSettings.website,
+            custom_message: supportSettings.custom_message,
+            response_time: supportSettings.response_time,
+            updated_at: new Date().toISOString()
+          })
+          .eq('seller_id', user.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('seller_support').insert({
+          seller_id: user.id,
+          seller_name: String(user.user_metadata?.full_name || user.email?.split('@')[0] || 'Seller'),
+          whatsapp: supportSettings.whatsapp,
+          email: supportSettings.email,
+          discord: supportSettings.discord,
+          telegram: supportSettings.telegram,
+          twitter: supportSettings.twitter,
+          website: supportSettings.website,
+          custom_message: supportSettings.custom_message,
+          response_time: supportSettings.response_time
+        });
+        if (error) throw error;
+      }
+      toast.success('Support settings saved!');
+    } catch (err: any) {
+      toast.error(`Failed to save: ${err.message}`);
+    } finally {
+      setSavingSupport(false);
     }
   };
 
@@ -183,6 +279,7 @@ export default function CreatorConsole() {
             { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
             { id: 'items', label: 'My Items', icon: Package },
             { id: 'earnings', label: 'Earnings', icon: DollarSign },
+            { id: 'support', label: 'Support', icon: Headphones },
             { id: 'settings', label: 'Settings', icon: Settings },
           ].map(item => (
             <button key={item.id} onClick={() => setActiveTab(item.id)} className={`flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-medium whitespace-nowrap transition-colors duration-200 ${activeTab === item.id ? 'bg-[#2d3436] text-[#fefefe]' : 'text-[#636e72] hover:bg-[#fefefe] hover:text-[#2d3436]'}`}>
@@ -201,6 +298,7 @@ export default function CreatorConsole() {
               { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
               { id: 'items', label: 'My Items', icon: Package },
               { id: 'earnings', label: 'Earnings', icon: DollarSign },
+              { id: 'support', label: 'Support', icon: Headphones },
               { id: 'settings', label: 'Settings', icon: Settings },
             ].map(item => (
               <button
@@ -409,6 +507,150 @@ export default function CreatorConsole() {
                     )}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'support' && (
+            <div className="space-y-6">
+              {/* Support Link Preview */}
+              <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-heading font-semibold text-[#2d3436] text-sm">Your Support Page</h3>
+                  {supportLink && (
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(supportLink); toast.success('Link copied!'); }}
+                      className="flex items-center gap-1.5 text-xs text-[#636e72] hover:text-[#2d3436] transition-colors"
+                    >
+                      <Copy size={12} /> Copy Link
+                    </button>
+                  )}
+                </div>
+                <div className="bg-[#f8f6f4] rounded-[2px] p-4 border border-[#c8b6a6]/10">
+                  <p className="text-xs text-[#636e72] mb-2">Share this link with your buyers for support:</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 bg-[#fefefe] px-3 py-2 rounded-[2px] text-xs text-[#2d3436] border border-[#c8b6a6]/15 overflow-x-auto">
+                      {supportLink || 'Loading...'}
+                    </code>
+                    {supportLink && (
+                      <a href={supportLink} target="_blank" rel="noopener noreferrer" className="p-2 text-[#636e72] hover:text-[#2d3436] transition-colors">
+                        <ExternalLink size={14} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Methods */}
+              <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6">
+                <h3 className="font-heading font-semibold text-[#2d3436] text-sm mb-4">Contact Methods</h3>
+                <p className="text-xs text-[#636e72] mb-4">Add the contact methods you want buyers to reach you through.</p>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="flex items-center gap-2 text-xs font-medium text-[#636e72] mb-1.5">
+                      <Mail size={14} /> Email
+                    </label>
+                    <input
+                      type="email"
+                      value={supportSettings.email}
+                      onChange={e => setSupportSettings(prev => ({ ...prev, email: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-[#c8b6a6]/30 rounded-[2px] text-sm focus:outline-none focus:ring-1 focus:ring-[#c8b6a6] bg-[#fefefe] placeholder-[#636e72]/40"
+                      placeholder="your@email.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-2 text-xs font-medium text-[#636e72] mb-1.5">
+                      <Phone size={14} /> WhatsApp Number
+                    </label>
+                    <input
+                      type="text"
+                      value={supportSettings.whatsapp}
+                      onChange={e => setSupportSettings(prev => ({ ...prev, whatsapp: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-[#c8b6a6]/30 rounded-[2px] text-sm focus:outline-none focus:ring-1 focus:ring-[#c8b6a6] bg-[#fefefe] placeholder-[#636e72]/40"
+                      placeholder="+1 234 567 890"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-2 text-xs font-medium text-[#636e72] mb-1.5">
+                      <MessageCircle size={14} /> Discord
+                    </label>
+                    <input
+                      type="text"
+                      value={supportSettings.discord}
+                      onChange={e => setSupportSettings(prev => ({ ...prev, discord: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-[#c8b6a6]/30 rounded-[2px] text-sm focus:outline-none focus:ring-1 focus:ring-[#c8b6a6] bg-[#fefefe] placeholder-[#636e72]/40"
+                      placeholder="username#0000 or server invite link"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-2 text-xs font-medium text-[#636e72] mb-1.5">
+                      <Send size={14} /> Telegram
+                    </label>
+                    <input
+                      type="text"
+                      value={supportSettings.telegram}
+                      onChange={e => setSupportSettings(prev => ({ ...prev, telegram: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-[#c8b6a6]/30 rounded-[2px] text-sm focus:outline-none focus:ring-1 focus:ring-[#c8b6a6] bg-[#fefefe] placeholder-[#636e72]/40"
+                      placeholder="@username or t.me/username"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-2 text-xs font-medium text-[#636e72] mb-1.5">
+                      <Globe size={14} /> Website
+                    </label>
+                    <input
+                      type="url"
+                      value={supportSettings.website}
+                      onChange={e => setSupportSettings(prev => ({ ...prev, website: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-[#c8b6a6]/30 rounded-[2px] text-sm focus:outline-none focus:ring-1 focus:ring-[#c8b6a6] bg-[#fefefe] placeholder-[#636e72]/40"
+                      placeholder="https://yoursite.com"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Custom Message */}
+              <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)] border border-[#c8b6a6]/20 p-6">
+                <h3 className="font-heading font-semibold text-[#2d3436] text-sm mb-4">Message to Buyers</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-medium text-[#636e72] mb-1.5 block">Welcome Message</label>
+                    <textarea
+                      value={supportSettings.custom_message}
+                      onChange={e => setSupportSettings(prev => ({ ...prev, custom_message: e.target.value }))}
+                      rows={3}
+                      className="w-full px-3 py-2.5 border border-[#c8b6a6]/30 rounded-[2px] text-sm focus:outline-none focus:ring-1 focus:ring-[#c8b6a6] bg-[#fefefe] placeholder-[#636e72]/40 resize-none"
+                      placeholder="Hello! How can I help you?"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[#636e72] mb-1.5 block">Response Time</label>
+                    <input
+                      type="text"
+                      value={supportSettings.response_time}
+                      onChange={e => setSupportSettings(prev => ({ ...prev, response_time: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-[#c8b6a6]/30 rounded-[2px] text-sm focus:outline-none focus:ring-1 focus:ring-[#c8b6a6] bg-[#fefefe] placeholder-[#636e72]/40"
+                      placeholder="Usually responds within 24 hours"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Save Button */}
+              <div className="flex justify-end">
+                <button
+                  onClick={handleSaveSupport}
+                  disabled={savingSupport}
+                  className="bg-[#2d3436] text-[#fefefe] px-6 py-2.5 rounded-[2px] font-medium text-xs hover:bg-[#636e72] transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {savingSupport ? <Loading size={14} /> : <Send size={14} />}
+                  {savingSupport ? 'Saving...' : 'Save Support Settings'}
+                </button>
               </div>
             </div>
           )}

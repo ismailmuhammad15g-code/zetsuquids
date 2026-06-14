@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import {
   Star, ShoppingCart, Check, Shield, Monitor,
   FileCode, Clock, ChevronRight, LayoutTemplate,
-  Heart, Github, X, Send, Settings
+  Heart, Github, X, Send, Settings, MessageCircle
 } from 'lucide-react';
 import Loading from '@/components/scripts/Loading';
 import { supabase } from '@/lib/supabase';
@@ -702,28 +702,21 @@ export default function ScriptDetailsPage() {
                     </p>
 
                     {hasPurchased ? (
-                      script.contact_url ? (
-                        <a
-                          href={script.contact_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-block bg-[#2d3436] text-[#fefefe] px-6 py-2.5 rounded-[2px] font-medium text-sm hover:bg-[#636e72] transition-colors"
+                      <div className="space-y-3">
+                        <Link
+                          href={`/support/seller/${script.author_id}`}
+                          className="w-full inline-flex items-center justify-center gap-2 bg-[#2d3436] text-[#fefefe] px-6 py-3 rounded-[2px] font-medium text-sm hover:bg-[#636e72] transition-colors"
                         >
+                          <MessageCircle size={16} />
                           Contact {script.author_name}
-                        </a>
-                      ) : (
-                        <button
-                          onClick={() => toast.info('Author has not provided contact information yet.')}
-                          className="bg-[#2d3436] text-[#fefefe] px-6 py-2.5 rounded-[2px] font-medium text-sm hover:bg-[#636e72] transition-colors"
-                        >
-                          Contact {script.author_name}
-                        </button>
-                      )
+                        </Link>
+                        <p className="text-xs text-[#636e72]/60">Open the author&apos;s support page to chat, email, or reach via WhatsApp</p>
+                      </div>
                     ) : (
                       <div className="bg-[#f8f6f4] border border-[#c8b6a6]/15 rounded-[2px] p-5">
                         <ShoppingCart size={20} className="mx-auto text-[#c8b6a6]/40 mb-2" />
                         <p className="font-medium text-[#2d3436] text-sm">Purchase to unlock support</p>
-                        <p className="text-xs text-[#636e72] mt-1">You must own this item to request support from the author.</p>
+                        <p className="text-xs text-[#636e72] mt-1">You must own this item to contact the author.</p>
                       </div>
                     )}
                   </div>

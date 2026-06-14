@@ -1,9 +1,10 @@
 "use client";
-import { AlertCircle, ArrowLeft, Loader2, MessageSquare, Phone, Send, Sparkles, Tag, User } from 'lucide-react'
+import { AlertCircle, ArrowLeft, MessageSquare, Phone, Send, Tag, User } from 'lucide-react'
 import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Loading from '@/components/scripts/Loading';
 
 interface SupportFormData {
     email: string
@@ -31,33 +32,32 @@ export default function SupportPage() {
         }
     }, [user])
 
-    // التحقق من تسجيل الدخول
     if (!isAuthenticated()) {
         return (
-            <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+            <div className="min-h-screen bg-[#f8f6f4] flex items-center justify-center px-4">
                 <div className="max-w-md w-full text-center">
-                    <div className="mb-6">
-                        <MessageSquare size={64} className="mx-auto mb-4 text-yellow-400" />
+                    <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_8px_0px_0px_rgba(0,0,0,0.06)] border border-[#c8b6a6]/20 p-8">
+                        <div className="w-16 h-16 bg-[#f8f6f4] rounded-full flex items-center justify-center mx-auto mb-4 border border-[#c8b6a6]/20">
+                            <MessageSquare size={32} className="text-[#c8b6a6]" />
+                        </div>
+                        <h2 className="font-heading text-xl font-semibold text-[#2d3436] mb-2">Login Required</h2>
+                        <p className="text-[#636e72] text-sm mb-6">
+                            You need to sign in to access support services.
+                        </p>
+                        <button
+                            className="w-full bg-[#2d3436] text-[#fefefe] font-medium py-3 rounded-[2px] hover:bg-[#636e72] transition-colors text-sm"
+                            onClick={() => router.push('/auth')}
+                        >
+                            Sign In / Create Account
+                        </button>
+                        <button
+                            className="mt-4 text-[#636e72] hover:text-[#2d3436] transition-colors text-sm"
+                            onClick={() => router.push('/')}
+                        >
+                            <ArrowLeft size={16} className="inline mr-1" />
+                            Back to Home
+                        </button>
                     </div>
-                    <h2 className="text-2xl font-bold mb-4">Login Required</h2>
-                    <p className="text-gray-300 mb-4">
-                        You need to sign in to access support services.
-                    </p>
-                    <p className="text-yellow-400 text-sm mb-6">
-                        Get 5 free credits when you create an account!
-                    </p>
-                    <button
-                        className="w-full bg-yellow-400 text-black font-bold py-3 px-6 rounded-lg hover:bg-yellow-500 transition-colors mb-4"
-                        onClick={() => router.push('/auth')}
-                    >
-                        Sign In / Create Account
-                    </button>
-                    <button
-                        className="text-gray-400 hover:text-white transition-colors"
-                        onClick={() => router.push('/')}
-                    >
-                        ← Back to Home
-                    </button>
                 </div>
             </div>
         )
@@ -92,17 +92,17 @@ export default function SupportPage() {
 
     if (submitted) {
         return (
-            <div className="min-h-screen bg-white flex items-center justify-center p-6">
-                <div className="max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in duration-500">
-                    <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Sparkles size={48} className="text-green-600" />
-                    </div>
-                    <h1 className="text-3xl font-black text-gray-900">Ticket Submitted!</h1>
-                    <p className="text-gray-600 text-lg">
-                        Thank you for contacting us. We have received your request and will get back to you shortly at <span className="font-bold text-gray-900">{formData.email}</span>.
-                    </p>
-                    <div className="pt-6">
-                        <Link href="/" className="px-8 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-all transform hover:scale-105 inline-block">
+            <div className="min-h-screen bg-[#f8f6f4] flex items-center justify-center p-6">
+                <div className="max-w-md w-full text-center">
+                    <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_8px_0px_0px_rgba(0,0,0,0.06)] border border-[#c8b6a6]/20 p-8">
+                        <div className="w-16 h-16 bg-[#f8f6f4] rounded-full flex items-center justify-center mx-auto mb-4 border border-[#c8b6a6]/20">
+                            <Send size={32} className="text-[#c8b6a6]" />
+                        </div>
+                        <h1 className="font-heading text-xl font-semibold text-[#2d3436] mb-2">Ticket Submitted!</h1>
+                        <p className="text-[#636e72] text-sm mb-6">
+                            Thank you for contacting us. We have received your request and will get back to you shortly at <span className="font-medium text-[#2d3436]">{formData.email}</span>.
+                        </p>
+                        <Link href="/" className="w-full bg-[#2d3436] text-[#fefefe] font-medium py-3 rounded-[2px] hover:bg-[#636e72] transition-colors inline-block text-sm">
                             Return Home
                         </Link>
                     </div>
@@ -112,138 +112,125 @@ export default function SupportPage() {
     }
 
     return (
-        <div className="min-h-screen bg-white flex flex-col lg:flex-row">
-            {/* Left Side - Visual */}
-            <div className="hidden lg:flex lg:w-1/3 bg-[#0a0a0a] text-white p-12 flex-col justify-between relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 z-0"></div>
-                <div className="relative z-10">
-                    <Link href="/" className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-12">
+        <div className="min-h-screen bg-[#f8f6f4]">
+            {/* Header */}
+            <div className="bg-[#fefefe] border-b border-[#c8b6a6]/20">
+                <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4">
+                    <Link href="/" className="flex items-center gap-2 text-[#636e72] hover:text-[#2d3436] transition-colors">
                         <ArrowLeft size={20} />
-                        Back to Home
+                        <span className="font-medium text-sm">Back to Home</span>
                     </Link>
-                    <h1 className="text-5xl font-black mb-6 tracking-tight">We're Here<br />To Help.</h1>
-                    <p className="text-xl text-gray-400 leading-relaxed max-w-sm">
-                        Facing an issue? Have a question? Our support team is ready to assist you securely and quickly.
-                    </p>
-                </div>
-
-                <div className="relative z-10 space-y-6">
-                    <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
-                        <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-                            <Sparkles size={18} className="text-yellow-400" />
-                            Premium Support
-                        </h3>
-                        <p className="text-sm text-gray-400">
-                            Pro users get priority response times and dedicated assistance.
-                        </p>
-                    </div>
                 </div>
             </div>
 
-            {/* Right Side - Form */}
-            <div className="flex-1 p-6 lg:p-12 overflow-y-auto">
-                <div className="max-w-2xl mx-auto">
-                    <div className="lg:hidden mb-8">
-                        <Link href="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors">
-                            <ArrowLeft size={20} />
-                            Back to Home
-                        </Link>
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+                {/* Page Header */}
+                <div className="text-center mb-8">
+                    <div className="w-16 h-16 bg-[#fefefe] rounded-full flex items-center justify-center mx-auto mb-4 border border-[#c8b6a6]/20 shadow-[0px_2px_0px_0px_rgba(0,0,0,0.04)]">
+                        <MessageSquare size={32} className="text-[#c8b6a6]" />
+                    </div>
+                    <h1 className="font-heading text-2xl sm:text-3xl font-semibold text-[#2d3436] mb-2">Support Center</h1>
+                    <p className="text-[#636e72] text-sm max-w-md mx-auto">
+                        Have a question or need help? Our support team is ready to assist you.
+                    </p>
+                </div>
+
+                {/* Form Card */}
+                <div className="bg-[#fefefe] rounded-[2px] shadow-[0px_8px_0px_0px_rgba(0,0,0,0.06)] border border-[#c8b6a6]/20 overflow-hidden">
+                    <div className="px-8 py-5 border-b border-[#c8b6a6]/15">
+                        <h2 className="font-heading font-semibold text-[#2d3436] text-sm">Submit a Ticket</h2>
+                        <p className="text-xs text-[#636e72] mt-0.5">Please provide specific details so we can help you faster.</p>
                     </div>
 
-                    <h2 className="text-3xl font-black text-gray-900 mb-2">Submit a Ticket</h2>
-                    <p className="text-gray-600 mb-8">Please provide specific details so we can help you faster.</p>
+                    <div className="p-8">
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 p-4 mb-6 rounded-[2px] flex items-center gap-3">
+                                <AlertCircle className="text-red-500 shrink-0" size={18} />
+                                <p className="text-red-600 text-sm">{error}</p>
+                            </div>
+                        )}
 
-                    {error && (
-                        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-8 rounded-r-lg flex items-center gap-3">
-                            <AlertCircle className="text-red-500" />
-                            <p className="text-red-700 font-medium">{error}</p>
-                        </div>
-                    )}
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="block text-xs font-medium text-[#636e72] mb-1.5 flex items-center gap-1.5">
+                                        <User size={14} /> Email Address
+                                    </label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={formData.email}
+                                        onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                                        className="w-full border border-[#c8b6a6]/30 rounded-[2px] py-2.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#c8b6a6] focus:border-[#c8b6a6] bg-[#fefefe] placeholder-[#636e72]/40 transition-all"
+                                        placeholder="your@email.com"
+                                    />
+                                </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Email */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-bold text-gray-700 flex items-center gap-2">
-                                    <User size={16} /> Email Address
+                                <div>
+                                    <label className="block text-xs font-medium text-[#636e72] mb-1.5 flex items-center gap-1.5">
+                                        <Phone size={14} /> Phone (Optional)
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        value={formData.phone}
+                                        onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                                        className="w-full border border-[#c8b6a6]/30 rounded-[2px] py-2.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#c8b6a6] focus:border-[#c8b6a6] bg-[#fefefe] placeholder-[#636e72]/40 transition-all"
+                                        placeholder="+1 234 567 890"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-medium text-[#636e72] mb-1.5 flex items-center gap-1.5">
+                                    <Tag size={14} /> Issue Category
                                 </label>
-                                <input
-                                    type="email"
+                                <select
                                     required
-                                    value={formData.email}
-                                    onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
-                                    placeholder="your@email.com"
-                                />
+                                    value={formData.category}
+                                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                                    className="w-full border border-[#c8b6a6]/30 rounded-[2px] py-2.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#c8b6a6] focus:border-[#c8b6a6] bg-[#fefefe] placeholder-[#636e72]/40 transition-all appearance-none cursor-pointer"
+                                >
+                                    <option value="general">General Inquiry</option>
+                                    <option value="technical">Technical Issue</option>
+                                    <option value="billing">Billing & Payments</option>
+                                    <option value="account">Account Access</option>
+                                    <option value="feature">Feature Request</option>
+                                </select>
                             </div>
 
-                            {/* Phone */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-bold text-gray-700 flex items-center gap-2">
-                                    <Phone size={16} /> Phone (Optional)
+                            <div>
+                                <label className="block text-xs font-medium text-[#636e72] mb-1.5 flex items-center gap-1.5">
+                                    <MessageSquare size={14} /> Description
                                 </label>
-                                <input
-                                    type="tel"
-                                    value={formData.phone}
-                                    onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
-                                    placeholder="+1 234 567 890"
+                                <textarea
+                                    required
+                                    rows={5}
+                                    value={formData.message}
+                                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setFormData(prev => ({ ...prev, message: e.target.value }))}
+                                    className="w-full border border-[#c8b6a6]/30 rounded-[2px] py-2.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#c8b6a6] focus:border-[#c8b6a6] bg-[#fefefe] placeholder-[#636e72]/40 transition-all resize-none"
+                                    placeholder="Please describe your issue in detail..."
                                 />
                             </div>
-                        </div>
 
-                        {/* Category */}
-                        <div className="space-y-2">
-                            <label className="block text-sm font-bold text-gray-700 flex items-center gap-2">
-                                <Tag size={16} /> Issue Category
-                            </label>
-                            <select
-                                required
-                                value={formData.category}
-                                onChange={(e: ChangeEvent<HTMLSelectElement>) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                                className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium appearance-none cursor-pointer"
+                            <button
+                                type="submit"
+                                disabled={submitting}
+                                className="w-full py-3.5 bg-[#2d3436] text-[#fefefe] font-medium rounded-[2px] text-sm hover:bg-[#636e72] transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
-                                <option value="general">General Inquiry</option>
-                                <option value="technical">Technical Issue</option>
-                                <option value="billing">Billing & Payments</option>
-                                <option value="account">Account Access</option>
-                                <option value="feature">Feature Request</option>
-                            </select>
-                        </div>
-
-                        {/* Message */}
-                        <div className="space-y-2">
-                            <label className="block text-sm font-bold text-gray-700 flex items-center gap-2">
-                                <MessageSquare size={16} /> Description
-                            </label>
-                            <textarea
-                                required
-                                rows={6}
-                                value={formData.message}
-                                onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setFormData(prev => ({ ...prev, message: e.target.value }))}
-                                className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium resize-none"
-                                placeholder="Please describe your issue in detail..."
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={submitting}
-                            className="w-full py-4 bg-black text-white font-bold rounded-xl text-lg hover:bg-gray-800 transition-all transform hover:scale-[1.01] active:scale-[0.99] shadow-xl disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-                        >
-                            {submitting ? (
-                                <>
-                                    <Loader2 className="animate-spin" />
-                                    Sending Request...
-                                </>
-                            ) : (
-                                <>
-                                    <Send size={20} />
-                                    Submit Ticket
-                                </>
-                            )}
-                        </button>
-                    </form>
+                                {submitting ? (
+                                    <>
+                                        <Loading size={16} />
+                                        Sending Request...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Send size={16} />
+                                        Submit Ticket
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
