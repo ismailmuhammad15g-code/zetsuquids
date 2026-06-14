@@ -29,6 +29,8 @@ function createTransporter() {
     port: mailPort,
     secure: isSecure,
     requireTLS: useTls,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
     auth: {
       user: process.env.MAIL_USERNAME,
       pass: process.env.MAIL_PASSWORD,

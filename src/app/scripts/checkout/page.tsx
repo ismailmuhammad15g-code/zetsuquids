@@ -85,7 +85,7 @@ function CheckoutContent() {
 
       const data = await response.json();
       console.log('Email API response status:', response.status);
-      console.log('Email API response data:', data);
+      console.log('Email API response data:', JSON.stringify(data, null, 2));
 
       if (!response.ok) {
         console.error('Email API returned error:', data);
