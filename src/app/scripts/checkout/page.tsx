@@ -65,29 +65,37 @@ function CheckoutContent() {
     fetchScriptDetails();
   }, [user, scriptId]);
 
-  useEffect(() => {
-    if (success && user) {
-      sendPurchaseEmail();
-    }
-  }, [success, user]);
+  const sendPurchaseEmail = async (emailAmount: number, emailScriptTitle: string) => {
+    console.log('=== EMAIL SENDING START ===');
+    console.log('User email:', user?.email);
+    console.log('Script title:', emailScriptTitle);
+    console.log('Amount:', emailAmount);
 
-  const sendPurchaseEmail = async () => {
     try {
-      await fetch('/api/send-purchase-email', {
+      const response = await fetch('/api/send-purchase-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: user?.email,
           name: user?.user_metadata?.full_name || user?.email?.split('@')[0],
-          scriptTitle: isCartCheckout ? `${purchasedCount} scripts` : script?.title,
-          amount: purchasedTotal,
-          isCart: isCartCheckout,
-          itemCount: purchasedCount
+          scriptTitle: emailScriptTitle,
+          amount: emailAmount
         })
       });
+
+      const data = await response.json();
+      console.log('Email API response status:', response.status);
+      console.log('Email API response data:', data);
+
+      if (!response.ok) {
+        console.error('Email API returned error:', data);
+      } else {
+        console.log('Email sent successfully!');
+      }
     } catch (err) {
-      console.error('Email sending failed:', err);
+      console.error('=== EMAIL FETCH ERROR ===', err);
     }
+    console.log('=== EMAIL SENDING END ===');
   };
 
   const fetchScriptDetails = async () => {
@@ -145,6 +153,8 @@ function CheckoutContent() {
       }
     }
     setProcessing(true);
+    let emailTitle = '';
+    let emailAmount = 0;
     try {
       if (isCartCheckout) {
         const count = cartItems.length;
@@ -169,6 +179,8 @@ function CheckoutContent() {
         setPurchasedCount(count);
         setPurchasedTotal(total);
         clearCart();
+        emailTitle = `${count} scripts`;
+        emailAmount = total;
       } else {
         if (!script) return;
         const { data: existing } = await supabase
@@ -195,9 +207,15 @@ function CheckoutContent() {
           status: 'completed'
         });
         if (error) throw error;
+        emailTitle = script.title;
+        emailAmount = purchaseAmount;
       }
       setSuccess(true);
       toast.success('Purchase successful!');
+
+      // Send email immediately with actual values
+      console.log('Triggering email send with title:', emailTitle, 'amount:', emailAmount);
+      sendPurchaseEmail(emailAmount, emailTitle);
     } catch (err: any) {
       toast.error(`Payment failed: ${err.message}`);
     } finally {

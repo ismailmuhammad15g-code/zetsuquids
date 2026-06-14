@@ -2,15 +2,29 @@ import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
 function createTransporter() {
+  console.log('=== CREATING TRANSPORTER ===');
   const mailPort = parseInt(process.env.MAIL_PORT || '587', 10);
   const useTls = String(process.env.MAIL_USE_TLS || 'false').toLowerCase() === 'true';
   const isSecure = mailPort === 465;
 
+  console.log('Mail server:', process.env.MAIL_SERVER);
+  console.log('Mail port:', mailPort);
+  console.log('Use TLS:', useTls);
+  console.log('Is secure:', isSecure);
+  console.log('Mail username:', process.env.MAIL_USERNAME);
+
   if (!process.env.MAIL_SERVER || !process.env.MAIL_USERNAME || !process.env.MAIL_PASSWORD) {
-    throw new Error('SMTP configuration is missing. Please set MAIL_SERVER, MAIL_USERNAME, and MAIL_PASSWORD.');
+    const missing = [];
+    if (!process.env.MAIL_SERVER) missing.push('MAIL_SERVER');
+    if (!process.env.MAIL_USERNAME) missing.push('MAIL_USERNAME');
+    if (!process.env.MAIL_PASSWORD) missing.push('MAIL_PASSWORD');
+    const errorMsg = `SMTP configuration is missing: ${missing.join(', ')}`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
   }
 
-  return nodemailer.createTransport({
+  console.log('Creating nodemailer transport...');
+  const transport = nodemailer.createTransport({
     host: process.env.MAIL_SERVER,
     port: mailPort,
     secure: isSecure,
@@ -23,16 +37,32 @@ function createTransporter() {
       rejectUnauthorized: false,
     },
   });
+  console.log('Transporter created successfully');
+  return transport;
 }
 
 export async function POST(request: NextRequest) {
+  console.log('=== SERVER EMAIL API CALLED ===');
   try {
     const body = await request.json();
     const { email, name, scriptTitle, amount } = body;
 
+    console.log('Received email:', email);
+    console.log('Received name:', name);
+    console.log('Received scriptTitle:', scriptTitle);
+    console.log('Received amount:', amount);
+
     if (!email) {
+      console.log('ERROR: No email provided');
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
+
+    console.log('Checking SMTP config...');
+    console.log('MAIL_SERVER:', process.env.MAIL_SERVER ? 'SET' : 'MISSING');
+    console.log('MAIL_USERNAME:', process.env.MAIL_USERNAME ? 'SET' : 'MISSING');
+    console.log('MAIL_PASSWORD:', process.env.MAIL_PASSWORD ? 'SET' : 'MISSING');
+    console.log('MAIL_PORT:', process.env.MAIL_PORT || '587');
+    console.log('MAIL_USE_TLS:', process.env.MAIL_USE_TLS || 'false');
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -147,21 +177,38 @@ export async function POST(request: NextRequest) {
 </html>`;
 
     // Send via SMTP using nodemailer
+    console.log('Creating transporter...');
     const transporter = createTransporter();
     const sender = process.env.MAIL_DEFAULT_SENDER || process.env.MAIL_USERNAME;
+    console.log('Sender email:', sender);
 
-    await transporter.sendMail({
+    // Verify SMTP connection first
+    console.log('Verifying SMTP connection...');
+    try {
+      await transporter.verify();
+      console.log('SMTP connection verified successfully');
+    } catch (verifyError) {
+      console.error('SMTP verification failed:', verifyError);
+      const verifyMsg = verifyError instanceof Error ? verifyError.message : 'SMTP connection failed';
+      return NextResponse.json({ error: 'SMTP connection failed', details: verifyMsg }, { status: 500 });
+    }
+
+    console.log('Attempting to send email...');
+    const info = await transporter.sendMail({
       from: `"ZetsuMarket" <${sender}>`,
       to: email,
       subject: `Order Confirmed - ${scriptTitle}`,
       html: htmlContent,
     });
 
-    console.log('Purchase confirmation email sent to:', email);
+    console.log('Email sent successfully! Message ID:', info.messageId);
+    console.log('Email response:', info.response);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, messageId: info.messageId });
   } catch (error) {
-    console.error('Email API error:', error);
-    return NextResponse.json({ error: 'Failed to send email' }, { status: 500 });
+    console.error('=== SERVER EMAIL ERROR ===', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error details:', errorMessage);
+    return NextResponse.json({ error: 'Failed to send email', details: errorMessage }, { status: 500 });
   }
 }
