@@ -51,7 +51,7 @@ export function GuideAIChat({ guide, isOpen, onClose }: GuideAIChatProps) {
       // Focus input when modal opens
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [isOpen, user]);
+  }, [isOpen, user?.id]);
 
   const fetchCredits = async () => {
     if (!user) return;

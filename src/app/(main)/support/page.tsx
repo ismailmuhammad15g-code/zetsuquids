@@ -30,7 +30,7 @@ export default function SupportPage() {
         if (user?.email) {
             setFormData(prev => ({ ...prev, email: user.email }))
         }
-    }, [user])
+    }, [user?.email])
 
     if (!isAuthenticated()) {
         return (

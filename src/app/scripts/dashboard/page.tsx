@@ -65,7 +65,7 @@ export default function UserDashboard() {
     if (user) {
       fetchAllData();
     }
-  }, [user]);
+  }, [user?.id]);
 
   const fetchAllData = async () => {
     if (!user) return;

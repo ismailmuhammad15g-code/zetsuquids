@@ -46,7 +46,7 @@ function DownloadContent() {
   useEffect(() => {
     if (authLoading) return;
     verifyAccess();
-  }, [user, authLoading, scriptId, tokenUserId]);
+  }, [user?.id, authLoading, scriptId, tokenUserId]);
 
   const verifyAccess = async () => {
     setLoading(true);

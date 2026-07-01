@@ -51,7 +51,7 @@ export default function CommunityLoginModal() {
     };
 
     checkCommunityStatus();
-  }, [loading, user]);
+  }, [loading, user?.id]);
 
   const handleContinue = async () => {
     if (!user) return;

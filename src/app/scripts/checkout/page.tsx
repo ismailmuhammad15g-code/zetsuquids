@@ -63,7 +63,7 @@ function CheckoutContent() {
       return;
     }
     fetchScriptDetails();
-  }, [user, scriptId]);
+  }, [user?.id, scriptId]);
 
   const sendPurchaseEmail = async (emailAmount: number, emailScriptTitle: string, emailScriptId?: string) => {
     console.log('=== EMAIL SENDING START ===');

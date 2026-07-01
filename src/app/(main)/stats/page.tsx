@@ -118,7 +118,7 @@ function StatsContent() {
         fetchReferralCode();
       }
     }
-  }, [user, activeTab]);
+  }, [user?.id, activeTab]);
 
   useEffect(() => {
     const tab = searchParams.get("tab") as ActiveTab;

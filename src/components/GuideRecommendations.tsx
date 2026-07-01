@@ -42,7 +42,7 @@ export default function GuideRecommendations({
 
   useEffect(() => {
     fetchRecommendations();
-  }, [user, currentGuideSlug]);
+  }, [user?.id, currentGuideSlug]);
 
   const fetchRecommendations = async () => {
     try {

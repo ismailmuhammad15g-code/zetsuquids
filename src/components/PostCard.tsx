@@ -63,7 +63,7 @@ export default function PostCard({ post, onDeleted }: PostCardProps) {
     return () => {
       mounted = false;
     };
-  }, [user, post.id, post.has_liked]);
+  }, [user?.id, post.id, post.has_liked]);
 
   // Check if user has voted
   useEffect(() => {
@@ -81,7 +81,7 @@ export default function PostCard({ post, onDeleted }: PostCardProps) {
       if (data) setVotedOptionId(data.option_id);
     }
     checkVote();
-  }, [poll, user]);
+  }, [poll, user?.id]);
 
   const authorProfile = post.author || post.author_profile;
   const authorName =

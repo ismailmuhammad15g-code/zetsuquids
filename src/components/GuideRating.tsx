@@ -168,7 +168,7 @@ export default function GuideRating({ guideId, authorId, guideTitle }: { guideId
         } finally {
             setLoadingReviews(false);
         }
-    }, [guideId, user]);
+    }, [guideId, user?.id]);
 
     useEffect(() => {
         fetchAllReviews();

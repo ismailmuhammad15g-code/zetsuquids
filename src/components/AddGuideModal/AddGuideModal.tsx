@@ -248,7 +248,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
     };
     window.addEventListener('ai_trigger_save', handleAISave);
     return () => window.removeEventListener('ai_trigger_save', handleAISave);
-  }, [formData, slugValue, user, saving]);
+  }, [formData, slugValue, user?.id, saving]);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";

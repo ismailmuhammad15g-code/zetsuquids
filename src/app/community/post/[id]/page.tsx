@@ -127,7 +127,7 @@ export default function PostDetailsPage() {
 
   useEffect(() => {
     loadData();
-  }, [id as string, user]);
+  }, [id as string, user?.id]);
 
   async function loadData() {
     if (!id) {

@@ -80,7 +80,7 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
                     }
                 });
         }
-    }, [user]);
+    }, [user?.email]);
 
     // Load user from localStorage on mount AND monitor Supabase auth state changes
     useEffect(() => {
@@ -152,7 +152,12 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
                     console.log("✅ Auth state changed to SIGNED_IN/INITIAL_SESSION");
                     if (isComponentMounted) {
                         setToken(session.access_token);
-                        setUser(session.user as SupabaseUser);
+                        // Only update user state if the user ID actually changed
+                        // This prevents unnecessary re-renders when Supabase reconnects on tab focus
+                        setUser((prev) => {
+                            if (prev?.id === session.user.id) return prev;
+                            return session.user as SupabaseUser;
+                        });
                         localStorage.setItem("auth_token", session.access_token);
                         localStorage.setItem("auth_user", JSON.stringify(session.user));
                     }

@@ -74,7 +74,7 @@ export default function NotificationsPage(): ReactElement {
     const [activeTab, setActiveTab] = useState<string>("All")
 
     useEffect(() => {
-        if (!user) { setLoading(false); return }
+        if (!user?.id) { setLoading(false); return }
 
         let isMounted = true
         communityApi.getNotifications(user.id).then((n: any[] | null) => {
@@ -88,7 +88,7 @@ export default function NotificationsPage(): ReactElement {
         communityApi.markNotificationsAsRead(user.id).catch((err: Error) => console.error("Failed to mark read:", err))
 
         return () => { isMounted = false }
-    }, [user])
+    }, [user?.id])
 
     const filtered: any[] = activeTab === "Mentions"
         ? notifications.filter(n => n.type === "mention")

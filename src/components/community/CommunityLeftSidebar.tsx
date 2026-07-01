@@ -37,7 +37,7 @@ export default function CommunityLeftSidebar({ onPostClick }: CommunityLeftSideb
     // Poll every 30 seconds for new notifications
     const interval = setInterval(checkUnread, 30000);
     return () => clearInterval(interval);
-  }, [user, pathname]); // Re-check when path changes (e.g. visiting notifications marks them read)
+  }, [user?.id, pathname]); // Re-check when path changes (e.g. visiting notifications marks them read)
 
   const navItems: NavItem[] = [
     { name: "Home", icon: Home, href: "/community" },

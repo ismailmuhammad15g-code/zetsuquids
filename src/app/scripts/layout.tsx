@@ -41,7 +41,7 @@ function ScriptsLayoutInner({ children }: { children: React.ReactNode }) {
     if (user) {
       fetchNotifications();
     }
-  }, [user]);
+  }, [user?.id]);
 
   const fetchNotifications = async () => {
     if (!user) return;

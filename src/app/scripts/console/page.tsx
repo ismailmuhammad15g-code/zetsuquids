@@ -45,7 +45,7 @@ export default function CreatorConsole() {
       fetchAuthorData();
       fetchSupportSettings();
     }
-  }, [user]);
+  }, [user?.id]);
 
   const fetchAuthorData = async () => {
     setLoading(true);

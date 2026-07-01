@@ -51,7 +51,7 @@ export function GuideSummarizer({ guide, isOpen, onClose }: GuideSummarizerProps
     if (isOpen && user) {
       checkFreeTrial();
     }
-  }, [isOpen, user]);
+  }, [isOpen, user?.email]);
 
   const checkFreeTrial = () => {
     if (!user) return;

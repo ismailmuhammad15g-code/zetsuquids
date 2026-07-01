@@ -59,7 +59,7 @@ export default function HomePage() {
       .getActiveAd()
       .then((ad) => setActiveAd(ad))
       .catch(console.error);
-  }, [user]);
+  }, [user?.email]);
 
   return (
     <div>

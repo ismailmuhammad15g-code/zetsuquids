@@ -163,7 +163,7 @@ export default function PricingPage() {
       }
     }
     fetchCredits();
-  }, [user]);
+  }, [user?.id]);
 
   const handleAction = async (tier: PricingTier) => {
     // 1. Handle Free Plan

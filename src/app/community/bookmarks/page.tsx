@@ -18,12 +18,12 @@ export default function BookmarksPage(): ReactElement {
     const [loading, setLoading] = useState<boolean>(true)
 
     useEffect(() => {
-        if (!user) { setLoading(false); return }
+        if (!user?.id) { setLoading(false); return }
         communityApi.getBookmarkedPosts(user.id).then((p: any[] | null) => {
             setPosts(p || [])
             setLoading(false)
         })
-    }, [user])
+    }, [user?.id])
 
     return (
         <div className="flex flex-col">

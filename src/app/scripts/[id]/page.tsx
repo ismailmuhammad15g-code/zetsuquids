@@ -64,7 +64,7 @@ export default function ScriptDetailsPage() {
     if (user && id) {
       checkPurchaseStatus();
     }
-  }, [user, id]);
+  }, [user?.id, id]);
 
   const fetchScriptDetails = async () => {
     try {
@@ -246,7 +246,7 @@ export default function ScriptDetailsPage() {
     if (user && id) {
       checkFavoriteStatus();
     }
-  }, [user, id]);
+  }, [user?.id, id]);
 
   const checkFavoriteStatus = async () => {
     if (!user) return;

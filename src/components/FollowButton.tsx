@@ -88,7 +88,7 @@ export default function FollowButton({
     return () => {
       cancelled = true;
     };
-  }, [targetUserEmail, user]);
+  }, [targetUserEmail, user?.id]);
 
   async function handleFollowToggle(): Promise<void> {
     if (!user) {

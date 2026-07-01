@@ -49,7 +49,7 @@ export default function EditScriptPage() {
     if (user && id) {
       fetchScript();
     }
-  }, [user, id]);
+  }, [user?.id, id]);
 
   const fetchScript = async () => {
     try {

@@ -70,7 +70,7 @@ function ScriptsContent() {
         setHasConfirmedAccount(true);
       }
     }
-  }, [user, hasConfirmedAccount]);
+  }, [user?.id, hasConfirmedAccount]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

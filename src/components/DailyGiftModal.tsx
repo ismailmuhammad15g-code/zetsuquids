@@ -32,7 +32,7 @@ export function DailyGiftModal({ isOpen, onClose, onClaim }: DailyGiftModalProps
             hasClaimedRef.current = true
             handleAutoClaim()
         }
-    }, [animationPhase, isOpen, user])
+    }, [animationPhase, isOpen, user?.id])
 
     useEffect(() => {
         if (!isOpen) {
@@ -262,7 +262,7 @@ export function useDailyCreditsCheck(): UseDailyCreditsCheckReturn {
         }
 
         checkDailyCredits()
-    }, [user, isAuthenticated])
+    }, [user?.id, isAuthenticated])
 
     return { canClaim, hoursRemaining, isLoading }
 }

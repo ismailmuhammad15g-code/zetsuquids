@@ -53,7 +53,7 @@ export default function SubscriptionRenewAd() {
         return () => {
             if (timer !== null) clearTimeout(timer);
         };
-    }, [user]);
+    }, [!!user?.id]);
 
     const handleClose = (e?: React.MouseEvent<HTMLButtonElement>) => {
         if (e) e.stopPropagation();

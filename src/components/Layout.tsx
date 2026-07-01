@@ -210,7 +210,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       }
     }
     tryClaimReferral();
-  }, [user]);
+  }, [user?.id]);
 
   // Second: Check for user profile setup ONLY after referral check is done
   useEffect(() => {
@@ -288,7 +288,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       }
     }
     checkProfile();
-  }, [user, checkingReferral]);
+  }, [user?.email, checkingReferral]);
 
   // Third: Check for approved bug reports with pending notifications
   useEffect(() => {
@@ -319,7 +319,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       }
     }
     checkBugRewards();
-  }, [user]);
+  }, [user?.id]);
 
   // Listen for Zp awards from api.ts
   useEffect(() => {

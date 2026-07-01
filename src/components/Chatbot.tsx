@@ -285,7 +285,7 @@ export default function Chatbot() {
     if (user?.email && !supportFormData.email) {
       setSupportFormData((prev) => ({ ...prev, email: user.email }));
     }
-  }, [user]);
+  }, [user?.email]);
   const [loadingUsage, setLoadingUsage] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [promoCode, setPromoCode] = useState("");
@@ -348,7 +348,7 @@ export default function Chatbot() {
       }
     }
     initUsage();
-  }, [user, isOpen]);
+  }, [user?.id, isOpen]);
 
   async function handleRedeemCode() {
     if (!promoCode.trim() || !user?.email) return;
@@ -850,7 +850,7 @@ export default function Chatbot() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user?.id]);
 
   // Inject Arabic support styles
   useEffect(() => {

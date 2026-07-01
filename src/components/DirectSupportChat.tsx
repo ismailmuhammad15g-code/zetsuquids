@@ -244,7 +244,7 @@ export default function DirectSupportChat() {
     // Initialize conversation on mount
     useEffect(() => {
         initConversation()
-    }, [user])
+    }, [user?.id])
 
     // Inject Arabic support styles
     useEffect(() => {

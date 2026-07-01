@@ -12,7 +12,7 @@ export default function MessagesPage(): ReactElement {
 
     // Real-time listener for new messages
     useEffect(() => {
-        if (!user) { setLoading(false); return }
+        if (!user?.id) { setLoading(false); return }
 
         const fetchConvos = async (): Promise<void> => {
             const data = await communityApi.getConversations(user.id)
@@ -34,7 +34,7 @@ export default function MessagesPage(): ReactElement {
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [user])
+    }, [user?.id])
 
     return (
         <div className="flex flex-col min-h-screen">

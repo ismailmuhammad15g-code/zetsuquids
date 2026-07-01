@@ -139,7 +139,7 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
       }
     };
     fetchData();
-  }, [user, suggestionLimit]);
+  }, [user?.id, suggestionLimit]);
 
   useEffect(() => {
     const currentUserId = user?.id;

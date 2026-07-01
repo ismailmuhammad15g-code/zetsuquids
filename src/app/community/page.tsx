@@ -36,17 +36,17 @@ export default function CommunityFeed() {
         setRefreshing(false);
       }
     },
-    [activeTab, user]
+    [activeTab, user?.id]
   );
 
   useEffect(() => {
-    if (activeTab === "Following" && !user) {
+    if (activeTab === "Following" && !user?.id) {
       setPosts([]);
       setLoading(false);
       return;
     }
     fetchPosts();
-  }, [activeTab, user, fetchPosts]);
+  }, [activeTab, user?.id, fetchPosts]);
 
   // Listen for posts created from the global modal in CommunityLayout
   useEffect(() => {
