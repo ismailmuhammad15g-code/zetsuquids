@@ -135,14 +135,36 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
         // Set up listener for Supabase auth state changes
         const { data } = supabase.auth.onAuthStateChange(
             (event: import('@supabase/supabase-js').AuthChangeEvent, session: import('@supabase/supabase-js').Session | null) => {
+                if (!isComponentMounted) return;
+
+                const incomingUserId = session?.user?.id ?? null;
+
+                // HARD GUARD: If this is a reconnect event (INITIAL_SESSION/SIGNED_IN)
+                // and the user ID hasn't actually changed, bail out immediately.
+                // This prevents the entire re-render cascade on window focus.
+                if (
+                    (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED") &&
+                    incomingUserId
+                ) {
+                    // Read current state directly to avoid stale closure issues
+                    const currentUser = JSON.parse(localStorage.getItem("auth_user") || "null");
+                    if (currentUser?.id === incomingUserId && session) {
+                        // Same user, same session — only update the token if it changed
+                        const currentToken = localStorage.getItem("auth_token");
+                        if (event === "TOKEN_REFRESHED" && session.access_token !== currentToken) {
+                            setToken(session.access_token);
+                            localStorage.setItem("auth_token", session.access_token);
+                        }
+                        return; // DO NOT call setUser, DO NOT trigger re-renders
+                    }
+                }
+
                 console.log(
                     "🔄 Supabase auth state changed:",
                     event,
                     "User:",
                     session?.user?.email
                 );
-
-                if (!isComponentMounted) return;
 
                 // When user logs in (SIGNED_IN or INITIAL_SESSION)
                 if (
@@ -152,8 +174,6 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
                     console.log("✅ Auth state changed to SIGNED_IN/INITIAL_SESSION");
                     if (isComponentMounted) {
                         setToken(session.access_token);
-                        // Only update user state if the user ID actually changed
-                        // This prevents unnecessary re-renders when Supabase reconnects on tab focus
                         setUser((prev) => {
                             if (prev?.id === session.user.id) return prev;
                             return session.user as SupabaseUser;
@@ -164,7 +184,6 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
                 }
                 // When token is refreshed
                 else if (event === "TOKEN_REFRESHED" && session?.user) {
-                    console.log("🔄 Token refreshed");
                     if (isComponentMounted) {
                         setToken(session.access_token);
                         localStorage.setItem("auth_token", session.access_token);

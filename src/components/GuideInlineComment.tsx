@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle, Edit2, MessageSquare, Send, Trash2, User, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -270,7 +270,9 @@ export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsU
   const [selectionCoords, setSelectionCoords] = useState<{ pageX: number; pageY: number; viewportY: number } | null>(null);
   const [forceRender, setForceRender] = useState(0);
 
-  console.log('[GuideInlineComments] Loaded comments:', comments.length);
+  // Store callback in ref to break infinite dependency cycle
+  const onCommentCountChangeRef = useRef(onCommentCountChange);
+  onCommentCountChangeRef.current = onCommentCountChange;
 
   const fetchComments = useCallback(async () => {
     if (!guideId) return;
@@ -292,55 +294,38 @@ export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsU
             .order('created_at', { ascending: false });
           if (!fallbackError) {
             setComments(fallbackData || []);
-            onCommentCountChange?.(fallbackData?.length || 0);
+            onCommentCountChangeRef.current?.(fallbackData?.length || 0);
             return;
           }
         }
         throw error;
       }
 
-      console.log('[GuideInlineComments] Fetched:', data?.length);
       setComments(data || []);
-      onCommentCountChange?.(data?.length || 0);
+      onCommentCountChangeRef.current?.(data?.length || 0);
     } catch (err) {
       const message = err instanceof Error ? err.message : JSON.stringify(err);
       console.warn('Error fetching inline comments:', message);
     }
-  }, [guideId, onCommentCountChange]);
+  }, [guideId]);
 
   useEffect(() => {
     fetchComments();
   }, [fetchComments]);
 
-  // Set up portals after a short delay to ensure HTML is rendered
+  // Set up portals after comments load — run once per comment set, not in a loop
   useEffect(() => {
-    // Only attempt if there are comments
     if (comments.length === 0) return;
 
-    let attempts = 0;
-    const timer = setInterval(() => {
-      attempts++;
-      let allFound = true;
-      let foundCount = 0;
-      comments.forEach(comment => {
-        if (!document.getElementById(`comment-ghost-${comment.id}`)) {
-          allFound = false;
-        } else {
-          foundCount++;
-        }
-      });
-
-      if ((allFound || attempts > 5) && foundCount > 0) {
-        // Force a re-render to attach portals
-        setForceRender(prev => prev + 1);
-        clearInterval(timer);
-      }
+    // Single delayed check to attach portals
+    const timer = setTimeout(() => {
+      setForceRender(prev => prev + 1);
     }, 500);
 
-    // Safety cleanup
-    setTimeout(() => clearInterval(timer), 5000);
-    return () => clearInterval(timer);
-  }, [comments, guideId]);
+    return () => clearTimeout(timer);
+    // Only re-run when the comment IDs change, not on every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comments.map(c => c.id).join(',')]);
 
   useEffect(() => {
     const handleDocumentClick = (e: Event) => {

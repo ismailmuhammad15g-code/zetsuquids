@@ -96,12 +96,42 @@ export async function uploadComponentCode(
 
 /**
  * Lists all version files for a specific guide from GitHub.
+ * Calls GitHub API directly to list directory contents.
  */
 export async function listHistoryFromGitHub(slug: string): Promise<any[]> {
   try {
-    const response = await fetch(`/api/github-upload?action=list&path=guides/history/${slug}`);
+    const GITHUB_TOKEN = process.env.NEXT_PUBLIC_GITHUB_ASSETS_TOKEN || '';
+    const GITHUB_REPO = process.env.NEXT_PUBLIC_GITHUB_ASSETS_REPO || 'ismailmuhammad15g-code/zetsuGuidsassets';
+    const GITHUB_BRANCH = process.env.NEXT_PUBLIC_GITHUB_ASSETS_BRANCH || 'main';
+
+    if (!GITHUB_TOKEN) return [];
+
+    const path = `guides/history/${slug}`;
+    const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/${path}?ref=${GITHUB_BRANCH}`;
+
+    const response = await fetch(apiUrl, {
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+
     if (!response.ok) return [];
-    return response.json();
+    const data = await response.json();
+
+    // GitHub returns an array for directories, or a single object for files
+    const files = Array.isArray(data) ? data : [data];
+
+    return files
+      .filter((f: any) => f.type === 'file')
+      .map((f: any) => ({
+        sha: f.sha,
+        name: f.name,
+        path: f.path,
+        timestamp: f.name.replace(/\.md$/, '').replace(/_/g, 'T'),
+        download_url: f.download_url || f.url,
+      }));
   } catch (e) {
     return [];
   }

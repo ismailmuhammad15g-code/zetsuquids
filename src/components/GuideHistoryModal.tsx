@@ -1,5 +1,5 @@
 import { Calendar, Clock, RotateCcw, X, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { guidesApi, type GuideVersion } from "../lib/api";
 import { toast } from "sonner";
 
@@ -14,9 +14,14 @@ export default function GuideHistoryModal({ guideId, onClose }: GuideHistoryModa
   const [history, setHistory] = useState<GuideVersion[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [restoringId, setRestoringId] = useState<string | number | null>(null);
+  const fetchedGuideIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    loadHistory();
+    // Only fetch if this is a new guideId we haven't fetched yet
+    if (guideId && guideId !== fetchedGuideIdRef.current) {
+      fetchedGuideIdRef.current = guideId;
+      loadHistory();
+    }
   }, [guideId]);
 
   async function loadHistory(): Promise<void> {
