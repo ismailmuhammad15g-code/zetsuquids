@@ -210,7 +210,7 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
         if (!error && data) {
           setFormData(prev => ({
             ...prev,
-            questions: data.map(q => ({
+            questions: data.map((q: any) => ({
               question_text: q.question_text,
               options: q.options || [],
               points: q.points || 10,
