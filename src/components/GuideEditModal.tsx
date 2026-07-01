@@ -1,5 +1,4 @@
 "use client";
-import React from "react";
 import AddGuideModal from "./AddGuideModal/AddGuideModal";
 import { Guide } from "../lib/api";
 
