@@ -12,7 +12,6 @@ import { resizeImage } from "../lib/resizepro";
 import { supabase } from "../lib/supabase";
 
 import { FormData, MainTab, PreviewDevice } from "./AddGuideModal/types";
-import { validateContent } from "./AddGuideModal/utils";
 import { EditorTab } from "./AddGuideModal/EditorTab";
 import { PreviewTab } from "./AddGuideModal/PreviewTab";
 import { DetailsTab } from "./AddGuideModal/DetailsTab";
