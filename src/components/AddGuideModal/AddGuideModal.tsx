@@ -618,41 +618,35 @@ export default function AddGuideModal({
     <div className="fixed inset-0 z-[9999] bg-white text-gray-900 flex flex-col animate-in fade-in duration-300">
       {/* Header */}
       <div className="h-14 md:h-16 border-b border-gray-200 px-3 md:px-6 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-[1003]">
-        <div className="flex items-center gap-2 md:gap-4 min-w-0">
+        {/* Left: close + title — capped width so it never pushes right side out */}
+        <div className="flex items-center gap-2 min-w-0 flex-shrink" style={{ maxWidth: "45%" }}>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-900 flex-shrink-0">
             <X size={18} />
           </button>
-          <div className="h-5 w-px bg-gray-200 hidden sm:block" />
-          <div className="flex items-center gap-1.5 text-sm font-bold text-gray-400 min-w-0">
-            {guide ? <Edit2 size={14} className="flex-shrink-0" /> : <Plus size={14} className="flex-shrink-0" />}
-            <span className="text-gray-900 truncate max-w-[100px] sm:max-w-[200px] text-xs sm:text-sm font-black">
-              {guide ? `Editing Guide: ${formData.title || "Untitled"}` : (formData.title || "New Guide")}
+          <div className="h-5 w-px bg-gray-200 hidden sm:block flex-shrink-0" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            {guide ? <Edit2 size={14} className="flex-shrink-0 text-gray-400" /> : <Plus size={14} className="flex-shrink-0 text-gray-400" />}
+            <span className="text-gray-900 truncate text-xs sm:text-sm font-black">
+              {guide ? `Editing: ${formData.title || "Untitled"}` : (formData.title || "New Guide")}
             </span>
-            
-            {/* Auto-save Status */}
-            <div className="flex items-center gap-1.5 ml-2 px-1.5 py-0.5 rounded-md bg-gray-50/50 border border-gray-100/50">
-              <div className={`w-1 h-1 rounded-full transition-all duration-500 ${
-                saveStatus === 'saved' ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.3)]' :
-                saveStatus === 'saving' ? 'bg-black animate-pulse' :
-                'bg-gray-300'
-              }`} />
-              <span className="text-[8px] font-black uppercase tracking-widest text-gray-400 select-none">
-                {saveStatus === 'saved' ? 'Synced' :
-                 saveStatus === 'saving' ? 'Saving' :
-                 'Edited'}
-              </span>
-            </div>
+            {/* Auto-save dot */}
+            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 transition-colors ${
+              saveStatus === 'saved' ? 'bg-emerald-500' :
+              saveStatus === 'saving' ? 'bg-black animate-pulse' :
+              'bg-gray-300'
+            }`} title={saveStatus === 'saved' ? 'Synced' : saveStatus === 'saving' ? 'Saving...' : 'Edited'} />
           </div>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-4">
+        {/* Right: tabs + save button — always visible */}
+        <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
           {/* Desktop tab switcher */}
           <div className="hidden md:flex bg-gray-100 p-1 rounded-xl gap-1">
             {(["editor", "preview", "details", "questions"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setMainTab(tab)}
-                className={`px-5 py-2 text-xs font-bold rounded-lg transition-all capitalize ${
+                className={`px-3 lg:px-5 py-2 text-xs font-bold rounded-lg transition-all capitalize ${
                   mainTab === tab ? "bg-white shadow-lg text-black" : "text-gray-500 hover:text-gray-900"
                 }`}
               >
@@ -665,7 +659,7 @@ export default function AddGuideModal({
             <button
               onClick={handleSubmit}
               disabled={saving}
-              className="flex items-center gap-1.5 px-4 sm:px-6 md:px-8 py-2 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+              className="flex items-center gap-1.5 px-4 sm:px-5 md:px-6 py-2 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm whitespace-nowrap"
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : (guide ? "Save Changes" : "Publish")}
             </button>

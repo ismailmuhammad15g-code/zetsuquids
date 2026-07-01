@@ -43,7 +43,6 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   const [previewKey, setPreviewKey] = useState(0);
 
   useEffect(() => {
-    // Debounce violations calculation to avoid infinite re-renders
     const timer = setTimeout(() => {
       setViolations(getViolations(formData.content));
     }, 200);
@@ -54,14 +53,11 @@ export const EditorTab: React.FC<EditorTabProps> = ({
     if (violations.length === 0) return;
     const nextIndex = (currentViolationIndex + 1) % violations.length;
     setCurrentViolationIndex(nextIndex);
-    
     const violation = violations[nextIndex];
     if (textareaRef.current) {
       textareaRef.current.focus();
       textareaRef.current.setSelectionRange(violation.index, violation.index + violation.length);
-      
-      // Scroll to it
-      const lineHeight = 24; // Approximation
+      const lineHeight = 24;
       const textBefore = formData.content.substring(0, violation.index);
       const linesBefore = textBefore.split('\n').length;
       textareaRef.current.scrollTop = (linesBefore - 5) * lineHeight;
@@ -79,8 +75,8 @@ export const EditorTab: React.FC<EditorTabProps> = ({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white">
-      {/* Toolbar */}
-      <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between bg-white/80 backdrop-blur-sm sticky top-0 z-[1005]">
+      {/* Toolbar — z-index kept LOW so modal header stays on top */}
+      <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between bg-white/80 backdrop-blur-sm sticky top-0 z-[100]">
         <div className="flex items-center gap-1 min-w-0 flex-1">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
             <ToolbarButton icon={<Bold size={18} />} onClick={() => handleToolbarAction("bold")} tooltip="Bold" />
@@ -117,8 +113,8 @@ export const EditorTab: React.FC<EditorTabProps> = ({
             />
             {showMoreTools && (
               <>
-                <div className="fixed inset-0 z-[1008]" onClick={() => setShowMoreTools(false)} />
-                <div className="absolute right-0 sm:left-[-240px] mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 z-[1010] animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[70vh] custom-scrollbar">
+                <div className="fixed inset-0 z-[108]" onClick={() => setShowMoreTools(false)} />
+                <div className="absolute right-0 sm:left-[-240px] mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 z-[110] animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[70vh] custom-scrollbar">
                   <div className="grid grid-cols-4 gap-2">
                     {[
                       { label: "CTA", action: "cta", icon: <Activity size={18} />, color: "text-blue-500" },
@@ -153,7 +149,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
                         key={tool.label}
                         onClick={() => {
                           if (tool.action === "dl-link") setShowDownloadLinkModal(true);
-                          else handleToolbarAction(tool.action as any);
+                          else handleToolbarAction(tool.action as string);
                           setShowMoreTools(false);
                         }}
                         className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-gray-50 transition-all group"
@@ -186,7 +182,6 @@ export const EditorTab: React.FC<EditorTabProps> = ({
               <Columns size={16} />
             </button>
           </div>
-
         </div>
       </div>
 
@@ -239,7 +234,6 @@ export const EditorTab: React.FC<EditorTabProps> = ({
               onPaste={(e) => {
                 const pastedText = e.clipboardData.getData("text");
                 const isEntirelyWrapped = /^(?:[\s\S]*?)`{3,4}markdown\n([\s\S]*?)\n`{3,4}(?:[\s\S]*)$/.exec(pastedText);
-
                 if (isEntirelyWrapped && isEntirelyWrapped[1] && (!formData.content || formData.content.trim() === "")) {
                   e.preventDefault();
                   const cleanText = isEntirelyWrapped[1].trim();
