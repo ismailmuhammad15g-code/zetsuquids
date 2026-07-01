@@ -1,7 +1,7 @@
 'use client';
 import { Suspense, useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Star, Download, Code2, Cpu, LayoutTemplate, ShieldCheck, LogIn, UserPlus, X, User, ShoppingCart, Search, ChevronDown, Tag } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,6 +37,7 @@ function isValidImageUrl(url: string | null | undefined): boolean {
 }
 
 function ScriptsContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { user, profileAvatar } = useAuth();
   const { addToCart } = useCart();
@@ -94,7 +95,7 @@ function ScriptsContent() {
     await supabase.auth.signOut();
     sessionStorage.removeItem('scripts_account_confirmed');
     setShowAccountModal(false);
-    window.location.href = '/auth';
+    router.push('/auth');
   };
 
   const fetchScripts = async () => {

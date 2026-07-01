@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   Star, ShoppingCart, Check, Shield, Monitor,
   FileCode, Clock, ChevronRight, LayoutTemplate,
@@ -29,6 +29,7 @@ function isValidImageUrl(url: string | null | undefined): boolean {
 }
 
 export default function ScriptDetailsPage() {
+  const router = useRouter();
   const params = useParams();
   const id = params.id as string;
   const { user, profileAvatar } = useAuth();
@@ -172,7 +173,7 @@ export default function ScriptDetailsPage() {
     } catch (err) {
       // Continue
     }
-    window.location.href = `/scripts/checkout?script=${id}`;
+    router.push(`/scripts/checkout?script=${id}`);
   };
 
   const handlePostComment = async () => {

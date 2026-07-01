@@ -2,6 +2,7 @@
 // Type definitions for TrendsSidebar
 import { BadgeCheck, MoreHorizontal, Search, Users, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { getAvatarForUser } from "../../lib/avatar";
 import { communityApi } from "../../lib/communityApi";
@@ -719,19 +720,16 @@ export default function TrendsSidebar({ user }: TrendsSidebarProps) {
       </div>
 
       <div className="mt-4 px-4 text-[13px] text-[#71767b] leading-5 flex flex-wrap gap-x-3 gap-y-1">
-        <a href="#" className="hover:underline">
+        <Link href="/terms" className="hover:underline">
           Terms of Service
-        </a>
-        <a href="#" className="hover:underline">
+        </Link>
+        <Link href="/privacy" className="hover:underline">
           Privacy Policy
-        </a>
-        <a href="#" className="hover:underline">
+        </Link>
+        <Link href="/cookie-policy" className="hover:underline">
           Cookie Policy
-        </a>
-        <a href="#" className="hover:underline">
-          Accessibility
-        </a>
-        <span>� 2026 Zetsu Corp.</span>
+        </Link>
+        <span>© 2026 Zetsu Corp.</span>
       </div>
     </div>
   );

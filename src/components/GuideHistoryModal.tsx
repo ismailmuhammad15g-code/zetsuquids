@@ -40,8 +40,7 @@ export default function GuideHistoryModal({ guideId, onClose }: GuideHistoryModa
       
       if (success) {
         toast.success("Guide version restored successfully!");
-        // Refresh the page to show the restored content
-        window.location.reload();
+        onClose();
       } else {
         toast.error("Failed to restore this version.");
       }

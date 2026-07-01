@@ -1,5 +1,6 @@
 'use client';
 import { X, ShoppingCart, Trash2, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -18,20 +19,21 @@ function isValidImageUrl(url: string | null | undefined): boolean {
 }
 
 export default function CartDrawer() {
+  const router = useRouter();
   const { items, isOpen, setIsOpen, removeFromCart, clearCart, total, itemCount } = useCart();
   const { user } = useAuth();
 
   const handleCheckout = async () => {
     if (!user) {
       toast.error('Please login to purchase scripts');
-      window.location.href = '/auth';
+      router.push('/auth');
       return;
     }
 
     if (items.length === 0) return;
 
     setIsOpen(false);
-    window.location.href = '/scripts/checkout?cart=true';
+    router.push('/scripts/checkout?cart=true');
   };
 
   return (

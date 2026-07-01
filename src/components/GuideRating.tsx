@@ -1,5 +1,6 @@
 import { Loader2, Star } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { getAvatarForUser } from '../lib/avatar';
@@ -391,9 +392,9 @@ export default function GuideRating({ guideId, authorId, guideTitle }: { guideId
                         ? 'bg-gray-800/50 border-gray-700'
                         : 'bg-gray-50 border border-gray-200'} text-center`}>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                            <a href="/auth" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                            <Link href="/auth" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
                                 Sign in
-                            </a>
+                            </Link>
                             {' '}to rate this guide
                         </p>
                     </div>

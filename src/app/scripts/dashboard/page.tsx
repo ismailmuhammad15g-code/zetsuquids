@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   User, Heart, ShoppingCart, Package, Star,
   Settings, LogOut, TrendingUp, ExternalLink, Trash2, X, AlertTriangle
@@ -47,6 +48,7 @@ interface Review {
 }
 
 export default function UserDashboard() {
+  const router = useRouter();
   const { user, profileAvatar, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'purchases' | 'favorites' | 'reviews' | 'settings'>('overview');
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -242,7 +244,7 @@ export default function UserDashboard() {
 
   const handleLogout = async () => {
     await logout();
-    window.location.href = '/scripts';
+    router.push('/scripts');
   };
 
   const handleOpenPurchaseSettings = (purchase: Purchase) => {
