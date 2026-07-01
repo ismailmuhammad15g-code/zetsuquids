@@ -155,6 +155,10 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
                             setToken(session.access_token);
                             localStorage.setItem("auth_token", session.access_token);
                         }
+                        // Auth state is already correct — ensure loading is set to false
+                        if (isComponentMounted) {
+                            setLoading(false);
+                        }
                         return; // DO NOT call setUser, DO NOT trigger re-renders
                     }
                 }
@@ -218,6 +222,7 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
                     setUser(session.user as SupabaseUser);
                     localStorage.setItem("auth_token", session.access_token);
                     localStorage.setItem("auth_user", JSON.stringify(session.user));
+                    setLoading(false);
                 } else {
                     console.log("No active session found");
                     if (isComponentMounted) {
