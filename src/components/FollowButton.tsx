@@ -22,108 +22,73 @@ export default function FollowButton({
   const [isFollowing, setIsFollowing] = useState<boolean>(false);
   const [followersCount, setFollowersCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
-  const [checking, setChecking] = useState<boolean>(true);
   const [userExists, setUserExists] = useState<boolean>(true);
+  const [initialized, setInitialized] = useState<boolean>(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  // Check if current user is following the target user
   useEffect(() => {
-    checkUserExists();
-  }, [targetUserEmail]);
-
-  async function checkUserExists(): Promise<void> {
     if (!targetUserEmail) {
       setUserExists(false);
-      setChecking(false);
+      setInitialized(true);
       return;
     }
 
-    try {
-      const { data: targetProfile, error: profileError } = await supabase
+    let cancelled = false;
+
+    async function init() {
+      const profilePromise = supabase
         .from("zetsuguide_user_profiles")
         .select("user_id")
         .eq("user_email", targetUserEmail)
         .maybeSingle();
 
-      if (profileError) {
-        console.debug("Profile check skipped:", profileError.message);
+      const countPromise = supabase.rpc("get_followers_count_by_email", {
+        target_email: targetUserEmail,
+      });
+
+      const [profileResult, countResult] = await Promise.all([
+        profilePromise,
+        countPromise,
+      ]);
+
+      if (cancelled) return;
+
+      const { data: targetProfile, error: profileError } = profileResult;
+      if (profileError || !targetProfile || !targetProfile.user_id) {
         setUserExists(false);
-      } else if (!targetProfile || !targetProfile.user_id) {
-        setUserExists(false);
-      } else {
-        setUserExists(true);
-      }
-    } catch (error: unknown) {
-      setUserExists(false);
-    } finally {
-      setChecking(false);
-    }
-  }
-
-  // Check follow status after confirming user exists
-  useEffect(() => {
-    if (userExists && user) {
-      checkFollowStatus();
-      loadFollowersCount();
-    }
-  }, [targetUserEmail, user, userExists]);
-
-  async function checkFollowStatus(): Promise<void> {
-    if (!user || !targetUserEmail || !userExists) {
-      return;
-    }
-
-    // Don't show follow button for own profile
-    if (user.email === targetUserEmail) {
-      return;
-    }
-
-    try {
-      // Get target user's ID
-      const { data: targetProfile } = await supabase
-        .from("zetsuguide_user_profiles")
-        .select("user_id")
-        .eq("user_email", targetUserEmail)
-        .maybeSingle();
-
-      if (!targetProfile || !targetProfile.user_id) {
+        setInitialized(true);
         return;
       }
 
-      // Check if following
-      const { data } = await supabase
-        .from("user_follows")
-        .select("id")
-        .eq("follower_id", user.id)
-        .eq("following_id", targetProfile.user_id)
-        .maybeSingle();
+      setUserExists(true);
 
-      if (data) {
-        setIsFollowing(true);
-      } else {
-        setIsFollowing(false);
+      if (!countResult.error && countResult.data !== null) {
+        setFollowersCount(countResult.data as number);
       }
-    } catch (error: unknown) {
-      console.debug("Follow status check skipped");
-    }
-  }
 
-  async function loadFollowersCount(): Promise<void> {
-    if (!targetUserEmail) return;
+      if (user && user.email !== targetUserEmail) {
+        const { data } = await supabase
+          .from("user_follows")
+          .select("id")
+          .eq("follower_id", user.id)
+          .eq("following_id", targetProfile.user_id)
+          .maybeSingle();
 
-    try {
-      const { data, error } = await supabase.rpc(
-        "get_followers_count_by_email",
-        { target_email: targetUserEmail },
-      );
-
-      if (!error && data !== null) {
-        setFollowersCount(data as number);
+        if (!cancelled) {
+          setIsFollowing(!!data);
+        }
       }
-    } catch (error: unknown) {
-      console.debug("Followers count skipped");
+
+      if (!cancelled) {
+        setInitialized(true);
+      }
     }
-  }
+
+    init();
+    return () => {
+      cancelled = true;
+    };
+  }, [targetUserEmail, user]);
 
   async function handleFollowToggle(): Promise<void> {
     if (!user) {
@@ -131,9 +96,7 @@ export default function FollowButton({
       return;
     }
 
-    if (!userExists) {
-      return;
-    }
+    if (!userExists) return;
 
     if (user.email === targetUserEmail) {
       toast.error("You cannot follow yourself");
@@ -143,7 +106,6 @@ export default function FollowButton({
     setLoading(true);
 
     try {
-      // Get target user's profile
       const { data: targetProfile } = await supabase
         .from("zetsuguide_user_profiles")
         .select("user_id")
@@ -159,7 +121,6 @@ export default function FollowButton({
       const action = isFollowing ? "unfollow" : "follow";
 
       if (action === "follow") {
-        // Check if already following
         const { data: existing } = await supabase
           .from("user_follows")
           .select("id")
@@ -182,7 +143,6 @@ export default function FollowButton({
           }
         }
       } else {
-        // Unfollow
         await supabase
           .from("user_follows")
           .delete()
@@ -190,10 +150,8 @@ export default function FollowButton({
           .eq("following_id", targetProfile.user_id);
       }
 
-      // Update local state
       setIsFollowing(action === "follow");
 
-      // Get updated followers count
       const { data: countData } = await supabase.rpc(
         "get_followers_count_by_email",
         { target_email: targetUserEmail },
@@ -204,7 +162,6 @@ export default function FollowButton({
         toast.success(`Following ${targetUserName || "user"}!`);
         recordFollowInteraction();
 
-        // Trigger confetti
         try {
           const confettiMod = await import("canvas-confetti");
           const confetti = confettiMod.default || confettiMod;
@@ -229,10 +186,26 @@ export default function FollowButton({
     }
   }
 
-  // User doesn't exist - show message and no button
+  if (!initialized) {
+    return (
+      <div className={`flex items-center gap-3 ${className}`}>
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          <span className="inline-block w-6 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse align-middle" />{" "}
+          <span className="inline-block w-14 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse align-middle" />
+        </div>
+        <button
+          disabled
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 text-sm font-medium cursor-not-allowed border-2 border-gray-200 dark:border-gray-700"
+        >
+          <Loader2 size={16} className="animate-spin" />
+        </button>
+      </div>
+    );
+  }
+
   if (!userExists) {
     return (
-      <div className="flex items-center gap-3">
+      <div className={`flex items-center gap-3 ${className}`}>
         <div className="flex items-center gap-2 text-sm text-gray-400">
           <UserX size={16} />
           <span>Account not found</span>
@@ -241,46 +214,24 @@ export default function FollowButton({
     );
   }
 
-  // Don't show button if it's the user's own profile
   if (user?.email === targetUserEmail) {
     return (
-      <div className="flex items-center gap-3">
-        <div className="text-sm text-gray-600">
-          <span className="font-bold text-black">{followersCount}</span>{" "}
+      <div className={`flex items-center gap-3 ${className}`}>
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          <span className="font-bold text-black dark:text-white">{followersCount}</span>{" "}
           Follower{followersCount !== 1 ? "s" : ""}
         </div>
-      </div>
-    );
-  }
-
-  if (checking) {
-    return (
-      <div className="flex items-center gap-3">
-        <div className="text-sm text-gray-600">
-          <span className="font-bold text-black">{followersCount}</span>{" "}
-          Follower{followersCount !== 1 ? "s" : ""}
-        </div>
-        <button
-          ref={buttonRef}
-          disabled
-          className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-400 text-sm font-medium cursor-not-allowed"
-        >
-          <Loader2 size={16} className="animate-spin" />
-          Loading
-        </button>
       </div>
     );
   }
 
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      {/* Followers Count */}
-      <div className="text-sm text-gray-600">
-        <span className="font-bold text-black">{followersCount}</span> Follower
+      <div className="text-sm text-gray-600 dark:text-gray-400">
+        <span className="font-bold text-black dark:text-white">{followersCount}</span> Follower
         {followersCount !== 1 ? "s" : ""}
       </div>
 
-      {/* Follow/Unfollow Button */}
       {user && (
         <button
           ref={buttonRef}
@@ -289,10 +240,10 @@ export default function FollowButton({
           className={`
             flex items-center gap-2 px-4 py-2 text-sm font-medium
             transition-all duration-200 border-2
-            ${loading ? "opacity-50 cursor-not-allowed" : "hover:scale-105"}
+            ${loading ? "opacity-70 cursor-wait" : "hover:scale-105 active:scale-95"}
             ${isFollowing
-              ? "bg-white text-black border-black hover:bg-gray-100"
-              : "bg-black text-white border-black hover:bg-gray-800"
+              ? "bg-white dark:bg-gray-800 text-black dark:text-white border-black dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+              : "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white hover:bg-gray-800 dark:hover:bg-gray-200"
             }
           `}
         >

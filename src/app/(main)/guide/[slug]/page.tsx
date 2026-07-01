@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import Breadcrumbs from "../../../../components/Breadcrumbs";
 import ConfirmModal from "../../../../components/ConfirmModal";
 import DownloadGuideModal from "../../../../components/DownloadGuideModal";
+import BookmarkButton from "../../../../components/BookmarkButton";
 import FollowButton from "../../../../components/FollowButton";
 import { GuideAIChat } from "../../../../components/GuideAIChat";
 import GuideComments from "../../../../components/GuideComments";
@@ -1238,6 +1239,16 @@ export default function GuidePage() {
 
                                 {/* Right side: Actions & Follow */}
                                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                                    {guide.user_email && guide.slug && (
+                                        <BookmarkButton
+                                            slug={guide.slug}
+                                            title={guide.title}
+                                            authorName={guide.author_name || guide.user_email.split("@")[0]}
+                                            authorEmail={guide.user_email}
+                                            coverImage={guide.cover_image || undefined}
+                                            createdAt={guide.created_at || undefined}
+                                        />
+                                    )}
                                     {guide.user_email && (
                                         <FollowButton
                                             targetUserEmail={guide.user_email}

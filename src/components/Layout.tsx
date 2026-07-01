@@ -2,6 +2,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3,
+  Bookmark,
   BookOpen,
   Bot,
   Home,
@@ -360,6 +361,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       isActive: pathname.startsWith("/guide"),
     },
     {
+      label: "Bookmarks",
+      icon: <Bookmark size={18} className="translate-y-[1px]" />,
+      href: "/bookmarks",
+      isActive: pathname.startsWith("/bookmarks"),
+    },
+    {
       label: "Community",
       icon: <Users size={18} className="translate-y-[1px]" />,
       href: "/community",
@@ -631,6 +638,16 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                     >
                       <BookOpen size={22} />
                       <span>All Guides</span>
+                    </Link>
+                    <Link
+                      href="/bookmarks"
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl font-bold text-lg transition-all ${pathname.startsWith("/bookmarks")
+                        ? "bg-black text-white shadow-lg shadow-black/20"
+                        : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                    >
+                      <Bookmark size={22} />
+                      <span>Saved Guides</span>
                     </Link>
                     <Link
                       href="/community"

@@ -84,6 +84,14 @@ export default function CreatorConsole() {
 
       // Auto-fix author_id mismatch: update scripts where author_email matches but author_id doesn't
       if (user?.email && user?.id) {
+        // First backfill any scripts missing author_email
+        await supabase
+          .from('marketplace_scripts')
+          .update({ author_email: user.email })
+          .eq('author_id', user.id)
+          .is('author_email', null);
+
+        // Then fix any scripts with wrong author_id
         const { data: mismatchedScripts } = await supabase
           .from('marketplace_scripts')
           .select('id')
@@ -242,6 +250,13 @@ export default function CreatorConsole() {
 
       // Also fix any scripts with wrong author_id
       if (user?.email && user?.id) {
+        // Backfill missing author_email first
+        await supabase
+          .from('marketplace_scripts')
+          .update({ author_email: user.email })
+          .eq('author_id', user.id)
+          .is('author_email', null);
+
         const { data: mismatched } = await supabase
           .from('marketplace_scripts')
           .select('id')

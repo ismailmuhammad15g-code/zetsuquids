@@ -157,6 +157,7 @@ export default function UploadScriptPage() {
         show_readme: formData.show_readme,
         author_id: user.id,
         author_name: authorName,
+        author_email: user.email || '',
         status: 'Active'
       };
 
