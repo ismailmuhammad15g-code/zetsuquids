@@ -264,7 +264,14 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
-    setValidationErrors(validateContent(formData, "markdown"));
+    const errors: string[] = [];
+    if (!formData.title?.trim()) errors.push("Title is required");
+    if (!formData.keywords?.trim()) errors.push("Keywords are required");
+    const wordCount = (formData.content || formData.html_content || "").trim().split(/\s+/).filter(Boolean).length || 0;
+    if (wordCount < 30) {
+      errors.push(`Content is too short (${wordCount}/30 words)`);
+    }
+    setValidationErrors(errors);
     return () => {
       document.body.style.overflow = "unset";
     };
@@ -487,8 +494,17 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    const errors = validateContent(formData, "markdown");
-    if (errors.length > 0) { toast.error("Please fix errors"); return; }
+    const errors: string[] = [];
+    if (!formData.title?.trim()) errors.push("Title is required");
+    if (!formData.keywords?.trim()) errors.push("Keywords are required");
+    const wordCount = (formData.content || formData.html_content || "").trim().split(/\s+/).filter(Boolean).length || 0;
+    if (wordCount < 30) {
+      errors.push(`Content is too short (${wordCount}/30 words)`);
+    }
+    if (errors.length > 0) { 
+      toast.error(errors[0]); 
+      return; 
+    }
     setSaving(true);
     try {
       const keywordList = formData.keywords.split(",").map((k: string) => k.trim()).filter(Boolean);
@@ -591,7 +607,7 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
           <div className="relative group/publish">
             <button
               onClick={handleSubmit}
-              disabled={saving || validationErrors.length > 0}
+              disabled={saving}
               className="flex items-center gap-1.5 px-4 sm:px-6 md:px-8 py-2 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : "Save Changes"}
