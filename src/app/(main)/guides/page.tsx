@@ -107,7 +107,8 @@ export default function AllGuidesPage() {
 
     const highlight = (text: string): JSX.Element | string => {
         if (!searchQuery || !text) return text;
-        const parts = text.toString().split(new RegExp(`(${searchQuery})`, "gi"));
+        const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const parts = text.toString().split(new RegExp(`(${escaped})`, "gi"));
         return (
             <span>
                 {parts.map((part: string, i: number) =>
@@ -189,25 +190,25 @@ export default function AllGuidesPage() {
                 {/* Search */}
                 <div className="flex-1 relative z-30">
                     <Search
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
                         size={20}
                     />
                     <input
                         type="text"
                         value={searchQuery}
-                        onChange={(e: any) => setSearchQuery(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                         onFocus={() => setIsSearchFocused(true)}
                         onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                         placeholder="Search guides..."
-                        className="w-full pl-12 pr-4 py-3 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black bg-white"
+                        className="w-full pl-12 pr-4 py-3 border-2 border-black dark:border-white dark:text-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white bg-white"
                     />
 
                     {/* Search Results Dropdown (Modal) */}
                     {isSearchFocused && searchQuery && (
-                        <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-black shadow-xl z-50 animate-in fade-in zoom-in-95 duration-200 max-h-[400px] overflow-y-auto">
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-900 border-2 border-black dark:border-white shadow-xl z-50 animate-in fade-in zoom-in-95 duration-200 max-h-[400px] overflow-y-auto">
                             {filteredGuides.length > 0 ? (
                                 <div>
-                                    <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                    <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                         {filteredGuides.length} Result
                                         {filteredGuides.length !== 1 ? "s" : ""} Found
                                     </div>
@@ -215,9 +216,9 @@ export default function AllGuidesPage() {
                                         <Link
                                             key={guide.id}
                                             href={`/guide/${guide.slug}`}
-                                            className="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-0 transition-colors group"
+                                            className="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-800 last:border-0 transition-colors group"
                                         >
-                                            <h4 className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors">
+                                            <h4 className="font-bold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
                                                 {guide.title}
                                             </h4>
                                             <div className="flex items-center gap-2 mt-1">
@@ -243,16 +244,16 @@ export default function AllGuidesPage() {
                                         </Link>
                                     ))}
                                     {filteredGuides.length > 5 && (
-                                        <div className="px-4 py-3 bg-gray-50 text-center text-sm font-bold text-purple-600 border-t border-gray-100">
+                                        <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-center text-sm font-bold text-purple-600 dark:text-purple-400 border-t border-gray-100 dark:border-gray-700">
                                             View all {filteredGuides.length} results
                                         </div>
                                     )}
                                 </div>
                             ) : (
-                                <div className="px-4 py-8 text-center text-gray-500">
+                                <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                                     <Search size={24} className="mx-auto mb-2 opacity-50" />
                                     <p className="text-sm font-medium">
-                                        No guides found matching "{searchQuery}"
+                                        No guides found matching &quot;{searchQuery}&quot;
                                     </p>
                                 </div>
                             )}

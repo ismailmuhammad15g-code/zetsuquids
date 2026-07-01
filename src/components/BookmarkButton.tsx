@@ -66,7 +66,7 @@ export default function BookmarkButton({
     return (
       <button
         disabled
-        className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-2 border-gray-200 dark:border-gray-700 text-gray-400 cursor-not-allowed ${className}`}
+        className={`inline-flex items-center justify-center h-10 min-w-[2.5rem] sm:min-w-0 sm:px-4 text-sm font-medium border-2 border-gray-200 dark:border-gray-700 text-gray-400 cursor-not-allowed ${className}`}
       >
         <Bookmark size={16} />
       </button>
@@ -78,8 +78,10 @@ export default function BookmarkButton({
       onClick={handleToggle}
       disabled={loading}
       className={`
-        group flex items-center gap-2 px-3 py-2 text-sm font-medium
+        group inline-flex items-center justify-center gap-2 text-sm font-medium
         transition-all duration-200 border-2
+        h-10 min-w-[2.5rem]
+        sm:px-4 sm:min-w-0
         ${loading ? "opacity-70 cursor-wait" : "hover:scale-105 active:scale-95"}
         ${bookmarked
           ? "bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-950/50"
@@ -94,12 +96,12 @@ export default function BookmarkButton({
       ) : bookmarked ? (
         <BookmarkCheck
           size={16}
-          className="transition-transform duration-200 group-hover:scale-110"
+          className="transition-transform duration-200 group-hover:scale-110 shrink-0"
         />
       ) : (
         <Bookmark
           size={16}
-          className="transition-transform duration-200 group-hover:scale-110"
+          className="transition-transform duration-200 group-hover:scale-110 shrink-0"
         />
       )}
       <span className="hidden sm:inline">

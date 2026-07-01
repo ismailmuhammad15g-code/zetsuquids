@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import { ToolbarButton } from "./ToolbarButton";
 import { FormData, ViewMode } from "./types";
-import { getMarkdownHtml, highlightEditorText, getViolations, Violation } from "./utils";
+import { highlightEditorText, getViolations, Violation } from "./utils";
+import GuideMarkdownRenderer from "../GuideMarkdownRenderer";
 
 interface EditorTabProps {
   formData: FormData;
@@ -36,10 +37,10 @@ export const EditorTab: React.FC<EditorTabProps> = ({
 }) => {
   const [showMoreTools, setShowMoreTools] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("split");
-  const [previewHtml, setPreviewHtml] = useState(() => getMarkdownHtml(formData.content));
   const [violations, setViolations] = useState<Violation[]>([]);
   const [currentViolationIndex, setCurrentViolationIndex] = useState(0);
   const [isPreviewUpdating, setIsPreviewUpdating] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0);
 
   useEffect(() => {
     // Debounce violations calculation to avoid infinite re-renders
@@ -70,9 +71,9 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   useEffect(() => {
     setIsPreviewUpdating(true);
     const timer = setTimeout(() => {
-      setPreviewHtml(getMarkdownHtml(formData.content));
+      setPreviewKey((k) => k + 1);
       setIsPreviewUpdating(false);
-    }, 400); // Slightly longer for a more noticeable premium feel
+    }, 400);
     return () => clearTimeout(timer);
   }, [formData.content]);
 
@@ -298,13 +299,12 @@ export const EditorTab: React.FC<EditorTabProps> = ({
               </AnimatePresence>
 
               <div 
-                className={`p-10 prose prose-lg prose-slate max-w-none transition-opacity duration-300 ${isPreviewUpdating ? 'opacity-30' : 'opacity-100'}`} 
+                className={`p-10 max-w-none transition-opacity duration-300 ${isPreviewUpdating ? 'opacity-30' : 'opacity-100'}`} 
                 dir="auto"
               >
-                <div
-                  dangerouslySetInnerHTML={{
-                    __html: previewHtml,
-                  }}
+                <GuideMarkdownRenderer
+                  key={previewKey}
+                  content={formData.content || "*Start writing to see a preview...*"}
                 />
               </div>
             </div>

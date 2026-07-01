@@ -12,8 +12,7 @@ import {
   Trash2
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import GuideMarkdownRenderer from "./GuideMarkdownRenderer";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvatarForUser } from "../lib/avatar";
@@ -231,130 +230,7 @@ export default function PostCard({ post, onDeleted }: PostCardProps) {
     const content = post.content || "";
 
     return (
-      <ReactMarkdown
-        children={content}
-        components={{
-          code({ node, inline, className, children, ...props }: any) {
-            const match = /language-(\w+)/.exec(className || "");
-            return !inline && match ? (
-              <div onClick={stopProp} className="my-2">
-                <SyntaxHighlighter
-                  {...props}
-                  children={String(children).replace(/\n$/, "")}
-                  language={match[1]}
-                  PreTag="div"
-                  customStyle={{
-                    borderRadius: "12px",
-                    margin: "0",
-                    background: "#16181c",
-                    border: "1px solid #1f2937",
-                    fontSize: "13px",
-                  }}
-                />
-              </div>
-            ) : (
-              <code
-                {...props}
-                className="bg-gray-800 text-[#e7e9ea] px-1 py-0.5 rounded text-[13px]"
-              >
-                {children}
-              </code>
-            );
-          },
-          a: ({ node, ...props }: any) => (
-            <a
-              {...props}
-              onClick={stopProp}
-              className="text-[#1d9bf0] hover:underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            />
-          ),
-          img: ({ node, ...props }: any) => (
-            <figure className="mt-3 mb-3 overflow-hidden rounded-2xl border border-[#2f3336]">
-              <img
-                {...props}
-                onClick={stopProp}
-                className="w-full max-h-[500px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
-              />
-            </figure>
-          ),
-          p: ({ node, children, ...props }: any) => {
-            // Separate text children from non-text elements (like images)
-            const textChildren: (string | React.ReactNode)[] = [];
-            const nonTextElements: React.ReactNode[] = [];
-
-            const flattenChildren = (items: React.ReactNode): React.ReactNode[] => {
-              return Array.isArray(items)
-                ? items.flat()
-                : [items];
-            };
-
-            flattenChildren(children).forEach((child) => {
-              // Check if child is a React element (JSX)
-              if (child && typeof child === "object" && "type" in child) {
-                nonTextElements.push(child);
-              } else {
-                textChildren.push(child);
-              }
-            });
-
-            // Process text children to highlight hashtags and mentions
-            const processTextChildren = (items: (string | React.ReactNode)[]): React.ReactNode[] => {
-              return items.map((child, i) => {
-                if (typeof child === "string") {
-                  // Split by either hashtags or mentions
-                  return child
-                    .split(/((?:#[A-Za-z0-9_\u0600-\u06FF]{2,30})|(?:@[A-Za-z0-9_\u0600-\u06FF]{2,30}))/g)
-                    .map((part, j) => {
-                      if (part.match(/^#[A-Za-z0-9_\u0600-\u06FF]{2,30}$/)) {
-                        return (
-                          <span
-                            key={`${i}-${j}`}
-                            className="text-[#1d9bf0] hover:underline cursor-pointer"
-                            onClick={(e: React.MouseEvent<HTMLElement>) => {
-                              e.stopPropagation();
-                              router.push(`/community/explore?q=${encodeURIComponent(part)}`);
-                            }}
-                          >
-                            {part}
-                          </span>
-                        );
-                      } else if (part.match(/^@[A-Za-z0-9_\u0600-\u06FF]{2,30}$/)) {
-                        return (
-                          <span
-                            key={`${i}-${j}`}
-                            className="text-[#1d9bf0] hover:underline cursor-pointer"
-                            onClick={(e: React.MouseEvent<HTMLElement>) => {
-                              e.stopPropagation();
-                              const username = part.substring(1);
-                              router.push(`/profile/${encodeURIComponent(username)}`);
-                            }}
-                          >
-                            {part}
-                          </span>
-                        );
-                      }
-                      return part;
-                    });
-                }
-                return child;
-              });
-            };
-
-            return (
-              <>
-                {textChildren.length > 0 && (
-                  <p className="mb-1" {...props}>
-                    {processTextChildren(textChildren)}
-                  </p>
-                )}
-                {nonTextElements}
-              </>
-            );
-          },
-        }}
-      />
+      <GuideMarkdownRenderer content={content} />
     );
   };
 

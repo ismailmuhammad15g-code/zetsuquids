@@ -10,8 +10,7 @@ import {
   Share
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
-import ReactMarkdown from "react-markdown";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import GuideMarkdownRenderer from "../../../../components/GuideMarkdownRenderer";
 import { toast } from "sonner";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { getAvatarForUser } from "../../../../lib/avatar";
@@ -261,89 +260,7 @@ export default function PostDetailsPage() {
 
         {/* Post Content */}
         <div className="text-[17px] text-[#e7e9ea] leading-6 whitespace-pre-wrap break-words mb-4">
-          <ReactMarkdown
-            children={post.content}
-            components={{
-              code({ className, children, ...props }) {
-                const match = /language-(\w+)/.exec(className || "");
-                return match ? (
-                  <div className="my-4 rounded-xl overflow-hidden border border-[#2f3336]">
-                    <SyntaxHighlighter
-                      {...props}
-                      children={String(children).replace(/\n$/, "")}
-                      language={match[1]}
-                      PreTag="div"
-                      customStyle={{
-                        margin: 0,
-                        padding: "1rem",
-                        background: "#16181c",
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <code
-                    className="bg-[#2f3336] text-[#eff3f4] px-1.5 py-0.5 rounded text-[14px]"
-                    {...props}
-                  >
-                    {children}
-                  </code>
-                );
-              },
-              p: ({ node, children, ...props }: any) => {
-                const textChildren: (string | React.ReactNode)[] = [];
-                const nonTextElements: React.ReactNode[] = [];
-
-                const flattenChildren = (items: React.ReactNode): React.ReactNode[] => {
-                  return Array.isArray(items) ? items.flat() : [items];
-                };
-
-                flattenChildren(children).forEach((child) => {
-                  if (child && typeof child === "object" && "type" in child) {
-                    nonTextElements.push(child);
-                  } else {
-                    textChildren.push(child);
-                  }
-                });
-
-                const processTextChildren = (items: (string | React.ReactNode)[]): React.ReactNode[] => {
-                  return items.map((child, i) => {
-                    if (typeof child === "string") {
-                      return child
-                        .split(/((?:#[A-Za-z0-9_\u0600-\u06FF]{2,30})|(?:@[A-Za-z0-9_\u0600-\u06FF]{2,30}))/g)
-                        .map((part, j) => {
-                          if (part.match(/^#[A-Za-z0-9_\u0600-\u06FF]{2,30}$/)) {
-                            return (
-                              <a key={`${i}-${j}`} href={`/community/explore?q=${encodeURIComponent(part)}`} className="text-[#1d9bf0] hover:underline" onClick={(e) => e.stopPropagation()}>
-                                {part}
-                              </a>
-                            );
-                          } else if (part.match(/^@[A-Za-z0-9_\u0600-\u06FF]{2,30}$/)) {
-                            return (
-                              <a key={`${i}-${j}`} href={`/profile/${encodeURIComponent(part.substring(1))}`} className="text-[#1d9bf0] hover:underline" onClick={(e) => e.stopPropagation()}>
-                                {part}
-                              </a>
-                            );
-                          }
-                          return part;
-                        });
-                    }
-                    return child;
-                  });
-                };
-
-                return (
-                  <>
-                    {textChildren.length > 0 && (
-                      <p className="mb-3 last:mb-0" {...props}>
-                        {processTextChildren(textChildren)}
-                      </p>
-                    )}
-                    {nonTextElements}
-                  </>
-                );
-              },
-            }}
-          />
+          <GuideMarkdownRenderer content={post.content} />
         </div>
 
         {/* Metadata */}

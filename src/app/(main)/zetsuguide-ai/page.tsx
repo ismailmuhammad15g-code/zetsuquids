@@ -19,10 +19,7 @@ import {
 } from "lucide-react";
 import mermaid from "mermaid";
 import { useCallback, useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import remarkGfm from "remark-gfm";
+import GuideMarkdownRenderer from "../../../components/GuideMarkdownRenderer";
 import { toast } from "sonner";
 import { useAuth } from "../../../contexts/AuthContext";
 import { supabase } from "../../../lib/supabase";
@@ -1443,7 +1440,7 @@ function MessageContent({ text, isError, isThinking, userEmail, userId, selected
       )}
 
       {response && (
-        <FilteredMarkdown content={response} />
+        <GuideMarkdownRenderer content={response} />
       )}
 
       {aiAction && aiAction.action === 'create_guide' && (
@@ -1461,75 +1458,11 @@ function MessageContent({ text, isError, isThinking, userEmail, userId, selected
         </div>
       )}
 
-      {isError && <ReactMarkdown>{text}</ReactMarkdown>}
+      {isError && <GuideMarkdownRenderer content={text} />}
     </div>
   );
 }
 
-// Custom component to filter thinking tags from rendered markdown
-interface FilteredMarkdownProps {
-  content: string;
-}
-
-function FilteredMarkdown({ content }: FilteredMarkdownProps) {
-  // Aggressive cleaning of thinking tags from content
-  let cleanContent = content;
-
-  // Remove all thinking tag patterns (case insensitive, global)
-  cleanContent = cleanContent.replace(/<thinking>[\s\S]*?<\/thinking>/gi, "");
-  cleanContent = cleanContent.replace(/<thinking>[\s\S]*?$/gi, "");
-  cleanContent = cleanContent.replace(/^[\s\S]*?<thinking>/gi, "");
-  cleanContent = cleanContent.replace(/<\/thinking>[\s\S]*/gi, "");
-
-  // Also handle any remaining angle bracket patterns that look like thinking
-  cleanContent = cleanContent.replace(/<think[\s\S]*?>/gi, "");
-  cleanContent = cleanContent.replace(/<\/think[\s\S]*?>/gi, "");
-
-  cleanContent = cleanContent.trim();
-
-  if (!cleanContent) return null;
-
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        code({ node, inline, className, children, ...props }: any) {
-          const match = /language-(\w+)/.exec(className || "");
-          const lang = match ? match[1] : "";
-          if (!inline && lang === "mermaid") {
-            return <MermaidChart chart={String(children).replace(/\n$/, "")} />;
-          }
-          return !inline ? (
-            <div className="my-4 rounded-xl overflow-hidden" dir="ltr">
-              <SyntaxHighlighter
-                {...props}
-                children={String(children).replace(/\n$/, "")}
-                style={vscDarkPlus}
-                language={lang || "javascript"}
-                PreTag="div"
-                customStyle={{ margin: 0, padding: "16px", fontSize: "13px", background: "#111" }}
-              />
-            </div>
-          ) : (
-            <code {...props} className="bg-gray-100/80 border border-gray-200 text-gray-800 px-[5px] py-[2px] rounded-[5px] text-[13px] font-mono mx-0.5" dir="ltr">
-              {children}
-            </code>
-          );
-        },
-        h1: (p) => <h1 className="text-xl font-extrabold mt-8 mb-4 text-gray-900 tracking-tight" {...p} />,
-        h2: (p) => <h2 className="text-lg font-bold mt-7 mb-3 text-gray-900 tracking-tight" {...p} />,
-        h3: (p) => <h3 className="text-base font-bold mt-6 mb-2 text-gray-900 tracking-tight" {...p} />,
-        p: (p) => <p className="my-2.5 leading-relaxed text-[14.5px] text-gray-700" {...p} />,
-        ul: (p) => <ul className="list-disc list-inside my-4 space-y-1.5 text-[14.5px] text-gray-700" {...p} />,
-        ol: (p) => <ol className="list-decimal list-inside my-4 space-y-1.5 text-[14.5px] text-gray-700" {...p} />,
-        a: (p) => <a className="text-blue-600 hover:text-blue-800 hover:underline font-medium" target="_blank" rel="noopener noreferrer" {...p} />,
-        blockquote: (p) => <blockquote className="border-r-4 border-gray-300 pr-4 mr-0 my-4 italic text-gray-600 bg-gray-50 p-3 rounded-l-lg" {...p} />,
-      }}
-    >
-      {cleanContent}
-    </ReactMarkdown>
-  );
-}
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 interface ChatMessage {

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Guide, guidesApi } from "../lib/api";
 import { uploadImageToImgBB } from "../lib/imgbb";
 import { resizeImage } from "../lib/resizepro";
+import GuideMarkdownRenderer from "./GuideMarkdownRenderer";
 
 interface GuideEditModalProps {
     guide: Guide;
@@ -450,7 +451,9 @@ export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditMod
 
                                 {contentType === "markdown" ? (
                                     markdown ? (
-                                        <div dangerouslySetInnerHTML={{ __html: "<p>Markdown preview requires unified pipeline, which is normally used on the backend. This acts as a placeholder.</p>" }} />
+                                        <div className="p-6">
+                                            <GuideMarkdownRenderer content={markdown} />
+                                        </div>
                                     ) : (
                                         <div className="flex flex-col items-center justify-center h-64 opacity-20">
                                             <Eye size={48} />
