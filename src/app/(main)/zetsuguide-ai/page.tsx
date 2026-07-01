@@ -17,7 +17,6 @@ import {
   ExternalLink,
   Image as ImageIcon
 } from "lucide-react";
-import mermaid from "mermaid";
 import { useCallback, useEffect, useRef, useState } from "react";
 import GuideMarkdownRenderer from "../../../components/GuideMarkdownRenderer";
 import { toast } from "sonner";
@@ -879,35 +878,6 @@ function formatDate(dateStr: string | null): string {
   if (diff < 86400000) return "Today";
   if (diff < 172800000) return "Yesterday";
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function MermaidChart({ chart }: { chart: string }): JSX.Element {
-  const containerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    let isMounted = true;
-    const renderChart = async () => {
-      if (containerRef.current && chart) {
-        try {
-          const id = `mermaid-${Math.random().toString(36).substring(7)}`;
-          const { svg } = await mermaid.render(id, chart);
-          if (isMounted && containerRef.current) {
-            containerRef.current.innerHTML = svg;
-          }
-        } catch (err) {
-          console.error("Mermaid format error:", err);
-        }
-      }
-    };
-    renderChart();
-    return () => { isMounted = false; };
-  }, [chart]);
-  return (
-    <div
-      className="mermaid bg-white border border-gray-200 rounded-xl p-4 my-4 flex justify-center text-[13px]"
-      ref={containerRef}
-      dir="ltr"
-    />
-  );
 }
 
 function parseThoughtAndResponse(text: string): { thought: string; response: string; isStreaming?: boolean } {

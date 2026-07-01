@@ -1,6 +1,5 @@
 "use client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import "highlight.js/styles/github-dark.css";
 import {
   CheckCircle2,
   ChevronDown,
@@ -13,13 +12,9 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import mermaid from "mermaid";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import rehypeHighlight from "rehype-highlight";
-import remarkGfm from "remark-gfm";
 import { useAuth } from "../contexts/AuthContext";
 import { useModal } from "../contexts/ModalContext";
 import { basicSearch, isAIConfigured, streamAIResponse } from "../lib/ai";
@@ -29,6 +24,7 @@ import { supabase } from "../lib/supabase";
 import { supportApi } from "../lib/supportApi";
 import BotIcon from "./BotIcon";
 import DirectSupportChat from "./DirectSupportChat";
+import GuideMarkdownRenderer from "./GuideMarkdownRenderer";
 import ManusComputerMockup, { type AgentLogEntry } from "./ManusComputerMockup";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "./ui/reasoning";
 
@@ -70,39 +66,6 @@ function isArabicText(text: string) {
   // If more Arabic than Latin, consider it Arabic text
   return arabicMatches > latinMatches * 0.3;
 }
-
-const MermaidDiagram = ({ chart }: { chart: string }) => {
-  const [svg, setSvg] = useState<string>('');
-  const [error, setError] = useState(false);
-  const id = useRef(`mermaid-${Date.now()}-${Math.floor(Math.random() * 10000)}`);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && chart) {
-      mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
-      mermaid.render(id.current, chart)
-        .then(result => {
-          setSvg(result.svg);
-          setError(false);
-        })
-        .catch(err => {
-          console.error("Mermaid render error:", err);
-          setError(true);
-        });
-    }
-  }, [chart]);
-
-  if (error) {
-    return <div className="text-red-500 text-xs">Error rendering diagram. It might be incomplete.</div>;
-  }
-
-  return svg ? (
-    <div dangerouslySetInnerHTML={{ __html: svg }} className="mermaid-diagram flex justify-center bg-white p-4 rounded-lg" />
-  ) : (
-    <div className="flex items-center gap-2 text-xs text-slate-500">
-      <Loader2 className="animate-spin" size={12} /> Rendering diagram...
-    </div>
-  );
-};
 
 function MarkdownMessage({ content, isTyping = false }: { content: string; isTyping?: boolean }) {
   let thinkContent: string | null = null;
@@ -169,70 +132,7 @@ function MarkdownMessage({ content, isTyping = false }: { content: string; isTyp
       )}
       {displayedContent && (
         <div className="prose prose-sm max-w-none prose-slate prose-headings:font-bold prose-a:text-black prose-a:underline prose-code:text-black prose-code:bg-black/5 prose-pre:bg-black prose-pre:text-white prose-blockquote:border-black prose-strong:text-black prose-li:marker:text-black">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={[rehypeHighlight]}
-            components={{
-              code: ({ node, className, children, ...props }) => {
-                const isBlock = Boolean(className);
-                const isMermaid = className?.includes("mermaid") && !className?.includes("mermaid-loading");
-                const isMermaidLoading = className?.includes("mermaid-loading");
-
-                if (isMermaidLoading) {
-                  return (
-                    <div className="not-prose bg-white border border-slate-200 rounded-lg p-6 my-4 shadow-sm w-full">
-                      <div className="flex items-center gap-3 mb-4 opacity-50">
-                        <Loader2 className="animate-spin text-slate-400" size={16} />
-                        <span className="text-slate-400 text-xs font-bold uppercase tracking-wide">Generating Diagram...</span>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="h-2 bg-slate-200 rounded w-1/4 animate-pulse"></div>
-                        <div className="h-2 bg-slate-200 rounded w-3/4 animate-pulse" style={{ animationDelay: '100ms' }}></div>
-                        <div className="h-2 bg-slate-200 rounded w-1/2 animate-pulse" style={{ animationDelay: '200ms' }}></div>
-                        <div className="h-2 bg-slate-200 rounded w-5/6 animate-pulse" style={{ animationDelay: '300ms' }}></div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                if (isMermaid) {
-                  return (
-                    <div className="not-prose bg-slate-50 border border-slate-200 rounded-lg p-4 my-4 overflow-x-auto shadow-sm">
-                      <span className="text-slate-400 text-xs font-bold mb-2 block uppercase tracking-wide flex items-center gap-2">
-                        📊 Diagram Preview
-                      </span>
-                      <MermaidDiagram chart={String(children).replace(/\n$/, '')} />
-                    </div>
-                  );
-                }
-
-                return isBlock ? (
-                  <pre className="not-prose bg-slate-900 rounded-lg p-3 my-2 overflow-x-auto border border-slate-700">
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  </pre>
-                ) : (
-                  <code
-                    className="not-prose bg-black/5 px-1.5 py-0.5 rounded text-black text-xs font-mono border border-black/10"
-                    {...props}
-                  >
-                    {children}
-                  </code>
-                );
-              },
-              a: ({ node, ...props }) => (
-                <a
-                  className="text-black hover:text-black/80 underline"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  {...props}
-                />
-              ),
-            }}
-          >
-            {displayedContent}
-          </ReactMarkdown>
+          <GuideMarkdownRenderer content={displayedContent} />
         </div>
       )}
       {isTyping && (

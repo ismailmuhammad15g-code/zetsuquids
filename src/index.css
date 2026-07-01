@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -133,9 +135,6 @@ body {
 }
 
 /* ─── Guide Markdown Premium ───────────────────────────────────────────────── */
-
-/* === Font Imports === */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 /* === Base Content === */
 .guide-content {
