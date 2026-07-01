@@ -12,7 +12,7 @@ interface Question {
 }
 
 interface StrictQuizModalProps {
-  guideId: number;
+  guideId: string | number;
   guideSlug: string;
   guideShortName: string;
   onClose: () => void;
