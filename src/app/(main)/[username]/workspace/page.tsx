@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { type ChangeEvent, useEffect, useState } from "react";
 import FollowButton from "../../../../components/FollowButton";
-import GuideEditModal from "../../../../components/GuideEditModal";
+import AddGuideModal from "../../../../components/AddGuideModal";
 import Toast from "../../../../components/Toast";
 import VerifiedBadge from "../../../../components/VerifiedBadge";
 import { useAuth } from "../../../../contexts/AuthContext";
@@ -814,7 +814,7 @@ export default function UserWorkspacePage() {
                 ))}
               </div>
               {showGuideEditModal && selectedGuideToEdit && (
-                <GuideEditModal
+                <AddGuideModal
                   guide={selectedGuideToEdit}
                   onClose={() => setShowGuideEditModal(false)}
                   onSaved={(updatedGuide: Guide) => {

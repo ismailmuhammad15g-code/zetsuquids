@@ -42,7 +42,7 @@ import BookmarkButton from "../../../../components/BookmarkButton";
 import FollowButton from "../../../../components/FollowButton";
 import { GuideAIChat } from "../../../../components/GuideAIChat";
 import GuideComments from "../../../../components/GuideComments";
-import GuideEditModal from "../../../../components/GuideEditModal";
+import AddGuideModal from "../../../../components/AddGuideModal";
 import GuideHistoryModal from "../../../../components/GuideHistoryModal";
 import GuideInlineComments from "../../../../components/GuideInlineComment";
 import GuideMarkdownRenderer from "../../../../components/GuideMarkdownRenderer";
@@ -1656,7 +1656,7 @@ export default function GuidePage() {
 
                 {/* Edit Modal */}
                 {showEditModal && guide && (
-                    <GuideEditModal
+                    <AddGuideModal
                         guide={guide}
                         onClose={() => setShowEditModal(false)}
                         onSaved={handleGuideUpdated}
