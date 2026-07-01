@@ -97,7 +97,7 @@ export const StrictQuizModal: React.FC<StrictQuizModalProps> = ({
       let earnedPoints = 0;
       let totalPoints = 0;
 
-      correctData?.forEach((q) => {
+      correctData?.forEach((q: any) => {
         totalPoints += q.points;
         if (finalAnswers[q.id] === q.correct_option_index) {
           earnedPoints += q.points;
