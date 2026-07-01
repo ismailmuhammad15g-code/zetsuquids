@@ -1777,7 +1777,6 @@ export default function GuidePage() {
             {showQuizModal && guide && (
                 <StrictQuizModal
                     guideId={Number(guide.id!)}
-                    guideSlug={guide.slug || ""}
                     guideShortName={guide.title.split(" ")[0] || "Guide"}
                     onClose={() => setShowQuizModal(false)}
                     onSuccess={(points) => {

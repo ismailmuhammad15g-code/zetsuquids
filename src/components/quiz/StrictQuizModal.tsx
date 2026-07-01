@@ -13,7 +13,6 @@ interface Question {
 
 interface StrictQuizModalProps {
   guideId: string | number;
-  guideSlug: string;
   guideShortName: string;
   onClose: () => void;
   onSuccess: (pointsEarned: number) => void;
@@ -21,7 +20,6 @@ interface StrictQuizModalProps {
 
 export const StrictQuizModal: React.FC<StrictQuizModalProps> = ({
   guideId,
-  guideSlug,
   guideShortName,
   onClose,
   onSuccess,
