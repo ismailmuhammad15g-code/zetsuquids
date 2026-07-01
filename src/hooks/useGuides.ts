@@ -67,10 +67,10 @@ export function useGuides(): UseQueryResult<Guide[], Error> {
         // stale/rejected entries from localStorage, so the cleanup is atomic.
         // ─────────────────────────────────────────────────────────────────────
 
-        staleTime: 0,             // Always refetch on mount to catch rejections
-        gcTime: 10 * 60 * 1000,  // Keep in memory 10 minutes
+        staleTime: 5 * 60 * 1000,   // 5 minutes — no flash on window focus
+        gcTime: 10 * 60 * 1000,     // Keep in memory 10 minutes
         refetchOnMount: true,
-        refetchOnWindowFocus: true,
+        refetchOnWindowFocus: false,  // NEVER refetch on tab focus
     });
 }
 
