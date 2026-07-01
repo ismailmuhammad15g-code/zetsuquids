@@ -285,18 +285,17 @@ export default function GuideInlineComments({ guideId, isGuideOwner, onCommentsU
         .order('created_at', { ascending: false });
 
       if (error) {
-        // Fallback for schema difference
-        if (error.code === 'PGRST200') {
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from('guide_inline_comments')
-            .select('*')
-            .eq('guide_id', guideId)
-            .order('created_at', { ascending: false });
-          if (!fallbackError) {
-            setComments(fallbackData || []);
-            onCommentCountChangeRef.current?.(fallbackData?.length || 0);
-            return;
-          }
+        // Fallback: foreign key join may not exist — try plain select
+        console.debug('Inline comments join query failed, using fallback:', error.code || error.message);
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('guide_inline_comments')
+          .select('*')
+          .eq('guide_id', guideId)
+          .order('created_at', { ascending: false });
+        if (!fallbackError) {
+          setComments(fallbackData || []);
+          onCommentCountChangeRef.current?.(fallbackData?.length || 0);
+          return;
         }
         throw error;
       }

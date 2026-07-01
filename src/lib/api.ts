@@ -763,7 +763,7 @@ export const guidesApi = {
                     allVersions = [...mapped];
                 }
             } catch (e) {
-                console.warn("GitHub history fetch failed:", e);
+                // Silently skip — 404 means no history directory exists yet
             }
         }
 
