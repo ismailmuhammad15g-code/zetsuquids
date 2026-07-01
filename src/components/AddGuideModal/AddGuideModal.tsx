@@ -1,14 +1,15 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { X, Plus, Loader2, Sparkles } from "lucide-react";
+import { X, Plus, Loader2, Sparkles, Edit2 } from "lucide-react";
 import { toast } from "sonner";
 import { createRoot } from "react-dom/client";
 
 import { useAuth } from "../../contexts/AuthContext";
 import { useInvalidateGuides } from "../../hooks/useGuides";
-import { guidesApi } from "../../lib/api";
+import { Guide, guidesApi } from "../../lib/api";
 import { uploadImageToImgBB } from "../../lib/imgbb";
 import { resizeImage } from "../../lib/resizepro";
+import { supabase } from "../../lib/supabase";
 
 import { FormData, MainTab, PreviewDevice } from "./types";
 import { validateContent } from "./utils";
@@ -22,7 +23,15 @@ import { AdvancedImageModal } from "./AdvancedImageModal";
 import QuizComponent from "../quiz/QuizComponent";
 import { PlaygroundPreview } from "../EditorToolForms";
 
-export default function AddGuideModal({ onClose }: { onClose: () => void }) {
+export default function AddGuideModal({
+  onClose,
+  guide,
+  onSaved,
+}: {
+  onClose: () => void;
+  guide?: Guide;
+  onSaved?: (updatedGuide: Guide) => void;
+}) {
   // Add custom styles for the modal
   useEffect(() => {
     const style = document.createElement("style");
@@ -170,18 +179,18 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
   const [showGuideLinkModal, setShowGuideLinkModal] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
-    title: "",
-    keywords: "",
-    content: "",
-    html_content: "",
-    css_content: "",
-    cover_image: "",
-    category: "Development",
-    difficulty: "beginner",
+    title: guide?.title || "",
+    keywords: guide?.keywords ? guide.keywords.join(", ") : "",
+    content: guide?.markdown || guide?.content || "",
+    html_content: guide?.html_content || "",
+    css_content: guide?.css_content || "",
+    cover_image: guide?.cover_image || "",
+    category: guide?.category || "Development",
+    difficulty: (guide?.difficulty || "beginner").toLowerCase(),
     questions: [],
   });
 
-  const [slugValue, setSlugValue] = useState("");
+  const [slugValue, setSlugValue] = useState(guide?.slug || "");
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'waiting'>('saved');
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [autoResize, setAutoResize] = useState(true);
@@ -192,9 +201,37 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
 
   const invalidateGuides = useInvalidateGuides();
 
+  // Load existing questions
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      if (!guide?.id) return;
+      try {
+        const { data, error } = await supabase
+          .from("guide_questions")
+          .select("question_text, options, points, correct_option_index")
+          .eq("guide_id", guide.id);
+        if (!error && data) {
+          setFormData(prev => ({
+            ...prev,
+            questions: data.map((q: any) => ({
+              question_text: q.question_text,
+              options: q.options || [],
+              points: q.points || 10,
+              correct_option_index: q.correct_option_index ?? 0,
+            }))
+          }));
+        }
+      } catch (e) {
+        console.error("Failed to load questions", e);
+      }
+    };
+    fetchQuestions();
+  }, [guide?.id]);
+
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("add_guide_draft_v1");
+      const draftKey = guide ? `edit_guide_draft_${guide.id}` : "add_guide_draft_v1";
+      const saved = localStorage.getItem(draftKey);
       if (saved) {
         const { formData: savedFormData, slugValue: savedSlug } = JSON.parse(saved);
         if (savedFormData) {
@@ -208,13 +245,12 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
     } catch (e) {
       console.warn("Failed to restore draft", e);
     }
-  }, []);
-
-
+  }, [guide?.id]);
 
   const readTime = Math.max(1, Math.ceil((formData.content?.split(/\s+/).length || 0) / 200));
 
   useEffect(() => {
+    if (guide) return; // Keep slug static when editing unless user manually changes details
     if (draftRestoredRef.current) {
       draftRestoredRef.current = false;
       return;
@@ -224,14 +260,15 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
       .replace(/^-|-$/g, "");
     setSlugValue(slugBase);
-  }, [formData.title]);
+  }, [formData.title, guide]);
 
   useEffect(() => {
     setSaveStatus('waiting');
     const handler = setTimeout(() => {
       setSaveStatus('saving');
       try {
-        localStorage.setItem("add_guide_draft_v1", JSON.stringify({ formData, slugValue, savedAt: Date.now() }));
+        const draftKey = guide ? `edit_guide_draft_${guide.id}` : "add_guide_draft_v1";
+        localStorage.setItem(draftKey, JSON.stringify({ formData, slugValue, savedAt: Date.now() }));
         // Brief delay to make the transition feel real and premium
         setTimeout(() => setSaveStatus('saved'), 800);
       } catch (e) {
@@ -240,7 +277,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
       }
     }, 1500);
     return () => clearTimeout(handler);
-  }, [formData, slugValue]);
+  }, [formData, slugValue, guide?.id]);
 
   useEffect(() => {
     const handleAISave = () => {
@@ -254,13 +291,20 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
-    setValidationErrors(validateContent(formData, "markdown"));
+    const errors: string[] = [];
+    if (!formData.title?.trim()) errors.push("Title is required");
+    if (!formData.keywords?.trim()) errors.push("Keywords are required");
+    const wordCount = (formData.content || formData.html_content || "").trim().split(/\s+/).filter(Boolean).length || 0;
+    if (wordCount < 30) {
+      errors.push(`Content is too short (${wordCount}/30 words)`);
+    }
+    setValidationErrors(errors);
     return () => {
       document.body.style.overflow = "unset";
     };
   }, [formData]);
 
-  // Hydration logic for Preview (Ported from original)
+  // Hydration logic for Preview
   useEffect(() => {
     if (mainTab === "preview" || mainTab === "editor") {
       const timer = setTimeout(() => {
@@ -483,33 +527,90 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
     finally { setIsFetchingCoverUrl(false); }
   };
 
-
-
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    const errors = validateContent(formData, "markdown");
-    if (errors.length > 0) { toast.error("Please fix errors"); return; }
+    const errors: string[] = [];
+    if (!formData.title?.trim()) errors.push("Title is required");
+    if (!formData.keywords?.trim()) errors.push("Keywords are required");
+    const wordCount = (formData.content || formData.html_content || "").trim().split(/\s+/).filter(Boolean).length || 0;
+    if (wordCount < 30) {
+      errors.push(`Content is too short (${wordCount}/30 words)`);
+    }
+    if (errors.length > 0) {
+      toast.error(errors[0]);
+      return;
+    }
+    
     setSaving(true);
     try {
-      await guidesApi.create({
-        ...formData,
-        slug: slugValue,
-        estimated_time: `${readTime} mins`,
-        keywords: formData.keywords.split(",").map((k: string) => k.trim()).filter(Boolean),
-        status: "pending",
-        author_name: (user?.user_metadata?.full_name as string) || (user?.email?.split("@")[0] as string) || "Author",
-        author_id: user?.id || "",
-        user_email: user?.email || "",
-      });
-      invalidateGuides.invalidateAll();
-      localStorage.removeItem("add_guide_draft_v1");
+      const keywordList = formData.keywords.split(",").map((k: string) => k.trim()).filter(Boolean);
+
+      if (guide) {
+        // Edit Mode: Update
+        const updates = {
+          title: formData.title.trim(),
+          keywords: keywordList,
+          cover_image: formData.cover_image || null,
+          content_type: "markdown",
+          updated_at: new Date().toISOString(),
+          category: formData.category,
+          difficulty: formData.difficulty,
+          estimated_time: `${readTime} mins`,
+          markdown: formData.content,
+          content: formData.content,
+          html_content: formData.html_content || "",
+        };
+
+        const updatedGuide = await guidesApi.update(guide.id!, updates);
+        
+        // Save/update questions
+        await supabase.from("guide_questions").delete().eq("guide_id", guide.id);
+        if (formData.questions && formData.questions.length > 0) {
+          const insertPayload = formData.questions.map((q) => ({
+            guide_id: guide.id,
+            question_text: q.question_text,
+            options: q.options,
+            points: q.points,
+            correct_option_index: q.correct_option_index,
+          }));
+          const { error: qError } = await supabase.from("guide_questions").insert(insertPayload);
+          if (qError) {
+            console.error("Failed to save questions:", qError);
+            toast.error("Guide saved, but failed to update questions.");
+          }
+        }
+
+        localStorage.removeItem(`edit_guide_draft_${guide.id}`);
+        invalidateGuides.invalidateAll();
+        toast.success("Guide updated successfully");
+        if (updatedGuide && onSaved) {
+          onSaved(updatedGuide);
+        }
+      } else {
+        // Create Mode: Publish
+        await guidesApi.create({
+          ...formData,
+          slug: slugValue,
+          estimated_time: `${readTime} mins`,
+          keywords: formData.keywords.split(",").map((k: string) => k.trim()).filter(Boolean),
+          status: "pending",
+          author_name: (user?.user_metadata?.full_name as string) || (user?.email?.split("@")[0] as string) || "Author",
+          author_id: user?.id || "",
+          user_email: user?.email || "",
+        });
+        invalidateGuides.invalidateAll();
+        localStorage.removeItem("add_guide_draft_v1");
+      }
+      
       setShowSuccessModal(true);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to publish guide";
-      console.error("Guide submission failed:", err);
-      toast.error(`Failed to publish: ${msg}`);
+      const action = guide ? "update" : "publish";
+      const msg = err instanceof Error ? err.message : `Failed to ${action} guide`;
+      console.error(`Guide ${action} failed:`, err);
+      toast.error(`Failed to ${action}: ${msg}`);
+    } finally {
+      setSaving(false);
     }
-    finally { setSaving(false); }
   };
 
   if (!isAuthenticated() || !user) return null;
@@ -524,10 +625,12 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
           </button>
           <div className="h-5 w-px bg-gray-200 hidden sm:block" />
           <div className="flex items-center gap-1.5 text-sm font-bold text-gray-400 min-w-0">
-            <Plus size={14} className="flex-shrink-0" />
-            <span className="text-gray-900 truncate max-w-[100px] sm:max-w-[200px] text-xs sm:text-sm font-black">{formData.title || "New Guide"}</span>
+            {guide ? <Edit2 size={14} className="flex-shrink-0" /> : <Plus size={14} className="flex-shrink-0" />}
+            <span className="text-gray-900 truncate max-w-[100px] sm:max-w-[200px] text-xs sm:text-sm font-black">
+              {guide ? `Editing Guide: ${formData.title || "Untitled"}` : (formData.title || "New Guide")}
+            </span>
             
-            {/* Auto-save Status - Refined Monochrome Version */}
+            {/* Auto-save Status */}
             <div className="flex items-center gap-1.5 ml-2 px-1.5 py-0.5 rounded-md bg-gray-50/50 border border-gray-100/50">
               <div className={`w-1 h-1 rounded-full transition-all duration-500 ${
                 saveStatus === 'saved' ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.3)]' :
@@ -562,10 +665,10 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
           <div className="relative group/publish">
             <button
               onClick={handleSubmit}
-              disabled={saving || validationErrors.length > 0}
+              disabled={saving}
               className="flex items-center gap-1.5 px-4 sm:px-6 md:px-8 py-2 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
             >
-              {saving ? <Loader2 size={16} className="animate-spin" /> : "Publish"}
+              {saving ? <Loader2 size={16} className="animate-spin" /> : (guide ? "Save Changes" : "Publish")}
             </button>
             {validationErrors.length > 0 && (
               <div className="absolute right-0 top-full mt-2 w-64 sm:w-72 p-4 bg-red-50 border border-red-200 rounded-xl shadow-xl opacity-0 group-hover/publish:opacity-100 transition-opacity duration-200 pointer-events-none z-[1010]">
@@ -584,7 +687,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      {/* Content area — shrinks above mobile bottom nav */}
+      {/* Content area */}
       <div className="flex-1 flex min-h-0 flex-col overflow-hidden bg-gray-50/30 pb-14 md:pb-0">
         {mainTab === "editor" && (
           <EditorTab 
@@ -682,15 +785,17 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
             <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce">
               <Sparkles className="w-10 h-10 text-green-600" />
             </div>
-            <h3 className="text-3xl font-black text-gray-900 mb-3">Guide Shared!</h3>
+            <h3 className="text-3xl font-black text-gray-900 mb-3">{guide ? "Guide Updated!" : "Guide Shared!"}</h3>
             <p className="text-gray-500 mb-10 leading-relaxed text-sm font-medium">
-              Awesome work! 🚀 Your guide is being reviewed and will be live once approved.
+              {guide
+                ? "Awesome work! 🚀 Your guide updates are saved and will be saved in version history."
+                : "Awesome work! 🚀 Your guide is being reviewed and will be live once approved."}
             </p>
             <button
               onClick={() => { setShowSuccessModal(false); onClose(); }}
               className="w-full py-4 bg-black text-white rounded-2xl font-bold hover:bg-gray-800 transition-all shadow-xl shadow-black/20"
             >
-              Back to Workspace
+              {guide ? "Back to Guide" : "Back to Workspace"}
             </button>
           </div>
         </div>
