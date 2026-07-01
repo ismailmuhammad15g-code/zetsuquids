@@ -6,7 +6,8 @@ import {
   Clock,
   Eye,
   Star,
-  Users
+  Users,
+  Award
 } from "lucide-react";
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
@@ -105,11 +106,13 @@ function StatsContent() {
   const [followersLoading, setFollowersLoading] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referralCount, setReferralCount] = useState(0);
+  const [quizPoints, setQuizPoints] = useState(0);
 
   useEffect(() => {
     if (user) {
       if (activeTab === "overview") {
         fetchStats();
+        fetchQuizPoints();
       } else if (activeTab === "analytics") {
         fetchAnalytics();
       } else if (activeTab === "followers") {
@@ -124,6 +127,23 @@ function StatsContent() {
     const tab = searchParams.get("tab") as ActiveTab;
     if (tab) setActiveTab(tab);
   }, [searchParams]);
+
+  const fetchQuizPoints = async () => {
+    if (!user?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from("guide_quiz_attempts")
+        .select("total_points_earned")
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+      
+      const total = (data || []).reduce((acc: number, curr: any) => acc + (curr.total_points_earned || 0), 0);
+      setQuizPoints(total);
+    } catch (err) {
+      console.error("Error fetching quiz points:", err);
+    }
+  };
 
   const fetchStats = async () => {
     if (!user?.id) return;
@@ -670,7 +690,20 @@ function StatsContent() {
         {activeTab === "overview" && (
           <>
             {/* Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+              {/* Quiz Points Card */}
+              <div className="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center border-2 border-black">
+                    <Award className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-gray-500 font-medium">Quiz Points Earned</p>
+                    <h2 className="text-4xl font-black text-green-600">{quizPoints} <span className="text-lg text-gray-500">Zp</span></h2>
+                  </div>
+                </div>
+              </div>
+
               {/* Total Time Card */}
               <div className="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all">
                 <div className="flex items-center gap-4 mb-4">

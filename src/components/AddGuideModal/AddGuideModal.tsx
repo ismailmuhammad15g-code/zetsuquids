@@ -15,6 +15,7 @@ import { validateContent } from "./utils";
 import { EditorTab } from "./EditorTab";
 import { PreviewTab } from "./PreviewTab";
 import { DetailsTab } from "./DetailsTab";
+import { QuestionsTab } from "./QuestionsTab";
 import { ModalsContainer } from "./ModalsContainer";
 import { AdvancedImageModal } from "./AdvancedImageModal";
 
@@ -177,6 +178,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
     cover_image: "",
     category: "Development",
     difficulty: "beginner",
+    questions: [],
   });
 
   const [slugValue, setSlugValue] = useState("");
@@ -544,7 +546,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-center gap-2 md:gap-4">
           {/* Desktop tab switcher */}
           <div className="hidden md:flex bg-gray-100 p-1 rounded-xl gap-1">
-            {(["editor", "preview", "details"] as const).map((tab) => (
+            {(["editor", "preview", "details", "questions"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setMainTab(tab)}
@@ -610,11 +612,14 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
             coverUrlError={coverUrlError} handleCoverImageUpload={handleCoverImageUpload}
           />
         )}
+        {mainTab === "questions" && (
+          <QuestionsTab formData={formData} setFormData={setFormData} />
+        )}
       </div>
 
       {/* Mobile Bottom Tab Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[1004] bg-white/95 backdrop-blur-md border-t border-gray-200 flex">
-        {(["editor", "preview", "details"] as const).map((tab) => (
+        {(["editor", "preview", "details", "questions"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setMainTab(tab)}
@@ -625,6 +630,7 @@ export default function AddGuideModal({ onClose }: { onClose: () => void }) {
             {tab === "editor" && <Plus size={18} />}
             {tab === "preview" && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>}
             {tab === "details" && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>}
+            {tab === "questions" && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
             {tab}
           </button>
         ))}

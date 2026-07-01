@@ -85,6 +85,7 @@ export interface Guide {
     created_at?: string;
     updated_at?: string;
     status?: string;
+    questions?: any[];
 }
 
 export interface GuideVersion {
@@ -514,6 +515,24 @@ export const guidesApi = {
 
                 if (data) {
                     console.log("✅ Successfully saved to Supabase:", data.id, data.title);
+                    
+                    if (guide.questions && guide.questions.length > 0) {
+                        try {
+                            const questionsToInsert = guide.questions.map((q: any) => ({
+                                guide_id: data.id,
+                                question_text: q.question_text,
+                                options: q.options,
+                                correct_option_index: q.correct_option_index,
+                                points: q.points
+                            }));
+                            const { error: qError } = await supabase.from("guide_questions").insert(questionsToInsert);
+                            if (qError) console.error("Failed to insert questions:", qError);
+                            else console.log("✅ Successfully saved questions to Supabase");
+                        } catch (qErr) {
+                            console.error("Failed to insert questions:", qErr);
+                        }
+                    }
+
                     const fullGuide = { 
                         ...guideData, 
                         ...data,

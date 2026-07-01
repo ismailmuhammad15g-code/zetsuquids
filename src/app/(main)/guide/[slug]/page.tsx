@@ -62,6 +62,8 @@ import { useGuideInteraction } from "../../../../hooks/useGuideInteraction";
 import { Guide, guidesApi } from "../../../../lib/api";
 import { getAvatarForUser } from "../../../../lib/avatar";
 import { supabase } from "../../../../lib/supabase";
+import { StrictQuizModal } from "../../../../components/quiz/StrictQuizModal";
+import { HelpCircle } from "lucide-react";
 
 import { GuideCoverBot } from "../../../../components/GuideCoverBot";
 
@@ -122,6 +124,8 @@ export default function GuidePage() {
     // activeId is now handled internally by GuideTOC via IntersectionObserver
     const [contentWithAnchors, setContentWithAnchors] = useState<string | null>(null);
     const [showCoverBot, setShowCoverBot] = useState<boolean>(false);
+    const [hasQuiz, setHasQuiz] = useState<boolean>(false);
+    const [showQuizModal, setShowQuizModal] = useState<boolean>(false);
 
     const moreMenuRef = useRef<HTMLDivElement>(null);
     const ttsRef = useRef<any>(null);
@@ -612,6 +616,22 @@ export default function GuidePage() {
                     setAuthorAvatar(getAvatarForUser(guideData.user_email, null));
                 }
             }
+
+            // Fetch if the guide has a quiz setup
+            if (guideData.id) {
+                try {
+                    const { count, error } = await supabase
+                        .from("guide_questions")
+                        .select("*", { count: 'exact', head: true })
+                        .eq("guide_id", guideData.id);
+                    if (!error && count && count > 0) {
+                        setHasQuiz(true);
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch quiz status:", e);
+                }
+            }
+
         } catch (err) {
             console.error("Error loading guide:", err);
             setError("Failed to load guide");
@@ -1733,6 +1753,35 @@ export default function GuidePage() {
                     onSuccess={(newCoverUrl) => {
                         setGuide({ ...guide, cover_image: newCoverUrl });
                         setShowCoverBot(false);
+                    }}
+                />
+            )}
+
+            {/* Strict Quiz Floating Action Button */}
+            {hasQuiz && !showQuizModal && (
+                <button
+                    onClick={() => setShowQuizModal(true)}
+                    className="fixed bottom-8 right-8 z-[90] flex items-center gap-3 px-6 py-4 bg-black text-white rounded-2xl shadow-2xl hover:scale-105 hover:bg-gray-900 transition-all group md:bottom-8 md:right-8 bottom-8 left-1/2 md:left-auto -translate-x-1/2 md:translate-x-0 w-[90%] md:w-auto"
+                >
+                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+                        <HelpCircle className="w-6 h-6 animate-pulse" />
+                    </div>
+                    <div className="text-left">
+                        <p className="text-xs text-gray-300 font-bold uppercase tracking-wider mb-0.5">Test Your Knowledge</p>
+                        <p className="text-sm font-medium">Did you understand the guide? Earn Zp!</p>
+                    </div>
+                </button>
+            )}
+
+            {/* Strict Quiz Modal */}
+            {showQuizModal && guide && (
+                <StrictQuizModal
+                    guideId={guide.id!}
+                    guideSlug={guide.slug}
+                    guideShortName={guide.title.split(" ")[0] || "Guide"}
+                    onClose={() => setShowQuizModal(false)}
+                    onSuccess={(points) => {
+                        toast.success(`Congratulations! You earned ${points} Zp!`);
                     }}
                 />
             )}
