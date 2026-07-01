@@ -1,478 +1,729 @@
 "use client";
-import { AlertTriangle, Edit2, Image as ImageIcon, Link as LinkIcon, Loader2, X, Eye } from "lucide-react";
-import { Editor } from "@monaco-editor/react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { X, Plus, Loader2, Sparkles, Edit2 } from "lucide-react";
 import { toast } from "sonner";
+import { createRoot } from "react-dom/client";
+
+import { useAuth } from "../contexts/AuthContext";
+import { useInvalidateGuides } from "../hooks/useGuides";
 import { Guide, guidesApi } from "../lib/api";
 import { uploadImageToImgBB } from "../lib/imgbb";
 import { resizeImage } from "../lib/resizepro";
-import GuideMarkdownRenderer from "./GuideMarkdownRenderer";
+import { supabase } from "../lib/supabase";
+
+import { FormData, MainTab, PreviewDevice } from "./AddGuideModal/types";
+import { validateContent } from "./AddGuideModal/utils";
+import { EditorTab } from "./AddGuideModal/EditorTab";
+import { PreviewTab } from "./AddGuideModal/PreviewTab";
+import { DetailsTab } from "./AddGuideModal/DetailsTab";
+import { QuestionsTab } from "./AddGuideModal/QuestionsTab";
+import { ModalsContainer } from "./AddGuideModal/ModalsContainer";
+import { AdvancedImageModal } from "./AddGuideModal/AdvancedImageModal";
+
+import QuizComponent from "./quiz/QuizComponent";
+import { PlaygroundPreview } from "./EditorToolForms";
 
 interface GuideEditModalProps {
-    guide: Guide;
-    onClose: () => void;
-    onSaved?: (updatedGuide: Guide) => void;
+  guide: Guide;
+  onClose: () => void;
+  onSaved?: (updatedGuide: Guide) => void;
 }
 
 export default function GuideEditModal({ guide, onClose, onSaved }: GuideEditModalProps) {
-    const [title, setTitle] = useState(guide.title || "");
-    const [keywords, setKeywords] = useState((guide.keywords || []).join(", "));
-    const [coverImage, setCoverImage] = useState(guide.cover_image || "");
-    const [markdown, setMarkdown] = useState(guide.markdown || guide.content || "");
-    const [htmlContent, setHtmlContent] = useState(guide.html_content || "");
-    const [contentType, setContentType] = useState(
-        guide.content_type === "html" ? "html" : "markdown",
-    );
-    
-    // Premium fields
-    const [category, setCategory] = useState(guide.category || "Development");
-    const [difficulty, setDifficulty] = useState(guide.difficulty || "Beginner");
-    const [estimatedTime, setEstimatedTime] = useState(guide.estimated_time || "5 mins");
-
-    // UI states
-    const [mainTab, setMainTab] = useState("editor"); // "editor", "preview", "details"
-    const [previewDevice, setPreviewDevice] = useState("laptop"); // "laptop", "tablet", "phone"
-    const [saving, setSaving] = useState(false);
-    const [_coverImageError, setCoverImageError] = useState<string | null>(null);
-    const [autoResize, setAutoResize] = useState(true);
-    const [coverUrlInput, setCoverUrlInput] = useState("");
-    const [coverUrlError, setCoverUrlError] = useState("");
-    const [isFetchingUrl, setIsFetchingUrl] = useState(false);
-
-    useEffect(() => {
-        setTitle(guide.title || "");
-        setKeywords((guide.keywords || []).join(", "));
-        setCoverImage(guide.cover_image || "");
-        setMarkdown(guide.markdown || guide.content || "");
-        setHtmlContent(guide.html_content || "");
-        setContentType(guide.content_type === "html" ? "html" : "markdown");
-        setCategory(guide.category || "Development");
-        setDifficulty(guide.difficulty || "Beginner");
-        setEstimatedTime(guide.estimated_time || "5 mins");
-        setCoverImageError(null);
-    }, [guide]);
-
-    const handleCoverImageUpload = async (
-        e: React.ChangeEvent<HTMLInputElement>,
-    ): Promise<void> => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        let finalFile: File | Blob = file;
-
-        if (autoResize) {
-            try {
-                const toastId = toast.loading("Resizing image to 1200x675...");
-                const resizedBlob = await resizeImage(file, {
-                    width: 1200,
-                    height: 675,
-                    fitMode: "fill",
-                    format: "image/jpeg",
-                    quality: 92
-                });
-                finalFile = new File([resizedBlob], file.name, { type: "image/jpeg" });
-                toast.success("Image resized successfully!", { id: toastId });
-            } catch (error) {
-                console.error("Resize failed:", error);
-                toast.error("Auto-resize failed, using original image.");
-            }
+  // Add custom styles for the modal
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.textContent = `
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #e5e7eb;
+        border-radius: 10px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #d1d5db;
+      }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .prose pre {
+        background-color: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 0.75rem !important;
+        color: #1e293b !important;
+        padding: 1.5rem !important;
+      }
+      .prose code {
+        color: #e11d48 !important;
+        background-color: #fff1f2 !important;
+        padding: 0.2em 0.4em !important;
+        border-radius: 0.25rem !important;
+        font-weight: 600 !important;
+      }
+      .prose pre code {
+        color: inherit !important;
+        background-color: transparent !important;
+        padding: 0 !important;
+        font-weight: 400 !important;
+      }
+      .preview-content img {
+        transition: transform 0.3s ease;
+      }
+      .preview-content img:hover {
+        transform: scale(1.02);
+      }
+      .guide-link-card {
+        margin: 1.5rem 0;
+        border-radius: 1rem;
+        border: 1px solid #e5e7eb;
+        overflow: hidden;
+        transition: box-shadow 0.2s, border-color 0.2s;
+        background: #fff;
+      }
+      .guide-link-card:hover {
+        box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        border-color: #d1d5db;
+      }
+      .guide-link-inner {
+        display: flex;
+        align-items: stretch;
+        text-decoration: none !important;
+        color: inherit !important;
         }
-
-        try {
-            const toastId = toast.loading("Uploading cover image...");
-            const url = await uploadImageToImgBB(finalFile as File);
-            setCoverImage(url);
-            toast.success("Cover uploaded successfully", { id: toastId });
-        } catch (error) {
-            console.error(error);
-            toast.error("Failed to upload cover image");
-        }
+      .guide-link-cover {
+        width: 160px;
+        min-height: 100px;
+        object-fit: cover;
+        flex-shrink: 0;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+      }
+      .guide-link-info {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 1rem 1.25rem;
+        gap: 0.25rem;
+        min-width: 0;
+      }
+      .guide-link-title {
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: #111827;
+        line-height: 1.3;
+      }
+      .guide-link-author {
+        font-size: 0.75rem;
+        color: #9ca3af;
+      }
+      @media (max-width: 480px) {
+        .guide-link-inner { flex-direction: column; }
+        .guide-link-cover { width: 100%; height: 140px; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
     };
+  }, []);
 
-    const handleUrlPaste = async (e?: React.FormEvent) => {
-        e?.preventDefault();
-        setCoverUrlError("");
-        const raw = coverUrlInput.trim();
-        if (!raw) return;
+  const { user, isAuthenticated } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const [mainTab, setMainTab] = useState<MainTab>("editor");
+  const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("laptop");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-        if (raw.includes("bing.com/images/create") || raw.includes("bing.com/images/search")) {
-            setCoverUrlError("This looks like a Bing page link. Please copy the direct image URL.");
-            return;
+  // Interactive Modal States
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [showCalloutModal, setShowCalloutModal] = useState(false);
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [showFigureModal, setShowFigureModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showFootnoteModal, setShowFootnoteModal] = useState(false);
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
+  const [showKbdModal, setShowKbdModal] = useState(false);
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [showAnchorModal, setShowAnchorModal] = useState(false);
+  const [showCitationModal, setShowCitationModal] = useState(false);
+  const [showCTAModal, setShowCTAModal] = useState(false);
+  const [showStepsModal, setShowStepsModal] = useState(false);
+  const [showTimelineModal, setShowTimelineModal] = useState(false);
+  const [showComparisonModal, setShowComparisonModal] = useState(false);
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [showTabsModal, setShowTabsModal] = useState(false);
+  const [showDefinitionModal, setShowDefinitionModal] = useState(false);
+  const [showCodeDiffModal, setShowCodeDiffModal] = useState(false);
+  const [showFAQModal, setShowFAQModal] = useState(false);
+  const [showVersionModal, setShowVersionModal] = useState(false);
+  const [showKeyValueModal, setShowKeyValueModal] = useState(false);
+  const [showPlaygroundModal, setShowPlaygroundModal] = useState(false);
+  const [showDownloadLinkModal, setShowDownloadLinkModal] = useState(false);
+  const [showAdvancedImageModal, setShowAdvancedImageModal] = useState(false);
+  const [showQuizBuilder, setShowQuizBuilder] = useState(false);
+  const [showGuideLinkModal, setShowGuideLinkModal] = useState(false);
+
+  const [formData, setFormData] = useState<FormData>({
+    title: guide.title || "",
+    keywords: (guide.keywords || []).join(", "),
+    content: guide.markdown || guide.content || "",
+    html_content: guide.html_content || "",
+    css_content: guide.css_content || "",
+    cover_image: guide.cover_image || "",
+    category: guide.category || "Development",
+    difficulty: (guide.difficulty || "beginner").toLowerCase(),
+    questions: [],
+  });
+
+  const [slugValue, setSlugValue] = useState(guide.slug || "");
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'waiting'>('saved');
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [autoResize, setAutoResize] = useState(true);
+  const [coverUrlInput, setCoverUrlInput] = useState("");
+  const [coverUrlError, setCoverUrlError] = useState("");
+  const [isFetchingCoverUrl, setIsFetchingCoverUrl] = useState(false);
+
+  const invalidateGuides = useInvalidateGuides();
+
+  // Load existing questions
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      if (!guide.id) return;
+      try {
+        const { data, error } = await supabase
+          .from("guide_questions")
+          .select("question_text, options, points, correct_option_index")
+          .eq("guide_id", guide.id);
+        if (!error && data) {
+          setFormData(prev => ({
+            ...prev,
+            questions: data.map(q => ({
+              question_text: q.question_text,
+              options: q.options || [],
+              points: q.points || 10,
+              correct_option_index: q.correct_option_index ?? 0,
+            }))
+          }));
         }
+      } catch (e) {
+        console.error("Failed to load questions", e);
+      }
+    };
+    fetchQuestions();
+  }, [guide.id]);
 
-        setIsFetchingUrl(true);
-        const toastId = toast.loading("Downloading image...");
-        try {
-            const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(raw)}`);
-            if (!proxyRes.ok) throw new Error(`Failed (${proxyRes.status})`);
+  const readTime = Math.max(1, Math.ceil((formData.content?.split(/\s+/).length || 0) / 200));
 
-            const blob = await proxyRes.blob();
-            const base64 = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
+  // Load initial edit draft from localStorage if exists
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`edit_guide_draft_${guide.id}`);
+      if (saved) {
+        const { formData: savedFormData, slugValue: savedSlug } = JSON.parse(saved);
+        if (savedFormData) {
+          setFormData(prev => ({ ...prev, ...savedFormData }));
+        }
+        if (savedSlug) {
+          setSlugValue(savedSlug);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to restore draft", e);
+    }
+  }, [guide.id]);
+
+  // Save edit draft auto-save
+  useEffect(() => {
+    if (!guide.id) return;
+    setSaveStatus('waiting');
+    const handler = setTimeout(() => {
+      setSaveStatus('saving');
+      try {
+        localStorage.setItem(`edit_guide_draft_${guide.id}`, JSON.stringify({ formData, slugValue, savedAt: Date.now() }));
+        setTimeout(() => setSaveStatus('saved'), 800);
+      } catch (e) {
+        console.warn("Failed to save draft", e);
+        setSaveStatus('waiting');
+      }
+    }, 1500);
+    return () => clearTimeout(handler);
+  }, [formData, slugValue, guide.id]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    setValidationErrors(validateContent(formData, "markdown"));
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [formData]);
+
+  // Hydration logic for Preview
+  useEffect(() => {
+    if (mainTab === "preview" || mainTab === "editor") {
+      const timer = setTimeout(() => {
+        // Hydrate Quizzes
+        document.querySelectorAll(".interactive-quiz-container").forEach((container: any) => {
+          if (container.getAttribute("data-hydrated") === "true") return;
+          const encoded = container.getAttribute("data-quiz");
+          if (!encoded) return;
+          try {
+            const json = decodeURIComponent(atob(encoded).split("").map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join(""));
+            const data = JSON.parse(json);
+            const root = createRoot(container);
+            root.render(<QuizComponent data={data} />);
+            container.setAttribute("data-hydrated", "true");
+          } catch (e) { console.error(e); }
+        });
+
+        // Hydrate Playgrounds
+        document.querySelectorAll(".zetsu-playground-container").forEach((container: any) => {
+          if (container.getAttribute("data-hydrated") === "true") return;
+          const dataEl = container.querySelector(".playground-data");
+          if (!dataEl) return;
+          const encoded = dataEl.textContent?.trim();
+          if (!encoded) return;
+          try {
+            const decoded = decodeURIComponent(atob(encoded)).trim();
+            const firstBrace = decoded.indexOf("{");
+            const lastBrace = decoded.lastIndexOf("}");
+            const data = JSON.parse(decoded.substring(firstBrace, lastBrace + 1));
+            const root = createRoot(container);
+            root.render(<PlaygroundPreview data={data} />);
+            container.setAttribute("data-hydrated", "true");
+          } catch (e) { console.error(e); }
+        });
+
+        // Hydrate Mermaid
+        const mermaidBlocks = document.querySelectorAll("pre code.language-mermaid");
+        if (mermaidBlocks.length) {
+          import("mermaid").then(mod => {
+            const mermaid = mod.default || mod;
+            try { 
+              mermaid.initialize({ 
+                startOnLoad: false,
+                theme: 'neutral',
+                securityLevel: 'loose'
+              }); 
+            } catch (e) {}
+
+            mermaidBlocks.forEach((codeEl: any) => {
+              const pre = codeEl.closest("pre");
+              if (!pre || pre.getAttribute("data-mermaid-hydrated") === "true") return;
+              
+              pre.setAttribute("data-mermaid-hydrated", "true");
+              
+              const diagramCode = codeEl.textContent || "";
+              if (!diagramCode.trim()) return;
+
+              try {
+                const id = `mermaid_diag_${Math.random().toString(36).slice(2, 11)}`;
+                const renderFn = (mermaid as any).render || (mermaid.mermaidAPI && (mermaid.mermaidAPI as any).render);
+                
+                if (typeof renderFn === 'function') {
+                  Promise.resolve(renderFn(id, diagramCode)).then((res) => {
+                    const svgCode = typeof res === 'string' ? res : res.svg;
+                    if (svgCode && pre.parentNode) {
+                      const wrapper = document.createElement("div");
+                      wrapper.className = "mermaid-render my-6 flex justify-center overflow-hidden rounded-xl border border-gray-100 bg-gray-50/30 p-4";
+                      wrapper.innerHTML = svgCode;
+                      pre.replaceWith(wrapper);
+                      if (res.bindFunctions) res.bindFunctions(wrapper);
+                    }
+                  }).catch(err => {
+                    console.error("Mermaid async render failed:", err);
+                    pre.classList.add("mermaid-error");
+                  });
+                }
+              } catch (e) { 
+                console.error("Mermaid initialization failed for block:", e);
+              }
             });
-
-            setCoverImage(base64);
-            setCoverUrlInput("");
-            toast.success("Image loaded! Click Save Changes to apply.", { id: toastId });
-        } catch (err) {
-            console.error(err);
-            toast.dismiss(toastId);
-            setCoverUrlError("Could not load that URL. Try downloading the image and using the file upload instead.");
-        } finally {
-            setIsFetchingUrl(false);
-        }
-    };
-
-    const canSave = title.trim().length > 0 && keywords.trim().length > 0;
-
-    const handleSave = async (): Promise<void> => {
-        if (!canSave) {
-            toast.error("Title and keywords are required");
-            return;
+          });
         }
 
-        setSaving(true);
-        try {
-            const keywordList = keywords
-                .split(",")
-                .map((value) => value.trim())
-                .filter(Boolean);
-
-            const updates: any = {
-                title: title.trim(),
-                keywords: keywordList,
-                cover_image: coverImage || null,
-                content_type: contentType === "html" ? "html" : "markdown",
-                updated_at: new Date().toISOString(),
-                category: category,
-                difficulty: difficulty,
-                estimated_time: estimatedTime
-            };
-
-            if (contentType === "html") {
-                updates.html_content = htmlContent;
-                updates.markdown = "";
-                updates.content = "";
-            } else {
-                updates.markdown = markdown;
-                updates.content = markdown;
-                updates.html_content = guide.html_content || "";
+        // Highlight.js
+        if (typeof window !== "undefined" && (window as any).hljs) {
+          document.querySelectorAll("pre code").forEach((block) => {
+            if (!block.classList.contains("language-mermaid") && !block.getAttribute("data-highlighted")) {
+              (window as any).hljs.highlightElement(block);
             }
-
-            const updatedGuide = await guidesApi.update(guide.id!, updates);
-            toast.success("Guide updated successfully");
-            if (updatedGuide) {
-                onSaved?.(updatedGuide);
-            }
-            onClose();
-        } catch (error: unknown) {
-            const errorMessage =
-                error instanceof Error
-                    ? error.message
-                    : typeof error === "object" && error !== null
-                        ? JSON.stringify(error)
-                        : String(error);
-            console.warn("Guide update failed:", errorMessage);
-            toast.error(`Unable to save guide. ${errorMessage}`);
-        } finally {
-            setSaving(false);
+          });
         }
-    };
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [formData.content, mainTab]);
 
-    return (
-        <div className="fixed inset-0 z-[9999] bg-white text-gray-900 flex flex-col animate-in fade-in duration-300">
-            {/* Top Navigation Bar */}
-            <div className="h-16 border-b border-gray-200 px-6 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-50">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-900"
-                    >
-                        <X size={20} />
-                    </button>
-                    <div className="h-6 w-px bg-gray-200" />
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
-                        <Edit2 size={16} />
-                        <span>Editing Guide: {title || "Untitled"}</span>
-                    </div>
-                </div>
+  const insertText = (textToInsert: string): void => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newText = formData.content.substring(0, start) + textToInsert + formData.content.substring(end);
+    setFormData({ ...formData, content: newText });
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + textToInsert.length, start + textToInsert.length);
+    }, 0);
+  };
 
-                <div className="flex items-center gap-3">
-                    <div className="hidden md:flex bg-gray-100 p-1 rounded-lg gap-1">
-                        <button
-                            onClick={() => setMainTab("editor")}
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${mainTab === "editor" ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-gray-900"}`}
-                        >
-                            Editor
-                        </button>
-                        <button
-                            onClick={() => setMainTab("preview")}
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${mainTab === "preview" ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-gray-900"}`}
-                        >
-                            Preview
-                        </button>
-                        <button
-                            onClick={() => setMainTab("details")}
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${mainTab === "details" ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-gray-900"}`}
-                        >
-                            Details
-                        </button>
-                    </div>
+  const wrapSelection = (before: string, after: string, fallback = "") => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      insertText(before + fallback + after);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const sel = formData.content.substring(start, end) || fallback;
+    const newText = formData.content.substring(0, start) + before + sel + after + formData.content.substring(end);
+    setFormData((prev: FormData) => ({ ...prev, content: newText }));
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, start + before.length + sel.length);
+    }, 0);
+  };
 
-                    <button
-                        onClick={handleSave}
-                        disabled={saving || !canSave}
-                        className="flex items-center gap-2 px-6 py-2 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {saving ? (
-                            <Loader2 size={18} className="animate-spin" />
-                        ) : (
-                            "Save Changes"
-                        )}
-                    </button>
-                </div>
+  const handleToolbarAction = (action: string): void => {
+    switch (action) {
+      case "bold": wrapSelection("**", "**", "Bold Text"); break;
+      case "italic": wrapSelection("*", "*", "Italic Text"); break;
+      case "strikethrough": wrapSelection("~~", "~~", "Strikethrough text"); break;
+      case "inline-code": wrapSelection("`", "`", "code"); break;
+      case "h1": insertText("\n# Heading 1\n"); break;
+      case "h2": insertText("\n## Heading 2\n"); break;
+      case "h3": insertText("\n### Heading 3\n"); break;
+      case "list": insertText("\n- List item\n"); break;
+      case "ordered-list": insertText("\n1. List item\n"); break;
+      case "task-list": insertText("\n- [ ] Task item\n"); break;
+      case "hr": insertText("\n---\n"); break;
+      case "quote": wrapSelection("\n> ", "", "Quote"); break;
+      case "highlight": wrapSelection("<mark>", "</mark>", "highlighted text"); break;
+      case "toc": insertText("\n[TOC]\n"); break;
+      case "emoji": insertText("✨"); break;
+      case "mermaid": insertText("\n```mermaid\nflowchart LR\n  A[Start] --> B[End]\n```\n"); break;
+      case "columns": insertText("\n:::columns\n:::column\nColumn 1 content\n:::\n:::column\nColumn 2 content\n:::\n:::\n"); break;
+      
+      // Modals
+      case "callout": setShowCalloutModal(true); break;
+      case "link": setShowLinkModal(true); break;
+      case "table": setShowTableModal(true); break;
+      case "code": setShowCodeModal(true); break;
+      case "figure": setShowFigureModal(true); break;
+      case "details": setShowDetailsModal(true); break;
+      case "footnote": setShowFootnoteModal(true); break;
+      case "badge": setShowBadgeModal(true); break;
+      case "kbd": setShowKbdModal(true); break;
+      case "pull-quote": setShowQuoteModal(true); break;
+      case "anchor": setShowAnchorModal(true); break;
+      case "cta": setShowCTAModal(true); break;
+      case "steps": setShowStepsModal(true); break;
+      case "timeline": setShowTimelineModal(true); break;
+      case "comparison": setShowComparisonModal(true); break;
+      case "alert": setShowAlertModal(true); break;
+      case "tabs": setShowTabsModal(true); break;
+      case "definition": setShowDefinitionModal(true); break;
+      case "code-diff": setShowCodeDiffModal(true); break;
+      case "faq": setShowFAQModal(true); break;
+      case "version": setShowVersionModal(true); break;
+      case "key-value": setShowKeyValueModal(true); break;
+      case "run": setShowPlaygroundModal(true); break;
+      case "guide-link": setShowGuideLinkModal(true); break;
+    }
+  };
+
+  const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    let finalFile: File | Blob = file;
+    if (autoResize) {
+      try {
+        const toastId = toast.loading("Resizing image...");
+        const resizedBlob = await resizeImage(file, { width: 1200, height: 675, fitMode: "fill", format: "image/jpeg", quality: 92 });
+        finalFile = new File([resizedBlob], file.name, { type: "image/jpeg" });
+        toast.success("Resized!", { id: toastId });
+      } catch (err) { toast.error("Resize failed"); }
+    }
+    try {
+      const toastId = toast.loading("Uploading...");
+      const url = await uploadImageToImgBB(finalFile as File);
+      setFormData((prev: FormData) => ({ ...prev, cover_image: url }));
+      toast.success("Uploaded!", { id: toastId });
+    } catch (err) { toast.error("Upload failed"); }
+  };
+
+  const handleCoverUrlPaste = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setCoverUrlError("");
+    const raw = coverUrlInput.trim();
+    if (!raw) return;
+    setIsFetchingCoverUrl(true);
+    try {
+      const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(raw)}`);
+      const blob = await proxyRes.blob();
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+      setFormData((prev: FormData) => ({ ...prev, cover_image: base64 }));
+      setCoverUrlInput("");
+    } catch (err) { setCoverUrlError("Failed to fetch image"); }
+    finally { setIsFetchingCoverUrl(false); }
+  };
+
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    const errors = validateContent(formData, "markdown");
+    if (errors.length > 0) { toast.error("Please fix errors"); return; }
+    setSaving(true);
+    try {
+      const keywordList = formData.keywords.split(",").map((k: string) => k.trim()).filter(Boolean);
+      const updates = {
+        title: formData.title.trim(),
+        keywords: keywordList,
+        cover_image: formData.cover_image || null,
+        content_type: "markdown",
+        updated_at: new Date().toISOString(),
+        category: formData.category,
+        difficulty: formData.difficulty,
+        estimated_time: `${readTime} mins`,
+        markdown: formData.content,
+        content: formData.content,
+        html_content: formData.html_content || "",
+      };
+
+      const updatedGuide = await guidesApi.update(guide.id!, updates);
+      
+      // Save/update questions
+      await supabase.from("guide_questions").delete().eq("guide_id", guide.id);
+      if (formData.questions && formData.questions.length > 0) {
+        const insertPayload = formData.questions.map((q) => ({
+          guide_id: guide.id,
+          question_text: q.question_text,
+          options: q.options,
+          points: q.points,
+          correct_option_index: q.correct_option_index,
+        }));
+        const { error: qError } = await supabase.from("guide_questions").insert(insertPayload);
+        if (qError) {
+          console.error("Failed to save questions:", qError);
+          toast.error("Guide saved, but failed to update questions.");
+        }
+      }
+
+      localStorage.removeItem(`edit_guide_draft_${guide.id}`);
+      invalidateGuides.invalidateAll();
+      toast.success("Guide updated successfully");
+      if (updatedGuide && onSaved) {
+        onSaved(updatedGuide);
+      }
+      setShowSuccessModal(true);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to update guide";
+      console.error("Guide update failed:", err);
+      toast.error(`Failed to update: ${msg}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!isAuthenticated() || !user) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-white text-gray-900 flex flex-col animate-in fade-in duration-300">
+      {/* Header */}
+      <div className="h-14 md:h-16 border-b border-gray-200 px-3 md:px-6 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-[1003]">
+        <div className="flex items-center gap-2 md:gap-4 min-w-0">
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-900 flex-shrink-0">
+            <X size={18} />
+          </button>
+          <div className="h-5 w-px bg-gray-200 hidden sm:block" />
+          <div className="flex items-center gap-1.5 text-sm font-bold text-gray-400 min-w-0">
+            <Edit2 size={14} className="flex-shrink-0" />
+            <span className="text-gray-900 truncate max-w-[100px] sm:max-w-[200px] text-xs sm:text-sm font-black">Editing Guide: {formData.title || "Untitled"}</span>
+            
+            {/* Auto-save Status */}
+            <div className="flex items-center gap-1.5 ml-2 px-1.5 py-0.5 rounded-md bg-gray-50/50 border border-gray-100/50">
+              <div className={`w-1 h-1 rounded-full transition-all duration-500 ${
+                saveStatus === 'saved' ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.3)]' :
+                saveStatus === 'saving' ? 'bg-black animate-pulse' :
+                'bg-gray-300'
+              }`} />
+              <span className="text-[8px] font-black uppercase tracking-widest text-gray-400 select-none">
+                {saveStatus === 'saved' ? 'Synced' :
+                 saveStatus === 'saving' ? 'Saving' :
+                 'Edited'}
+              </span>
             </div>
-
-            <div className="flex-1 flex min-h-0 flex-col overflow-hidden bg-gray-50/50">
-                {mainTab === "details" && (
-                    <div className="max-w-4xl mx-auto w-full p-8 overflow-y-auto h-full bg-white shadow-sm my-4 rounded-2xl border border-gray-100">
-                        <h2 className="text-2xl font-bold mb-6 text-gray-900 border-b border-gray-100 pb-4">Guide Details</h2>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-semibold text-gray-700">Category</label>
-                                <select 
-                                    value={category}
-                                    onChange={(e) => setCategory(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black focus:border-black outline-none transition-all"
-                                >
-                                    <option value="Development">Development</option>
-                                    <option value="Design">Design</option>
-                                    <option value="Marketing">Marketing</option>
-                                    <option value="Business">Business</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-semibold text-gray-700">Difficulty</label>
-                                <select 
-                                    value={difficulty}
-                                    onChange={(e) => setDifficulty(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black focus:border-black outline-none transition-all"
-                                >
-                                    <option value="Beginner">Beginner</option>
-                                    <option value="Intermediate">Intermediate</option>
-                                    <option value="Advanced">Advanced</option>
-                                </select>
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-semibold text-gray-700">Estimated Time</label>
-                                <input 
-                                    type="text"
-                                    value={estimatedTime}
-                                    onChange={(e) => setEstimatedTime(e.target.value)}
-                                    placeholder="e.g. 10 mins"
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black focus:border-black outline-none transition-all"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <input
-                                type="text"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                placeholder="Guide Title"
-                                className="w-full text-4xl font-black tracking-tight placeholder:text-gray-300 border-none focus:ring-0 p-0"
-                            />
-                            <input
-                                type="text"
-                                value={keywords}
-                                onChange={(e) => setKeywords(e.target.value)}
-                                placeholder="Add keywords (e.g., react, tutorial, web-dev)..."
-                                className="w-full text-gray-500 placeholder:text-gray-300 border-none focus:ring-0 p-0 text-lg"
-                            />
-
-                            <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 p-4">
-                                <div className="flex items-center justify-between gap-3 mb-3">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-900">Cover Image</p>
-                                        <div className="flex items-center gap-4 mt-1">
-                                            <label className="flex items-center gap-2 cursor-pointer group">
-                                                <div
-                                                    onClick={(e) => { e.preventDefault(); setAutoResize(!autoResize); }}
-                                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none ${autoResize ? "bg-black" : "bg-gray-200"}`}
-                                                >
-                                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${autoResize ? "translate-x-[18px]" : "translate-x-0.5"}`} />
-                                                </div>
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 group-hover:text-black transition-colors">
-                                                    Auto Resize (16:9)
-                                                </span>
-                                            </label>
-                                            {coverImage && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setCoverImage("")}
-                                                    className="text-[10px] font-bold uppercase tracking-wider text-red-600 hover:text-red-800"
-                                                >
-                                                    Remove
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black text-white text-sm font-medium cursor-pointer hover:bg-gray-900 transition-colors">
-                                        <ImageIcon size={16} />
-                                        Upload
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={handleCoverImageUpload}
-                                        />
-                                    </label>
-                                </div>
-
-                                <form onSubmit={handleUrlPaste} className="flex gap-2">
-                                    <div className="relative flex-1">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <LinkIcon size={13} className="text-gray-400" />
-                                        </div>
-                                        <input
-                                            type="text"
-                                            value={coverUrlInput}
-                                            onChange={(e) => { setCoverUrlInput(e.target.value); setCoverUrlError(""); }}
-                                            placeholder="Or paste a direct image URL..."
-                                            className="w-full pl-8 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-black transition-all text-gray-700"
-                                            disabled={isFetchingUrl}
-                                        />
-                                    </div>
-                                    <button
-                                        type="submit"
-                                        disabled={!coverUrlInput.trim() || isFetchingUrl}
-                                        className="px-3 py-2 bg-gray-800 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors disabled:opacity-40 flex items-center gap-1.5 whitespace-nowrap"
-                                    >
-                                        {isFetchingUrl ? <Loader2 size={13} className="animate-spin" /> : <LinkIcon size={13} />}
-                                        Use URL
-                                    </button>
-                                </form>
-                                {coverUrlError && (
-                                    <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-xs p-2.5 rounded-xl mt-2">
-                                        <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
-                                        {coverUrlError}
-                                    </div>
-                                )}
-
-                                {coverImage && (
-                                    <div className="mt-4 rounded-3xl overflow-hidden border border-gray-200 shadow-sm">
-                                        <img src={coverImage} alt="Cover preview" className="w-full h-48 object-cover" />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {mainTab === "editor" && (
-                    <div className="flex-1 flex flex-col min-h-0 bg-white">
-                        <div className="px-8 pt-4 pb-4 flex gap-4 border-b border-gray-100">
-                            <button
-                                onClick={() => setContentType("markdown")}
-                                className={`pb-2 text-sm font-medium border-b-2 transition-colors ${contentType === "markdown" ? "border-black text-black" : "border-transparent text-gray-400 hover:text-gray-600"}`}
-                            >
-                                Markdown
-                            </button>
-                            <button
-                                onClick={() => setContentType("html")}
-                                className={`pb-2 text-sm font-medium border-b-2 transition-colors ${contentType === "html" ? "border-black text-black" : "border-transparent text-gray-400 hover:text-gray-600"}`}
-                            >
-                                Custom HTML
-                            </button>
-                        </div>
-                        
-                        <div className="flex-1 overflow-hidden relative">
-                            {contentType === "markdown" ? (
-                                <textarea
-                                    value={markdown}
-                                    onChange={(e) => setMarkdown(e.target.value)}
-                                    placeholder="Start editing your amazing guide..."
-                                    className="w-full h-full p-8 bg-transparent border-none resize-none focus:ring-0 font-mono text-base text-gray-800 leading-relaxed"
-                                    spellCheck={false}
-                                />
-                            ) : (
-                                <Editor
-                                    height="100%"
-                                    defaultLanguage="html"
-                                    language="html"
-                                    theme="vs-dark"
-                                    value={htmlContent}
-                                    onChange={(val) => setHtmlContent(val || "")}
-                                    options={{
-                                        minimap: { enabled: false },
-                                        wordWrap: "on",
-                                        padding: { top: 24, bottom: 24 },
-                                        fontSize: 15,
-                                        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                                        lineHeight: 1.6,
-                                        scrollBeyondLastLine: false,
-                                    }}
-                                />
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {mainTab === "preview" && (
-                    <div className="flex-1 overflow-y-auto h-full flex flex-col items-center bg-gray-100 py-8 px-4">
-                        <div className="mb-4 flex items-center gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-gray-200">
-                            <button onClick={() => setPreviewDevice("laptop")} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${previewDevice === "laptop" ? "bg-black text-white" : "text-gray-600 hover:bg-gray-100"}`}>Laptop</button>
-                            <button onClick={() => setPreviewDevice("tablet")} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${previewDevice === "tablet" ? "bg-black text-white" : "text-gray-600 hover:bg-gray-100"}`}>Tablet</button>
-                            <button onClick={() => setPreviewDevice("phone")} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${previewDevice === "phone" ? "bg-black text-white" : "text-gray-600 hover:bg-gray-100"}`}>Phone</button>
-                        </div>
-                        <div className={`bg-white rounded-2xl shadow-xl border border-gray-200 overflow-y-auto overflow-x-hidden transition-all duration-300 w-full flex-1 ${previewDevice === "laptop" ? "max-w-4xl" : previewDevice === "tablet" ? "max-w-[768px]" : "max-w-[375px]"}`}>
-                            <div className="p-8 prose prose-lg prose-slate max-w-none prose-headings:font-black prose-a:text-indigo-600">
-                                <div className="mb-6">
-                                    <div className="bg-white border rounded-2xl ring-1 ring-gray-50 overflow-hidden">
-                                        <div className="px-4 py-2 border-b border-gray-100 bg-white">
-                                            <div className="text-xs font-semibold uppercase text-gray-500">Guide Preview</div>
-                                        </div>
-                                        {coverImage && (
-                                            <div className="w-full h-56 overflow-hidden">
-                                                <img src={coverImage} alt="Cover preview" className="w-full h-full object-cover" />
-                                            </div>
-                                        )}
-                                        <div className="p-4">
-                                            <h4 className="font-bold text-lg text-gray-900 truncate">{title || "Untitled guide"}</h4>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {contentType === "markdown" ? (
-                                    markdown ? (
-                                        <div className="p-6">
-                                            <GuideMarkdownRenderer content={markdown} />
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center h-64 opacity-20">
-                                            <Eye size={48} />
-                                            <p className="mt-4 font-medium">Nothing to preview</p>
-                                        </div>
-                                    )
-                                ) : (
-                                    <iframe
-                                        srcDoc={htmlContent}
-                                        className="w-full h-full min-h-[500px] border-0"
-                                        sandbox="allow-scripts allow-same-origin"
-                                        title="Preview"
-                                    />
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
+          </div>
         </div>
-    );
+
+        <div className="flex items-center gap-2 md:gap-4">
+          {/* Desktop tab switcher */}
+          <div className="hidden md:flex bg-gray-100 p-1 rounded-xl gap-1">
+            {(["editor", "preview", "details", "questions"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setMainTab(tab)}
+                className={`px-5 py-2 text-xs font-bold rounded-lg transition-all capitalize ${
+                  mainTab === tab ? "bg-white shadow-lg text-black" : "text-gray-500 hover:text-gray-900"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative group/publish">
+            <button
+              onClick={handleSubmit}
+              disabled={saving || validationErrors.length > 0}
+              className="flex items-center gap-1.5 px-4 sm:px-6 md:px-8 py-2 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+            >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : "Save Changes"}
+            </button>
+            {validationErrors.length > 0 && (
+              <div className="absolute right-0 top-full mt-2 w-64 sm:w-72 p-4 bg-red-50 border border-red-200 rounded-xl shadow-xl opacity-0 group-hover/publish:opacity-100 transition-opacity duration-200 pointer-events-none z-[1010]">
+                <p className="text-xs font-bold text-red-900 mb-2">Fix before saving:</p>
+                <ul className="space-y-1">
+                  {validationErrors.map((err, i) => (
+                    <li key={i} className="text-xs text-red-700 flex items-start gap-1.5">
+                      <span className="mt-1 w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />
+                      {err}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Content area */}
+      <div className="flex-1 flex min-h-0 flex-col overflow-hidden bg-gray-50/30 pb-14 md:pb-0">
+        {mainTab === "editor" && (
+          <EditorTab 
+            formData={formData} setFormData={setFormData}
+            handleToolbarAction={handleToolbarAction}
+            setShowAdvancedImageModal={setShowAdvancedImageModal} setShowVideoModal={setShowVideoModal}
+            setShowQuizBuilder={setShowQuizBuilder} setShowDownloadLinkModal={setShowDownloadLinkModal}
+            textareaRef={textareaRef}
+          />
+        )}
+        {mainTab === "preview" && (
+          <PreviewTab 
+            formData={formData} 
+            previewDevice={previewDevice} setPreviewDevice={setPreviewDevice} 
+          />
+        )}
+        {mainTab === "details" && (
+          <DetailsTab 
+            formData={formData} setFormData={setFormData}
+            slugValue={slugValue} setSlugValue={setSlugValue}
+            readTime={readTime} validationErrors={validationErrors}
+            autoResize={autoResize} setAutoResize={setAutoResize}
+            coverUrlInput={coverUrlInput} setCoverUrlInput={setCoverUrlInput}
+            handleCoverUrlPaste={handleCoverUrlPaste} isFetchingCoverUrl={isFetchingCoverUrl}
+            coverUrlError={coverUrlError} handleCoverImageUpload={handleCoverImageUpload}
+          />
+        )}
+        {mainTab === "questions" && (
+          <QuestionsTab formData={formData} setFormData={setFormData} />
+        )}
+      </div>
+
+      {/* Mobile Bottom Tab Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[1004] bg-white/95 backdrop-blur-md border-t border-gray-200 flex">
+        {(["editor", "preview", "details", "questions"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setMainTab(tab)}
+            className={`flex-1 py-3 flex flex-col items-center gap-0.5 text-[10px] font-bold uppercase tracking-wide transition-colors ${
+              mainTab === tab ? "text-black border-t-2 border-black -mt-px" : "text-gray-400"
+            }`}
+          >
+            {tab === "editor" && <Plus size={18} />}
+            {tab === "preview" && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>}
+            {tab === "details" && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>}
+            {tab === "questions" && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      <ModalsContainer 
+        insertText={insertText}
+        showLinkModal={showLinkModal} setShowLinkModal={setShowLinkModal}
+        showTableModal={showTableModal} setShowTableModal={setShowTableModal}
+        showVideoModal={showVideoModal} setShowVideoModal={setShowVideoModal}
+        showCalloutModal={showCalloutModal} setShowCalloutModal={setShowCalloutModal}
+        showCodeModal={showCodeModal} setShowCodeModal={setShowCodeModal}
+        showFigureModal={showFigureModal} setShowFigureModal={setShowFigureModal}
+        showDetailsModal={showDetailsModal} setShowDetailsModal={setShowDetailsModal}
+        showFootnoteModal={showFootnoteModal} setShowFootnoteModal={setShowFootnoteModal}
+        showBadgeModal={showBadgeModal} setShowBadgeModal={setShowBadgeModal}
+        showKbdModal={showKbdModal} setShowKbdModal={setShowKbdModal}
+        showQuoteModal={showQuoteModal} setShowQuoteModal={setShowQuoteModal}
+        showAnchorModal={showAnchorModal} setShowAnchorModal={setShowAnchorModal}
+        showCitationModal={showCitationModal} setShowCitationModal={setShowCitationModal}
+        showCTAModal={showCTAModal} setShowCTAModal={setShowCTAModal}
+        showStepsModal={showStepsModal} setShowStepsModal={setShowStepsModal}
+        showTimelineModal={showTimelineModal} setShowTimelineModal={setShowTimelineModal}
+        showComparisonModal={showComparisonModal} setShowComparisonModal={setShowComparisonModal}
+        showAlertModal={showAlertModal} setShowAlertModal={setShowAlertModal}
+        showTabsModal={showTabsModal} setShowTabsModal={setShowTabsModal}
+        showDefinitionModal={showDefinitionModal} setShowDefinitionModal={setShowDefinitionModal}
+        showCodeDiffModal={showCodeDiffModal} setShowCodeDiffModal={setShowCodeDiffModal}
+        showFAQModal={showFAQModal} setShowFAQModal={setShowFAQModal}
+        showVersionModal={showVersionModal} setShowVersionModal={setShowVersionModal}
+        showKeyValueModal={showKeyValueModal} setShowKeyValueModal={setShowKeyValueModal}
+        showPlaygroundModal={showPlaygroundModal} setShowPlaygroundModal={setShowPlaygroundModal}
+        showDownloadLinkModal={showDownloadLinkModal} setShowDownloadLinkModal={setShowDownloadLinkModal}
+        showQuizBuilder={showQuizBuilder} setShowQuizBuilder={setShowQuizBuilder}
+        showGuideLinkModal={showGuideLinkModal} setShowGuideLinkModal={setShowGuideLinkModal}
+        currentUserId={user?.id || ""}
+      />
+
+      {showAdvancedImageModal && (
+        <AdvancedImageModal 
+          onInsert={insertText} 
+          onClose={() => setShowAdvancedImageModal(false)} 
+        />
+      )}
+
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[10005] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-md w-full p-10 text-center animate-in zoom-in-95 duration-300 border border-gray-100">
+            <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce">
+              <Sparkles className="w-10 h-10 text-green-600" />
+            </div>
+            <h3 className="text-3xl font-black text-gray-900 mb-3">Guide Updated!</h3>
+            <p className="text-gray-500 mb-10 leading-relaxed text-sm font-medium">
+              Awesome work! 🚀 Your guide updates are saved and will be saved in version history.
+            </p>
+            <button
+              onClick={() => { setShowSuccessModal(false); onClose(); }}
+              className="w-full py-4 bg-black text-white rounded-2xl font-bold hover:bg-gray-800 transition-all shadow-xl shadow-black/20"
+            >
+              Back to Guide
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
