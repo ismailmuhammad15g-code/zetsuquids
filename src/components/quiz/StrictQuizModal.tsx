@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "../../lib/supabase";
 
 interface Question {
   id: string;
